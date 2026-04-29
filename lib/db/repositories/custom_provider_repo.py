@@ -11,6 +11,37 @@ from lib.db.repositories.base import BaseRepository
 class CustomProviderRepository(BaseRepository):
     """自定义供应商 + 模型 CRUD。"""
 
+    @staticmethod
+    def _normalize_api_format(api_format: str) -> str:
+        if api_format not in {"openai", "google"}:
+            raise ValueError(f"不支持的 api_format: {api_format}")
+        return api_format
+
+    @classmethod
+    def _endpoint_for(cls, api_format: str, media_type: str) -> str:
+        api_format = cls._normalize_api_format(api_format)
+        endpoint_map = {
+            ("openai", "text"): "openai-chat",
+            ("openai", "image"): "openai-images",
+            ("openai", "video"): "openai-video",
+            ("google", "text"): "gemini-generate",
+            ("google", "image"): "gemini-image",
+            ("google", "video"): "openai-video",
+        }
+        try:
+            return endpoint_map[(api_format, media_type)]
+        except KeyError as exc:
+            raise ValueError(f"不支持的 media_type: {media_type}") from exc
+
+    def _model_payloads(self, api_format: str, models: list[dict]) -> list[dict]:
+        payloads: list[dict] = []
+        for model in models:
+            payload = dict(model)
+            media_type = payload["media_type"]
+            payload["endpoint"] = self._endpoint_for(api_format, media_type)
+            payloads.append(payload)
+        return payloads
+
     # ── Provider CRUD ──────────────────────────────────────────────
 
     async def create_provider(
@@ -22,9 +53,11 @@ class CustomProviderRepository(BaseRepository):
         models: list[dict] | None = None,
     ) -> CustomProvider:
         """创建供应商，可选同时创建模型列表。"""
+        api_format = self._normalize_api_format(api_format)
         provider = CustomProvider(
             display_name=display_name,
             api_format=api_format,
+            discovery_format=api_format,
             base_url=base_url,
             api_key=api_key,
         )
@@ -32,7 +65,7 @@ class CustomProviderRepository(BaseRepository):
         await self.session.flush()  # 获取 provider.id
 
         if models:
-            for m in models:
+            for m in self._model_payloads(api_format, models):
                 model = CustomProviderModel(provider_id=provider.id, **m)
                 self.session.add(model)
             await self.session.flush()
@@ -54,6 +87,10 @@ class CustomProviderRepository(BaseRepository):
         provider = await self.get_provider(provider_id)
         if provider is None:
             return None
+        if "api_format" in kwargs:
+            normalized = self._normalize_api_format(kwargs["api_format"])
+            kwargs["api_format"] = normalized
+            kwargs["discovery_format"] = normalized
         for key, value in kwargs.items():
             setattr(provider, key, value)
         return provider
@@ -80,9 +117,12 @@ class CustomProviderRepository(BaseRepository):
 
     async def replace_models(self, provider_id: int, models: list[dict]) -> list[CustomProviderModel]:
         """删除旧模型，插入新列表。返回新创建的模型。"""
+        provider = await self.get_provider(provider_id)
+        if provider is None:
+            return []
         await self.session.execute(delete(CustomProviderModel).where(CustomProviderModel.provider_id == provider_id))
         new_models = []
-        for m in models:
+        for m in self._model_payloads(provider.api_format, models):
             model = CustomProviderModel(provider_id=provider_id, **m)
             self.session.add(model)
             new_models.append(model)
@@ -96,6 +136,11 @@ class CustomProviderRepository(BaseRepository):
         model = result.scalar_one_or_none()
         if model is None:
             return None
+        if "media_type" in kwargs:
+            provider = await self.get_provider(model.provider_id)
+            if provider is None:
+                return None
+            kwargs["endpoint"] = self._endpoint_for(provider.api_format, kwargs["media_type"])
         for key, value in kwargs.items():
             setattr(model, key, value)
         return model

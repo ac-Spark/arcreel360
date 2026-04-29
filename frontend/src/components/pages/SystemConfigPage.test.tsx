@@ -158,7 +158,7 @@ describe("SystemConfigPage", () => {
       expect(screen.getByText("以下必填配置尚未完成：")).toBeInTheDocument();
     });
     expect(
-      screen.getByRole("button", { name: /ArcReel 智能体 API Key/ }),
+      screen.getByRole("button", { name: /Claude 智能体所需凭证未配置/ }),
     ).toBeInTheDocument();
   });
 

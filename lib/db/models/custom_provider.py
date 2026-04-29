@@ -16,8 +16,18 @@ class CustomProvider(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     display_name: Mapped[str] = mapped_column(String(128), nullable=False)
     api_format: Mapped[str] = mapped_column(String(32), nullable=False)  # "openai" | "google"
+    discovery_format: Mapped[str] = mapped_column(String(32), nullable=False)
     base_url: Mapped[str] = mapped_column(Text, nullable=False)
     api_key: Mapped[str] = mapped_column(Text, nullable=False)  # sensitive, masked in API responses
+
+    def __init__(self, **kwargs):
+        api_format = kwargs.get("api_format")
+        discovery_format = kwargs.get("discovery_format")
+        if discovery_format is None and api_format is not None:
+            kwargs["discovery_format"] = api_format
+        elif api_format is None and discovery_format is not None:
+            kwargs["api_format"] = discovery_format
+        super().__init__(**kwargs)
 
     @property
     def provider_id(self) -> str:
@@ -42,6 +52,7 @@ class CustomProviderModel(TimestampMixin, Base):
     model_id: Mapped[str] = mapped_column(String(128), nullable=False)
     display_name: Mapped[str] = mapped_column(String(128), nullable=False)
     media_type: Mapped[str] = mapped_column(String(16), nullable=False)  # "text" | "image" | "video"
+    endpoint: Mapped[str] = mapped_column(String(32), nullable=False)
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     price_unit: Mapped[str | None] = mapped_column(String(16), nullable=True)  # "token" | "image" | "second"
@@ -49,3 +60,14 @@ class CustomProviderModel(TimestampMixin, Base):
     price_output: Mapped[float | None] = mapped_column(Float, nullable=True)  # only for text
     currency: Mapped[str | None] = mapped_column(String(8), nullable=True)  # "USD" | "CNY"
     supported_durations: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON list[int]
+
+    def __init__(self, **kwargs):
+        media_type = kwargs.get("media_type")
+        endpoint = kwargs.get("endpoint")
+        if endpoint is None and media_type is not None:
+            kwargs["endpoint"] = {
+                "text": "openai-chat",
+                "image": "openai-images",
+                "video": "openai-video",
+            }.get(media_type, "openai-chat")
+        super().__init__(**kwargs)

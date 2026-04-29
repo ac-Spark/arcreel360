@@ -39,6 +39,7 @@ export function ProviderSection() {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [customProviders, setCustomProviders] = useState<CustomProviderInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [location, navigate] = useLocation();
   const search = useSearch();
 
@@ -84,17 +85,43 @@ export function ProviderSection() {
 
   useEffect(() => {
     let disposed = false;
-    Promise.all([API.getProviders(), API.listCustomProviders()]).then(([presetRes, customRes]) => {
+
+    void Promise.allSettled([API.getProviders(), API.listCustomProviders()]).then(([presetResult, customResult]) => {
       if (disposed) return;
-      setProviders(presetRes.providers);
-      setCustomProviders(customRes.providers);
-      // Auto-select first preset if nothing is selected
-      const params = new URLSearchParams(search);
-      if (!params.get("provider") && !params.get("custom") && presetRes.providers.length > 0) {
-        setSelection({ kind: "preset", id: presetRes.providers[0].id });
+
+      let nextProviders: ProviderInfo[] = [];
+      let nextCustomProviders: CustomProviderInfo[] = [];
+      const failures: string[] = [];
+
+      if (presetResult.status === "fulfilled") {
+        nextProviders = presetResult.value.providers;
+        setProviders(nextProviders);
+      } else {
+        setProviders([]);
+        failures.push("预置供应商");
       }
+
+      if (customResult.status === "fulfilled") {
+        nextCustomProviders = customResult.value.providers;
+        setCustomProviders(nextCustomProviders);
+      } else {
+        setCustomProviders([]);
+        failures.push("自定义供应商");
+      }
+
+      const params = new URLSearchParams(search);
+      if (!params.get("provider") && !params.get("custom") && nextProviders.length > 0) {
+        setSelection({ kind: "preset", id: nextProviders[0].id });
+      }
+
+      setLoadError(
+        failures.length > 0
+          ? `${failures.join("、")}加载失败，页面已显示可用结果。`
+          : null,
+      );
       setLoading(false);
     });
+
     return () => {
       disposed = true;
     };
@@ -113,6 +140,12 @@ export function ProviderSection() {
     <div className="flex h-full">
       {/* Provider list sidebar */}
       <nav aria-label="供应商列表" className="w-52 shrink-0 overflow-y-auto border-r border-gray-800 py-3">
+        {loadError && (
+          <div className="mx-3 mb-3 rounded-lg border border-amber-900/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+            {loadError}
+          </div>
+        )}
+
         {/* Preset providers */}
         <div className="px-4 pb-2 text-xs uppercase tracking-wide text-gray-500">
           预置供应商

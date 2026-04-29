@@ -33,6 +33,7 @@ class TestProviderCRUD:
         assert provider.id is not None
         assert provider.display_name == "My OpenAI"
         assert provider.api_format == "openai"
+        assert provider.discovery_format == "openai"
         assert provider.base_url == "https://api.openai.com/v1"
         assert provider.api_key == "sk-test-123"
 
@@ -69,7 +70,9 @@ class TestProviderCRUD:
         result = await repo.list_models(provider.id)
         assert len(result) == 2
         assert result[0].model_id == "gpt-4o"
+        assert result[0].endpoint == "openai-chat"
         assert result[1].model_id == "dall-e-3"
+        assert result[1].endpoint == "openai-images"
         assert result[1].price_unit == "image"
         assert result[1].price_input == 0.04
 

@@ -38,7 +38,16 @@ class TestCustomProviderTable:
             columns = await conn.run_sync(
                 lambda sync_conn: {c["name"] for c in inspect(sync_conn).get_columns("custom_provider")}
             )
-        expected = {"id", "display_name", "api_format", "base_url", "api_key", "created_at", "updated_at"}
+        expected = {
+            "id",
+            "display_name",
+            "api_format",
+            "discovery_format",
+            "base_url",
+            "api_key",
+            "created_at",
+            "updated_at",
+        }
         assert columns == expected
 
 
@@ -57,6 +66,7 @@ class TestCustomProviderRoundTrip:
         loaded = result.scalar_one()
         assert loaded.display_name == "My Ollama"
         assert loaded.api_format == "openai"
+        assert loaded.discovery_format == "openai"
         assert loaded.base_url == "http://localhost:11434/v1"
         assert loaded.api_key == "sk-local-test"
         assert loaded.id is not None
@@ -95,6 +105,7 @@ class TestCustomProviderModelTable:
             "model_id",
             "display_name",
             "media_type",
+            "endpoint",
             "is_default",
             "is_enabled",
             "price_unit",
@@ -142,6 +153,7 @@ class TestCustomProviderModelRoundTrip:
         assert loaded.model_id == "anthropic/claude-sonnet-4"
         assert loaded.display_name == "Claude Sonnet"
         assert loaded.media_type == "text"
+        assert loaded.endpoint == "openai-chat"
         assert loaded.is_default is True
         assert loaded.is_enabled is True
         assert loaded.price_unit == "token"
