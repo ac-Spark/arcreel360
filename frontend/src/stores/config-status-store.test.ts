@@ -59,7 +59,7 @@ describe("config-status-store", () => {
     vi.restoreAllMocks();
   });
 
-  it("reports anthropic and provider issues when both unconfigured", async () => {
+  it("reports media provider issues when providers are unconfigured", async () => {
     vi.spyOn(API, "getProviders").mockResolvedValue(makeProviders());
     vi.spyOn(API, "getSystemConfig").mockResolvedValue(makeConfigResponse());
 
@@ -67,12 +67,10 @@ describe("config-status-store", () => {
 
     const { issues, initialized } = useConfigStatusStore.getState();
     expect(initialized).toBe(true);
-    // anthropic issue + no ready provider for each media type
-    expect(issues.find((i) => i.key === "anthropic")).toBeTruthy();
     expect(issues.find((i) => i.key === "no-video-provider")).toBeTruthy();
     expect(issues.find((i) => i.key === "no-image-provider")).toBeTruthy();
     expect(issues.find((i) => i.key === "no-text-provider")).toBeTruthy();
-    expect(issues).toHaveLength(4);
+    expect(issues).toHaveLength(3);
   });
 
   it("reports no issues when all configured", async () => {
@@ -106,12 +104,26 @@ describe("config-status-store", () => {
     expect(useConfigStatusStore.getState().issues.length).toBeGreaterThan(0);
   });
 
-  it("does not require anthropic when assistant provider is gemini-lite and gemini is ready", async () => {
+  it("does not add a Claude credential issue when assistant provider is gemini-lite and gemini is ready", async () => {
     vi.spyOn(API, "getProviders").mockResolvedValue(
       makeProviders([{ id: "gemini-aistudio", display_name: "Google Gemini AI Studio", status: "ready", media_types: ["image", "video", "text"], capabilities: [], configured_keys: ["api_key"], missing_keys: [], models: {} }]),
     );
     vi.spyOn(API, "getSystemConfig").mockResolvedValue(
       makeConfigResponse({ assistant_provider: "gemini-lite", anthropic_api_key: { is_set: false, masked: null } }),
+    );
+
+    await useConfigStatusStore.getState().fetch();
+
+    const { issues } = useConfigStatusStore.getState();
+    expect(issues.find((i) => i.key === "anthropic")).toBeFalsy();
+  });
+
+  it("does not add a Claude credential issue even when claude is selected without anthropic key", async () => {
+    vi.spyOn(API, "getProviders").mockResolvedValue(
+      makeProviders([{ id: "gemini-aistudio", display_name: "Google Gemini AI Studio", status: "ready", media_types: ["image", "video", "text"], capabilities: [], configured_keys: ["api_key"], missing_keys: [], models: {} }]),
+    );
+    vi.spyOn(API, "getSystemConfig").mockResolvedValue(
+      makeConfigResponse({ assistant_provider: "claude", anthropic_api_key: { is_set: false, masked: null } }),
     );
 
     await useConfigStatusStore.getState().fetch();

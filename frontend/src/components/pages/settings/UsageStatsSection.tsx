@@ -49,8 +49,9 @@ export function UsageStatsSection() {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-100">用量统计</h3>
-        <p className="mt-1 text-sm text-gray-500">查看各供应商的 API 调用统计</p>
+        <div className="workbench-kicker text-[11px] font-semibold">Provider Cost Signals</div>
+        <h3 className="mt-1 text-lg font-semibold text-[color:var(--wb-text-primary)]">用量统计</h3>
+        <p className="mt-1 text-sm text-[color:var(--wb-text-muted)]">查看各供应商的 API 调用统计</p>
       </div>
 
       {/* Filters */}
@@ -60,10 +61,10 @@ export function UsageStatsSection() {
             key={r.days}
             type="button"
             onClick={() => setTimeRange(r.days)}
-            className={`rounded-lg px-3 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:outline-none ${
+            className={`rounded-xl px-3.5 py-2 text-sm focus-visible:outline-none ${
               timeRange === r.days
-                ? "bg-indigo-600 text-white"
-                : "border border-gray-700 text-gray-400 hover:text-gray-200"
+                ? "workbench-button-primary"
+                : "workbench-button-secondary"
             }`}
           >
             {r.label}
@@ -74,7 +75,7 @@ export function UsageStatsSection() {
             value={providerFilter}
             onChange={(e) => setProviderFilter(e.target.value)}
             aria-label="按供应商筛选"
-            className="rounded-lg border border-gray-700 bg-gray-900 px-3 py-1.5 text-sm text-gray-300 focus:border-indigo-500/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60"
+            className="workbench-input rounded-xl px-3 py-2 text-sm focus:outline-none"
           >
             <option value="">全部供应商</option>
             {providers.map((p) => (
@@ -88,25 +89,25 @@ export function UsageStatsSection() {
 
       {/* Stats */}
       {loading ? (
-        <div className="text-sm text-gray-500">加载中…</div>
+        <div className="text-sm text-[color:var(--wb-text-muted)]">加载中…</div>
       ) : stats.length === 0 ? (
-        <div className="text-sm text-gray-500">暂无数据</div>
+        <div className="workbench-panel-subtle rounded-2xl px-4 py-4 text-sm text-[color:var(--wb-text-muted)]">暂无数据</div>
       ) : (
         <div className="space-y-3">
           {stats.map((s) => (
-            <div key={`${s.provider}-${s.call_type}`} className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">
+            <div key={`${s.provider}-${s.call_type}`} className="workbench-panel rounded-2xl p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-sm font-medium text-gray-100">{s.display_name ?? s.provider}</span>
-                  <span className="ml-2 text-xs text-gray-500">{s.call_type}</span>
+                  <span className="text-sm font-medium text-[color:var(--wb-text-primary)]">{s.display_name ?? s.provider}</span>
+                  <span className="ml-2 text-xs text-[color:var(--wb-text-muted)]">{s.call_type}</span>
                 </div>
-                <span className="text-sm text-gray-300">
+                <span className="text-sm text-[color:var(--wb-text-secondary)]">
                   {currencyFmt.format(s.total_cost_usd)}
                 </span>
               </div>
-              <div className="mt-2 flex flex-wrap gap-6 text-xs tabular-nums text-gray-400">
-                <span>调用: {s.total_calls}</span>
-                <span>成功: {s.success_calls}</span>
+              <div className="mt-3 flex flex-wrap gap-3 text-xs tabular-nums text-[color:var(--wb-text-muted)]">
+                <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">调用: {s.total_calls}</span>
+                <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">成功: {s.success_calls}</span>
                 <span>
                   成功率:{" "}
                   {s.total_calls > 0

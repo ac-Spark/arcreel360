@@ -170,41 +170,49 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
     <button
       type="button"
       onClick={() => navigate(`/app/projects/${project.name}`)}
-      className="flex flex-col gap-3 rounded-xl border border-gray-800 bg-gray-900 p-5 text-left transition-colors hover:border-indigo-500/50 hover:bg-gray-800/50 cursor-pointer"
+      className="project-card workbench-panel hover:workbench-panel-strong group relative flex cursor-pointer flex-col gap-4 overflow-hidden rounded-[1.35rem] p-5 text-left"
     >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/6 to-transparent opacity-70" />
+
       {/* Thumbnail or placeholder */}
-      <div className="aspect-video w-full overflow-hidden rounded-lg bg-gray-800">
+      <div className="relative aspect-video w-full overflow-hidden rounded-[1rem] border border-white/6 bg-[rgba(10,16,28,0.86)]">
         {project.thumbnail ? (
           <img
             src={project.thumbnail}
             alt={project.title}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-gray-600">
+          <div className="flex h-full w-full items-center justify-center text-[color:var(--wb-text-dim)]">
             <FolderOpen className="h-10 w-10" />
           </div>
         )}
+        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/35 to-transparent" />
       </div>
 
       {/* Info */}
-      <div>
-        <h3 className="font-semibold text-gray-100 truncate">{project.title}</h3>
-        <p className="text-xs text-gray-500 mt-0.5">
+      <div className="relative z-10">
+        <div className="text-[11px] uppercase tracking-[0.24em] text-[color:var(--wb-accent-cyan)]">
+          创作工作台
+        </div>
+        <h3 className="mt-2 truncate text-base font-semibold text-[color:var(--wb-text-primary)]">
+          {project.title}
+        </h3>
+        <p className="mt-1 text-xs text-[color:var(--wb-text-muted)]">
           {project.style || "未设置风格"}
           {phaseLabel ? ` · ${phaseLabel}` : ""}
         </p>
       </div>
 
       {/* Progress bar */}
-      <div>
-        <div className="flex justify-between text-xs text-gray-500 mb-1">
+      <div className="rounded-2xl border border-white/6 bg-black/12 px-3 py-3">
+        <div className="mb-2 flex justify-between text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">
           <span>{phaseLabel || "进度"}</span>
           <span>{pct}%</span>
         </div>
-        <div className="h-1.5 rounded-full bg-gray-800 overflow-hidden">
+        <div className="h-2 overflow-hidden rounded-full bg-[rgba(129,146,181,0.16)]">
           <div
-            className="h-full rounded-full bg-indigo-600 transition-all"
+            className="h-full rounded-full bg-[linear-gradient(90deg,var(--wb-accent),var(--wb-accent-cyan))] transition-all"
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -212,19 +220,19 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
 
       {/* Characters & Clues — always shown */}
       {(characters || clues) && (
-        <div className="flex gap-3 text-xs text-gray-500">
+        <div className="flex flex-wrap gap-2 text-xs text-[color:var(--wb-text-muted)]">
           {characters && (
-            <span>角色 {characters.completed}/{characters.total}</span>
+            <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">角色 {characters.completed}/{characters.total}</span>
           )}
           {clues && (
-            <span>线索 {clues.completed}/{clues.total}</span>
+            <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">线索 {clues.completed}/{clues.total}</span>
           )}
         </div>
       )}
 
       {/* Episodes summary */}
       {summary && summary.total > 0 && (
-        <div className="text-xs text-gray-500">
+        <div className="text-xs leading-6 text-[color:var(--wb-text-muted)]">
           {summary.total} 集
           {summary.scripted > 0 && ` · ${summary.scripted} 集剧本完成`}
           {summary.in_production > 0 && ` · ${summary.in_production} 集制作中`}
@@ -382,23 +390,26 @@ export function ProjectsPage() {
   }, [importingProject]);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
+    <div className="workbench-shell workbench-grid min-h-screen text-[color:var(--wb-text-primary)]">
       {/* Header */}
-      <header className="border-b border-gray-800 px-6 py-4">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <h1 className="flex items-center gap-2 text-xl font-bold">
-            <img src="/android-chrome-192x192.png" alt="ArcReel" className="h-7 w-7" />
-            <span className="text-indigo-400">
-              ArcReel
-            </span>
-            <span className="ml-1 text-gray-400 font-normal text-base">项目</span>
-          </h1>
+      <header className="relative border-b border-[color:var(--wb-border-soft)] px-6 py-5 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-start justify-between gap-6">
+          <div>
+            <div className="workbench-kicker text-xs font-semibold">Creative Project Hall</div>
+            <h1 className="workbench-title mt-2 flex items-center gap-3 text-[1.9rem] font-semibold tracking-tight">
+              <img src="/android-chrome-192x192.png" alt="ArcReel" className="h-8 w-8 rounded-xl" />
+              <span>ArcReel 项目工作台</span>
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--wb-text-muted)]">
+              在同一個入口管理小说转视频项目、导入归档与系统配置，优先突出项目上下文与创作进度，而不是后台表单感。
+            </p>
+          </div>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => importInputRef.current?.click()}
               disabled={importingProject}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-900 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-gray-500 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="workbench-button-secondary inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60"
             >
               {importingProject ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -410,16 +421,16 @@ export function ProjectsPage() {
             <button
               type="button"
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition-colors cursor-pointer"
+              className="workbench-button-primary inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-medium"
             >
               <Plus className="h-4 w-4" />
               新建项目
             </button>
-            <div className="ml-1 flex items-center gap-1 border-l border-gray-800 pl-3">
+            <div className="ml-1 flex items-center gap-1 border-l border-[color:var(--wb-border-soft)] pl-3">
               <button
                 type="button"
                 onClick={() => setShowOpenClaw(true)}
-                className="rounded-md px-2.5 py-1.5 text-sm text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200"
+                className="workbench-button-secondary rounded-xl px-2.5 py-1.5 text-sm"
                 title="OpenClaw 集成"
                 aria-label="OpenClaw 集成指南"
               >
@@ -428,7 +439,7 @@ export function ProjectsPage() {
               <button
                 type="button"
                 onClick={() => navigate("/app/settings")}
-                className="relative rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200"
+                className="workbench-button-secondary relative rounded-xl p-2"
                 title="系统配置"
                 aria-label="系统配置"
               >
@@ -450,16 +461,43 @@ export function ProjectsPage() {
       </header>
 
       {/* Content */}
-      <main className="mx-auto max-w-6xl px-6 py-8">
+      <main className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8">
+        <section className="workbench-panel-strong relative overflow-hidden rounded-[1.6rem] px-6 py-6">
+          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-[rgba(109,140,255,0.16)] via-transparent to-[rgba(112,199,217,0.16)]" />
+          <div className="relative grid gap-4 lg:grid-cols-[1.7fr_1fr]">
+            <div>
+              <div className="text-xs uppercase tracking-[0.22em] text-[color:var(--wb-accent-cyan)]">Workspace Overview</div>
+              <h2 className="mt-2 text-2xl font-semibold text-[color:var(--wb-text-primary)]">从这里进入每个创作项目</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--wb-text-muted)]">
+                項目卡片現在優先顯示上下文、進度與角色/線索完成度，讓入口頁更像創作台總覽，而不是單純資料清單。
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+              <div className="rounded-2xl border border-white/6 bg-black/12 px-4 py-3">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">项目总数</div>
+                <div className="mt-2 text-2xl font-semibold text-[color:var(--wb-text-primary)]">{projects.length}</div>
+              </div>
+              <div className="rounded-2xl border border-white/6 bg-black/12 px-4 py-3">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">配置状态</div>
+                <div className="mt-2 text-sm font-medium text-[color:var(--wb-text-secondary)]">{isConfigComplete ? "已就绪" : "待完善"}</div>
+              </div>
+              <div className="rounded-2xl border border-white/6 bg-black/12 px-4 py-3">
+                <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">快速入口</div>
+                <div className="mt-2 text-sm font-medium text-[color:var(--wb-text-secondary)]">导入 ZIP / 新建项目 / 设置中心</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {projectsLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-indigo-400" />
-            <span className="ml-2 text-gray-400">加载项目列表...</span>
+          <div className="workbench-panel flex items-center justify-center rounded-[1.4rem] py-20">
+            <Loader2 className="h-6 w-6 animate-spin text-[color:var(--wb-accent)]" />
+            <span className="ml-2 text-[color:var(--wb-text-muted)]">加载项目列表...</span>
           </div>
         ) : projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+          <div className="workbench-panel flex flex-col items-center justify-center rounded-[1.4rem] py-20 text-[color:var(--wb-text-muted)]">
             <FolderOpen className="h-16 w-16 mb-4" />
-            <p className="text-lg">暂无项目</p>
+            <p className="text-lg text-[color:var(--wb-text-primary)]">暂无项目</p>
             <p className="text-sm mt-1">点击右上角「新建项目」或「导入 ZIP」开始创作</p>
           </div>
         ) : (

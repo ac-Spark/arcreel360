@@ -129,7 +129,7 @@ export function ProviderSection() {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 px-6 py-8 text-sm text-gray-500">
+      <div className="flex items-center gap-2 px-6 py-8 text-sm text-[color:var(--wb-text-muted)]">
         <Loader2 className="h-4 w-4 animate-spin" />
         加载供应商列表…
       </div>
@@ -139,15 +139,15 @@ export function ProviderSection() {
   return (
     <div className="flex h-full">
       {/* Provider list sidebar */}
-      <nav aria-label="供应商列表" className="w-52 shrink-0 overflow-y-auto border-r border-gray-800 py-3">
+      <nav aria-label="供应商列表" className="w-56 shrink-0 overflow-y-auto border-r border-[color:var(--wb-border-soft)] p-3">
         {loadError && (
-          <div className="mx-3 mb-3 rounded-lg border border-amber-900/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+          <div className="workbench-status-warning mx-1 mb-3 rounded-xl px-3 py-2 text-xs">
             {loadError}
           </div>
         )}
 
         {/* Preset providers */}
-        <div className="px-4 pb-2 text-xs uppercase tracking-wide text-gray-500">
+        <div className="px-4 pb-2 text-xs uppercase tracking-wide text-[color:var(--wb-text-dim)]">
           预置供应商
         </div>
         {providers.map((p) => (
@@ -155,10 +155,10 @@ export function ProviderSection() {
             key={p.id}
             type="button"
             onClick={() => setSelection({ kind: "preset", id: p.id })}
-            className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors ${
+            className={`flex w-full items-center gap-2.5 rounded-xl px-4 py-3 text-left text-sm transition-colors ${
               selection?.kind === "preset" && selection.id === p.id
-                ? "border-l-2 border-indigo-500 bg-gray-800/50 text-white"
-                : "border-l-2 border-transparent text-gray-400 hover:bg-gray-800/30 hover:text-gray-200"
+                ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
+                : "text-[color:var(--wb-text-muted)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
             }`}
           >
             <ProviderIcon providerId={p.id} className="h-4 w-4 shrink-0" />
@@ -223,7 +223,7 @@ export function ProviderSection() {
         )}
         {!selection && (
           <div className="flex-1 overflow-y-auto p-6">
-            <div className="text-sm text-gray-500">请选择供应商</div>
+            <div className="text-sm text-[color:var(--wb-text-muted)]">请选择供应商</div>
           </div>
         )}
       </div>

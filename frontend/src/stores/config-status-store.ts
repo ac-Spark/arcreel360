@@ -26,15 +26,6 @@ async function getConfigIssues(): Promise<ConfigIssue[]> {
   const assistantProvider = settings.assistant_provider || "claude";
   const readyProviders = providers.filter((p) => p.status === "ready");
 
-  // 1. Check assistant provider requirements
-  if (assistantProvider === "claude" && !settings.anthropic_api_key?.is_set) {
-    issues.push({
-      key: "anthropic",
-      tab: "agent",
-      label: "Claude 智能体所需凭证未配置",
-    });
-  }
-
   if (assistantProvider === "gemini-lite") {
     const hasGeminiAssistantProvider = readyProviders.some((p) => GEMINI_ASSISTANT_PROVIDER_IDS.has(p.id));
     if (!hasGeminiAssistantProvider) {
@@ -57,7 +48,7 @@ async function getConfigIssues(): Promise<ConfigIssue[]> {
     }
   }
 
-  // 2. Check any provider supports each media type
+  // Check any provider supports each media type
   const hasMediaType = (type: string) =>
     readyProviders.some((p) => p.media_types.includes(type));
 

@@ -114,8 +114,7 @@ describe("SystemConfigPage", () => {
   it("defaults to the 智能体 section", () => {
     renderPage();
     const agentButton = screen.getByRole("button", { name: /智能体/ });
-    // Active sidebar item has the indigo border class applied
-    expect(agentButton.className).toContain("border-indigo-500");
+    expect(agentButton.className).toContain("workbench-panel-strong");
   });
 
   it("clicking 供应商 makes it the active section", async () => {
@@ -123,7 +122,7 @@ describe("SystemConfigPage", () => {
     const providersButton = screen.getByRole("button", { name: /供应商/ });
     fireEvent.click(providersButton);
     await waitFor(() => {
-      expect(providersButton.className).toContain("border-indigo-500");
+      expect(providersButton.className).toContain("workbench-panel-strong");
     });
   });
 
@@ -132,7 +131,7 @@ describe("SystemConfigPage", () => {
     const mediaButton = screen.getByRole("button", { name: /模型选择/ });
     fireEvent.click(mediaButton);
     await waitFor(() => {
-      expect(mediaButton.className).toContain("border-indigo-500");
+      expect(mediaButton.className).toContain("workbench-panel-strong");
     });
   });
 
@@ -141,16 +140,15 @@ describe("SystemConfigPage", () => {
     const usageButton = screen.getByRole("button", { name: /用量统计/ });
     fireEvent.click(usageButton);
     await waitFor(() => {
-      expect(usageButton.className).toContain("border-indigo-500");
+      expect(usageButton.className).toContain("workbench-panel-strong");
     });
   });
 
-  it("shows config warning banner when there are config issues", async () => {
-    // Simulate unconfigured anthropic key to trigger an issue
+  it("shows config warning banner when there are provider issues", async () => {
     vi.spyOn(API, "getSystemConfig").mockResolvedValue(
-      makeConfigResponse({ anthropic_api_key: { is_set: false, masked: null } }),
+      makeConfigResponse({ assistant_provider: "gemini-lite", anthropic_api_key: { is_set: false, masked: null } }),
     );
-    vi.spyOn(API, "getProviders").mockResolvedValue(makeProviders({ status: "ready" }));
+    vi.spyOn(API, "getProviders").mockResolvedValue(makeProviders({ id: "openai", status: "ready", media_types: ["image", "video", "text"] }));
 
     renderPage();
 
@@ -158,7 +156,7 @@ describe("SystemConfigPage", () => {
       expect(screen.getByText("以下必填配置尚未完成：")).toBeInTheDocument();
     });
     expect(
-      screen.getByRole("button", { name: /Claude 智能体所需凭证未配置/ }),
+      screen.getByRole("button", { name: /Gemini 智能体未配置可用的 Gemini 文本供应商/ }),
     ).toBeInTheDocument();
   });
 

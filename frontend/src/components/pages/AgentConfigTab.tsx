@@ -84,11 +84,11 @@ function buildPatch(draft: AgentDraft, saved: AgentDraft): SystemConfigPatch {
 // Shared style constants
 // ---------------------------------------------------------------------------
 
-const cardClassName = "rounded-xl border border-gray-800 bg-gray-950/40 p-4";
+const cardClassName = "workbench-panel rounded-[1.2rem] p-5";
 const inputClassName =
-  "w-full rounded-lg border border-gray-700 bg-gray-900/80 px-3 py-2 text-sm text-gray-200 placeholder:text-gray-600 focus:border-indigo-500/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60";
+  "workbench-input w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none";
 const smallBtnClassName =
-  "rounded p-1 text-gray-500 hover:text-gray-300 focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:outline-none";
+  "rounded p-1 text-[color:var(--wb-text-dim)] hover:text-[color:var(--wb-text-secondary)] focus-visible:outline-none";
 
 // Model routing config — static, hoisted to module level to avoid re-creation on each render
 const MODEL_ROUTING_FIELDS = [
@@ -124,7 +124,7 @@ const MODEL_ROUTING_FIELDS = [
 
 // Small inline clear button shown next to "当前：" when a value is set
 const inlineClearClassName =
-  "ml-1.5 inline-flex items-center rounded p-0.5 text-gray-600 transition-colors hover:text-rose-400 disabled:cursor-not-allowed disabled:opacity-50";
+  "ml-1.5 inline-flex items-center rounded p-0.5 text-[color:var(--wb-text-dim)] transition-colors hover:text-[color:var(--wb-danger)] disabled:cursor-not-allowed disabled:opacity-50";
 
 const ASSISTANT_PROVIDER_META: Record<string, { label: string; tier: string; description: string; requirement: string }> = {
   claude: {
@@ -154,8 +154,8 @@ const ASSISTANT_PROVIDER_META: Record<string, { label: string; tier: string; des
 function SectionHeading({ title, description }: { title: string; description: string }) {
   return (
     <div className="mb-4">
-      <h3 className="text-base font-semibold text-gray-100">{title}</h3>
-      <p className="mt-1 text-sm text-gray-500">{description}</p>
+      <h3 className="text-base font-semibold text-[color:var(--wb-text-primary)]">{title}</h3>
+      <p className="mt-1 text-sm leading-6 text-[color:var(--wb-text-muted)]">{description}</p>
     </div>
   );
 }
@@ -281,11 +281,11 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
   if (loadError) {
     return (
       <div className={visible ? "px-6 py-8" : "hidden"}>
-        <div className="text-sm text-rose-400">加载失败: {loadError}</div>
+        <div className="text-sm text-[color:var(--wb-danger)]">加载失败: {loadError}</div>
         <button
           type="button"
           onClick={() => void load()}
-          className="mt-3 inline-flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:border-gray-600 hover:bg-gray-800/50"
+          className="workbench-button-secondary mt-3 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm"
         >
           <Loader2 className="h-4 w-4" />
           重试
@@ -296,8 +296,8 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
 
   if (!remoteData) {
     return (
-      <div className={visible ? "flex items-center gap-2 px-6 py-8 text-gray-400" : "hidden"}>
-        <Loader2 className="h-4 w-4 animate-spin text-indigo-400" />
+      <div className={visible ? "flex items-center gap-2 px-6 py-8 text-[color:var(--wb-text-muted)]" : "hidden"}>
+        <Loader2 className="h-4 w-4 animate-spin text-[color:var(--wb-accent)]" />
         加载中…
       </div>
     );
@@ -309,21 +309,22 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
     <div className={visible ? undefined : "hidden"}>
       <div className="space-y-8 px-6 pb-0 pt-6">
         {/* Page intro */}
-        <div>
+        <div className="workbench-panel-strong rounded-[1.4rem] px-5 py-5">
           <div className="flex items-center gap-3">
-            <div className="rounded-2xl border border-gray-800 bg-gray-900 p-3 shadow-inner shadow-white/5">
+            <div className="rounded-2xl border border-white/6 bg-black/12 p-3 shadow-inner shadow-white/5">
               <ClaudeColor size={24} />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-100">ArcReel 智能体</h2>
-              <p className="text-sm text-gray-500">
+              <div className="workbench-kicker text-[11px] font-semibold">Assistant Runtime</div>
+              <h2 className="mt-1 text-lg font-semibold text-[color:var(--wb-text-primary)]">ArcReel 智能体</h2>
+              <p className="text-sm text-[color:var(--wb-text-muted)]">
                 通过可切换的运行时 provider，驱动对话式 AI 助手与自动化工作流
               </p>
             </div>
           </div>
-          <div className="mt-3 flex items-start gap-2 rounded-lg border border-gray-800/60 bg-gray-900/30 px-3 py-2">
-            <Terminal className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-500" />
-            <p className="text-xs text-gray-500">
+          <div className="mt-4 flex items-start gap-2 rounded-2xl border border-white/6 bg-black/12 px-4 py-3">
+            <Terminal className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[color:var(--wb-accent-cyan)]" />
+            <p className="text-xs leading-6 text-[color:var(--wb-text-muted)]">
               配置项兼容 Claude Code 环境变量命名，可使用兼容 Claude Code 的 Coding Plan API。
             </p>
           </div>
@@ -355,15 +356,15 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
               </select>
             </div>
 
-            <div className="rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-3 text-sm text-gray-300">
-              <div className="flex items-center gap-2 text-gray-100">
+            <div className="rounded-2xl border border-white/6 bg-black/12 px-4 py-4 text-sm text-[color:var(--wb-text-secondary)]">
+              <div className="flex items-center gap-2 text-[color:var(--wb-text-primary)]">
                 <span className="font-medium">{providerMeta.label}</span>
-                <span className="rounded-full border border-gray-700 px-2 py-0.5 text-xs uppercase tracking-wide text-gray-400">
+                <span className="rounded-full border border-white/6 px-2 py-0.5 text-xs uppercase tracking-wide text-[color:var(--wb-text-muted)]">
                   {providerMeta.tier}
                 </span>
               </div>
-              <p className="mt-2 text-sm text-gray-400">{providerMeta.description}</p>
-              <p className="mt-2 text-xs text-gray-500">{providerMeta.requirement}</p>
+              <p className="mt-2 text-sm text-[color:var(--wb-text-secondary)]">{providerMeta.description}</p>
+              <p className="mt-2 text-xs text-[color:var(--wb-text-muted)]">{providerMeta.requirement}</p>
             </div>
           </div>
         </div>

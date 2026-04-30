@@ -3,26 +3,89 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-    --color-ink-950: #060a0f;
-    --color-ink-900: #0b1320;
-    --color-ink-800: #132034;
-    --color-ink-700: #22344f;
-    --color-neon-500: #11d3ac;
-    --color-neon-400: #34e7c5;
-    --color-neon-300: #6af2d8;
-    --color-amberx-500: #f0a93e;
-    --color-amberx-400: #f6be67;
-    --color-amberx-300: #ffd892;
-    --shadow-glow: 0 0 0 1px rgba(17, 211, 172, 0.28), 0 18px 40px rgba(8, 15, 25, 0.45);
+    --color-ink-950: #0a0f1a;
+    --color-ink-900: #101726;
+    --color-ink-850: #141e31;
+    --color-ink-800: #1a2740;
+    --color-ink-700: #273655;
+    --color-mist-300: #c7d2e5;
+    --color-mist-200: #dce6f5;
+    --color-cyan-400: #70c7d9;
+    --color-cyan-300: #91d8e6;
+    --color-accent-500: #6d8cff;
+    --color-accent-400: #88a3ff;
+    --color-success-400: #66c7a6;
+    --color-warning-400: #f1ae63;
+    --color-danger-400: #ef7d6c;
+    --shadow-glow: 0 0 0 1px rgba(109, 140, 255, 0.22), 0 24px 56px rgba(3, 8, 18, 0.52);
 
-    /* Studio theme colors — 工作台主题色 */
-    --color-studio-bg: #030712;
-    --color-studio-panel: #111827;
-    --color-studio-border: #1f2937;
-    --color-accent-start: #4f46e5;
-    --color-accent-end: #4f46e5;
+    --color-studio-bg: #080d17;
+    --color-studio-panel: #121a2b;
+    --color-studio-panel-strong: #162238;
+    --color-studio-elevated: #1b2943;
+    --color-studio-border: #24324d;
+    --color-accent-start: #6d8cff;
+    --color-accent-end: #70c7d9;
 
-    /* Font families — 字体定义 */
-    --font-sans: "Inter", "Noto Sans SC", system-ui, sans-serif;
-    --font-mono: "Fira Code", "Noto Sans Mono", monospace;
+    --font-sans: "Avenir Next", "SF Pro Display", "PingFang SC", "Noto Sans SC", sans-serif;
+    --font-mono: "IBM Plex Mono", "Fira Code", "Noto Sans Mono", monospace;
+}
+
+:root {
+    color-scheme: dark;
+    --wb-bg: #080d17;
+    --wb-bg-muted: #0d1320;
+    --wb-surface-0: rgba(16, 23, 38, 0.96);
+    --wb-surface-1: rgba(19, 29, 48, 0.92);
+    --wb-surface-2: rgba(24, 36, 58, 0.96);
+    --wb-surface-3: rgba(31, 47, 76, 0.98);
+    --wb-border-soft: rgba(105, 126, 167, 0.22);
+    --wb-border-strong: rgba(120, 148, 197, 0.38);
+    --wb-text-primary: #edf3ff;
+    --wb-text-secondary: #c8d3e8;
+    --wb-text-muted: #91a0bd;
+    --wb-text-dim: #64728d;
+    --wb-accent: #6d8cff;
+    --wb-accent-soft: rgba(109, 140, 255, 0.18);
+    --wb-accent-cyan: #70c7d9;
+    --wb-accent-cyan-soft: rgba(112, 199, 217, 0.16);
+    --wb-success: #66c7a6;
+    --wb-success-soft: rgba(102, 199, 166, 0.16);
+    --wb-warning: #f1ae63;
+    --wb-warning-soft: rgba(241, 174, 99, 0.16);
+    --wb-danger: #ef7d6c;
+    --wb-danger-soft: rgba(239, 125, 108, 0.16);
+    --wb-shadow-soft: 0 24px 60px rgba(2, 7, 17, 0.32);
+    --wb-shadow-panel: 0 30px 80px rgba(2, 7, 17, 0.42);
+    --wb-shadow-accent: 0 0 0 1px rgba(109, 140, 255, 0.12), 0 26px 64px rgba(5, 11, 24, 0.46);
+    --wb-gradient-shell:
+        radial-gradient(circle at 14% 12%, rgba(109, 140, 255, 0.18), transparent 30%),
+        radial-gradient(circle at 86% 12%, rgba(112, 199, 217, 0.12), transparent 28%),
+        radial-gradient(circle at 50% 120%, rgba(50, 72, 110, 0.18), transparent 36%),
+        linear-gradient(180deg, #0a1020 0%, #080d17 48%, #070b12 100%);
+}
+
+html,
+body,
+#app-root {
+    min-height: 100%;
+}
+
+body {
+    background: var(--wb-gradient-shell);
+    color: var(--wb-text-primary);
+    font-family: var(--font-sans);
+}
+
+a,
+button,
+input,
+select,
+textarea {
+    transition:
+        border-color 0.18s ease,
+        background-color 0.18s ease,
+        color 0.18s ease,
+        box-shadow 0.18s ease,
+        transform 0.18s ease;
 }

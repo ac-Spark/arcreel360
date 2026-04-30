@@ -3,32 +3,43 @@
 
 /* Prompt 编辑器 */
 .prompt-editor {
-  @apply font-mono text-sm bg-gray-800 rounded-lg p-3 text-gray-200;
+  @apply rounded-lg p-3 font-mono text-sm;
+  background: rgba(11, 17, 28, 0.88);
+  border: 1px solid rgba(120, 148, 197, 0.22);
+  color: var(--wb-text-secondary);
 }
 
 /* 统一焦点指示 — 键盘导航可见性 */
 .focus-ring {
-  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40;
+  @apply focus-visible:outline-none;
+  box-shadow: none;
+}
+
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 1px rgba(136, 163, 255, 0.34), 0 0 0 4px rgba(109, 140, 255, 0.1);
 }
 
 /* 强调色 — 低饱和度纯色 */
 .accent-gradient {
-  @apply bg-indigo-600;
+  background: linear-gradient(135deg, rgba(109, 140, 255, 0.94), rgba(112, 199, 217, 0.78));
 }
 
 /* 强调色文字 */
 .accent-gradient-text {
-  @apply text-indigo-400;
+  color: var(--wb-accent);
 }
 
 /* 片段卡片 */
 .segment-card {
-  @apply bg-gray-900 border border-gray-800 rounded-xl;
+  border: 1px solid rgba(120, 148, 197, 0.18);
+  background: linear-gradient(180deg, rgba(18, 26, 43, 0.94), rgba(13, 19, 32, 0.88));
+  border-radius: 0.75rem;
 }
 
 /* 面板底色 */
 .studio-panel {
-  @apply bg-gray-900 border-gray-800;
+  background: rgba(18, 26, 43, 0.92);
+  border-color: rgba(120, 148, 197, 0.18);
 }
 
 /* 呼吸灯动画 — 用于任务雷达 */

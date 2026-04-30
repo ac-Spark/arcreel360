@@ -58,18 +58,18 @@ function PhaseStepper({
 
         // Determine colors
         let circleClass =
-          "flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold shrink-0 transition-colors";
+          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold transition-colors";
         let labelClass = "text-xs whitespace-nowrap transition-colors";
 
         if (isCompleted) {
-          circleClass += " bg-emerald-600 text-white";
-          labelClass += " text-emerald-400";
+          circleClass += " border-transparent bg-[color:var(--wb-success)] text-slate-950";
+          labelClass += " text-[color:var(--wb-success)]";
         } else if (isCurrent) {
-          circleClass += " bg-indigo-600 text-white";
-          labelClass += " text-indigo-300 font-medium";
+          circleClass += " border-[rgba(136,163,255,0.32)] bg-[color:var(--wb-accent)] text-slate-950";
+          labelClass += " font-medium text-[color:var(--wb-text-primary)]";
         } else {
-          circleClass += " bg-gray-700 text-gray-400";
-          labelClass += " text-gray-500";
+          circleClass += " border-[color:var(--wb-border-soft)] bg-[rgba(15,22,36,0.84)] text-[color:var(--wb-text-dim)]";
+          labelClass += " text-[color:var(--wb-text-dim)]";
         }
 
         return (
@@ -78,7 +78,7 @@ function PhaseStepper({
             {idx > 0 && (
               <div
                 className={`h-px w-4 shrink-0 ${
-                  isCompleted ? "bg-emerald-600" : "bg-gray-700"
+                  isCompleted ? "bg-[color:var(--wb-success)]" : "bg-[color:var(--wb-border-soft)]"
                 }`}
               />
             )}
@@ -224,17 +224,17 @@ export function GlobalHeader({ onNavigateBack }: GlobalHeaderProps) {
   };
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between border-b border-gray-800 bg-gray-900/80 px-4 backdrop-blur-sm">
+    <header className="workbench-panel-subtle flex h-16 shrink-0 items-center justify-between border-b px-4 backdrop-blur-xl">
       {/* ---- Left section ---- */}
       <div className="flex items-center gap-3">
         {/* Logo */}
-        <img src="/android-chrome-192x192.png" alt="ArcReel" className="h-5 w-5" />
+        <img src="/android-chrome-192x192.png" alt="ArcReel" className="h-8 w-8 rounded-xl" />
 
         {/* Back to projects */}
         <button
           type="button"
           onClick={onNavigateBack}
-          className="flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-gray-200"
+          className="workbench-button-secondary flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-sm"
           aria-label="返回项目大厅"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -242,16 +242,19 @@ export function GlobalHeader({ onNavigateBack }: GlobalHeaderProps) {
         </button>
 
         {/* Divider */}
-        <div className="h-4 w-px bg-gray-700" />
+        <div className="h-5 w-px bg-[color:var(--wb-border-soft)]" />
 
         {/* Project name */}
-        <span className="max-w-48 truncate text-sm font-medium text-gray-200">
-          {displayProjectTitle}
-        </span>
+        <div className="min-w-0">
+          <div className="text-[11px] uppercase tracking-[0.2em] text-[color:var(--wb-text-dim)]">Current Project</div>
+          <span className="block max-w-56 truncate text-sm font-medium text-[color:var(--wb-text-primary)]">
+            {displayProjectTitle}
+          </span>
+        </div>
 
         {/* Content mode badge */}
         {contentMode && (
-          <span className="rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-400">
+          <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1 text-xs text-[color:var(--wb-text-muted)]">
             {modeBadgeText}
           </span>
         )}
@@ -270,8 +273,8 @@ export function GlobalHeader({ onNavigateBack }: GlobalHeaderProps) {
             onClick={() => setNotificationDrawerOpen(!notificationDrawerOpen)}
             className={`relative flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors ${
               notificationDrawerOpen
-                ? "bg-amber-500/20 text-amber-200"
-                : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                ? "workbench-status-warning"
+                : "workbench-button-secondary"
             }`}
             title={`会话通知: ${workspaceNotifications.length} 条`}
             aria-label="打开通知中心"
@@ -298,8 +301,8 @@ export function GlobalHeader({ onNavigateBack }: GlobalHeaderProps) {
             onClick={() => setUsageDrawerOpen(!usageDrawerOpen)}
             className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors ${
               usageDrawerOpen
-                ? "bg-indigo-500/20 text-indigo-400"
-                : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                ? "workbench-panel-strong text-[color:var(--wb-accent)]"
+                : "workbench-button-secondary"
             }`}
             title={`项目总花费: ${costText}`}
           >
@@ -320,8 +323,8 @@ export function GlobalHeader({ onNavigateBack }: GlobalHeaderProps) {
             onClick={() => setTaskHudOpen(!taskHudOpen)}
             className={`relative rounded-md p-1.5 transition-colors ${
               taskHudOpen
-                ? "bg-indigo-500/20 text-indigo-400"
-                : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                ? "workbench-panel-strong text-[color:var(--wb-accent)]"
+                : "workbench-button-secondary"
             }`}
             title={`任务状态: ${stats.running} 运行中, ${stats.queued} 排队中`}
             aria-label="切换任务面板"
@@ -345,7 +348,7 @@ export function GlobalHeader({ onNavigateBack }: GlobalHeaderProps) {
             type="button"
             onClick={() => setExportDialogOpen(!exportDialogOpen)}
             disabled={!currentProjectName || exportingProject}
-            className="inline-flex items-center gap-1 rounded-md border border-gray-700 px-2 py-1 text-xs text-gray-300 transition-colors hover:border-gray-500 hover:bg-gray-800 hover:text-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="workbench-button-secondary inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-50"
             title="导出当前项目 ZIP"
             aria-label="导出当前项目 ZIP"
           >
@@ -377,7 +380,7 @@ export function GlobalHeader({ onNavigateBack }: GlobalHeaderProps) {
               ? `~/app/projects/${encodeURIComponent(currentProjectName)}/settings`
               : "~/app/settings"
           )}
-          className="relative rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200"
+          className="workbench-button-secondary relative rounded-xl p-2"
           title="设置"
           aria-label="设置"
         >

@@ -28,16 +28,16 @@ export function StudioLayout({ children }: StudioLayoutProps) {
   useProjectEventsSSE(currentProjectName);
 
   return (
-    <div className="flex h-screen flex-col bg-gray-950 text-gray-100">
+    <div className="workbench-shell workbench-grid flex h-screen flex-col text-[color:var(--wb-text-primary)]">
       <GlobalHeader onNavigateBack={() => setLocation("~/app/projects")} />
       <div className="flex flex-1 overflow-hidden">
-        <AssetSidebar className="w-[15%] min-w-50 border-r border-gray-800" />
-        <main className="flex-1 overflow-auto">
+        <AssetSidebar className="w-[15%] min-w-50 border-r border-[color:var(--wb-border-soft)]" />
+        <main className="flex-1 overflow-auto border-l border-r border-white/4 bg-[rgba(8,13,23,0.54)]">
           {children}
         </main>
         <div
-          className={`shrink-0 bg-gray-900 transition-[width,min-width,border-color] duration-300 ease-in-out overflow-hidden ${
-            assistantPanelOpen ? "border-l border-gray-800" : "border-l border-transparent"
+          className={`workbench-panel-subtle shrink-0 overflow-hidden transition-[width,min-width,border-color] duration-300 ease-in-out ${
+            assistantPanelOpen ? "border-l border-[color:var(--wb-border-soft)]" : "border-l border-transparent"
           }`}
           style={{
             width: assistantPanelOpen ? "40%" : "0",
@@ -59,10 +59,10 @@ export function StudioLayout({ children }: StudioLayoutProps) {
       <button
         type="button"
         onClick={toggleAssistantPanel}
-        className={`fixed top-14 right-4 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 shadow-lg shadow-indigo-500/20 transition-all duration-300 ease-in-out ${UI_LAYERS.workspaceFloating} ${
+        className={`workbench-button-primary fixed right-4 top-18 flex h-11 w-11 items-center justify-center rounded-2xl transition-all duration-300 ease-in-out ${UI_LAYERS.workspaceFloating} ${
           assistantPanelOpen
-            ? "scale-0 opacity-0 pointer-events-none"
-            : "scale-100 opacity-100 hover:bg-indigo-500 cursor-pointer"
+            ? "pointer-events-none scale-0 opacity-0"
+            : "cursor-pointer scale-100 opacity-100"
         }`}
         style={{ transitionDelay: assistantPanelOpen ? "0ms" : "200ms" }}
         title="展开助手面板"

@@ -42,7 +42,7 @@ function CollapsibleSection({
         <button
           type="button"
           onClick={() => setOpen(!open)}
-          className="flex flex-1 items-center gap-1.5 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 transition-colors hover:text-gray-400 focus-ring rounded"
+          className="focus-ring flex flex-1 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[color:var(--wb-text-dim)] transition-colors hover:text-[color:var(--wb-text-secondary)]"
         >
           {open ? (
             <ChevronDown className="h-3 w-3 shrink-0" />
@@ -94,7 +94,7 @@ function CharacterThumbnail({
 
   if (!sheetPath || imgError) {
     return (
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-700 text-gray-400">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/6 bg-black/16 text-[color:var(--wb-text-muted)]">
         <User className="h-3.5 w-3.5" />
       </span>
     );
@@ -134,7 +134,7 @@ function ClueThumbnail({
 
   if (!sheetPath || imgError) {
     return (
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-700 text-gray-400">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-white/6 bg-black/16 text-[color:var(--wb-text-muted)]">
         <Puzzle className="h-3.5 w-3.5" />
       </span>
     );
@@ -156,7 +156,7 @@ function ClueThumbnail({
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <p className="px-3 py-1.5 text-xs italic text-gray-600">{text}</p>
+    <p className="px-3 py-1.5 text-xs italic text-[color:var(--wb-text-dim)]">{text}</p>
   );
 }
 
@@ -246,24 +246,24 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
 
   return (
     <aside
-      className={`flex flex-col overflow-y-auto bg-gray-900 ${className ?? ""}`}
+      className={`workbench-panel-subtle flex flex-col overflow-y-auto ${className ?? ""}`}
     >
       {/* ---- Project Overview nav item ---- */}
       <button
         type="button"
         onClick={() => setLocation("/")}
-        className={`flex w-full items-center gap-2 px-3 py-2.5 text-sm transition-colors focus-ring ${
+        className={`focus-ring flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-colors ${
           isActive("/")
-            ? "bg-gray-800 text-white"
-            : "text-gray-300 hover:bg-gray-800/50 hover:text-white"
+            ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
+            : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
         }`}
       >
-        <LayoutDashboard className="h-4 w-4 shrink-0 text-indigo-400" />
+        <LayoutDashboard className="h-4 w-4 shrink-0 text-[color:var(--wb-accent)]" />
         <span className="font-medium">项目概览</span>
       </button>
 
       {/* ---- Divider ---- */}
-      <div className="mx-3 border-t border-gray-800" />
+      <div className="mx-3 border-t border-[color:var(--wb-border-soft)]" />
 
       {/* ---- Section 1: Source Files ---- */}
       <CollapsibleSection
@@ -274,7 +274,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="rounded p-1 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300 focus-ring"
+              className="focus-ring rounded-lg p-1 text-[color:var(--wb-text-dim)] transition-colors hover:bg-black/16 hover:text-[color:var(--wb-text-secondary)]"
               title="上传源文件"
             >
               <Upload className="h-3.5 w-3.5" />
@@ -301,8 +301,8 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
                   <div
                     className={`group flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors ${
                       active
-                        ? "bg-gray-800 text-white"
-                        : "text-gray-300 hover:bg-gray-800/50 hover:text-white"
+                        ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
+                        : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
                     }`}
                   >
                     <button
@@ -310,13 +310,13 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
                       onClick={() => setLocation(filePath)}
                       className="flex flex-1 items-center gap-2 truncate text-left focus-ring rounded"
                     >
-                      <FileText className="h-3.5 w-3.5 shrink-0 text-gray-500" />
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-[color:var(--wb-text-dim)]" />
                       <span className="truncate">{name}</span>
                     </button>
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleDeleteFile(name); }}
-                      className="shrink-0 rounded p-0.5 text-gray-600 opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100 focus-ring focus-visible:opacity-100"
+                      className="focus-ring shrink-0 rounded p-0.5 text-[color:var(--wb-text-dim)] opacity-0 transition-opacity hover:text-[color:var(--wb-danger)] group-hover:opacity-100 focus-visible:opacity-100"
                       title="删除文件"
                     >
                       <X className="h-3 w-3" />
@@ -330,13 +330,13 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
       </CollapsibleSection>
 
       {/* ---- Divider ---- */}
-      <div className="mx-3 border-t border-gray-800" />
+      <div className="mx-3 border-t border-[color:var(--wb-border-soft)]" />
 
       {/* ---- Section 2: Lorebook (Characters + Clues) ---- */}
       <CollapsibleSection title="设定集" icon={Users} defaultOpen={true}>
         {/* Characters sub-section */}
         <div className="mb-1">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-gray-600">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[color:var(--wb-text-dim)]">
             <Users className="h-3 w-3" />
             <span>角色</span>
           </div>
@@ -351,8 +351,8 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
                     onClick={() => setLocation("/characters")}
                     className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors focus-ring ${
                       isActive("/characters")
-                        ? "bg-gray-800 text-white"
-                        : "text-gray-300 hover:bg-gray-800/50 hover:text-white"
+                        ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
+                        : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
                     }`}
                   >
                     <CharacterThumbnail
@@ -370,7 +370,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
 
         {/* Clues sub-section */}
         <div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-gray-600">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[color:var(--wb-text-dim)]">
             <Puzzle className="h-3 w-3" />
             <span>线索</span>
           </div>
@@ -385,8 +385,8 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
                     onClick={() => setLocation("/clues")}
                     className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors focus-ring ${
                       isActive("/clues")
-                        ? "bg-gray-800 text-white"
-                        : "text-gray-300 hover:bg-gray-800/50 hover:text-white"
+                        ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
+                        : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
                     }`}
                   >
                     <ClueThumbnail
@@ -404,7 +404,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
       </CollapsibleSection>
 
       {/* ---- Divider ---- */}
-      <div className="mx-3 border-t border-gray-800" />
+      <div className="mx-3 border-t border-[color:var(--wb-border-soft)]" />
 
       {/* ---- Section 3: Episodes ---- */}
       <CollapsibleSection title="剧集" icon={Film}>
@@ -427,8 +427,8 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
                     onClick={() => setLocation(episodePath)}
                     className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors focus-ring ${
                       active
-                        ? "bg-gray-800 text-white"
-                        : "text-gray-300 hover:bg-gray-800/50 hover:text-white"
+                        ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
+                        : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
                     }`}
                   >
                     <Circle
@@ -438,7 +438,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
                       E{ep.episode}: {ep.title}
                     </span>
                     {isSegmented && !ep.scenes_count && (
-                      <span className="ml-auto shrink-0 rounded bg-indigo-950 px-1.5 py-0.5 text-[10px] text-indigo-400">
+                      <span className="ml-auto shrink-0 rounded-full border border-[rgba(136,163,255,0.16)] bg-[rgba(109,140,255,0.12)] px-2 py-0.5 text-[10px] text-[color:var(--wb-accent)]">
                         预处理
                       </span>
                     )}

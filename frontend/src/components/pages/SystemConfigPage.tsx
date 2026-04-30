@@ -61,29 +61,47 @@ export function SystemConfigPage() {
   // -------------------------------------------------------------------------
 
   return (
-    <div className="flex h-screen flex-col bg-gray-950 text-gray-100">
+    <div className="workbench-shell flex h-screen flex-col text-[color:var(--wb-text-primary)]">
       {/* Page header */}
-      <header className="shrink-0 border-b border-gray-800 px-6 py-4">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/app/projects"
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900 px-3 py-2 text-sm text-gray-200 hover:border-gray-700 hover:bg-gray-800 focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:outline-none"
-            aria-label="返回项目大厅"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            返回
-          </Link>
-          <div>
-            <h1 className="text-lg font-semibold text-gray-100">设置</h1>
-            <p className="text-xs text-gray-500">系统配置与 API 访问管理</p>
+      <header className="shrink-0 border-b border-[color:var(--wb-border-soft)] px-6 py-5 backdrop-blur-xl">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/app/projects"
+              className="workbench-button-secondary inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm focus-visible:outline-none"
+              aria-label="返回项目大厅"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              返回
+            </Link>
+            <div>
+              <div className="workbench-kicker text-[11px] font-semibold">Workbench Settings Center</div>
+              <h1 className="mt-1 text-xl font-semibold text-[color:var(--wb-text-primary)]">设置</h1>
+              <p className="text-sm text-[color:var(--wb-text-muted)]">系统配置与 API 访问管理</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/6 bg-black/12 px-4 py-3">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">分区</div>
+              <div className="mt-1 text-sm font-medium text-[color:var(--wb-text-secondary)]">{SECTION_LIST.length} 个</div>
+            </div>
+            <div className="rounded-2xl border border-white/6 bg-black/12 px-4 py-3">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">缺失项</div>
+              <div className="mt-1 text-sm font-medium text-[color:var(--wb-text-secondary)]">{configIssues.length} 项</div>
+            </div>
+            <div className="rounded-2xl border border-white/6 bg-black/12 px-4 py-3">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">当前分区</div>
+              <div className="mt-1 text-sm font-medium text-[color:var(--wb-text-secondary)]">{SECTION_LIST.find((section) => section.id === activeSection)?.label ?? "智能体"}</div>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Body: sidebar + content */}
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 gap-6 px-6 py-6">
         {/* Sidebar */}
-        <nav className="w-48 shrink-0 border-r border-gray-800 bg-gray-950/50 py-4">
+        <nav className="workbench-panel-subtle w-58 shrink-0 rounded-[1.4rem] p-3">
           {SECTION_LIST.map(({ id, label, Icon }) => {
             const isActive = activeSection === id;
             return (
@@ -91,10 +109,10 @@ export function SystemConfigPage() {
                 key={id}
                 type="button"
                 onClick={() => setActiveSection(id)}
-                className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500/60 focus-visible:outline-none ${
+                className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm transition-colors focus-visible:outline-none ${
                   isActive
-                    ? "border-l-2 border-indigo-500 bg-gray-800/50 text-white"
-                    : "border-l-2 border-transparent text-gray-400 hover:bg-gray-800/30 hover:text-gray-200"
+                    ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
+                    : "text-[color:var(--wb-text-muted)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -105,13 +123,13 @@ export function SystemConfigPage() {
         </nav>
 
         {/* Content area */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="workbench-panel flex-1 overflow-y-auto rounded-[1.4rem]">
           {/* Config warning banner */}
           {configIssues.length > 0 && (
-            <div className="border-b border-amber-900/40 bg-amber-950/30 px-6 py-3">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
-                <div className="text-sm text-amber-200">
+            <div className="border-b border-[color:var(--wb-border-soft)] px-6 py-4">
+              <div className="workbench-status-warning flex items-start gap-3 rounded-2xl px-4 py-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--wb-warning)]" />
+                <div className="text-sm">
                   <span className="font-medium">以下必填配置尚未完成：</span>
                   <ul className="mt-1 space-y-0.5">
                     {configIssues.map((issue) => (
@@ -119,7 +137,7 @@ export function SystemConfigPage() {
                         <button
                           type="button"
                           onClick={() => setActiveSection(issue.tab)}
-                          className="underline underline-offset-2 hover:text-amber-100 focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:outline-none rounded"
+                          className="rounded underline underline-offset-2 hover:text-white focus-visible:outline-none"
                         >
                           {issue.label}
                         </button>
