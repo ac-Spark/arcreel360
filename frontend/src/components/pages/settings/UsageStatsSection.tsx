@@ -50,8 +50,8 @@ export function UsageStatsSection() {
     <div className="space-y-6 p-6">
       <div>
         <div className="workbench-kicker text-[11px] font-semibold">Provider Cost Signals</div>
-        <h3 className="mt-1 text-lg font-semibold text-[color:var(--wb-text-primary)]">用量统计</h3>
-        <p className="mt-1 text-sm text-[color:var(--wb-text-muted)]">查看各供应商的 API 调用统计</p>
+        <h3 className="mt-1 text-lg font-semibold text-[color:var(--wb-text-primary)]">用量統計</h3>
+        <p className="mt-1 text-sm text-[color:var(--wb-text-muted)]">查看各供應商的 API 呼叫統計</p>
       </div>
 
       {/* Filters */}
@@ -74,10 +74,10 @@ export function UsageStatsSection() {
           <select
             value={providerFilter}
             onChange={(e) => setProviderFilter(e.target.value)}
-            aria-label="按供应商筛选"
+            aria-label="依供應商篩選"
             className="workbench-input rounded-xl px-3 py-2 text-sm focus:outline-none"
           >
-            <option value="">全部供应商</option>
+            <option value="">全部供應商</option>
             {providers.map((p) => (
               <option key={p} value={p}>
                 {p}
@@ -89,9 +89,9 @@ export function UsageStatsSection() {
 
       {/* Stats */}
       {loading ? (
-        <div className="text-sm text-[color:var(--wb-text-muted)]">加载中…</div>
+        <div className="text-sm text-[color:var(--wb-text-muted)]">載入中…</div>
       ) : stats.length === 0 ? (
-        <div className="workbench-panel-subtle rounded-2xl px-4 py-4 text-sm text-[color:var(--wb-text-muted)]">暂无数据</div>
+        <div className="workbench-panel-subtle rounded-2xl px-4 py-4 text-sm text-[color:var(--wb-text-muted)]">暫無資料</div>
       ) : (
         <div className="space-y-3">
           {stats.map((s) => (
@@ -106,18 +106,18 @@ export function UsageStatsSection() {
                 </span>
               </div>
               <div className="mt-3 flex flex-wrap gap-3 text-xs tabular-nums text-[color:var(--wb-text-muted)]">
-                <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">调用: {s.total_calls}</span>
-                <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">成功: {s.success_calls}</span>
+                <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">呼叫：{s.total_calls}</span>
+                <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">成功：{s.success_calls}</span>
                 <span>
-                  成功率:{" "}
+                  成功率：{" "}
                   {s.total_calls > 0
                     ? percentFmt.format(s.success_calls / s.total_calls)
                     : "0%"}
                 </span>
                 {s.call_type === "text" ? (
-                  s.total_calls > 0 && <span>类型: 文本生成</span>
+                  s.total_calls > 0 && <span>類型：文字生成</span>
                 ) : s.total_duration_seconds !== undefined && (
-                  <span>时长: {s.total_duration_seconds}s</span>
+                  <span>時長：{s.total_duration_seconds}s</span>
                 )}
               </div>
             </div>

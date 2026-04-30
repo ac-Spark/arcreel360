@@ -32,9 +32,9 @@ async def _validate_session_ownership(service: AssistantService, session_id: str
     """Validate session belongs to the specified project and return it."""
     session = await service.get_session(session_id)
     if session is None:
-        raise HTTPException(status_code=404, detail=f"会话 '{session_id}' 不存在")
+        raise HTTPException(status_code=404, detail=f"會話「{session_id}」不存在")
     if session.project_name != project_name:
-        raise HTTPException(status_code=404, detail=f"会话 '{session_id}' 不存在")
+        raise HTTPException(status_code=404, detail=f"會話「{session_id}」不存在")
     return session
 
 
@@ -80,9 +80,9 @@ async def send_message(
     except SessionCapacityError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="会话或项目不存在")
+        raise HTTPException(status_code=404, detail="會話或專案不存在")
     except TimeoutError:
-        raise HTTPException(status_code=504, detail="SDK 会话创建超时")
+        raise HTTPException(status_code=504, detail="SDK 會話建立逾時")
     except UnsupportedCapabilityError as exc:
         raise HTTPException(status_code=409, detail=exc.as_detail())
     except ProviderUnavailableError as exc:
@@ -134,7 +134,7 @@ async def delete_session(project_name: str, session_id: str, _user: CurrentUser)
         await _validate_session_ownership(service, session_id, project_name)
         deleted = await service.delete_session(session_id)
         if not deleted:
-            raise HTTPException(status_code=404, detail=f"会话 '{session_id}' 不存在")
+            raise HTTPException(status_code=404, detail=f"會話「{session_id}」不存在")
         return {"success": True}
     except HTTPException:
         raise
@@ -147,7 +147,7 @@ async def delete_session(project_name: str, session_id: str, _user: CurrentUser)
 async def list_messages(project_name: str, session_id: str, _user: CurrentUser):
     raise HTTPException(
         status_code=410,
-        detail="messages 接口已下线，请使用 /snapshot 与 SSE stream 协议。",
+        detail="messages 介面已下線，請改用 /snapshot 與 SSE stream 協定。",
     )
 
 
@@ -161,7 +161,7 @@ async def get_snapshot(project_name: str, session_id: str, _user: CurrentUser):
     except HTTPException:
         raise
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"会话 '{session_id}' 不存在")
+        raise HTTPException(status_code=404, detail=f"會話「{session_id}」不存在")
     except Exception as exc:
         logger.exception("请求处理失败")
         raise HTTPException(status_code=500, detail=str(exc))
@@ -177,7 +177,7 @@ async def interrupt_session(project_name: str, session_id: str, _user: CurrentUs
     except HTTPException:
         raise
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"会话 '{session_id}' 不存在")
+        raise HTTPException(status_code=404, detail=f"會話「{session_id}」不存在")
     except UnsupportedCapabilityError as exc:
         raise HTTPException(status_code=409, detail=exc.as_detail())
     except ValueError as exc:
@@ -192,7 +192,7 @@ async def answer_question(
     project_name: str, session_id: str, question_id: str, req: AnswerQuestionRequest, _user: CurrentUser
 ):
     if not req.answers:
-        raise HTTPException(status_code=400, detail="answers 不能为空")
+        raise HTTPException(status_code=400, detail="answers 不可為空")
     try:
         service = get_assistant_service()
         meta = await _validate_session_ownership(service, session_id, project_name)
@@ -206,7 +206,7 @@ async def answer_question(
     except HTTPException:
         raise
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"会话 '{session_id}' 不存在")
+        raise HTTPException(status_code=404, detail=f"會話「{session_id}」不存在")
     except UnsupportedCapabilityError as exc:
         raise HTTPException(status_code=409, detail=exc.as_detail())
     except ValueError as exc:
@@ -242,7 +242,7 @@ async def list_skills(project_name: str, _user: CurrentUser):
         skills = get_assistant_service().list_available_skills(project_name=project_name)
         return {"skills": skills}
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"项目 '{project_name}' 不存在")
+        raise HTTPException(status_code=404, detail=f"專案「{project_name}」不存在")
     except HTTPException:
         raise
     except Exception as exc:

@@ -30,7 +30,7 @@ export function AddClueForm({ onSubmit, onCancel }: AddClueFormProps) {
       data-workspace-editing="true"
     >
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-200">添加线索</h3>
+        <h3 className="text-sm font-semibold text-gray-200">新增線索</h3>
         <button
           type="button"
           onClick={onCancel}
@@ -49,7 +49,7 @@ export function AddClueForm({ onSubmit, onCancel }: AddClueFormProps) {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="线索名称"
+            placeholder="線索名稱"
             className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-200 placeholder-gray-500 outline-none focus:border-indigo-500"
             autoFocus
           />
@@ -73,7 +73,7 @@ export function AddClueForm({ onSubmit, onCancel }: AddClueFormProps) {
                   : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
               }`}>
                 <input type="radio" name="clueType" value="location" checked={clueType === "location"} onChange={() => setClueType("location")} className="sr-only" />
-                环境
+                環境
               </label>
             </div>
           </div>
@@ -108,7 +108,7 @@ export function AddClueForm({ onSubmit, onCancel }: AddClueFormProps) {
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="线索的外观、特征、重要性等描述..."
+            placeholder="線索的外觀、特徵、重要性等描述..."
             rows={3}
             className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-200 placeholder-gray-500 outline-none focus:border-indigo-500 resize-none"
           />
@@ -130,10 +130,10 @@ export function AddClueForm({ onSubmit, onCancel }: AddClueFormProps) {
             {submitting ? (
               <span className="inline-flex items-center gap-1.5">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                添加中...
+                新增中...
               </span>
             ) : (
-              "添加"
+              "新增"
             )}
           </button>
         </div>

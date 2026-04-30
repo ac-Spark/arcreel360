@@ -60,7 +60,7 @@ export function SourceFileViewer({ projectName, filename }: SourceFileViewerProp
 
   // 删除文件
   const handleDelete = useCallback(async () => {
-    if (!confirm(`确定要删除文件 "${filename}" 吗？此操作不可撤销。`)) return;
+    if (!confirm(`確定要刪除檔案「${filename}」嗎？此操作無法復原。`)) return;
     try {
       await API.deleteSourceFile(projectName, filename);
       useAppStore.getState().invalidateSourceFiles();
@@ -73,7 +73,7 @@ export function SourceFileViewer({ projectName, filename }: SourceFileViewerProp
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center text-gray-500">
-        加载文件中...
+        載入檔案中...
       </div>
     );
   }
@@ -81,7 +81,7 @@ export function SourceFileViewer({ projectName, filename }: SourceFileViewerProp
   if (content === null) {
     return (
       <div className="flex h-full items-center justify-center text-gray-500">
-        无法加载文件 "{filename}"
+        無法載入檔案 "{filename}"
       </div>
     );
   }
@@ -104,7 +104,7 @@ export function SourceFileViewer({ projectName, filename }: SourceFileViewerProp
                 className="flex items-center gap-1 rounded px-2 py-1 text-xs text-green-400 transition-colors hover:bg-gray-800 disabled:opacity-50"
               >
                 <Save className="h-3.5 w-3.5" />
-                {saving ? "保存中..." : "保存"}
+                {saving ? "儲存中..." : "儲存"}
               </button>
               <button
                 type="button"
@@ -123,7 +123,7 @@ export function SourceFileViewer({ projectName, filename }: SourceFileViewerProp
                 className="flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200"
               >
                 <Edit3 className="h-3.5 w-3.5" />
-                编辑
+                編輯
               </button>
               <button
                 type="button"
@@ -131,7 +131,7 @@ export function SourceFileViewer({ projectName, filename }: SourceFileViewerProp
                 className="flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-400 transition-colors hover:bg-gray-800 hover:text-red-400"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                删除
+                刪除
               </button>
             </>
           )}

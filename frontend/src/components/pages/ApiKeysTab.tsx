@@ -25,7 +25,7 @@ import type { ApiKeyInfo, CreateApiKeyResponse } from "@/types";
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
   const d = new Date(iso);
-  return d.toLocaleDateString("zh-CN", {
+  return d.toLocaleDateString("zh-TW", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -73,7 +73,7 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
         last_used_at: null,
       });
     } catch (err) {
-      useAppStore.getState().pushToast(`创建失败: ${(err as Error).message}`, "error");
+      useAppStore.getState().pushToast(`建立失敗: ${(err as Error).message}`, "error");
     } finally {
       setCreating(false);
     }
@@ -107,14 +107,14 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
               <KeyRound className="h-4 w-4" />
             </div>
             <h2 className="text-sm font-semibold text-gray-100">
-              {created ? "API Key 已创建" : "新建 API Key"}
+              {created ? "API Key 已建立" : "建立 API Key"}
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded-md p-1 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-300 focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:outline-none"
-            aria-label="关闭"
+            aria-label="關閉"
           >
             <X className="h-4 w-4" />
           </button>
@@ -128,7 +128,7 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
               <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/8 px-3 py-3">
                 <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-400" />
                 <p className="text-xs leading-5 text-amber-200">
-                  请立即复制并妥善保存此 API Key。出于安全考量，完整密钥<strong className="font-semibold"> 仅在创建时显示一次</strong>，关闭后将无法再次查看。
+                  請立即複製並妥善保存此 API Key。基於安全考量，完整金鑰<strong className="font-semibold"> 只會在建立時顯示一次</strong>，關閉後將無法再次查看。
                 </p>
               </div>
 
@@ -143,7 +143,7 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
                     type="button"
                     onClick={() => void handleCopy()}
                     className="flex-shrink-0 rounded-md p-1 text-gray-500 transition-colors hover:bg-gray-800 hover:text-gray-200 focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:outline-none"
-                    aria-label="复制密钥"
+                    aria-label="複製金鑰"
                   >
                     {copied ? (
                       <Check className="h-3.5 w-3.5 text-emerald-400" />
@@ -157,11 +157,11 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
               {/* 元信息 */}
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="rounded-lg border border-gray-800 bg-gray-950/50 px-3 py-2">
-                  <div className="text-gray-500">名称</div>
+                  <div className="text-gray-500">名稱</div>
                   <div className="mt-0.5 truncate font-medium text-gray-200">{created.name}</div>
                 </div>
                 <div className="rounded-lg border border-gray-800 bg-gray-950/50 px-3 py-2">
-                  <div className="text-gray-500">前缀</div>
+                  <div className="text-gray-500">前綴</div>
                   <div className="mt-0.5 font-mono font-medium text-gray-200">{created.key_prefix}…</div>
                 </div>
               </div>
@@ -171,7 +171,7 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
                 onClick={onClose}
                 className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:outline-none"
               >
-                已复制，关闭
+                已複製，關閉
               </button>
             </div>
           ) : (
@@ -179,7 +179,7 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
             <div className="space-y-4">
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-gray-300">
-                  名称 <span className="text-rose-400">*</span>
+                  名稱 <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -203,10 +203,10 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
                   onChange={(e) =>
                     setExpiresDays(e.target.value === "" ? "" : Number(e.target.value))
                   }
-                  placeholder="留空则不过期"
+                  placeholder="留空則不過期"
                   className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-gray-200 placeholder:text-gray-600 focus:border-indigo-500/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40"
                 />
-                <p className="mt-1 text-xs text-gray-600">默认 30 天；留空则永不过期</p>
+                <p className="mt-1 text-xs text-gray-600">預設 30 天；留空則永不過期</p>
               </div>
 
               <div className="flex gap-2 pt-1">
@@ -228,7 +228,7 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
                   ) : (
                     <Plus className="h-4 w-4" />
                   )}
-                  {creating ? "创建中…" : "创建"}
+                  {creating ? "建立中…" : "建立"}
                 </button>
               </div>
             </div>
@@ -259,7 +259,7 @@ function DeleteModal({ keyInfo, onClose, onDeleted }: DeleteModalProps) {
       await API.deleteApiKey(keyInfo.id);
       onDeleted(keyInfo.id);
     } catch (err) {
-      useAppStore.getState().pushToast(`删除失败: ${(err as Error).message}`, "error");
+      useAppStore.getState().pushToast(`撤銷失敗：${(err as Error).message}`, "error");
     } finally {
       setDeleting(false);
     }
@@ -284,11 +284,11 @@ function DeleteModal({ keyInfo, onClose, onDeleted }: DeleteModalProps) {
               <Trash2 className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-gray-100">吊销 API Key</h2>
+              <h2 className="text-sm font-semibold text-gray-100">撤銷 API Key</h2>
               <p className="mt-1.5 text-xs leading-5 text-gray-400">
-                将永久吊销{" "}
+                將永久撤銷{" "}
                 <span className="font-mono text-gray-200">{keyInfo.key_prefix}…</span>（{keyInfo.name}）。
-                使用此 Key 的服务将立即失去访问权限，且操作不可撤销。
+                使用此 Key 的服務將立即失去存取權限，且操作無法復原。
               </p>
             </div>
           </div>
@@ -313,7 +313,7 @@ function DeleteModal({ keyInfo, onClose, onDeleted }: DeleteModalProps) {
               ) : (
                 <Trash2 className="h-4 w-4" />
               )}
-              {deleting ? "吊销中…" : "确认吊销"}
+              {deleting ? "撤銷中…" : "確認撤銷"}
             </button>
           </div>
         </div>
@@ -359,11 +359,11 @@ function ApiKeyRow({ keyInfo, onDelete }: ApiKeyRowProps) {
           <span
             className={`text-xs ${expired ? "font-medium text-rose-400" : "text-gray-400"}`}
           >
-            {expired ? "已过期 · " : ""}
+            {expired ? "已過期 · " : ""}
             {formatDate(keyInfo.expires_at)}
           </span>
         ) : (
-          <span className="text-xs text-gray-600">永不过期</span>
+          <span className="text-xs text-gray-600">永不過期</span>
         )}
       </td>
 
@@ -378,10 +378,10 @@ function ApiKeyRow({ keyInfo, onDelete }: ApiKeyRowProps) {
           type="button"
           onClick={handleDelete}
           className="inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-xs text-gray-500 transition-colors hover:border-rose-500/30 hover:bg-rose-500/8 hover:text-rose-400 focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:outline-none"
-          aria-label={`吊销 ${keyInfo.name}`}
+          aria-label={`撤銷 ${keyInfo.name}`}
         >
           <Trash2 className="h-3.5 w-3.5" />
-          吊销
+          撤銷
         </button>
       </td>
     </tr>
@@ -404,7 +404,7 @@ export function ApiKeysTab() {
       const res = await API.listApiKeys();
       setKeys(res);
     } catch (err) {
-      useAppStore.getState().pushToast(`加载 API Keys 失败: ${(err as Error).message}`, "error");
+      useAppStore.getState().pushToast(`載入 API Keys 失敗：${(err as Error).message}`, "error");
     } finally {
       setLoading(false);
     }
@@ -421,7 +421,7 @@ export function ApiKeysTab() {
   const handleDeleted = useCallback((keyId: number) => {
     setKeys((prev) => prev.filter((k) => k.id !== keyId));
     setDeleteTarget(null);
-    useAppStore.getState().pushToast("API Key 已吊销", "success");
+    useAppStore.getState().pushToast("API Key 已撤銷", "success");
   }, []);
 
   const handleOpenCreate = useCallback(() => setShowCreate(true), []);
@@ -435,7 +435,7 @@ export function ApiKeysTab() {
         <div>
           <h2 className="text-sm font-semibold text-gray-100">API Keys</h2>
           <p className="mt-0.5 text-xs text-gray-500">
-            用于 OpenClaw 等外部服务通过 Bearer Token 访问 ArcReel API
+            用於 OpenClaw 等外部服務透過 Bearer Token 存取 ArcReel API
           </p>
         </div>
         <button
@@ -444,7 +444,7 @@ export function ApiKeysTab() {
           className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/60 focus-visible:outline-none"
         >
           <Plus className="h-4 w-4" />
-          新建 Key
+          建立 Key
         </button>
       </div>
 
@@ -453,24 +453,24 @@ export function ApiKeysTab() {
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-12 text-gray-500">
             <Loader2 className="h-4 w-4 animate-spin text-indigo-400" />
-            <span className="text-sm">加载中…</span>
+            <span className="text-sm">載入中…</span>
           </div>
         ) : keys.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-14 text-gray-600">
             <KeyRound className="h-8 w-8 opacity-40" />
-            <p className="text-sm">还没有 API Key</p>
-            <p className="text-xs">点击「新建 Key」创建第一个</p>
+            <p className="text-sm">還沒有 API Key</p>
+            <p className="text-xs">點擊「建立 Key」建立第一個</p>
           </div>
         ) : (
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-gray-800">
-                <th className="py-2.5 pl-4 pr-3 text-xs font-medium text-gray-500">名称 / 前缀</th>
+                <th className="py-2.5 pl-4 pr-3 text-xs font-medium text-gray-500">名稱 / 前綴</th>
                 <th className="hidden px-3 py-2.5 text-xs font-medium text-gray-500 sm:table-cell">
-                  创建时间
+                  建立時間
                 </th>
                 <th className="hidden px-3 py-2.5 text-xs font-medium text-gray-500 md:table-cell">
-                  过期时间
+                  到期時間
                 </th>
                 <th className="hidden px-3 py-2.5 text-xs font-medium text-gray-500 lg:table-cell">
                   最近使用
@@ -491,7 +491,7 @@ export function ApiKeysTab() {
 
       {/* 说明 */}
       <p className="mt-3 text-xs text-gray-600">
-        在请求头中携带：
+        在請求標頭中攜帶：
         <code className="mx-1 rounded bg-gray-800 px-1.5 py-0.5 font-mono text-gray-400">
           Authorization: Bearer arc-xxxxxxxx…
         </code>

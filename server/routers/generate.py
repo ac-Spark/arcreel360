@@ -222,7 +222,7 @@ async def generate_video(project_name: str, segment_id: str, req: GenerateVideoR
         return {
             "success": True,
             "task_id": result["task_id"],
-            "message": f"视频「{segment_id}」生成任务已提交",
+            "message": f"影片「{segment_id}」生成任務已提交",
         }
 
     except FileNotFoundError as e:
@@ -245,14 +245,14 @@ async def generate_character(
     _user: CurrentUser,
 ):
     """
-    提交角色设计图生成任务到队列，立即返回 task_id。
+    提交角色設計圖生成任務到佇列，立即回傳 task_id。
     """
     try:
 
         def _sync():
             project = get_project_manager().load_project(project_name)
             if char_name not in project.get("characters", {}):
-                raise HTTPException(status_code=404, detail=f"角色 '{char_name}' 不存在")
+                raise HTTPException(status_code=404, detail=f"角色「{char_name}」不存在")
             return _snapshot_image_backend(project_name)
 
         image_snapshot = await asyncio.to_thread(_sync)
@@ -275,7 +275,7 @@ async def generate_character(
         return {
             "success": True,
             "task_id": result["task_id"],
-            "message": f"角色「{char_name}」设计图生成任务已提交",
+            "message": f"角色「{char_name}」設計圖生成任務已提交",
         }
 
     except FileNotFoundError as e:
@@ -293,14 +293,14 @@ async def generate_character(
 @router.post("/projects/{project_name}/generate/clue/{clue_name}")
 async def generate_clue(project_name: str, clue_name: str, req: GenerateClueRequest, _user: CurrentUser):
     """
-    提交线索设计图生成任务到队列，立即返回 task_id。
+    提交線索設計圖生成任務到佇列，立即回傳 task_id。
     """
     try:
 
         def _sync():
             project = get_project_manager().load_project(project_name)
             if clue_name not in project.get("clues", {}):
-                raise HTTPException(status_code=404, detail=f"线索 '{clue_name}' 不存在")
+                raise HTTPException(status_code=404, detail=f"線索「{clue_name}」不存在")
             return _snapshot_image_backend(project_name)
 
         image_snapshot = await asyncio.to_thread(_sync)
@@ -323,7 +323,7 @@ async def generate_clue(project_name: str, clue_name: str, req: GenerateClueRequ
         return {
             "success": True,
             "task_id": result["task_id"],
-            "message": f"线索「{clue_name}」设计图生成任务已提交",
+            "message": f"線索「{clue_name}」設計圖生成任務已提交",
         }
 
     except FileNotFoundError as e:

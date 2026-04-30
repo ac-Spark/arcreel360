@@ -522,10 +522,10 @@ def _compute_affected_fingerprints(project_name: str, task_type: str, resource_i
 
 # (entity_type, action, label_tpl, include_script_episode)
 _TASK_CHANGE_SPECS: dict[str, tuple] = {
-    "storyboard": ("segment", "storyboard_ready", "分镜「{}」", True),
-    "video": ("segment", "video_ready", "分镜「{}」", True),
-    "character": ("character", "updated", "角色「{}」设计图", False),
-    "clue": ("clue", "updated", "线索「{}」设计图", False),
+    "storyboard": ("segment", "storyboard_ready", "分鏡「{}」", True),
+    "video": ("segment", "video_ready", "分鏡「{}」", True),
+    "character": ("character", "updated", "角色「{}」設計圖", False),
+    "clue": ("clue", "updated", "線索「{}」設計圖", False),
 }
 
 

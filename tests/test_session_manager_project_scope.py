@@ -180,15 +180,15 @@ class TestSessionManagerProjectScope:
         prompt = manager._build_project_context("demo")
 
         # Project metadata fields
-        assert "项目标识：demo" in prompt
-        assert "项目标题：重生之皇后威武" in prompt
+        assert "專案識別：demo" in prompt
+        assert "專案標題：重生之皇后威武" in prompt
         assert "重生之皇后威武" in prompt
         assert "narration" in prompt
         assert "Photographic" in prompt
         assert "Soft diffused lighting" in prompt
-        assert f"项目目录（即当前工作目录 cwd）：{project_dir.resolve()}" in prompt
-        assert "必须使用绝对路径" in prompt
-        assert "必须使用相对路径" in prompt
+        assert f"專案目錄（即目前工作目錄 cwd）：{project_dir.resolve()}" in prompt
+        assert "必須使用絕對路徑" in prompt
+        assert "必須使用相對路徑" in prompt
 
         # Overview fields
         assert "姜月茴重生后逆袭的故事" in prompt
@@ -247,15 +247,15 @@ class TestSessionManagerProjectScope:
         prompt = manager._build_project_context("partial")
 
         # Present fields should be injected
-        assert "项目标识：partial" in prompt
-        assert "项目标题：测试项目" in prompt
-        assert f"项目目录（即当前工作目录 cwd）：{project_dir.resolve()}" in prompt
+        assert "專案識別：partial" in prompt
+        assert "專案標題：测试项目" in prompt
+        assert f"專案目錄（即目前工作目錄 cwd）：{project_dir.resolve()}" in prompt
         assert "测试项目" in prompt
         assert "drama" in prompt
 
         # Missing fields should NOT cause errors or appear
         assert "Photographic" not in prompt
-        assert "项目概述" not in prompt  # No overview section header
+        assert "專案概述" not in prompt  # No overview section header
 
         await engine.dispose()
 
@@ -331,6 +331,6 @@ class TestSystemPromptProjectContext:
         )
 
         prompt = manager._build_project_context("demo")
-        assert "项目标题：测试项目" in prompt
-        assert "当前项目上下文" in prompt
+        assert "專案標題：测试项目" in prompt
+        assert "目前專案上下文" in prompt
         await engine.dispose()

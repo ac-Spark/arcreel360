@@ -111,7 +111,7 @@ export function LorebookGallery({
           active={activeTab === "clues"}
           onClick={() => setActiveTab("clues")}
         >
-          线索 ({clueCount})
+          線索 ({clueCount})
         </TabButton>
       </div>
       )}
@@ -122,7 +122,7 @@ export function LorebookGallery({
           {charCount === 0 ? (
             <EmptyState
               icon={<User className="h-12 w-12 text-gray-600" />}
-              message="暂无角色，点击下方按钮添加"
+              message="暫無角色，點擊下方按鈕新增"
             />
           ) : (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -143,7 +143,7 @@ export function LorebookGallery({
           )}
 
           {onAddCharacter && (
-            <AddButton onClick={onAddCharacter}>添加角色</AddButton>
+            <AddButton onClick={onAddCharacter}>新增角色</AddButton>
           )}
         </>
       )}
@@ -154,7 +154,7 @@ export function LorebookGallery({
           {clueCount === 0 ? (
             <EmptyState
               icon={<Puzzle className="h-12 w-12 text-gray-600" />}
-              message="暂无线索，点击下方按钮添加"
+              message="暫無線索，點擊下方按鈕新增"
             />
           ) : (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -174,7 +174,7 @@ export function LorebookGallery({
             </div>
           )}
 
-          {onAddClue && <AddButton onClick={onAddClue}>添加线索</AddButton>}
+          {onAddClue && <AddButton onClick={onAddClue}>新增線索</AddButton>}
         </>
       )}
     </div>

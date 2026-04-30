@@ -224,7 +224,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
   // 删除源文件
   const handleDeleteFile = useCallback(async (filename: string) => {
     if (!projectName) return;
-    if (!confirm(`确定要删除 "${filename}" 吗？`)) return;
+    if (!confirm(`確定要刪除「${filename}」嗎？`)) return;
     try {
       await API.deleteSourceFile(projectName, filename);
       loadSourceFiles();
@@ -259,7 +259,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
         }`}
       >
         <LayoutDashboard className="h-4 w-4 shrink-0 text-[color:var(--wb-accent)]" />
-        <span className="font-medium">项目概览</span>
+        <span className="font-medium">專案總覽</span>
       </button>
 
       {/* ---- Divider ---- */}
@@ -267,7 +267,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
 
       {/* ---- Section 1: Source Files ---- */}
       <CollapsibleSection
-        title="源文件"
+        title="原始檔案"
         icon={FileText}
         action={
           <>
@@ -275,7 +275,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className="focus-ring rounded-lg p-1 text-[color:var(--wb-text-dim)] transition-colors hover:bg-black/16 hover:text-[color:var(--wb-text-secondary)]"
-              title="上传源文件"
+              title="上傳原始檔案"
             >
               <Upload className="h-3.5 w-3.5" />
             </button>
@@ -290,7 +290,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
         }
       >
         {sourceFiles.length === 0 ? (
-          <EmptyState text="暂无文件" />
+          <EmptyState text="暫無檔案" />
         ) : (
           <ul>
             {sourceFiles.map((name) => {
@@ -317,7 +317,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleDeleteFile(name); }}
                       className="focus-ring shrink-0 rounded p-0.5 text-[color:var(--wb-text-dim)] opacity-0 transition-opacity hover:text-[color:var(--wb-danger)] group-hover:opacity-100 focus-visible:opacity-100"
-                      title="删除文件"
+                      title="刪除檔案"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -333,7 +333,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
       <div className="mx-3 border-t border-[color:var(--wb-border-soft)]" />
 
       {/* ---- Section 2: Lorebook (Characters + Clues) ---- */}
-      <CollapsibleSection title="设定集" icon={Users} defaultOpen={true}>
+      <CollapsibleSection title="設定集" icon={Users} defaultOpen={true}>
         {/* Characters sub-section */}
         <div className="mb-1">
           <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[color:var(--wb-text-dim)]">
@@ -341,7 +341,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
             <span>角色</span>
           </div>
           {characterEntries.length === 0 ? (
-            <EmptyState text="暂无角色" />
+            <EmptyState text="暫無角色" />
           ) : (
             <ul>
               {characterEntries.map(([name, char]) => (
@@ -372,10 +372,10 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
         <div>
           <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[color:var(--wb-text-dim)]">
             <Puzzle className="h-3 w-3" />
-            <span>线索</span>
+            <span>線索</span>
           </div>
           {clueEntries.length === 0 ? (
-            <EmptyState text="暂无线索" />
+            <EmptyState text="暫無線索" />
           ) : (
             <ul>
               {clueEntries.map(([name, clue]) => (
@@ -407,9 +407,9 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
       <div className="mx-3 border-t border-[color:var(--wb-border-soft)]" />
 
       {/* ---- Section 3: Episodes ---- */}
-      <CollapsibleSection title="剧集" icon={Film}>
+      <CollapsibleSection title="劇集" icon={Film}>
         {episodes.length === 0 ? (
-          <EmptyState text="暂无剧集" />
+          <EmptyState text="暫無劇集" />
         ) : (
           <ul>
             {episodes.map((ep) => {
@@ -439,7 +439,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
                     </span>
                     {isSegmented && !ep.scenes_count && (
                       <span className="ml-auto shrink-0 rounded-full border border-[rgba(136,163,255,0.16)] bg-[rgba(109,140,255,0.12)] px-2 py-0.5 text-[10px] text-[color:var(--wb-accent)]">
-                        预处理
+                        預處理
                       </span>
                     )}
                   </button>

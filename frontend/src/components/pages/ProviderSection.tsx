@@ -14,9 +14,9 @@ import { CustomProviderForm } from "./settings/CustomProviderForm";
 // ---------------------------------------------------------------------------
 
 const STATUS_MAP: Record<string, { color: string; label: string }> = {
-  ready: { color: "bg-green-400", label: "已就绪" },
-  error: { color: "bg-yellow-400", label: "异常" },
-  unconfigured: { color: "bg-gray-500", label: "未配置" },
+  ready: { color: "bg-green-400", label: "已就緒" },
+  error: { color: "bg-yellow-400", label: "異常" },
+  unconfigured: { color: "bg-gray-500", label: "未設定" },
 };
 
 function StatusDot({ status }: { status: string }) {
@@ -98,7 +98,7 @@ export function ProviderSection() {
         setProviders(nextProviders);
       } else {
         setProviders([]);
-        failures.push("预置供应商");
+        failures.push("預設供應商");
       }
 
       if (customResult.status === "fulfilled") {
@@ -106,7 +106,7 @@ export function ProviderSection() {
         setCustomProviders(nextCustomProviders);
       } else {
         setCustomProviders([]);
-        failures.push("自定义供应商");
+        failures.push("自訂供應商");
       }
 
       const params = new URLSearchParams(search);
@@ -116,7 +116,7 @@ export function ProviderSection() {
 
       setLoadError(
         failures.length > 0
-          ? `${failures.join("、")}加载失败，页面已显示可用结果。`
+          ? `${failures.join("、")}載入失敗，頁面已顯示可用結果。`
           : null,
       );
       setLoading(false);
@@ -131,7 +131,7 @@ export function ProviderSection() {
     return (
       <div className="flex items-center gap-2 px-6 py-8 text-sm text-[color:var(--wb-text-muted)]">
         <Loader2 className="h-4 w-4 animate-spin" />
-        加载供应商列表…
+        載入供應商列表…
       </div>
     );
   }
@@ -139,7 +139,7 @@ export function ProviderSection() {
   return (
     <div className="flex h-full">
       {/* Provider list sidebar */}
-      <nav aria-label="供应商列表" className="w-56 shrink-0 overflow-y-auto border-r border-[color:var(--wb-border-soft)] p-3">
+      <nav aria-label="供應商列表" className="w-56 shrink-0 overflow-y-auto border-r border-[color:var(--wb-border-soft)] p-3">
         {loadError && (
           <div className="workbench-status-warning mx-1 mb-3 rounded-xl px-3 py-2 text-xs">
             {loadError}
@@ -148,7 +148,7 @@ export function ProviderSection() {
 
         {/* Preset providers */}
         <div className="px-4 pb-2 text-xs uppercase tracking-wide text-[color:var(--wb-text-dim)]">
-          预置供应商
+          預設供應商
         </div>
         {providers.map((p) => (
           <button
@@ -223,7 +223,7 @@ export function ProviderSection() {
         )}
         {!selection && (
           <div className="flex-1 overflow-y-auto p-6">
-            <div className="text-sm text-[color:var(--wb-text-muted)]">请选择供应商</div>
+            <div className="text-sm text-[color:var(--wb-text-muted)]">請選擇供應商</div>
           </div>
         )}
       </div>

@@ -54,7 +54,7 @@ export function ContentBlockRenderer({ block, index }: ContentBlockRendererProps
           className="my-1.5 rounded-lg border border-white/10 bg-ink-800/30 px-3 py-2"
         >
           <div className="text-[10px] uppercase tracking-wide text-slate-500 mb-1">
-            {block.is_error ? "执行失败" : "工具结果"}
+            {block.is_error ? "執行失敗" : "工具結果"}
           </div>
           <pre className="text-xs text-slate-300 overflow-x-auto whitespace-pre-wrap">
             {block.content || ""}
@@ -93,7 +93,7 @@ export function ContentBlockRenderer({ block, index }: ContentBlockRendererProps
           className="my-1 flex items-center gap-1.5 text-xs text-amber-400"
         >
           <span>{"\u25A0"}</span>
-          <span>用户中断了会话</span>
+          <span>使用者中斷了會話</span>
         </div>
       );
 
@@ -124,16 +124,16 @@ function ChatImageBlock({ src }: Readonly<{ src: string }>) {
         type="button"
         className="mt-1 cursor-pointer border-0 bg-transparent p-0"
         onClick={() => setOpen(true)}
-        aria-label="点击放大图片"
+        aria-label="點擊放大圖片"
       >
         <img
           src={src}
-          alt="附件图片"
+          alt="附件圖片"
           className="max-w-full max-h-64 rounded-lg"
         />
       </button>
       {open && (
-        <ImageLightbox src={src} alt="附件图片" onClose={() => setOpen(false)} />
+        <ImageLightbox src={src} alt="附件圖片" onClose={() => setOpen(false)} />
       )}
     </>
   );

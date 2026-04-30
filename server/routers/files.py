@@ -50,13 +50,13 @@ async def serve_project_file(project_name: str, path: str, request: Request):
             file_path = project_dir / path
 
             if not file_path.exists():
-                raise HTTPException(status_code=404, detail=f"文件不存在: {path}")
+                raise HTTPException(status_code=404, detail=f"檔案不存在：{path}")
 
             # 安全检查：确保路径在项目目录内
             try:
                 file_path.resolve().relative_to(project_dir.resolve())
             except ValueError:
-                raise HTTPException(status_code=403, detail="禁止访问项目目录外的文件")
+                raise HTTPException(status_code=403, detail="禁止存取專案目錄外的檔案")
 
             return file_path
 
@@ -69,7 +69,7 @@ async def serve_project_file(project_name: str, path: str, request: Request):
 
         return FileResponse(file_path, headers=headers)
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"项目 '{project_name}' 不存在")
+        raise HTTPException(status_code=404, detail=f"專案「{project_name}」不存在")
 
 
 @router.post("/projects/{project_name}/upload/{upload_type}")
@@ -86,14 +86,14 @@ async def upload_file(
         name: 可选，用于角色/线索名称，或分镜 ID（自动更新元数据）
     """
     if upload_type not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail=f"无效的上传类型: {upload_type}")
+        raise HTTPException(status_code=400, detail=f"無效的上傳類型：{upload_type}")
 
     # 检查文件扩展名
     ext = Path(file.filename).suffix.lower()
     if ext not in ALLOWED_EXTENSIONS[upload_type]:
         raise HTTPException(
             status_code=400,
-            detail=f"不支持的文件类型 {ext}，允许的类型: {ALLOWED_EXTENSIONS[upload_type]}",
+            detail=f"不支援的檔案類型 {ext}，允許的類型：{ALLOWED_EXTENSIONS[upload_type]}",
         )
 
     try:
@@ -540,7 +540,7 @@ async def delete_draft(project_name: str, episode: int, step_num: int, _user: Cu
 @router.post("/projects/{project_name}/style-image")
 async def upload_style_image(project_name: str, _user: CurrentUser, file: UploadFile = File(...)):
     """
-    上传风格参考图并分析风格
+    上傳風格參考圖並分析風格
 
     1. 保存图片到 projects/{project_name}/style_reference.png
     2. 调用 Gemini API 分析风格
@@ -551,7 +551,7 @@ async def upload_style_image(project_name: str, _user: CurrentUser, file: Upload
     if ext not in [".png", ".jpg", ".jpeg", ".webp"]:
         raise HTTPException(
             status_code=400,
-            detail=f"不支持的文件类型 {ext}，允许的类型: .png, .jpg, .jpeg, .webp",
+            detail=f"不支援的檔案類型 {ext}，允許的類型：.png, .jpg, .jpeg, .webp",
         )
 
     try:
@@ -562,7 +562,7 @@ async def upload_style_image(project_name: str, _user: CurrentUser, file: Upload
             try:
                 content_norm, new_ext = normalize_uploaded_image(content, Path(file.filename).suffix.lower())
             except ValueError:
-                raise HTTPException(status_code=400, detail="无效的图片文件，无法解析")
+                raise HTTPException(status_code=400, detail="無效的圖片檔案，無法解析")
             style_filename = f"style_reference{new_ext}"
 
             output_path = project_dir / style_filename
@@ -603,7 +603,7 @@ async def upload_style_image(project_name: str, _user: CurrentUser, file: Upload
         }
 
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"项目 '{project_name}' 不存在")
+        raise HTTPException(status_code=404, detail=f"專案「{project_name}」不存在")
     except HTTPException:
         raise
     except Exception as e:
@@ -614,7 +614,7 @@ async def upload_style_image(project_name: str, _user: CurrentUser, file: Upload
 @router.delete("/projects/{project_name}/style-image")
 async def delete_style_image(project_name: str, _user: CurrentUser):
     """
-    删除风格参考图及相关字段
+    刪除風格參考圖及相關欄位
     """
     try:
 
@@ -639,7 +639,7 @@ async def delete_style_image(project_name: str, _user: CurrentUser):
         return await asyncio.to_thread(_sync)
 
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"项目 '{project_name}' 不存在")
+        raise HTTPException(status_code=404, detail=f"專案「{project_name}」不存在")
     except HTTPException:
         raise
     except Exception as e:
@@ -652,7 +652,7 @@ async def update_style_description(
     project_name: str, _user: CurrentUser, style_description: str = Body(..., embed=True)
 ):
     """
-    更新风格描述（手动编辑）
+    更新風格描述（手動編輯）
     """
     try:
 
@@ -667,7 +667,7 @@ async def update_style_description(
         return await asyncio.to_thread(_sync)
 
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"项目 '{project_name}' 不存在")
+        raise HTTPException(status_code=404, detail=f"專案「{project_name}」不存在")
     except HTTPException:
         raise
     except Exception as e:

@@ -110,7 +110,7 @@ export function StudioCanvasRouter() {
       }
       await refreshProject();
     } catch (err) {
-      useAppStore.getState().pushToast(`更新 Prompt 失败: ${(err as Error).message}`, "error");
+      useAppStore.getState().pushToast(`更新 Prompt 失敗: ${(err as Error).message}`, "error");
     }
   }, [currentProjectName, currentProjectData, refreshProject]);
 
@@ -129,9 +129,9 @@ export function StudioCanvasRouter() {
     const prompt = seg?.image_prompt ?? "";
     try {
       await API.generateStoryboard(currentProjectName, segmentId, prompt as string | Record<string, unknown>, resolvedFile);
-      useAppStore.getState().pushToast(`已提交分镜 "${segmentId}" 生成任务`, "success");
+      useAppStore.getState().pushToast(`已提交分鏡「${segmentId}」生成任務`, "success");
     } catch (err) {
-      useAppStore.getState().pushToast(`生成分镜失败: ${(err as Error).message}`, "error");
+      useAppStore.getState().pushToast(`生成分鏡失敗: ${(err as Error).message}`, "error");
     }
   }, [currentProjectName, currentScripts]);
 
@@ -151,9 +151,9 @@ export function StudioCanvasRouter() {
     const duration = seg?.duration_seconds ?? 4;
     try {
       await API.generateVideo(currentProjectName, segmentId, prompt as string | Record<string, unknown>, resolvedFile, duration);
-      useAppStore.getState().pushToast(`已提交视频 "${segmentId}" 生成任务`, "success");
+      useAppStore.getState().pushToast(`已提交影片「${segmentId}」生成任務`, "success");
     } catch (err) {
-      useAppStore.getState().pushToast(`生成视频失败: ${(err as Error).message}`, "error");
+      useAppStore.getState().pushToast(`生成影片失敗: ${(err as Error).message}`, "error");
     }
   }, [currentProjectName, currentScripts]);
 
@@ -187,9 +187,9 @@ export function StudioCanvasRouter() {
           ? [buildEntityRevisionKey("character", name)]
           : [],
       );
-      useAppStore.getState().pushToast(`角色 "${name}" 已更新`, "success");
+      useAppStore.getState().pushToast(`角色「${name}」已更新`, "success");
     } catch (err) {
-      useAppStore.getState().pushToast(`更新角色失败: ${(err as Error).message}`, "error");
+      useAppStore.getState().pushToast(`更新角色失敗: ${(err as Error).message}`, "error");
     }
   }, [currentProjectName, refreshProject]);
 
@@ -203,9 +203,9 @@ export function StudioCanvasRouter() {
       );
       useAppStore
         .getState()
-        .pushToast(`角色 "${name}" 生成任务已提交`, "success");
+        .pushToast(`角色「${name}」生成任務已提交`, "success");
     } catch (err) {
-      useAppStore.getState().pushToast(`提交失败: ${(err as Error).message}`, "error");
+      useAppStore.getState().pushToast(`提交失敗: ${(err as Error).message}`, "error");
     }
   }, [currentProjectName, currentProjectData]);
 
@@ -229,9 +229,9 @@ export function StudioCanvasRouter() {
           : [],
       );
       setAddingCharacter(false);
-      useAppStore.getState().pushToast(`角色 "${name}" 已添加`, "success");
+      useAppStore.getState().pushToast(`角色「${name}」已新增`, "success");
     } catch (err) {
-      useAppStore.getState().pushToast(`添加失败: ${(err as Error).message}`, "error");
+      useAppStore.getState().pushToast(`新增失敗: ${(err as Error).message}`, "error");
     }
   }, [currentProjectName, refreshProject]);
 
@@ -242,7 +242,7 @@ export function StudioCanvasRouter() {
       await API.updateClue(currentProjectName, name, updates);
       await refreshProject();
     } catch (err) {
-      useAppStore.getState().pushToast(`更新线索失败: ${(err as Error).message}`, "error");
+      useAppStore.getState().pushToast(`更新線索失敗: ${(err as Error).message}`, "error");
     }
   }, [currentProjectName, refreshProject]);
 
@@ -256,9 +256,9 @@ export function StudioCanvasRouter() {
       );
       useAppStore
         .getState()
-        .pushToast(`线索 "${name}" 生成任务已提交`, "success");
+        .pushToast(`線索「${name}」生成任務已提交`, "success");
     } catch (err) {
-      useAppStore.getState().pushToast(`提交失败: ${(err as Error).message}`, "error");
+      useAppStore.getState().pushToast(`提交失敗: ${(err as Error).message}`, "error");
     }
   }, [currentProjectName, currentProjectData]);
 
@@ -268,9 +268,9 @@ export function StudioCanvasRouter() {
       await API.addClue(currentProjectName, name, clueType, description, importance);
       await refreshProject();
       setAddingClue(false);
-      useAppStore.getState().pushToast(`线索 "${name}" 已添加`, "success");
+      useAppStore.getState().pushToast(`線索「${name}」已新增`, "success");
     } catch (err) {
-      useAppStore.getState().pushToast(`添加失败: ${(err as Error).message}`, "error");
+      useAppStore.getState().pushToast(`新增失敗: ${(err as Error).message}`, "error");
     }
   }, [currentProjectName, refreshProject]);
 
@@ -283,7 +283,7 @@ export function StudioCanvasRouter() {
   if (!currentProjectName) {
     return (
       <div className="flex h-full items-center justify-center text-gray-500">
-        加载中...
+        載入中...
       </div>
     );
   }

@@ -525,7 +525,7 @@ class ProjectEventService:
                     "entity_type": "project",
                     "action": "updated",
                     "entity_id": "project",
-                    "label": "项目设置",
+                    "label": "專案設定",
                     "focus": None,
                     "important": False,
                 }
@@ -536,7 +536,7 @@ class ProjectEventService:
                     "entity_type": "overview",
                     "action": "updated",
                     "entity_id": "overview",
-                    "label": "项目概览",
+                    "label": "專案概覽",
                     "focus": None,
                     "important": False,
                 }
@@ -572,7 +572,7 @@ class ProjectEventService:
                     entity_type=entity_type,
                     action="created",
                     entity_id=name,
-                    label=f"{'角色' if entity_type == 'character' else '线索'}「{name}」",
+                    label=f"{'角色' if entity_type == 'character' else '線索'}「{name}」",
                     focus={
                         "pane": pane,
                         "anchor_type": entity_type,
@@ -587,7 +587,7 @@ class ProjectEventService:
                     entity_type=entity_type,
                     action="deleted",
                     entity_id=name,
-                    label=f"{'角色' if entity_type == 'character' else '线索'}「{name}」",
+                    label=f"{'角色' if entity_type == 'character' else '線索'}「{name}」",
                     focus=None,
                     important=False,
                 )
@@ -600,7 +600,7 @@ class ProjectEventService:
                     entity_type=entity_type,
                     action="updated",
                     entity_id=name,
-                    label=f"{'角色' if entity_type == 'character' else '线索'}「{name}」",
+                    label=f"{'角色' if entity_type == 'character' else '線索'}「{name}」",
                     focus={
                         "pane": pane,
                         "anchor_type": entity_type,

@@ -36,13 +36,13 @@ function ImportConflictDialog({
             <AlertTriangle className="h-5 w-5" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-lg font-semibold text-gray-100">检测到项目编号重复</h2>
+            <h2 className="text-lg font-semibold text-gray-100">偵測到專案編號重複</h2>
             <p className="text-sm leading-6 text-gray-400">
-              导入包准备使用的项目编号
+              匯入包準備使用的專案編號
               <span className="mx-1 rounded bg-gray-800 px-1.5 py-0.5 font-mono text-gray-200">
                 {projectName}
               </span>
-              已存在。你可以覆盖现有项目，或自动重命名后继续导入。
+              已存在。你可以覆蓋現有專案，或自動重新命名後繼續匯入。
             </p>
           </div>
         </div>
@@ -52,13 +52,13 @@ function ImportConflictDialog({
             type="button"
             onClick={() => onConfirm("overwrite")}
             disabled={importing}
-            aria-label="覆盖现有项目"
+            aria-label="覆蓋現有專案"
             className="flex w-full items-center justify-between rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-left text-sm text-red-100 transition-colors hover:border-red-300/40 hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <span>
-              <span className="block font-medium">覆盖现有项目</span>
+              <span className="block font-medium">覆蓋現有專案</span>
               <span className="mt-1 block text-xs text-red-200/80">
-                使用导入包内容替换现有项目编号对应的数据
+                使用匯入包內容取代現有專案編號對應的資料
               </span>
             </span>
             {importing && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -68,13 +68,13 @@ function ImportConflictDialog({
             type="button"
             onClick={() => onConfirm("rename")}
             disabled={importing}
-            aria-label="自动重命名导入"
+            aria-label="自動重新命名匯入"
             className="flex w-full items-center justify-between rounded-xl border border-indigo-400/25 bg-indigo-500/10 px-4 py-3 text-left text-sm text-indigo-100 transition-colors hover:border-indigo-300/40 hover:bg-indigo-500/15 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <span>
-              <span className="block font-medium">自动重命名导入</span>
+              <span className="block font-medium">自動重新命名匯入</span>
               <span className="mt-1 block text-xs text-indigo-200/80">
-                保留现有项目，新导入项目自动生成新的内部编号
+                保留現有專案，新匯入專案自動產生新的內部編號
               </span>
             </span>
             {importing && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -126,11 +126,11 @@ function ImportDiagnosticsDialogWrapper({
 }) {
   return (
     <ArchiveDiagnosticsDialog
-      title="导入诊断"
-      description="导入已完成预检查。以下问题按严重程度分组展示，阻断问题解决前不会继续导入。"
+      title="匯入診斷"
+      description="匯入已完成預先檢查。以下問題會依嚴重程度分組顯示，在阻斷問題排除前不會繼續匯入。"
       sections={[
-        { key: "blocking", title: "阻断问题", tone: "border-red-400/25 bg-red-500/10 text-red-100", items: diagnostics.blocking },
-        { key: "auto_fixable", title: "可自动修复", tone: "border-indigo-400/25 bg-indigo-500/10 text-indigo-100", items: diagnostics.auto_fixable },
+        { key: "blocking", title: "阻斷問題", tone: "border-red-400/25 bg-red-500/10 text-red-100", items: diagnostics.blocking },
+        { key: "auto_fixable", title: "可自動修復", tone: "border-indigo-400/25 bg-indigo-500/10 text-indigo-100", items: diagnostics.auto_fixable },
         { key: "warnings", title: "警告", tone: "border-amber-400/25 bg-amber-500/10 text-amber-100", items: diagnostics.warnings },
       ]}
       onClose={onClose}
@@ -143,10 +143,10 @@ function ImportDiagnosticsDialogWrapper({
 // ---------------------------------------------------------------------------
 
 const PHASE_LABELS: Record<string, string> = {
-  setup: "准备中",
-  worldbuilding: "世界观",
-  scripting: "剧本创作",
-  production: "制作中",
+  setup: "準備中",
+  worldbuilding: "世界觀",
+  scripting: "劇本創作",
+  production: "製作中",
   completed: "已完成",
 };
 
@@ -193,13 +193,13 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
       {/* Info */}
       <div className="relative z-10">
         <div className="text-[11px] uppercase tracking-[0.24em] text-[color:var(--wb-accent-cyan)]">
-          创作工作台
+          創作工作臺
         </div>
         <h3 className="mt-2 truncate text-base font-semibold text-[color:var(--wb-text-primary)]">
           {project.title}
         </h3>
         <p className="mt-1 text-xs text-[color:var(--wb-text-muted)]">
-          {project.style || "未设置风格"}
+          {project.style || "未設定風格"}
           {phaseLabel ? ` · ${phaseLabel}` : ""}
         </p>
       </div>
@@ -207,7 +207,7 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
       {/* Progress bar */}
       <div className="rounded-2xl border border-white/6 bg-black/12 px-3 py-3">
         <div className="mb-2 flex justify-between text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">
-          <span>{phaseLabel || "进度"}</span>
+          <span>{phaseLabel || "進度"}</span>
           <span>{pct}%</span>
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-[rgba(129,146,181,0.16)]">
@@ -225,7 +225,7 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
             <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">角色 {characters.completed}/{characters.total}</span>
           )}
           {clues && (
-            <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">线索 {clues.completed}/{clues.total}</span>
+            <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">線索 {clues.completed}/{clues.total}</span>
           )}
         </div>
       )}
@@ -234,8 +234,8 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
       {summary && summary.total > 0 && (
         <div className="text-xs leading-6 text-[color:var(--wb-text-muted)]">
           {summary.total} 集
-          {summary.scripted > 0 && ` · ${summary.scripted} 集剧本完成`}
-          {summary.in_production > 0 && ` · ${summary.in_production} 集制作中`}
+          {summary.scripted > 0 && ` · ${summary.scripted} 集劇本完成`}
+          {summary.in_production > 0 && ` · ${summary.in_production} 集製作中`}
           {summary.completed > 0 && ` · ${summary.completed} 集已完成`}
         </div>
       )}
@@ -305,14 +305,14 @@ export function ProjectsPage() {
         const warningCount = result.diagnostics.warnings.length;
         useAppStore.getState().pushToast(
           autoFixedCount > 0
-            ? `项目 "${result.project.title || result.project_name}" 已导入，自动修复 ${autoFixedCount} 项`
-            : `项目 "${result.project.title || result.project_name}" 已导入`,
+            ? `專案「${result.project.title || result.project_name}」已匯入，自動修復 ${autoFixedCount} 項`
+            : `專案「${result.project.title || result.project_name}」已匯入`,
           "success"
         );
         if (warningCount > 0) {
           const warningMessages = result.diagnostics.warnings.map((w) => w.message).join("；");
           useAppStore.getState().pushToast(
-            `导入警告: ${warningMessages}`,
+            `匯入警告：${warningMessages}`,
             "warning"
           );
         }
@@ -351,9 +351,9 @@ export function ProjectsPage() {
         useAppStore
           .getState()
           .pushToast(
-            `导入失败: ${error.detail || error.message || "导入失败"}`
-            + (blockingCount > 0 ? `（${blockingCount} 个阻断问题` : "（0 个阻断问题")
-            + (autoFixableCount > 0 ? `，${autoFixableCount} 个可自动修复）` : "）"),
+            `匯入失敗：${error.detail || error.message || "匯入失敗"}`
+            + (blockingCount > 0 ? `（${blockingCount} 個阻斷問題` : "（0 個阻斷問題")
+            + (autoFixableCount > 0 ? `，${autoFixableCount} 個可自動修復）` : "）"),
             "error"
           );
       } finally {
@@ -395,13 +395,13 @@ export function ProjectsPage() {
       <header className="relative border-b border-[color:var(--wb-border-soft)] px-6 py-5 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-start justify-between gap-6">
           <div>
-            <div className="workbench-kicker text-xs font-semibold">Creative Project Hall</div>
+            <div className="workbench-kicker text-xs font-semibold">創作專案大廳</div>
             <h1 className="workbench-title mt-2 flex items-center gap-3 text-[1.9rem] font-semibold tracking-tight">
               <img src="/android-chrome-192x192.png" alt="ArcReel" className="h-8 w-8 rounded-xl" />
-              <span>ArcReel 项目工作台</span>
+              <span>ArcReel 專案工作臺</span>
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--wb-text-muted)]">
-              在同一個入口管理小说转视频项目、导入归档与系统配置，优先突出项目上下文与创作进度，而不是后台表单感。
+              在同一個入口管理小說轉影片專案、匯入封存與系統設定，優先突顯專案脈絡與創作進度，而不是後台表單感。
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -416,7 +416,7 @@ export function ProjectsPage() {
               ) : (
                 <Upload className="h-4 w-4" />
               )}
-              {importingProject ? "导入中..." : "导入 ZIP"}
+              {importingProject ? "匯入中..." : "匯入 ZIP"}
             </button>
             <button
               type="button"
@@ -424,7 +424,7 @@ export function ProjectsPage() {
               className="workbench-button-primary inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-medium"
             >
               <Plus className="h-4 w-4" />
-              新建项目
+              新建專案
             </button>
             <div className="ml-1 flex items-center gap-1 border-l border-[color:var(--wb-border-soft)] pl-3">
               <button
@@ -440,12 +440,12 @@ export function ProjectsPage() {
                 type="button"
                 onClick={() => navigate("/app/settings")}
                 className="workbench-button-secondary relative rounded-xl p-2"
-                title="系统配置"
-                aria-label="系统配置"
+                title="系統設定"
+                aria-label="系統設定"
               >
                 <Settings className="h-4 w-4" />
                 {!isConfigComplete && (
-                  <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-rose-500" aria-label="配置不完整" />
+                  <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-rose-500" aria-label="設定不完整" />
                 )}
               </button>
             </div>
@@ -466,24 +466,24 @@ export function ProjectsPage() {
           <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-[rgba(109,140,255,0.16)] via-transparent to-[rgba(112,199,217,0.16)]" />
           <div className="relative grid gap-4 lg:grid-cols-[1.7fr_1fr]">
             <div>
-              <div className="text-xs uppercase tracking-[0.22em] text-[color:var(--wb-accent-cyan)]">Workspace Overview</div>
-              <h2 className="mt-2 text-2xl font-semibold text-[color:var(--wb-text-primary)]">从这里进入每个创作项目</h2>
+              <div className="text-xs uppercase tracking-[0.22em] text-[color:var(--wb-accent-cyan)]">工作臺總覽</div>
+              <h2 className="mt-2 text-2xl font-semibold text-[color:var(--wb-text-primary)]">從這裡進入每個創作專案</h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--wb-text-muted)]">
-                項目卡片現在優先顯示上下文、進度與角色/線索完成度，讓入口頁更像創作台總覽，而不是單純資料清單。
+                專案卡片現在優先顯示脈絡、進度與角色／線索完成度，讓入口頁更像創作工作臺總覽，而不是單純的資料清單。
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
               <div className="rounded-2xl border border-white/6 bg-black/12 px-4 py-3">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">项目总数</div>
+                <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">專案總數</div>
                 <div className="mt-2 text-2xl font-semibold text-[color:var(--wb-text-primary)]">{projects.length}</div>
               </div>
               <div className="rounded-2xl border border-white/6 bg-black/12 px-4 py-3">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">配置状态</div>
-                <div className="mt-2 text-sm font-medium text-[color:var(--wb-text-secondary)]">{isConfigComplete ? "已就绪" : "待完善"}</div>
+                <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">設定狀態</div>
+                <div className="mt-2 text-sm font-medium text-[color:var(--wb-text-secondary)]">{isConfigComplete ? "已就緒" : "待完善"}</div>
               </div>
               <div className="rounded-2xl border border-white/6 bg-black/12 px-4 py-3">
                 <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">快速入口</div>
-                <div className="mt-2 text-sm font-medium text-[color:var(--wb-text-secondary)]">导入 ZIP / 新建项目 / 设置中心</div>
+                <div className="mt-2 text-sm font-medium text-[color:var(--wb-text-secondary)]">匯入 ZIP / 新建專案 / 設定中心</div>
               </div>
             </div>
           </div>
@@ -492,13 +492,13 @@ export function ProjectsPage() {
         {projectsLoading ? (
           <div className="workbench-panel flex items-center justify-center rounded-[1.4rem] py-20">
             <Loader2 className="h-6 w-6 animate-spin text-[color:var(--wb-accent)]" />
-            <span className="ml-2 text-[color:var(--wb-text-muted)]">加载项目列表...</span>
+            <span className="ml-2 text-[color:var(--wb-text-muted)]">載入專案列表...</span>
           </div>
         ) : projects.length === 0 ? (
           <div className="workbench-panel flex flex-col items-center justify-center rounded-[1.4rem] py-20 text-[color:var(--wb-text-muted)]">
             <FolderOpen className="h-16 w-16 mb-4" />
-            <p className="text-lg text-[color:var(--wb-text-primary)]">暂无项目</p>
-            <p className="text-sm mt-1">点击右上角「新建项目」或「导入 ZIP」开始创作</p>
+            <p className="text-lg text-[color:var(--wb-text-primary)]">暫無專案</p>
+            <p className="text-sm mt-1">點擊右上角「新建專案」或「匯入 ZIP」開始創作</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">

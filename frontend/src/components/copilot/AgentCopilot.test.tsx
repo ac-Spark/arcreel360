@@ -84,10 +84,10 @@ describe("AgentCopilot", () => {
 
     render(<AgentCopilot />);
 
-    expect(screen.getByText("需要你的选择")).toBeInTheDocument();
-    expect(screen.getByLabelText("助手输入")).toBeDisabled();
-    expect(screen.getByLabelText("发送消息")).toBeDisabled();
-    expect(screen.getByPlaceholderText("请先回答上方问题")).toBeInTheDocument();
+    expect(screen.getByText("需要你的選擇")).toBeInTheDocument();
+    expect(screen.getByLabelText("助理輸入")).toBeDisabled();
+    expect(screen.getByLabelText("傳送訊息")).toBeDisabled();
+    expect(screen.getByPlaceholderText("請先回答上方問題")).toBeInTheDocument();
   });
 
   it("submits wizard answers through answerQuestion", () => {
@@ -98,7 +98,7 @@ describe("AgentCopilot", () => {
     render(<AgentCopilot />);
 
     fireEvent.click(screen.getByLabelText("摘要"));
-    fireEvent.click(screen.getByRole("button", { name: "完成并提交" }));
+    fireEvent.click(screen.getByRole("button", { name: "完成並提交" }));
 
     expect(answerQuestion).toHaveBeenCalledWith("q-1", {
       "输出格式是什么？": "摘要",
@@ -111,7 +111,7 @@ describe("AgentCopilot", () => {
         {
           id: "session-1",
           project_name: "demo",
-          title: "当前会话",
+          title: "目前會話",
           status: "idle",
           created_at: "2026-02-01T00:00:00Z",
           updated_at: "2026-02-01T00:00:00Z",
@@ -124,7 +124,7 @@ describe("AgentCopilot", () => {
 
     expect(container.firstElementChild).toHaveClass("isolate");
 
-    fireEvent.click(screen.getByTitle("切换会话"));
+    fireEvent.click(screen.getByTitle("切換會話"));
     expect(document.querySelector(`.${UI_LAYERS.assistantLocalPopover}`)).toBeTruthy();
   });
 
@@ -138,8 +138,8 @@ describe("AgentCopilot", () => {
 
     render(<AgentCopilot />);
 
-    expect(await screen.findByText("当前 provider 不支持恢复旧会话；lite 会话在进程重启后只能查看历史，不能继续发送。"))
+    expect(await screen.findByText("目前 provider 不支援恢復舊會話；lite 會話在程序重啟後只能查看歷史，不能繼續傳送。"))
       .toBeInTheDocument();
-    expect(screen.getByText("当前 provider 不支持技能快捷指令与 Claude-only 高级能力。")).toBeInTheDocument();
+    expect(screen.getByText("目前 provider 不支援技能快捷指令與 Claude-only 進階能力。")).toBeInTheDocument();
   });
 });

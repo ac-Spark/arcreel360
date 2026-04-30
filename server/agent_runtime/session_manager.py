@@ -318,15 +318,15 @@ class SessionManager:
     _PERSONA_PROMPT = """\
 ## 身份
 
-你是 ArcReel 智能体，一个专业的 AI 视频内容创作助手。你的职责是将小说转化为可发布的短视频内容。
+你是 ArcReel 智能體，一個專業的 AI 影片內容創作助理。你的職責是將小說轉化為可發布的短影片內容。
 
 ## 行为准则
 
-- 主动引导用户完成视频创作工作流，而不仅仅被动回答问题
-- 遇到不确定的创作决策时，向用户提出选项并给出建议，而不是自行决定
-- 涉及多步骤任务时，使用 TodoWrite 跟踪进度并向用户汇报
-- 你不能创建或编辑代码文件（.py/.js/.sh 等），Write/Edit 仅限 .json/.md/.txt
-- 你是用户的视频制作搭档，专业、友善、高效"""
+- 主動引導使用者完成影片創作工作流，而不只是被動回答問題
+- 遇到不確定的創作決策時，向使用者提出選項並給出建議，而不是自行決定
+- 涉及多步驟任務時，使用 TodoWrite 追蹤進度並向使用者回報
+- 你不能建立或編輯程式碼檔案（.py/.js/.sh 等），Write/Edit 僅限 .json/.md/.txt
+- 你是使用者的影片製作搭檔，專業、友善、高效"""
 
     def _build_append_prompt(self, project_name: str) -> str:
         """Build the append portion for SystemPromptPreset.
@@ -366,30 +366,30 @@ class SessionManager:
             return ""
 
         parts = [
-            "## 当前项目上下文",
+            "## 目前專案上下文",
             "",
         ]
 
         # TODO: 当前定位是自部署服务，这里直接拼接项目元数据以保持实现简单。
         # TODO: 若后续演进为 SaaS / 多租户服务，需要把 title/style/overview 等用户输入
         # TODO: 按“非指令上下文”做边界化或转义，降低 prompt injection 风险。
-        parts.append(f"- 项目标识：{project_name}")
+        parts.append(f"- 專案識別：{project_name}")
         if title := config.get("title"):
-            parts.append(f"- 项目标题：{title}")
+            parts.append(f"- 專案標題：{title}")
         if mode := config.get("content_mode"):
-            parts.append(f"- 内容模式：{mode}")
+            parts.append(f"- 內容模式：{mode}")
         if style := config.get("style"):
-            parts.append(f"- 视觉风格：{style}")
+            parts.append(f"- 視覺風格：{style}")
         if style_desc := config.get("style_description"):
-            parts.append(f"- 风格描述：{style_desc}")
-        parts.append(f"- 项目目录（即当前工作目录 cwd）：{project_cwd}")
+            parts.append(f"- 風格描述：{style_desc}")
+        parts.append(f"- 專案目錄（即目前工作目錄 cwd）：{project_cwd}")
         parts.append(
-            "- Read/Edit/Write 等工具的 file_path 参数必须使用绝对路径，不要使用相对路径，也不要把项目标题当成目录名。"
+            "- Read/Edit/Write 等工具的 file_path 參數必須使用絕對路徑，不要使用相對路徑，也不要把專案標題當成目錄名。"
         )
         parts.append(
-            "- Bash 调用 skill 脚本时必须使用相对路径（如 `python .claude/skills/.../script.py`），不要转换为绝对路径。"
+            "- Bash 呼叫 skill 腳本時必須使用相對路徑（如 `python .claude/skills/.../script.py`），不要轉成絕對路徑。"
         )
-        parts.append("- Bash 命令必须写在单行，禁止使用 `\\` 换行，JSON 参数使用紧凑格式。")
+        parts.append("- Bash 命令必須寫在單行，禁止使用 `\\` 換行，JSON 參數請使用緊湊格式。")
 
         self._append_overview_section(parts, config.get("overview", {}))
 
@@ -401,13 +401,13 @@ class SessionManager:
         if not isinstance(overview, dict) or not overview:
             return
         parts.append("")
-        parts.append("### 项目概述")
+        parts.append("### 專案概述")
         if synopsis := overview.get("synopsis"):
             parts.append(synopsis)
         if genre := overview.get("genre"):
-            parts.append(f"- 题材：{genre}")
+            parts.append(f"- 題材：{genre}")
         if theme := overview.get("theme"):
-            parts.append(f"- 主题：{theme}")
+            parts.append(f"- 主題：{theme}")
         if world := overview.get("world_setting"):
             parts.append(f"- 世界观：{world}")
 
@@ -680,10 +680,10 @@ class SessionManager:
                         "hookEventName": "PreToolUse",
                         "permissionDecision": "deny",
                         "permissionDecisionReason": (
-                            f"操作被阻止：此次 {tool_name} 会导致 {file_path} "
-                            f"变成无效 JSON。错误：{exc}。"
-                            "请检查你的输入内容中是否包含未转义的双引号或其他"
-                            "JSON 语法问题，修正后重试。"
+                            f"操作已被阻止：此次 {tool_name} 會讓 {file_path} "
+                            f"變成無效 JSON。錯誤：{exc}。"
+                            "請檢查你的輸入內容是否包含未跳脫的雙引號或其他"
+                            "JSON 語法問題，修正後再試。"
                         ),
                     },
                 }
@@ -782,16 +782,16 @@ class SessionManager:
 
                 if restored:
                     ctx = (
-                        f"⚠ JSON 损坏已检测并回滚：{tool_name} 导致 "
-                        f"{file_path} 变成无效 JSON（{exc}）。"
-                        "文件已恢复到编辑前状态，请修正后重试。"
+                        f"⚠ 已偵測到 JSON 損壞並完成回滾：{tool_name} 導致 "
+                        f"{file_path} 變成無效 JSON（{exc}）。"
+                        "檔案已恢復到編輯前狀態，請修正後再試。"
                     )
                 else:
                     ctx = (
-                        f"⚠ JSON 损坏已检测但无法恢复：{tool_name} 导致 "
-                        f"{file_path} 变成无效 JSON（{exc}）。"
-                        "文件当前仍为损坏状态（无可用备份或恢复写入失败），"
-                        "请先读取文件确认内容，再手动修正为合法 JSON。"
+                        f"⚠ 已偵測到 JSON 損壞但無法恢復：{tool_name} 導致 "
+                        f"{file_path} 變成無效 JSON（{exc}）。"
+                        "檔案目前仍為損壞狀態（沒有可用備份或恢復寫入失敗），"
+                        "請先讀取檔案確認內容，再手動修正為合法 JSON。"
                     )
 
                 return {
@@ -966,7 +966,7 @@ class SessionManager:
             managed._cleanup_task = None
 
         if managed.status == "running":
-            raise ValueError("会话正在处理中，请等待当前回复完成后再发送新消息")
+            raise ValueError("會話正在處理中，請等待目前回覆完成後再傳送新訊息")
 
         self._prune_transient_buffer(managed)
 
@@ -1470,11 +1470,11 @@ class SessionManager:
                     victim.session_id,
                     exc_info=True,
                 )
-                raise SessionCapacityError("存在未能关闭的空闲会话，当前无法释放并发槽位，请稍后重试") from exc
+                raise SessionCapacityError("有尚未關閉的閒置會話，目前無法釋放並發槽位，請稍後再試") from exc
             return
 
         # 所有会话都在 running → 拒绝
-        raise SessionCapacityError(f"当前有{len(active)}个正在进行的会话，已达到最大上限，请稍后重试")
+        raise SessionCapacityError(f"目前有 {len(active)} 個正在進行的會話，已達最大上限，請稍後再試")
 
     _PATROL_INTERVAL = 300  # 5 分钟
 
@@ -1558,7 +1558,7 @@ class SessionManager:
             p = Path(file_path)
             resolved = (project_cwd / p).resolve() if not p.is_absolute() else p.resolve()
         except (ValueError, OSError):
-            return False, "访问被拒绝：无效的文件路径"
+            return False, "存取遭拒：無效的檔案路徑"
 
         # 1. Within project directory
         if resolved.is_relative_to(project_cwd):
@@ -1566,15 +1566,15 @@ class SessionManager:
                 ext = resolved.suffix.lower()
                 if ext not in self._WRITABLE_EXTENSIONS:
                     return False, (
-                        f"不允许创建/编辑 {ext} 类型的文件。"
-                        "Write/Edit 仅限 .json、.md、.txt 文件。"
-                        "如果你需要执行数据处理，请使用现有的 skill 脚本。"
+                        f"不允許建立／編輯 {ext} 類型的檔案。"
+                        "Write/Edit 僅限 .json、.md、.txt 檔案。"
+                        "如果你需要執行資料處理，請使用既有的 skill 腳本。"
                     )
             return True, None
 
         # 2. Write tools: only project directory allowed
         if tool_name in self._WRITE_TOOLS:
-            return False, "访问被拒绝：不允许访问当前项目目录之外的路径"
+            return False, "存取遭拒：不允許存取目前專案目錄之外的路徑"
 
         # 3. Read tools: allow entire project_root for shared resources
         #    Sensitive files protected by settings.json deny rules
@@ -1603,7 +1603,7 @@ class SessionManager:
         if resolved_str.startswith(_SDK_TMP_PREFIXES) and "tasks" in resolved.parts:
             return True, None
 
-        return False, "访问被拒绝：不允许访问当前项目和公共目录之外的路径"
+        return False, "存取遭拒：不允許存取目前專案與公共目錄之外的路徑"
 
     async def _handle_ask_user_question(
         self,
@@ -1632,7 +1632,7 @@ class SessionManager:
         except Exception as exc:
             if PermissionResultDeny is not None:
                 return PermissionResultDeny(
-                    message=str(exc) or "session interrupted by user",
+                    message=str(exc) or "會話已被使用者中斷",
                     interrupt=True,
                 )
             raise
@@ -1688,13 +1688,13 @@ class SessionManager:
             # by allowed_tools or settings.json allow rules.
             if PermissionResultDeny is not None:
                 hint = (
-                    f"未授权的工具调用: {tool_name}"
+                    f"未授權的工具呼叫：{tool_name}"
                     f"({json.dumps(input_data, ensure_ascii=False)[:200]})\n"
-                    "当前 Bash 白名单仅允许以下命令:\n"
-                    "  - python .claude/skills/<skill>/scripts/<script>.py <args>（必须用相对路径）\n"
+                    "目前 Bash 白名單僅允許以下命令：\n"
+                    "  - python .claude/skills/<skill>/scripts/<script>.py <args>（必須使用相對路徑）\n"
                     "  - ffmpeg / ffprobe\n"
-                    "其他 Bash 命令均不可用。"
-                    "请检查命令格式是否匹配白名单规则。"
+                    "其他 Bash 命令都不可用。"
+                    "請檢查命令格式是否符合白名單規則。"
                 )
                 return PermissionResultDeny(message=hint)
             return PermissionResultAllow(updated_input=input_data)
@@ -1924,11 +1924,11 @@ class SessionManager:
         """Resolve AskUserQuestion answers for a running session."""
         managed = self.sessions.get(session_id)
         if managed is None:
-            raise ValueError("会话未运行或无待回答问题")
+            raise ValueError("會話未在執行中，或目前沒有待回答的問題")
         if managed.status != "running":
-            raise ValueError("会话未运行或无待回答问题")
+            raise ValueError("會話未在執行中，或目前沒有待回答的問題")
         if not managed.resolve_pending_question(question_id, answers):
-            raise ValueError("未找到待回答的问题")
+            raise ValueError("找不到待回答的問題")
 
     async def subscribe(self, session_id: str, replay_buffer: bool = True) -> asyncio.Queue:
         """Subscribe to session messages. Returns queue for SSE."""

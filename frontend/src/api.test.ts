@@ -265,7 +265,7 @@ describe("API", () => {
 
       await expect(
         API.updateProject("demo", { content_mode: "drama" } as never),
-      ).rejects.toThrow("项目创建后不支持修改 content_mode");
+      ).rejects.toThrow("專案建立後不支援修改 content_mode");
       expect(requestSpy).not.toHaveBeenCalled();
     });
 
@@ -390,13 +390,13 @@ describe("API", () => {
         mockResponse({
           ok: false,
           statusText: "Bad Request",
-          jsonData: { detail: "上传失败" },
+          jsonData: { detail: "上傳失敗" },
         }),
       );
       vi.stubGlobal("fetch", fetchMock);
       const file = new File(["hello"], "demo.txt", { type: "text/plain" });
 
-      await expect(API.uploadFile("demo", "source", file)).rejects.toThrow("上传失败");
+      await expect(API.uploadFile("demo", "source", file)).rejects.toThrow("上傳失敗");
     });
 
     it("handles source and draft text APIs", async () => {

@@ -1,8 +1,20 @@
 # ArcReel 360
 
+> 這是 ArcReel 的繁體中文 fork。
+> 
+> 本倉庫以繁體中文作為主要文件語言與產品呈現方向，面向台灣與所有偏好繁體中文介面的使用者、部署者與二次開發者。
+
 ArcReel 360 是基於原始 ArcReel 專案延伸維護的繁體中文版本，聚焦在二開可用性、多 provider assistant runtime，以及更適合自行部署與持續迭代的文件體驗。
 
 新倉庫網址：<https://github.com/CreateIntelligens/arcreel360>
+
+## 先說結論
+
+如果你是因為搜尋 ArcReel 才來到這裡，最重要的差異可以先看這三點：
+
+- 這不是 upstream 原版，而是以可維護 fork 為前提持續演進的版本。
+- 這是繁體中文版本，README、changelog 與產品顯示文案都會優先朝繁體中文整理。
+- 這個 fork 不把 assistant runtime 綁死在單一 provider 上，Gemini-only 與 OpenAI-only 部署也能走得通。
 
 ## 致謝
 
@@ -27,7 +39,17 @@ ArcReel 360 仍然是一個 AI 影片生成工作台，核心目標沒有變：
 - assistant 不再預設只能綁 Anthropic / Claude。
 - Gemini-only 與 OpenAI-only 部署可以真正把 assistant 開起來。
 - 前端會依 provider 能力降級，不再假設所有 runtime 都有 Claude full capability。
-- 文件改成繁體中文，並明確說明 fork 與 upstream 的差異。
+- 文件與產品呈現以繁體中文為主，並明確說明 fork 與 upstream 的差異。
+
+## 語系定位
+
+ArcReel 360 的語系策略很直接：
+
+- 主要對外文件以繁體中文撰寫。
+- 產品中的使用者可見文案會持續往繁體中文收斂。
+- changelog 會把「這是繁體中文 fork」當成長期維護定位的一部分，而不是一次性註記。
+
+如果你想找的是原始 ArcReel 的簡體中文版本，請直接參考 upstream：<https://github.com/ArcReel/ArcReel>
 
 ## 與原作者版本的主要差異
 
@@ -41,7 +63,7 @@ ArcReel 360 仍然是一個 AI 影片生成工作台，核心目標沒有變：
 | 同步 chat / session API | 隱含 Claude runtime | 回應會帶 provider 與 capability 資訊 |
 | 前端 assistant 面板 | 預設所有 provider 都有完整能力 | 依 capability matrix 隱藏或禁用不支援功能 |
 | Gemini-only / OpenAI-only 部署 | 很容易被 assistant 配置卡住 | 可透過 assistant provider 正常啟用 lite assistant |
-| 文件語系 | 簡體中文為主 | 繁體中文為主，補 fork 差異說明 |
+| 文件與介面語系方向 | 簡體中文為主 | 繁體中文為主，並持續推進產品顯示文案繁體化 |
 | 部署可維護性 | 以原始發布節奏為主 | 額外補回缺失 migration，確保目前 fork 可重新打包與啟動 |
 
 ### Assistant 能力差異

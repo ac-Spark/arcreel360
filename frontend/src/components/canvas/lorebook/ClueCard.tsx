@@ -120,7 +120,7 @@ export function ClueCard({
       <div className="mb-4">
         <div className="mb-1.5 flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-            线索设计图
+            線索設計圖
           </span>
           <VersionTimeMachine
             projectName={projectName}
@@ -144,7 +144,7 @@ export function ClueCard({
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-500">
                 <Puzzle className="h-10 w-10" />
-                <span className="text-xs">点击生成</span>
+                <span className="text-xs">點擊生成</span>
               </div>
             )}
           </AspectFrame>
@@ -159,7 +159,7 @@ export function ClueCard({
         onInput={autoResize}
         rows={2}
         className="mb-3 w-full resize-none overflow-hidden bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-indigo-500 focus:outline-none"
-        placeholder="输入线索描述..."
+        placeholder="輸入線索描述..."
       />
 
       {isDirty && (
@@ -168,7 +168,7 @@ export function ClueCard({
           onClick={handleSave}
           className="mb-3 rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 transition-colors"
         >
-          保存
+          儲存
         </button>
       )}
 
@@ -176,7 +176,7 @@ export function ClueCard({
         <GenerateButton
           onClick={() => onGenerate(name)}
           loading={generating}
-          label={clue.clue_sheet ? "重新生成设计图" : "生成设计图"}
+          label={clue.clue_sheet ? "重新生成設計圖" : "生成設計圖"}
           className="w-full justify-center"
         />
       )}

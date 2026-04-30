@@ -26,7 +26,7 @@ describe("project-changes utils", () => {
       makeChange({
         entity_type: "clue",
         entity_id: "玉佩",
-        label: "线索「玉佩」",
+        label: "線索「玉佩」",
       }),
       makeChange({
         entity_type: "character",
@@ -49,7 +49,7 @@ describe("project-changes utils", () => {
     const [singleGroup] = groupChangesByType([
       makeChange({ entity_id: "张三", label: "角色「张三」" }),
     ]);
-    expect(formatGroupedNotificationText(singleGroup)).toBe("角色「张三」已创建");
+    expect(formatGroupedNotificationText(singleGroup)).toBe("角色「张三」已建立");
 
     const [grouped] = groupChangesByType([
       makeChange({ entity_id: "张三", label: "角色「张三」" }),
@@ -61,10 +61,10 @@ describe("project-changes utils", () => {
     ]);
 
     expect(formatGroupedNotificationText(grouped)).toBe(
-      "新增了 6 个角色：张三、李四、王五、赵六、钱七…等",
+      "新增了 6 個角色：张三、李四、王五、赵六、钱七…等",
     );
     expect(formatGroupedDeferredText(grouped)).toBe(
-      "AI 刚新增了 6 个角色：张三、李四、王五、赵六、钱七…等，点击查看",
+      "AI 剛新增了 6 個角色：张三、李四、王五、赵六、钱七…等，點擊查看",
     );
   });
 });

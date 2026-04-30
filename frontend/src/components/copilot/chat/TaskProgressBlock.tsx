@@ -50,7 +50,7 @@ export function TaskProgressBlock({ block }: TaskProgressBlockProps) {
       >
         <span>{isCompleted ? "\u2713" : isFailed ? "\u2717" : "\u2013"}</span>
         <span>
-          子任务{isCompleted ? "完成" : isFailed ? "失败" : "结束"}: {summary || description}
+          子任務{isCompleted ? "完成" : isFailed ? "失敗" : "結束"}：{summary || description}
         </span>
       </div>
     );

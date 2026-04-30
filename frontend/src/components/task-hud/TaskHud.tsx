@@ -63,9 +63,9 @@ function TaskRow({
 }) {
   const statusLabel: Record<TaskItem["status"], string> = {
     running: "生成中...",
-    queued: "排队中",
+    queued: "排隊中",
     succeeded: "已完成",
-    failed: "失败",
+    failed: "失敗",
   };
 
   const statusColor: Record<TaskItem["status"], string> = {
@@ -228,7 +228,7 @@ function ChannelSection({
         {title}
         {running.length > 0 && (
           <span className="ml-auto text-indigo-400">
-            {running.length} 运行中
+            {running.length} 執行中
           </span>
         )}
       </div>
@@ -287,11 +287,11 @@ export function TaskHud({ anchorRef }: { anchorRef: RefObject<HTMLElement | null
           {/* 统计栏 */}
           <div className="flex gap-3 border-b border-gray-800 px-3 py-2 text-xs text-gray-400">
             <span>
-              排队{" "}
+              排隊{" "}
               <strong className="text-gray-200">{stats.queued}</strong>
             </span>
             <span>
-              运行{" "}
+              執行{" "}
               <strong className="text-indigo-400">{stats.running}</strong>
             </span>
             <span>
@@ -299,15 +299,15 @@ export function TaskHud({ anchorRef }: { anchorRef: RefObject<HTMLElement | null
               <strong className="text-emerald-400">{stats.succeeded}</strong>
             </span>
             <span>
-              失败{" "}
+              失敗{" "}
               <strong className="text-red-400">{stats.failed}</strong>
             </span>
           </div>
 
           {/* 双通道 */}
           <div className="max-h-80 divide-y divide-gray-800/50 overflow-y-auto">
-            <ChannelSection title="图片通道" icon={Image} tasks={imageTasks} />
-            <ChannelSection title="视频通道" icon={Video} tasks={videoTasks} />
+            <ChannelSection title="圖片通道" icon={Image} tasks={imageTasks} />
+            <ChannelSection title="影片通道" icon={Video} tasks={videoTasks} />
           </div>
         </motion.div>
       )}

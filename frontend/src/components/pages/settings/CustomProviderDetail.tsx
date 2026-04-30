@@ -10,9 +10,9 @@ import { CustomProviderForm } from "./CustomProviderForm";
 // ---------------------------------------------------------------------------
 
 const MEDIA_LABELS: Record<string, string> = {
-  text: "文本",
-  image: "图片",
-  video: "视频",
+  text: "文字",
+  image: "圖片",
+  video: "影片",
 };
 
 // ---------------------------------------------------------------------------
@@ -58,7 +58,7 @@ export function CustomProviderDetail({ providerId, onDeleted, onSaved }: CustomP
       await API.deleteCustomProvider(providerId);
       onDeleted();
     } catch (e) {
-      showError(e instanceof Error ? e.message : "删除失败");
+      showError(e instanceof Error ? e.message : "刪除失敗");
     } finally {
       setDeleting(false);
       setConfirmDelete(false);
@@ -73,7 +73,7 @@ export function CustomProviderDetail({ providerId, onDeleted, onSaved }: CustomP
       const res = await API.testCustomConnectionById(provider.id);
       setTestResult(res);
     } catch (e) {
-      setTestResult({ success: false, message: e instanceof Error ? e.message : "连接测试失败" });
+      setTestResult({ success: false, message: e instanceof Error ? e.message : "連線測試失敗" });
     } finally {
       setTesting(false);
     }
@@ -89,7 +89,7 @@ export function CustomProviderDetail({ providerId, onDeleted, onSaved }: CustomP
     return (
       <div className="flex items-center gap-2 text-sm text-gray-500">
         <Loader2 className="h-4 w-4 animate-spin" />
-        加载中…
+        載入中…
       </div>
     );
   }
@@ -128,7 +128,7 @@ export function CustomProviderDetail({ providerId, onDeleted, onSaved }: CustomP
                   : "border border-gray-700 bg-gray-800 text-gray-400"
               }`}
             >
-              {ready ? "已连接" : "未配置"}
+              {ready ? "已連線" : "未設定"}
             </span>
           </div>
           <p className="mt-1 text-sm text-gray-500">
@@ -152,12 +152,12 @@ export function CustomProviderDetail({ providerId, onDeleted, onSaved }: CustomP
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500">API Key</span>
-            <span className="text-gray-300">{provider.api_key_masked || "未设置"}</span>
+            <span className="text-gray-300">{provider.api_key_masked || "未設定"}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">创建时间</span>
+            <span className="text-gray-500">建立時間</span>
             <span className="text-gray-300">
-              {new Date(provider.created_at).toLocaleDateString("zh-CN")}
+              {new Date(provider.created_at).toLocaleDateString("zh-TW")}
             </span>
           </div>
         </div>
@@ -166,7 +166,7 @@ export function CustomProviderDetail({ providerId, onDeleted, onSaved }: CustomP
       {/* Model list */}
       {provider.models.length > 0 && (
         <div className="mb-5">
-          <div className="mb-2 text-sm text-gray-400">模型列表</div>
+          <div className="mb-2 text-sm text-gray-400">模型清單</div>
           <div className="space-y-1.5">
             {provider.models.map((m) => (
               <div
@@ -181,11 +181,11 @@ export function CustomProviderDetail({ providerId, onDeleted, onSaved }: CustomP
                 </span>
                 {m.is_default && (
                   <span className="rounded bg-indigo-600/30 px-1.5 py-0.5 text-xs text-indigo-300">
-                    默认
+                    預設
                   </span>
                 )}
                 {!m.is_enabled && (
-                  <span className="text-xs text-gray-600">已禁用</span>
+                  <span className="text-xs text-gray-600">已停用</span>
                 )}
               </div>
             ))}
@@ -224,7 +224,7 @@ export function CustomProviderDetail({ providerId, onDeleted, onSaved }: CustomP
             className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white transition-colors hover:bg-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60"
           >
             <Pencil className="h-3.5 w-3.5" />
-            编辑
+            編輯
           </button>
 
           <button
@@ -236,10 +236,10 @@ export function CustomProviderDetail({ providerId, onDeleted, onSaved }: CustomP
             {testing ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                测试中…
+                測試中…
               </>
             ) : (
-              "测试连接"
+              "測試連線"
             )}
           </button>
 
@@ -250,7 +250,7 @@ export function CustomProviderDetail({ providerId, onDeleted, onSaved }: CustomP
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-400 transition-colors hover:border-red-800 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              删除
+              刪除
             </button>
           ) : (
             <div className="flex items-center gap-1.5">
@@ -261,7 +261,7 @@ export function CustomProviderDetail({ providerId, onDeleted, onSaved }: CustomP
                 className="inline-flex items-center gap-1.5 rounded-lg border border-red-800 bg-red-900/30 px-3 py-1.5 text-sm text-red-400 hover:bg-red-900/50 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60"
               >
                 {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                确认删除
+                確認刪除
               </button>
               <button
                 type="button"

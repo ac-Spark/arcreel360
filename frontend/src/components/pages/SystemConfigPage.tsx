@@ -19,10 +19,10 @@ type SettingsSection = "agent" | "providers" | "media" | "usage" | "api-keys";
 // ---------------------------------------------------------------------------
 
 const SECTION_LIST: { id: SettingsSection; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: "agent", label: "智能体", Icon: Bot },
-  { id: "providers", label: "供应商", Icon: Plug },
-  { id: "media", label: "模型选择", Icon: Film },
-  { id: "usage", label: "用量统计", Icon: BarChart3 },
+  { id: "agent", label: "智能體", Icon: Bot },
+  { id: "providers", label: "供應商", Icon: Plug },
+  { id: "media", label: "模型選擇", Icon: Film },
+  { id: "usage", label: "用量統計", Icon: BarChart3 },
   { id: "api-keys", label: "API 管理", Icon: KeyRound },
 ];
 
@@ -69,15 +69,15 @@ export function SystemConfigPage() {
             <Link
               href="/app/projects"
               className="workbench-button-secondary inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm focus-visible:outline-none"
-              aria-label="返回项目大厅"
+              aria-label="返回專案大廳"
             >
               <ChevronLeft className="h-4 w-4" />
               返回
             </Link>
             <div>
-              <div className="workbench-kicker text-[11px] font-semibold">Workbench Settings Center</div>
-              <h1 className="mt-1 text-xl font-semibold text-[color:var(--wb-text-primary)]">设置</h1>
-              <p className="text-sm text-[color:var(--wb-text-muted)]">系统配置与 API 访问管理</p>
+              <div className="workbench-kicker text-[11px] font-semibold">工作臺設定中心</div>
+              <h1 className="mt-1 text-xl font-semibold text-[color:var(--wb-text-primary)]">設定</h1>
+              <p className="text-sm text-[color:var(--wb-text-muted)]">系統設定與 API 存取管理</p>
             </div>
           </div>
 
@@ -87,12 +87,12 @@ export function SystemConfigPage() {
               <div className="mt-1 text-sm font-medium text-[color:var(--wb-text-secondary)]">{SECTION_LIST.length} 个</div>
             </div>
             <div className="rounded-2xl border border-white/6 bg-black/12 px-4 py-3">
-              <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">缺失项</div>
+              <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">缺失項</div>
               <div className="mt-1 text-sm font-medium text-[color:var(--wb-text-secondary)]">{configIssues.length} 项</div>
             </div>
             <div className="rounded-2xl border border-white/6 bg-black/12 px-4 py-3">
-              <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">当前分区</div>
-              <div className="mt-1 text-sm font-medium text-[color:var(--wb-text-secondary)]">{SECTION_LIST.find((section) => section.id === activeSection)?.label ?? "智能体"}</div>
+              <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">目前分區</div>
+              <div className="mt-1 text-sm font-medium text-[color:var(--wb-text-secondary)]">{SECTION_LIST.find((section) => section.id === activeSection)?.label ?? "智能體"}</div>
             </div>
           </div>
         </div>
@@ -130,7 +130,7 @@ export function SystemConfigPage() {
               <div className="workbench-status-warning flex items-start gap-3 rounded-2xl px-4 py-3">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--wb-warning)]" />
                 <div className="text-sm">
-                  <span className="font-medium">以下必填配置尚未完成：</span>
+                  <span className="font-medium">以下必填設定尚未完成：</span>
                   <ul className="mt-1 space-y-0.5">
                     {configIssues.map((issue) => (
                       <li key={issue.key}>

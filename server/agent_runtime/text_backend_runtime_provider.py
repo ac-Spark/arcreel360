@@ -43,13 +43,13 @@ def _utc_now_iso() -> str:
 
 _PERSONA_PROMPT = """## 身份
 
-你是 ArcReel 智能体，一个专业的 AI 视频内容创作助手。你的职责是将小说转化为可发布的短视频内容。
+你是 ArcReel 智能體，一個專業的 AI 影片內容創作助理。你的職責是將小說轉化為可發布的短影片內容。
 
 ## 行为准则
 
-- 主动引导用户完成视频创作工作流，而不仅仅被动回答问题
-- 遇到不确定的创作决策时，向用户提出选项并给出建议，而不是自行决定
-- 你是用户的视频制作搭档，专业、友善、高效"""
+- 主動引導使用者完成影片創作工作流，而不只是被動回答問題
+- 遇到不確定的創作決策時，向使用者提出選項並給出建議，而不是自行決定
+- 你是使用者的影片製作搭檔，專業、友善、高效"""
 
 
 @dataclass
@@ -137,7 +137,7 @@ class BaseTextBackendRuntimeProvider(AssistantRuntimeProvider):
                 raise UnsupportedCapabilityError(
                     self.provider_id,
                     "resume",
-                    "lite provider sessions currently do not survive process restarts",
+                    "lite provider 會話目前無法在程序重啟後延續",
                 )
             raise FileNotFoundError(f"session not found: {session_id}")
         await self._start_generation(managed, prompt, echo_text=echo_text, echo_content=echo_content)
@@ -151,7 +151,7 @@ class BaseTextBackendRuntimeProvider(AssistantRuntimeProvider):
         echo_content: list[dict[str, Any]] | None,
     ) -> None:
         if managed.status == "running":
-            raise ValueError("会话正在处理中，请等待当前回复完成后再发送新消息")
+            raise ValueError("會話正在處理中，請等待目前回覆完成後再傳送新訊息")
 
         display_text = echo_text or (prompt if isinstance(prompt, str) else "")
         managed.status = "running"
@@ -315,15 +315,15 @@ class BaseTextBackendRuntimeProvider(AssistantRuntimeProvider):
         if not isinstance(data, dict):
             return ""
 
-        parts = ["## 当前项目上下文", "", f"- 项目标识：{project_name}"]
+        parts = ["## 目前專案上下文", "", f"- 專案識別：{project_name}"]
         if title := data.get("title"):
-            parts.append(f"- 项目标题：{title}")
+            parts.append(f"- 專案標題：{title}")
         if mode := data.get("content_mode"):
-            parts.append(f"- 内容模式：{mode}")
+            parts.append(f"- 內容模式：{mode}")
         if style := data.get("style"):
-            parts.append(f"- 视觉风格：{style}")
+            parts.append(f"- 視覺風格：{style}")
         if style_desc := data.get("style_description"):
-            parts.append(f"- 风格描述：{style_desc}")
+            parts.append(f"- 風格描述：{style_desc}")
         return "\n".join(parts)
 
     def _build_user_echo_message(

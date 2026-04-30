@@ -51,7 +51,7 @@ describe("ProviderSection", () => {
       expect(screen.getByText("AI Studio")).toBeInTheDocument();
     });
 
-    expect(screen.queryByText("加载供应商列表…")).not.toBeInTheDocument();
-    expect(screen.getByText("自定义供应商加载失败，页面已显示可用结果。")).toBeInTheDocument();
+    expect(screen.queryByText("載入供應商列表…")).not.toBeInTheDocument();
+    expect(screen.getByText("自訂供應商載入失敗，頁面已顯示可用結果。")).toBeInTheDocument();
   });
 });

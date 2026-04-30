@@ -120,8 +120,8 @@ async def lifespan(app: FastAPI):
 
 # 创建 FastAPI 应用
 app = FastAPI(
-    title="视频项目管理 WebUI",
-    description="AI 视频生成工作空间的 Web 管理界面",
+    title="影片專案管理 WebUI",
+    description="AI 影片生成工作空間的 Web 管理介面",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -167,16 +167,16 @@ async def request_logging_middleware(request: Request, call_next):
 
 # 注册 API 路由
 app.include_router(auth_router.router, prefix="/api/v1", tags=["认证"])
-app.include_router(projects.router, prefix="/api/v1", tags=["项目管理"])
+app.include_router(projects.router, prefix="/api/v1", tags=["專案管理"])
 app.include_router(characters.router, prefix="/api/v1", tags=["角色管理"])
 app.include_router(clues.router, prefix="/api/v1", tags=["线索管理"])
 app.include_router(files.router, prefix="/api/v1", tags=["文件管理"])
 app.include_router(generate.router, prefix="/api/v1", tags=["生成"])
 app.include_router(versions.router, prefix="/api/v1", tags=["版本管理"])
 app.include_router(usage.router, prefix="/api/v1", tags=["费用统计"])
-app.include_router(assistant.router, prefix="/api/v1/projects/{project_name}/assistant", tags=["助手会话"])
+app.include_router(assistant.router, prefix="/api/v1/projects/{project_name}/assistant", tags=["助理會話"])
 app.include_router(tasks.router, prefix="/api/v1", tags=["任务队列"])
-app.include_router(project_events.router, prefix="/api/v1", tags=["项目变更流"])
+app.include_router(project_events.router, prefix="/api/v1", tags=["專案變更流"])
 app.include_router(providers.router, prefix="/api/v1", tags=["供应商管理"])
 app.include_router(system_config.router, prefix="/api/v1", tags=["系统配置"])
 app.include_router(api_keys.router, prefix="/api/v1", tags=["API Key 管理"])
@@ -192,7 +192,7 @@ def create_generation_worker() -> GenerationWorker:
 @app.get("/health")
 async def health_check():
     """健康检查"""
-    return {"status": "ok", "message": "视频项目管理 WebUI 运行正常"}
+    return {"status": "ok", "message": "影片專案管理 WebUI 運作正常"}
 
 
 @app.get("/skill.md", include_in_schema=False)
@@ -202,7 +202,7 @@ async def serve_skill_md(request: Request) -> Response:
 
     template_path = PROJECT_ROOT / "public" / "skill.md.template"
     if not template_path.exists():
-        return PlainTextResponse("skill.md 模板不存在", status_code=404)
+        return PlainTextResponse("skill.md 樣板不存在", status_code=404)
 
     template = template_path.read_text(encoding="utf-8")
 

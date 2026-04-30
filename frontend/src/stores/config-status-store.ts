@@ -32,7 +32,7 @@ async function getConfigIssues(): Promise<ConfigIssue[]> {
       issues.push({
         key: "assistant-gemini",
         tab: "providers",
-        label: "Gemini 智能体未配置可用的 Gemini 文本供应商",
+        label: "Gemini 智能體未設定可用的 Gemini 文字供應商",
       });
     }
   }
@@ -43,7 +43,7 @@ async function getConfigIssues(): Promise<ConfigIssue[]> {
       issues.push({
         key: "assistant-openai",
         tab: "providers",
-        label: "OpenAI / ChatGPT 智能体未配置可用的 OpenAI 文本供应商",
+        label: "OpenAI / ChatGPT 智能體未設定可用的 OpenAI 文字供應商",
       });
     }
   }
@@ -56,21 +56,21 @@ async function getConfigIssues(): Promise<ConfigIssue[]> {
     issues.push({
       key: "no-video-provider",
       tab: "providers",
-      label: "未配置支持视频生成的供应商",
+      label: "未設定支援影片生成的供應商",
     });
   }
   if (!hasMediaType("image")) {
     issues.push({
       key: "no-image-provider",
       tab: "providers",
-      label: "未配置支持图片生成的供应商",
+      label: "未設定支援圖片生成的供應商",
     });
   }
   if (!hasMediaType("text")) {
     issues.push({
       key: "no-text-provider",
       tab: "providers",
-      label: "未配置支持文本生成的供应商",
+      label: "未設定支援文字生成的供應商",
     });
   }
 

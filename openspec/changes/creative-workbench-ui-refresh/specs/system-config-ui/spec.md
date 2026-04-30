@@ -28,11 +28,11 @@
 
 ### Requirement: 必填配置缺失时设置页内警告
 
-当系统必填配置不完整时，设置页 SHALL 在导航上方显示工作台内警告横幅，逐条列出缺失原因，并提供快捷跳转到对应分区的入口。警告文案 MUST 与当前 assistant provider 语义一致，不得继续将 Anthropic 视为所有模式下的全局必填项。
+当系统必填配置不完整时，设置页 SHALL 在导航上方显示工作台内警告横幅，逐条列出缺失原因，并提供快捷跳转到对应分区的入口。警告文案 MUST 与当前 assistant provider 语义一致，且不得把 Claude 或 Anthropic 凭证状态单独视为必须提示的全局警告。
 
-#### Scenario: Claude provider 所需凭证未配置
+#### Scenario: Claude provider 未配置 Anthropc key
 - **WHEN** 用户进入设置页，且当前 `assistant_provider = "claude"`，同时 `anthropic_api_key.is_set === false`
-- **THEN** 警告横幅 SHALL 包含一条“Claude 智能体所需凭证未配置”，并链接到智能体配置分区
+- **THEN** 警告横幅 SHALL NOT 仅因缺少 Anthropic key 而新增一条 Claude 凭证警告
 
 #### Scenario: Gemini Lite 所需文本供应商未就绪
 - **WHEN** 当前 `assistant_provider = "gemini-lite"`，且没有可用的 Gemini 文本供应商
