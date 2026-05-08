@@ -2,6 +2,32 @@
 
 本檔記錄 ArcReel 360 相對原始 ArcReel 專案的重要差異與維護脈絡。
 
+## 2026-05-08
+
+### Gemini Full Assistant Runtime 與相關穩定性修復
+
+新增 `gemini-full` 執行階段供應商作為 Claude 之外的第二個 full-tier runtime，並補齊周邊基礎設施與已知缺陷。
+
+- **新 runtime**：`server/agent_runtime/` 加入 `gemini_full_runtime_provider.py`（Gemini function calling 工具循環）、`tool_sandbox.py`（白名單 fs_read / fs_write / fs_list）、`permission_gate.py`（PreToolUse 風格權限閘門）、`skill_function_declarations.py`（7 個 skill → FunctionDeclaration 翻譯與 dispatch）。與既有的 `gemini-lite` / `openai-lite` / `claude` 並列為四個可切換 runtime，由 `ASSISTANT_PROVIDER` 環境變數或 `system_setting.assistant_provider` 決定。
+- **持久化**：新增 `agent_messages` 表（migration `a1b2c3d4e5f6`）作為跨 provider 的訊息持久化共用欄位，tool_use / tool_result 在此寫入以利 SSE 重放。
+- **資料契約**：`turn_schema.normalize_block()` 統一將 `tool_result.content` / `tool_use.result` / `skill_content` 序列化為字串。先前後端工具回傳 dict（如 `fs_write` 的 `{bytes_written, created}`）會直接被前端當 React child 渲染並觸發 React error #31；序列化集中在後端出口處理後，所有 turn_grouper / stream_projector 路徑收尾都會經過。前端 `ContentBlockRenderer` 補上 defense-in-depth stringify。
+- **Skill subprocess 環境**：`compose_video` skill 透過 subprocess 執行時，`cwd` 切到 project 目錄後 sys.path 不再包含 repo root，導致 `from lib.project_manager import ...` 失敗。`skill_function_declarations._handle_compose_video` 在 spawn 時注入 `PYTHONPATH=<repo_root>`。
+- **效能**：`gemini-full` 的 `genai.Client` 改為依設定 key 快取，重複對話不再每輪重建；Vertex 模式憑證檔讀取改走 `asyncio.to_thread`，不再阻塞事件迴圈。`AssistantService.list_sessions()` 新增 per-provider capabilities 快取，避免大量 session 時重複呼叫 `model_dump()`。
+- **影片生成**：`veo-3.1-lite-generate-preview` 等 Veo lite 變體 API 拒收 `negativePrompt`，後端 `GeminiVideoBackend` 依 model 名稱判斷是否帶上該欄位避免 400；同步將 registry 中該 model 的 `negative_prompt` capability 移除，與實際 API 行為對齊。
+- **供應商設定一致性**：預置 OpenAI 連線測試補上 `ensure_openai_base_url()` 正規化，與自定義 provider 路徑一致，使用者填 `https://api.example.com`（缺 `/v1`）也能正確驗證。
+- **助理面板**：`AgentCopilot` / `AgentConfigTab` 新增 provider × tier 二維選擇器與能力提示；移除 Claude 專屬 icon 改用中性 `Bot`，「API 憑證 / 模型設定」兩段僅在實際選擇 Claude 時才顯示，使用 Gemini／OpenAI 不再被 Anthropic 設定洗版。`useAssistantSession` 重寫流式狀態收斂以支援 capability 矩陣。
+- **對話 UX**：新增 `ToolCallGroup`，同一 turn 內連續 ≥2 個非 TodoWrite 的 `tool_use` 自動摺成可展開群組，header 顯示「工具呼叫 N 次／完成數／狀態」，避免 generate 類工作流多步呼叫洗版。
+- **測試**：新增 80+ 案例覆蓋上述新模組（`test_gemini_full_runtime.py`、`test_tool_sandbox.py`、`test_permission_gate.py`、`test_skill_function_declarations.py`、`test_turn_grouper_gemini_full.py`）。
+
+### 部署
+
+- 新增 `docker-compose.yml` 與重寫的 `Dockerfile`（multi-stage `builder → runner`），將原本臨時的 `docker run` 命令收斂到 compose orchestration；擴充 `.env.example` 與 `.gitignore` 對應本地 compose 部署所需變數。
+
+### 文案／文件
+
+- 將 350+ 個檔案（測試、後端、前端、skills、workflows、文件）全面繁體化，使整個專案的內部與外部文案一致。
+- 更新 `CLAUDE.md` 反映多 provider runtime、tool_result 字串化契約等變更；`AGENTS.md` 改為指向 `CLAUDE.md` 的 symlink，避免兩份檔再度 drift。
+
 ## 2026-04-30
 
 ### 繁體版本定位強化
@@ -45,6 +71,13 @@
 - 補回缺失的 Alembic migration，恢復部署資料庫的 revision 鏈。
 - 修正多 provider runtime 與既有 app startup 的相容性，補回 `start_patrol()` 啟動路徑。
 - 重新建置 Docker image 並完成容器替換，確認 `/health` 正常回應。
+
+### 自定義供應商與穩定性補強
+
+- 新增 `lib/custom_provider/`（`backends.py`、`discovery.py`、`factory.py`）與 `server/routers/custom_providers.py`：使用者可自行新增 OpenAI／Google 相容供應商，附帶模型發現、連線測試、每模型 default/enabled 開關與 OpenAI／Google 雙 API 格式分流。
+- 新增 `CustomProvider` / `CustomProviderModel` ORM 模型與 Repository、`CustomProviderForm` / `CustomProviderDetail` / `CustomProviderSection` 三個前端頁面，整合到既有 Provider Settings 路由。
+- 新增 Alembic migration `0a1b2c3d4e5f_restore_custom_provider_compat_columns.py` 修正欄位相容性。
+- `ProviderSection` 補上錯誤處理與 loading 邊界、加上對應 unit tests。
 
 ### 與原作者版本的摘要差異
 

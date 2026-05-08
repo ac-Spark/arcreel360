@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, Eye, EyeOff, Loader2, SlidersHorizontal, Terminal, X } from "lucide-react";
+import { Bot, ChevronDown, Eye, EyeOff, Loader2, SlidersHorizontal, Terminal, X } from "lucide-react";
 import { useWarnUnsaved } from "@/hooks/useWarnUnsaved";
-import ClaudeColor from "@lobehub/icons/es/Claude/components/Color";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
 import { useConfigStatusStore } from "@/stores/config-status-store";
@@ -200,13 +199,19 @@ function AssistantRuntimeGrid({
       <p className="mt-1 text-xs text-[color:var(--wb-text-muted)]">
         橫向：供應商；縱向：能力等級。不可用的組合以禁用態顯示。
       </p>
-      <div className="mt-3 overflow-hidden rounded-xl border border-white/6">
-        <table className="w-full text-sm">
+      <div className="mt-3 overflow-x-auto rounded-xl border border-white/6">
+        <table className="min-w-[520px] w-full table-fixed text-sm">
+          <colgroup>
+            <col className="w-32" />
+            <col />
+            <col />
+            <col />
+          </colgroup>
           <thead>
             <tr className="bg-black/16 text-left text-xs uppercase tracking-wide text-[color:var(--wb-text-muted)]">
-              <th className="w-32 px-3 py-2"></th>
+              <th className="px-3 py-2"></th>
               {PROVIDER_BRANDS.map((b) => (
-                <th key={b.id} className="px-3 py-2 font-medium">
+                <th key={b.id} className="px-3 py-2 text-center font-medium">
                   {b.label}
                 </th>
               ))}
@@ -224,7 +229,7 @@ function AssistantRuntimeGrid({
                   const isAvailable = providerId !== null && availableSet.has(providerId);
                   const isSelected = providerId !== null && providerId === value;
                   return (
-                    <td key={brand.id} className="px-3 py-3">
+                    <td key={brand.id} className="px-3 py-3 align-middle text-center">
                       <button
                         type="button"
                         disabled={disabled || !isAvailable}
@@ -236,7 +241,7 @@ function AssistantRuntimeGrid({
                               ? "此組合在後端不在合法清單"
                               : ""
                         }
-                        className={`w-full rounded-lg border px-3 py-2 text-xs transition-colors ${
+                        className={`inline-flex h-9 w-full items-center justify-center whitespace-nowrap rounded-lg border px-3 text-xs transition-colors ${
                           isSelected
                             ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-100"
                             : isAvailable
@@ -419,7 +424,7 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
         <div className="workbench-panel-strong rounded-[1.4rem] px-5 py-5">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl border border-white/6 bg-black/12 p-3 shadow-inner shadow-white/5">
-              <ClaudeColor size={24} />
+              <Bot className="h-6 w-6 text-[color:var(--wb-accent)]" />
             </div>
             <div>
               <div className="workbench-kicker text-[11px] font-semibold">助理執行階段</div>
@@ -432,7 +437,7 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
           <div className="mt-4 flex items-start gap-2 rounded-2xl border border-white/6 bg-black/12 px-4 py-3">
             <Terminal className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[color:var(--wb-accent-cyan)]" />
             <p className="text-xs leading-6 text-[color:var(--wb-text-muted)]">
-              設定項相容於 Claude Code 的環境變數命名，也可搭配相容的 Coding Plan API 使用。
+              依目前選擇的供應商套用對應憑證設定；切換供應商後，新建會話會走新供應商。
             </p>
           </div>
         </div>
@@ -465,16 +470,14 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
         </div>
 
         {/* ----------------------------------------------------------------- */}
-        {/* Section 1: API Key + Base URL */}
+        {/* Section 1 + 2: Claude-only credentials & model routing             */}
+        {/* 僅當實際選擇 Claude 供應商時才顯示，避免使用其他供應商時造成困擾。 */}
         {/* ----------------------------------------------------------------- */}
+        {draft.assistantProvider === "claude" && (<>
         <div>
           <SectionHeading
             title="API 憑證"
-            description={
-              draft.assistantProvider === "claude"
-                ? "Anthropic API 金鑰是 Claude 供應商運作的必要條件"
-                : "以下 Claude 設定只會在切回 Claude 供應商時生效"
-            }
+            description="Anthropic API 金鑰是 Claude 供應商運作的必要條件"
           />
 
           {/* API Key card */}
@@ -754,6 +757,7 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
             </details>
           </div>
         </div>
+        </>)}
 
         {/* 進階設定 */}
         <div className={cardClassName}>

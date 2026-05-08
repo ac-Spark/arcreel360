@@ -579,6 +579,18 @@ async def _handle_compose_video(ctx: SkillCallContext, args: dict[str, Any]) -> 
         if (vol := args.get("music_volume")) is not None:
             cmd.extend(["--music-volume", str(vol)])
 
+    # 子進程 cwd 切到 project_path 後，sys.path 不再包含 repo root，
+    # compose_video.py 的 `from lib.project_manager import ...` 會 ModuleNotFoundError。
+    # 注入 PYTHONPATH 指向 repo root，並保留既有 PYTHONPATH。
+    import os as _os
+
+    repo_root = Path(__file__).resolve().parents[2]
+    sub_env = _os.environ.copy()
+    existing_pp = sub_env.get("PYTHONPATH", "")
+    sub_env["PYTHONPATH"] = (
+        f"{repo_root}{_os.pathsep}{existing_pp}" if existing_pp else str(repo_root)
+    )
+
     def _run() -> tuple[int, str, str]:
         proc = subprocess.run(
             cmd,
@@ -586,6 +598,7 @@ async def _handle_compose_video(ctx: SkillCallContext, args: dict[str, Any]) -> 
             capture_output=True,
             text=True,
             timeout=900,
+            env=sub_env,
         )
         return proc.returncode, proc.stdout[-2000:], proc.stderr[-2000:]
 

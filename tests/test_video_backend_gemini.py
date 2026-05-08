@@ -217,8 +217,10 @@ class TestGeminiVideoBackendGenerate:
         mock_rate_limiter.acquire_async.assert_called_once_with(backend._video_model)
 
     async def test_default_negative_prompt(self, backend, tmp_path):
-        """未指定 negative_prompt 時使用預設值。"""
+        """未指定 negative_prompt 時使用預設值（前提：model 支援 negative_prompt）。"""
         output = tmp_path / "out.mp4"
+        # 強制使用支援 negative_prompt 的 model（lite preview 變體不支援）
+        backend._video_model = "veo-3.1-generate-001"
 
         mock_op = _make_done_operation()
         backend._client.aio.models.generate_videos = AsyncMock(return_value=mock_op)
@@ -234,6 +236,25 @@ class TestGeminiVideoBackendGenerate:
         # 驗證 GenerateVideosConfig 被呼叫時包含預設 negative_prompt
         config_call = backend._types.GenerateVideosConfig.call_args
         assert "music" in config_call.kwargs.get("negative_prompt", "")
+
+    async def test_lite_model_skips_negative_prompt(self, backend, tmp_path):
+        """veo-3.1-lite-* 不支援 negativePrompt，必須從 config 中省略。"""
+        output = tmp_path / "out.mp4"
+        backend._video_model = "veo-3.1-lite-generate-preview"
+
+        mock_op = _make_done_operation()
+        backend._client.aio.models.generate_videos = AsyncMock(return_value=mock_op)
+
+        request = VideoGenerationRequest(
+            prompt="test",
+            output_path=output,
+            negative_prompt="some custom negative",
+        )
+
+        await backend.generate(request)
+
+        config_call = backend._types.GenerateVideosConfig.call_args
+        assert "negative_prompt" not in config_call.kwargs
 
 
 class TestGeminiRetryBehavior:

@@ -86,7 +86,7 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
             "veo-3.1-lite-generate-preview": ModelInfo(
                 display_name="Veo 3.1 Lite",
                 media_type="video",
-                capabilities=["text_to_video", "image_to_video", "negative_prompt", "video_extend"],
+                capabilities=["text_to_video", "image_to_video", "video_extend"],
                 default=True,
                 supported_durations=[4, 6, 8],
                 duration_resolution_constraints={"1080p": [8]},

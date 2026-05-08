@@ -57,7 +57,11 @@ export function ContentBlockRenderer({ block, index }: ContentBlockRendererProps
             {block.is_error ? "執行失敗" : "工具結果"}
           </div>
           <pre className="text-xs text-slate-300 overflow-x-auto whitespace-pre-wrap">
-            {block.content || ""}
+            {typeof block.content === "string"
+              ? block.content
+              : block.content
+                ? JSON.stringify(block.content, null, 2)
+                : ""}
           </pre>
         </div>
       );

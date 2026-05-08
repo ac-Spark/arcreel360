@@ -106,6 +106,17 @@ class GeminiVideoBackend:
         return self._capabilities
 
     @staticmethod
+    def _model_supports_negative_prompt(model: str) -> bool:
+        """Veo 3.1 lite preview 與部分 preview 變體 API 拒收 negativePrompt。
+
+        實測 veo-3.1-lite-generate-preview 會回 400 invalid argument。其他 Veo 3.1
+        preview/GA 變體目前已知支援；此函式集中標記黑名單以便日後擴充。
+        """
+        if not model:
+            return True
+        return "lite" not in model.lower()
+
+    @staticmethod
     def _normalize_duration(duration_seconds: int) -> str:
         """標準化為 Veo 支援的離散時長值: '4', '6', '8'。"""
         if duration_seconds <= 4:
@@ -134,8 +145,11 @@ class GeminiVideoBackend:
             "aspect_ratio": request.aspect_ratio,
             "resolution": request.resolution,
             "duration_seconds": duration_str,
-            "negative_prompt": request.negative_prompt or "music, BGM, background music, subtitles, low quality",
         }
+        if self._model_supports_negative_prompt(self._video_model):
+            config_params["negative_prompt"] = (
+                request.negative_prompt or "music, BGM, background music, subtitles, low quality"
+            )
         if self._backend_type == "vertex":
             config_params["generate_audio"] = request.generate_audio
         config = self._types.GenerateVideosConfig(**config_params)

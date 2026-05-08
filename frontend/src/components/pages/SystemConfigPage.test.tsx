@@ -117,6 +117,17 @@ describe("SystemConfigPage", () => {
     expect(agentButton.className).toContain("workbench-panel-strong");
   });
 
+  it("keeps assistant runtime provider columns visually aligned", async () => {
+    renderPage();
+
+    expect(await screen.findByText("執行時供應商與模式")).toBeInTheDocument();
+
+    expect(screen.getByRole("table")).toHaveClass("table-fixed");
+    for (const provider of ["Gemini", "OpenAI", "Claude"]) {
+      expect(screen.getByRole("columnheader", { name: provider })).toHaveClass("text-center");
+    }
+  });
+
   it("clicking 供應商 makes it the active section", async () => {
     renderPage();
     const providersButton = screen.getByRole("button", { name: /供應商/ });
