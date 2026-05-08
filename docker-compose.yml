@@ -1,0 +1,79 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    user: "1000:1000"
+    environment:
+      POSTGRES_USER: arcreel
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?請在 .env 中設定 POSTGRES_PASSWORD}
+      POSTGRES_DB: arcreel
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arcreel"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 前端構建：每次 `docker compose up` 都會跑一次，產物寫入 ./frontend/dist
+  # 用 host uid:gid 執行，避免產生 root 擁有的檔案與主機許可權打架。
+  frontend-builder:
+    image: node:22-slim
+    user: "1000:1000"
+    working_dir: /build
+    environment:
+      HOME: /tmp
+      COREPACK_HOME: /tmp/.corepack
+      npm_config_cache: /tmp/.npm
+      PNPM_HOME: /tmp/.pnpm
+    volumes:
+      - ./frontend:/build
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        mkdir -p /tmp/bin /tmp/.corepack /tmp/.npm /tmp/.pnpm
+        export PATH="/tmp/.pnpm:/tmp/bin:$$PATH"
+        corepack enable --install-directory /tmp/bin
+        corepack prepare pnpm@latest --activate
+        pnpm install --frozen-lockfile
+        pnpm build
+    restart: "no"
+
+  arcreel:
+    # image: ghcr.io/arcreel/arcreel:latest
+    build: ./
+    user: "1000:1000"
+    ports:
+      - "${PORT:-1241}:${PORT:-1241}"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://arcreel:${POSTGRES_PASSWORD:?請在 .env 中設定 POSTGRES_PASSWORD}@postgres:5432/arcreel
+      HOME: /app/.home
+      PORT: ${PORT:-1241}
+    volumes:
+      - ./.env:/app/.env
+      - ./projects:/app/projects
+      - ./vertex_keys:/app/vertex_keys
+      - ./claude_data:/app/.home/.claude
+      # 應用程式碼與前端產物掛載（不再 COPY 進映象）
+      - ./lib:/app/lib
+      - ./server:/app/server
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+      - ./scripts:/app/scripts
+      - ./agent_runtime_profile:/app/agent_runtime_profile
+      - ./public:/app/public
+      - ./frontend/dist:/app/frontend/dist
+    depends_on:
+      postgres:
+        condition: service_healthy
+      frontend-builder:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${PORT:-1241}/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
