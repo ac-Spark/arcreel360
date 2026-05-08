@@ -33,12 +33,12 @@ function makePendingQuestion() {
     question_id: "q-1",
     questions: [
       {
-        header: "输出",
-        question: "输出格式是什么？",
+        header: "輸出",
+        question: "輸出格式是什麼？",
         multiSelect: false,
         options: [
-          { label: "摘要", description: "简洁输出" },
-          { label: "详细", description: "完整说明" },
+          { label: "摘要", description: "簡潔輸出" },
+          { label: "詳細", description: "完整說明" },
         ],
       },
     ],
@@ -101,7 +101,7 @@ describe("AgentCopilot", () => {
     fireEvent.click(screen.getByRole("button", { name: "完成並提交" }));
 
     expect(answerQuestion).toHaveBeenCalledWith("q-1", {
-      "输出格式是什么？": "摘要",
+      "輸出格式是什麼？": "摘要",
     });
   });
 
@@ -138,8 +138,11 @@ describe("AgentCopilot", () => {
 
     render(<AgentCopilot />);
 
-    expect(await screen.findByText("目前 provider 不支援恢復舊會話；lite 會話在程序重啟後只能查看歷史，不能繼續傳送。"))
-      .toBeInTheDocument();
-    expect(screen.getByText("目前 provider 不支援技能快捷指令與 Claude-only 進階能力。")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "目前為「對話模式」，僅支援文字交流。如需 AI 自動化生成劇本／分鏡／角色，請切換為「工作流模式」。",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "前往設定" })).toBeInTheDocument();
   });
 });

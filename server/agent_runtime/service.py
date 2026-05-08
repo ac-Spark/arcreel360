@@ -29,9 +29,10 @@ logger = logging.getLogger(__name__)
 
 from fastapi.sse import ServerSentEvent
 
-from lib.project_manager import ProjectManager
 from lib.config.service import ConfigService
 from lib.db import async_session_factory
+from lib.project_manager import ProjectManager
+from server.agent_runtime.gemini_full_runtime_provider import GeminiFullRuntimeProvider
 from server.agent_runtime.message_utils import extract_plain_user_content
 from server.agent_runtime.models import SessionMeta, SessionStatus
 from server.agent_runtime.runtime_provider import (
@@ -39,12 +40,18 @@ from server.agent_runtime.runtime_provider import (
     ClaudeRuntimeProvider,
     RoutingRuntimeProvider,
 )
-from server.agent_runtime.session_identity import CLAUDE_PROVIDER_ID, infer_provider_id, runtime_session_id
-from server.agent_runtime.session_identity import GEMINI_LITE_PROVIDER_ID, OPENAI_LITE_PROVIDER_ID
+from server.agent_runtime.session_identity import (
+    CLAUDE_PROVIDER_ID,
+    GEMINI_FULL_PROVIDER_ID,
+    GEMINI_LITE_PROVIDER_ID,
+    OPENAI_LITE_PROVIDER_ID,
+    infer_provider_id,
+    runtime_session_id,
+)
 from server.agent_runtime.session_manager import SessionManager
 from server.agent_runtime.session_store import SessionMetaStore
-from server.agent_runtime.text_backend_runtime_provider import GeminiLiteProvider, OpenAILiteProvider
 from server.agent_runtime.stream_projector import AssistantStreamProjector
+from server.agent_runtime.text_backend_runtime_provider import GeminiLiteProvider, OpenAILiteProvider
 from server.agent_runtime.turn_grouper import (
     _has_subagent_user_metadata,
     _is_system_injected_user_message,
@@ -78,6 +85,11 @@ class AssistantService:
                 data_dir=self.data_dir,
                 meta_store=self.meta_store,
             ),
+            GEMINI_FULL_PROVIDER_ID: GeminiFullRuntimeProvider(
+                project_root=self.project_root,
+                data_dir=self.data_dir,
+                meta_store=self.meta_store,
+            ),
         }
         self.runtime_provider = RoutingRuntimeProvider(self.runtime_provider_registry, self._resolve_active_provider_id)
         self.session_manager = self.runtime_provider
@@ -87,18 +99,27 @@ class AssistantService:
         self._snapshot_cache_max = 128
         self.stream_heartbeat_seconds = int(os.environ.get("ASSISTANT_STREAM_HEARTBEAT_SECONDS", "20"))
 
+    def _normalize_provider_id(self, raw: str) -> str:
+        provider_id = raw.strip().replace("_", "-")
+        if not provider_id:
+            return GEMINI_LITE_PROVIDER_ID
+        if provider_id not in self.runtime_provider_registry:
+            logger.warning("assistant_provider=%s 無效，回退到 gemini_lite", raw)
+            return GEMINI_LITE_PROVIDER_ID
+        return provider_id
+
     async def _resolve_active_provider_id(self) -> str:
         raw = os.environ.get("ASSISTANT_PROVIDER", "").strip()
         if raw:
-            return raw
+            return self._normalize_provider_id(raw)
         try:
             async with async_session_factory() as session:
                 svc = ConfigService(session)
                 value = (await svc.get_setting("assistant_provider", "")).strip()
-                return value or CLAUDE_PROVIDER_ID
+                return self._normalize_provider_id(value)
         except Exception:
-            logger.warning("读取 assistant_provider 失败，回退到默认 Claude", exc_info=True)
-            return CLAUDE_PROVIDER_ID
+            logger.warning("讀取 assistant_provider 失敗，回退到預設 gemini_lite", exc_info=True)
+            return GEMINI_LITE_PROVIDER_ID
 
     async def startup(self) -> None:
         """Run async initialization (must be called from event loop)."""
@@ -117,9 +138,19 @@ class AssistantService:
         interrupted_count = await self.meta_store.interrupt_running_sessions()
         if interrupted_count > 0:
             logger.warning(
-                "服务启动时中断遗留运行中会话 count=%s",
+                "服務啟動時中斷遺留執行中會話 count=%s",
                 interrupted_count,
             )
+
+    def _capabilities_for(self, provider_id: str) -> dict[str, Any] | None:
+        provider = self.runtime_provider_registry.get(provider_id)
+        return provider.capabilities.model_dump() if provider is not None else None
+
+    def _hydrate_capabilities(self, session: SessionMeta) -> SessionMeta:
+        caps = self._capabilities_for(session.provider)
+        if caps is None:
+            return session
+        return SessionMeta(**{**session.model_dump(), "capabilities": caps})
 
     async def list_sessions(
         self,
@@ -130,38 +161,45 @@ class AssistantService:
     ) -> list[SessionMeta]:
         """List sessions, injecting SDK summary as title when available."""
         sessions = await self.meta_store.list(project_name=project_name, status=status, limit=limit, offset=offset)
-        if not sessions or not project_name or sdk_list_sessions is None:
+        if not sessions:
             return sessions
 
-        claude_sessions = [session for session in sessions if session.provider == CLAUDE_PROVIDER_ID]
-        if not claude_sessions:
-            return sessions
+        # Build SDK summary map for Claude sessions only
+        summary_map: dict[str, str] = {}
+        if project_name and sdk_list_sessions is not None and any(s.provider == CLAUDE_PROVIDER_ID for s in sessions):
+            try:
+                project_cwd = str(self.projects_root / project_name)
+                sdk_sessions = await asyncio.to_thread(
+                    sdk_list_sessions, directory=project_cwd, include_worktrees=False
+                )
+                summary_map = {s.session_id: s.summary for s in sdk_sessions}
+            except Exception:
+                logger.warning("SDK list_sessions failed, titles will be empty", exc_info=True)
 
-        # Inject SDK summary as title
-        try:
-            project_cwd = str(self.projects_root / project_name)
-            sdk_sessions = await asyncio.to_thread(sdk_list_sessions, directory=project_cwd, include_worktrees=False)
-            summary_map = {s.session_id: s.summary for s in sdk_sessions}
-        except Exception:
-            logger.warning("SDK list_sessions failed, titles will be empty", exc_info=True)
-            return sessions
-
+        caps_cache: dict[str, dict[str, Any] | None] = {}
         hydrated: list[SessionMeta] = []
         for session in sessions:
-            title = session.title
-            if session.provider == CLAUDE_PROVIDER_ID:
-                title = summary_map.get(runtime_session_id(session.id), title)
-            hydrated.append(SessionMeta(**{**session.model_dump(), "title": title}))
+            updates: dict[str, Any] = {}
+            if session.provider == CLAUDE_PROVIDER_ID and summary_map:
+                updates["title"] = summary_map.get(runtime_session_id(session.id), session.title)
+            if session.provider not in caps_cache:
+                caps_cache[session.provider] = self._capabilities_for(session.provider)
+            caps = caps_cache[session.provider]
+            if caps is not None:
+                updates["capabilities"] = caps
+            hydrated.append(SessionMeta(**{**session.model_dump(), **updates}) if updates else session)
         return hydrated
 
     async def get_session(self, session_id: str) -> SessionMeta | None:
         """Get session by ID."""
         meta = await self.meta_store.get(session_id)
-        if meta and self.runtime_provider.has_live_session(session_id):
+        if meta is None:
+            return None
+        if self.runtime_provider.has_live_session(session_id):
             live_status = self.runtime_provider.get_live_status(session_id)
             if live_status is not None:
                 meta = SessionMeta(**{**meta.model_dump(), "status": live_status})
-        return meta
+        return self._hydrate_capabilities(meta)
 
     async def delete_session(self, session_id: str) -> bool:
         """Delete session and cleanup."""
@@ -233,7 +271,7 @@ class AssistantService:
         """Prepare prompt components: (text, sdk_prompt_or_none, echo_blocks_or_none)."""
         text = content.strip()
         if not text and not images:
-            raise ValueError("消息内容不能为空")
+            raise ValueError("訊息內容不能為空")
 
         if images:
             sdk_prompt = self._build_multimodal_prompt(text, images)
@@ -858,7 +896,7 @@ class AssistantService:
         "generate-storyboard": {"label": "生成分鏡圖", "icon": "layout-grid"},
         "generate-video": {"label": "生成影片", "icon": "film"},
         "generate-characters": {"label": "生成角色圖", "icon": "users"},
-        "generate-clues": {"label": "生成線索圖", "icon": "search"},
+        "generate-clues": {"label": "生成道具圖", "icon": "search"},
         "compose-video": {"label": "合成影片", "icon": "scissors"},
     }
 

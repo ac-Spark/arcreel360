@@ -528,6 +528,39 @@ def group_messages_into_turns(raw_messages: list[dict[str, Any]]) -> list[dict[s
                 continue
             continue  # Ignore other system subtypes
 
+        if msg_type == "tool_use":
+            # gemini-full provider 把每个 functionCall 写为独立 top-level message。
+            # 在 turn 视角下应作为 assistant turn 的 content block 显示。
+            tool_use_block = {
+                "type": "tool_use",
+                "id": msg.get("tool_use_id") or msg.get("id"),
+                "name": msg.get("name"),
+                "input": msg.get("input") or {},
+            }
+            if tool_use_block["id"]:
+                tool_use_map[tool_use_block["id"]] = True
+            if current_turn and current_turn.get("type") == "assistant":
+                current_turn.get("content", []).append(tool_use_block)
+            else:
+                if current_turn:
+                    turns.append(current_turn)
+                current_turn = {
+                    "type": "assistant",
+                    "content": [tool_use_block],
+                    "uuid": msg.get("uuid"),
+                    "timestamp": msg.get("timestamp"),
+                }
+            continue
+
+        if msg_type == "tool_result":
+            # 与 tool_use 配对，把 result 写回同 id 的 tool_use block 内（result/is_error 字段）
+            if current_turn and current_turn.get("type") == "assistant":
+                turn_content = current_turn.setdefault("content", [])
+                if isinstance(turn_content, list):
+                    _attach_tool_result(msg, turn_content, tool_use_map)
+            # 若没有 assistant turn 在前（罕见），就丢弃避免无主孤儿块
+            continue
+
         # Ignore other message types (stream_event/progress/etc)
         continue
 

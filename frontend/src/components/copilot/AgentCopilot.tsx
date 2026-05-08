@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useLocation } from "wouter";
 import { Bot, Send, Square, Plus, ChevronDown, Trash2, MessageSquare, PanelRightClose, Paperclip, X } from "lucide-react";
 import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { useAssistantStore } from "@/stores/assistant-store";
@@ -32,7 +33,7 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 const MAX_TEXTAREA_HEIGHT_VH = 50;
 
 // ---------------------------------------------------------------------------
-// SessionSelector — 会话下拉选择器
+// SessionSelector — 會話下拉選擇器
 // ---------------------------------------------------------------------------
 
 function SessionSelector({
@@ -159,6 +160,7 @@ export function AgentCopilot() {
 
   const { currentProjectName } = useProjectsStore();
   const toggleAssistantPanel = useAppStore((s) => s.toggleAssistantPanel);
+  const [, setLocation] = useLocation();
   const { sendMessage, answerQuestion, interrupt, createNewSession, switchSession, deleteSession } =
     useAssistantSession(currentProjectName);
 
@@ -188,9 +190,9 @@ export function AgentCopilot() {
   const inputPlaceholder = pendingQuestion
     ? "請先回答上方問題"
     : isRunning
-      ? "助理正在生成中，可點擊停止中斷"
+      ? "助理正在生成中，可點選停止中斷"
       : slashCommandsEnabled
-        ? "輸入訊息，輸入 / 查看可用技能"
+        ? "輸入訊息，輸入 / 檢視可用技能"
         : "輸入訊息開始對話";
 
   useEffect(() => {
@@ -378,7 +380,7 @@ export function AgentCopilot() {
             <PanelRightClose className="h-4 w-4" />
           </button>
           <Bot className="h-4 w-4 text-indigo-400" />
-          <span className="text-sm font-medium text-gray-300">ArcReel 智能體</span>
+          <span className="text-sm font-medium text-gray-300">ArcReel 智慧體</span>
           <span className="rounded-full border border-gray-700 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-500">
             {providerLabel}
           </span>
@@ -405,15 +407,18 @@ export function AgentCopilot() {
       {/* Context banner */}
       <ContextBanner />
 
-      {(!providerCapabilities.supports_resume || !slashCommandsEnabled) && (
-        <div className="border-b border-amber-900/30 bg-amber-950/20 px-3 py-2 text-xs text-amber-200">
-          {!providerCapabilities.supports_resume && (
-            <span>目前 provider 不支援恢復舊會話；lite 會話在程序重啟後只能查看歷史，不能繼續傳送。</span>
-          )}
-          {!providerCapabilities.supports_resume && !slashCommandsEnabled && <span className="mx-1 text-amber-500">·</span>}
-          {!slashCommandsEnabled && (
-            <span>目前 provider 不支援技能快捷指令與 Claude-only 進階能力。</span>
-          )}
+      {providerCapabilities.tier === "lite" && (
+        <div className="flex items-start gap-2 border-b border-sky-900/30 bg-sky-950/20 px-3 py-2 text-xs text-sky-200">
+          <span className="flex-1">
+            目前為「對話模式」，僅支援文字交流。如需 AI 自動化生成劇本／分鏡／角色，請切換為「工作流模式」。
+          </span>
+          <button
+            type="button"
+            onClick={() => setLocation("/app/settings")}
+            className="shrink-0 rounded-md border border-sky-700/40 bg-sky-900/30 px-2 py-0.5 text-[11px] font-medium text-sky-100 transition-colors hover:bg-sky-800/40"
+          >
+            前往設定
+          </button>
         </div>
       )}
 
@@ -463,7 +468,7 @@ export function AgentCopilot() {
                   type="button"
                   className="h-16 w-16 cursor-pointer border-0 bg-transparent p-0"
                   onClick={() => setLightboxSrc(img.dataUrl)}
-                  aria-label="點擊放大圖片"
+                  aria-label="點選放大圖片"
                 >
                   <img
                     src={img.dataUrl}

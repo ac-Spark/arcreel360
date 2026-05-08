@@ -30,7 +30,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-_ASSISTANT_PROVIDERS = ("claude", "gemini-lite", "openai-lite")
+_ASSISTANT_PROVIDERS = ("claude", "gemini-lite", "gemini-full", "openai-lite")
+
+
+def _normalize_assistant_provider(value: str) -> str:
+    return value.strip().replace("_", "-")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -197,9 +201,9 @@ async def patch_system_config(
             await svc.set_setting(backend_key, value)
 
     if "assistant_provider" in patch:
-        value = str(patch["assistant_provider"] or "").strip() or "claude"
+        value = _normalize_assistant_provider(str(patch["assistant_provider"] or "")) or "claude"
         if value not in _ASSISTANT_PROVIDERS:
-            raise HTTPException(status_code=422, detail=f"assistant_provider 必须是 {', '.join(_ASSISTANT_PROVIDERS)} 之一")
+            raise HTTPException(status_code=422, detail=f"assistant_provider 必須是 {', '.join(_ASSISTANT_PROVIDERS)} 之一")
         await svc.set_setting("assistant_provider", value)
 
     # Boolean settings
@@ -225,7 +229,7 @@ async def patch_system_config(
             if not (min_val <= value <= max_val):
                 raise HTTPException(
                     status_code=422,
-                    detail=f"{key} 应在 {min_val}-{max_val} 之间",
+                    detail=f"{key} 應在 {min_val}-{max_val} 之間",
                 )
             await svc.set_setting(key, str(value))
 

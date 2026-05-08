@@ -1,0 +1,245 @@
+"""助手工具的白名单沙盒 + 文件 IO 工具。
+
+设计目标：
+- 任何由 LLM 触发的文件读写都必须经 ``ToolSandbox.validate_path`` 校验。
+- 校验先把请求路径解析为绝对路径（含符号链接），再对照项目根 + 白名单子目录。
+- 工具函数（``fs_read`` / ``fs_write`` / ``fs_list``）返回结构化错误而非抛异常，
+  让上层 provider 把 deny 结果以 ``functionResponse`` 形式喂回模型。
+
+实现遵循 ``openspec/changes/add-gemini-full-runtime/specs/assistant-tool-sandbox/``。
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+# 单文件读取上限：1 MiB
+DEFAULT_MAX_READ_BYTES = 1 * 1024 * 1024
+# 单文件写入上限：10 MiB
+MAX_WRITE_BYTES = 10 * 1024 * 1024
+
+# 白名单：允许在项目根目录下访问的子目录
+ALLOWED_SUBDIRS: frozenset[str] = frozenset(
+    {
+        "source",
+        "scripts",
+        "characters",
+        "clues",
+        "storyboards",
+        "videos",
+        "drafts",
+        "output",
+    }
+)
+# 白名单：允许在项目根目录下访问的具体文件
+ALLOWED_FILES: frozenset[str] = frozenset({"project.json"})
+
+
+class SandboxViolationError(Exception):
+    """沙盒校验失败时抛出。
+
+    工具入口应捕获并转换为结构化错误返回模型，避免向 LLM 暴露异常 traceback。
+    """
+
+    def __init__(self, code: str, reason: str):
+        super().__init__(reason)
+        self.code = code
+        self.reason = reason
+
+
+@dataclass(frozen=True)
+class ToolSandbox:
+    """单个 session 的沙盒上下文。
+
+    Attributes:
+        project_root: 所有项目所在的根目录（如 ``/app/projects``）。
+        project_name: 当前 session 绑定的项目名（白名单第一段）。
+    """
+
+    project_root: Path
+    project_name: str
+
+    @property
+    def allowed_root(self) -> Path:
+        """该 sandbox 实际允许访问的根目录绝对路径。"""
+        return (self.project_root / self.project_name).resolve(strict=False)
+
+    def validate_path(self, req_path: str, *, must_be_dir: bool = False) -> Path:
+        """把 LLM 请求的相对路径校验并转换为安全的绝对路径。
+
+        步骤：
+        1. 拒绝绝对路径（``/etc/passwd`` 这类）。
+        2. 拼接到项目根并 ``resolve``，让符号链接 + ``..`` 都展开为真实绝对路径。
+        3. 校验展开结果落在 ``allowed_root`` 之下。
+        4. 校验路径第一段命中白名单子目录或文件。
+        """
+        if not req_path or req_path == ".":
+            raise SandboxViolationError("invalid_path", "path must not be empty")
+        candidate = Path(req_path)
+        if candidate.is_absolute():
+            raise SandboxViolationError(
+                "absolute_path_forbidden",
+                "absolute paths are not allowed; use a path relative to the project root",
+            )
+
+        joined = (self.project_root / self.project_name / candidate).resolve(strict=False)
+        allowed_root = self.allowed_root
+        if joined != allowed_root and not joined.is_relative_to(allowed_root):
+            raise SandboxViolationError(
+                "sandbox_violation",
+                "path outside project root",
+            )
+
+        # 取项目根之下的相对路径，第一段必须命中白名单
+        try:
+            rel = joined.relative_to(allowed_root)
+        except ValueError:
+            raise SandboxViolationError("sandbox_violation", "path outside project root") from None
+
+        parts = rel.parts
+        if not parts:
+            # 直接指向项目根目录本身（例如 fs_list("")）
+            raise SandboxViolationError("invalid_path", "must target a whitelisted subpath")
+
+        first = parts[0]
+        if first in ALLOWED_FILES:
+            # 整路径必须正好等于白名单文件（不能有更深的子段）
+            if len(parts) != 1:
+                raise SandboxViolationError(
+                    "not_in_whitelist",
+                    "whitelist file does not allow nested children",
+                )
+            if must_be_dir:
+                raise SandboxViolationError(
+                    "not_a_directory",
+                    "whitelisted entry is a single file, cannot be listed",
+                )
+        elif first not in ALLOWED_SUBDIRS:
+            raise SandboxViolationError(
+                "not_in_whitelist",
+                f"first path segment {first!r} is not in the whitelist",
+            )
+
+        return joined
+
+
+# ---------------------------------------------------------------------------
+# 工具函数：每个都返回结构化 dict，供 functionResponse 直接序列化
+# ---------------------------------------------------------------------------
+
+
+def fs_read(
+    sandbox: ToolSandbox,
+    path: str,
+    max_bytes: int = DEFAULT_MAX_READ_BYTES,
+) -> dict[str, Any]:
+    """读取文本文件，超过 ``max_bytes`` 时截断。
+
+    返回:
+        ``{"content": str, "bytes_read": int, "truncated": bool}`` 或 ``{"error": ...}``
+    """
+    try:
+        target = sandbox.validate_path(path)
+    except SandboxViolationError as exc:
+        return {"error": exc.code, "reason": exc.reason}
+
+    if not target.exists():
+        return {"error": "not_found"}
+    if not target.is_file():
+        return {"error": "not_a_file"}
+
+    try:
+        raw = target.read_bytes()
+    except OSError as exc:
+        return {"error": "io_error", "reason": str(exc)}
+
+    truncated = False
+    if len(raw) > max_bytes:
+        raw = raw[:max_bytes]
+        truncated = True
+
+    try:
+        content = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return {"error": "binary_file"}
+
+    return {
+        "content": content,
+        "bytes_read": len(raw),
+        "truncated": truncated,
+    }
+
+
+def fs_write(
+    sandbox: ToolSandbox,
+    path: str,
+    content: str,
+    mode: str = "overwrite",
+) -> dict[str, Any]:
+    """写入文本文件。
+
+    Args:
+        mode: ``"overwrite"``（默认）或 ``"create"``。后者在文件已存在时拒绝。
+    """
+    if mode not in {"overwrite", "create"}:
+        return {"error": "invalid_mode", "reason": f"mode must be overwrite or create, got {mode!r}"}
+
+    encoded = content.encode("utf-8")
+    if len(encoded) > MAX_WRITE_BYTES:
+        return {
+            "error": "content_too_large",
+            "limit": MAX_WRITE_BYTES,
+        }
+
+    try:
+        target = sandbox.validate_path(path)
+    except SandboxViolationError as exc:
+        return {"error": exc.code, "reason": exc.reason}
+
+    existed = target.exists()
+    if mode == "create" and existed:
+        return {"error": "already_exists"}
+
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(encoded)
+    except OSError as exc:
+        return {"error": "io_error", "reason": str(exc)}
+
+    return {
+        "bytes_written": len(encoded),
+        "created": not existed,
+    }
+
+
+def fs_list(sandbox: ToolSandbox, path: str) -> dict[str, Any]:
+    """列出目录下直接子项。隐藏文件（``.`` 开头）会被过滤掉。"""
+    try:
+        target = sandbox.validate_path(path, must_be_dir=True)
+    except SandboxViolationError as exc:
+        return {"error": exc.code, "reason": exc.reason}
+
+    if not target.exists():
+        return {"error": "not_found"}
+    if not target.is_dir():
+        return {"error": "not_a_directory"}
+
+    entries: list[dict[str, Any]] = []
+    try:
+        for child in sorted(target.iterdir(), key=lambda p: p.name):
+            if child.name.startswith("."):
+                continue
+            stat = child.stat()
+            entries.append(
+                {
+                    "name": child.name,
+                    "is_dir": child.is_dir(),
+                    "size": stat.st_size,
+                }
+            )
+    except OSError as exc:
+        return {"error": "io_error", "reason": str(exc)}
+
+    return {"entries": entries}

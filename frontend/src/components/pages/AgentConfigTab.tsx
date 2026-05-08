@@ -103,7 +103,7 @@ const MODEL_ROUTING_FIELDS = [
     key: "sonnetModel" as const,
     label: "Sonnet 模型",
     envVar: "ANTHROPIC_DEFAULT_SONNET_MODEL",
-    hint: "均衡任务（写作、编排、多步推理）",
+    hint: "均衡任務（寫作、編排、多步推理）",
     patchKey: "anthropic_default_sonnet_model" as const,
   },
   {
@@ -122,27 +122,36 @@ const MODEL_ROUTING_FIELDS = [
   },
 ] as const;
 
-// Small inline clear button shown next to "当前：" when a value is set
+// Small inline clear button shown next to "當前：" when a value is set
 const inlineClearClassName =
   "ml-1.5 inline-flex items-center rounded p-0.5 text-[color:var(--wb-text-dim)] transition-colors hover:text-[color:var(--wb-danger)] disabled:cursor-not-allowed disabled:opacity-50";
 
-const ASSISTANT_PROVIDER_META: Record<string, { label: string; tier: string; description: string; requirement: string }> = {
+const ASSISTANT_PROVIDER_META: Record<
+  string,
+  { label: string; tier: string; description: string; requirement: string }
+> = {
   claude: {
-    label: "Claude Full",
+    label: "Claude · 工作流模式",
     tier: "full",
-    description: "保留現有 Claude Agent SDK 執行階段，支援更完整的會話與自治能力。",
-    requirement: "需要設定 Anthropic API Key。",
+    description: "Claude Agent SDK 工作流：可呼叫工具、生成劇本／分鏡／角色等。",
+    requirement: "需要 Claude Code bundled CLI 與 OAuth 登入態。",
   },
   "gemini-lite": {
-    label: "Gemini Lite",
+    label: "Gemini · 對話模式",
     tier: "lite",
-    description: "使用 Gemini 文字／多模態後端提供專案內對話與輔助創作能力。",
+    description: "純文字流式對話，輕量、低延遲；不會呼叫工具自動化。",
     requirement: "需要設定可用的 Gemini 文字供應商。",
   },
+  "gemini-full": {
+    label: "Gemini · 工作流模式",
+    tier: "full",
+    description: "Gemini function calling 工具循環：可自動化生成劇本／角色／線索並讀寫專案內檔案。",
+    requirement: "需要 AI Studio API Key 並在系統配置中設好 Gemini 文字後端。",
+  },
   "openai-lite": {
-    label: "OpenAI / ChatGPT Lite",
+    label: "OpenAI · 對話模式",
     tier: "lite",
-    description: "使用 OpenAI 相容文字後端提供專案內對話與輔助創作能力。",
+    description: "OpenAI 相容文字後端，純對話模式。",
     requirement: "需要設定可用的 OpenAI 文字供應商。",
   },
 };
@@ -150,6 +159,104 @@ const ASSISTANT_PROVIDER_META: Record<string, { label: string; tier: string; des
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// AssistantRuntimeGrid — provider × 模式二维选择器
+// ---------------------------------------------------------------------------
+
+const PROVIDER_BRANDS: Array<{ id: string; label: string }> = [
+  { id: "gemini", label: "Gemini" },
+  { id: "openai", label: "OpenAI" },
+  { id: "claude", label: "Claude" },
+];
+
+const RUNTIME_MODES: Array<{ id: "lite" | "full"; label: string; hint: string }> = [
+  { id: "lite", label: "對話模式", hint: "純文字交流" },
+  { id: "full", label: "工作流模式", hint: "可呼叫工具自動化" },
+];
+
+// brand × mode → provider id；null 代表不可用組合
+const RUNTIME_MATRIX: Record<string, Record<string, string | null>> = {
+  gemini: { lite: "gemini-lite", full: "gemini-full" },
+  openai: { lite: "openai-lite", full: null },
+  claude: { lite: null, full: "claude" },
+};
+
+function AssistantRuntimeGrid({
+  available,
+  value,
+  onChange,
+  disabled,
+}: {
+  available: string[];
+  value: string;
+  onChange: (providerId: string) => void;
+  disabled: boolean;
+}) {
+  const availableSet = new Set(available);
+  return (
+    <div>
+      <div className="text-sm font-medium text-gray-100">執行時供應商與模式</div>
+      <p className="mt-1 text-xs text-[color:var(--wb-text-muted)]">
+        橫向：供應商；縱向：能力等級。不可用的組合以禁用態顯示。
+      </p>
+      <div className="mt-3 overflow-hidden rounded-xl border border-white/6">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-black/16 text-left text-xs uppercase tracking-wide text-[color:var(--wb-text-muted)]">
+              <th className="w-32 px-3 py-2"></th>
+              {PROVIDER_BRANDS.map((b) => (
+                <th key={b.id} className="px-3 py-2 font-medium">
+                  {b.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {RUNTIME_MODES.map((mode) => (
+              <tr key={mode.id} className="border-t border-white/6">
+                <td className="px-3 py-3">
+                  <div className="font-medium text-[color:var(--wb-text-primary)]">{mode.label}</div>
+                  <div className="text-xs text-[color:var(--wb-text-muted)]">{mode.hint}</div>
+                </td>
+                {PROVIDER_BRANDS.map((brand) => {
+                  const providerId = RUNTIME_MATRIX[brand.id]?.[mode.id] ?? null;
+                  const isAvailable = providerId !== null && availableSet.has(providerId);
+                  const isSelected = providerId !== null && providerId === value;
+                  return (
+                    <td key={brand.id} className="px-3 py-3">
+                      <button
+                        type="button"
+                        disabled={disabled || !isAvailable}
+                        onClick={() => providerId && onChange(providerId)}
+                        title={
+                          providerId === null
+                            ? `${brand.label} ${mode.label} 暫未實現`
+                            : !isAvailable
+                              ? "此組合在後端不在合法清單"
+                              : ""
+                        }
+                        className={`w-full rounded-lg border px-3 py-2 text-xs transition-colors ${
+                          isSelected
+                            ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-100"
+                            : isAvailable
+                              ? "border-white/8 bg-black/12 text-[color:var(--wb-text-secondary)] hover:bg-black/20 hover:text-[color:var(--wb-text-primary)]"
+                              : "cursor-not-allowed border-white/4 bg-black/8 text-[color:var(--wb-text-dim)]"
+                        }`}
+                      >
+                        {providerId === null ? "未實現" : isSelected ? "✓ 使用中" : "選擇"}
+                      </button>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 function SectionHeading({ title, description }: { title: string; description: string }) {
   return (
@@ -240,7 +347,7 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
       savedRef.current = newDraft;
       setDraft(newDraft);
       useConfigStatusStore.getState().refresh();
-      useAppStore.getState().pushToast("ArcReel 智能體設定已儲存", "success");
+      useAppStore.getState().pushToast("ArcReel 智慧體設定已儲存", "success");
     } catch (err) {
       setSaveError((err as Error).message);
     } finally {
@@ -316,7 +423,7 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
             </div>
             <div>
               <div className="workbench-kicker text-[11px] font-semibold">助理執行階段</div>
-              <h2 className="mt-1 text-lg font-semibold text-[color:var(--wb-text-primary)]">ArcReel 智能體</h2>
+              <h2 className="mt-1 text-lg font-semibold text-[color:var(--wb-text-primary)]">ArcReel 智慧體</h2>
               <p className="text-sm text-[color:var(--wb-text-muted)]">
                 透過可切換的執行階段供應商，驅動對話式 AI 助手與自動化工作流程
               </p>
@@ -333,28 +440,16 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
         <div>
           <SectionHeading
             title="執行階段供應商"
-            description="選擇目前智能體使用的執行階段供應商；不同供應商支援的能力層級不同。"
+            description="選擇目前智慧體使用的執行階段供應商；不同供應商支援的能力層級不同。"
           />
 
           <div className={`${cardClassName} space-y-4`}>
-            <div>
-              <label htmlFor="assistant-provider" className="text-sm font-medium text-gray-100">
-                目前供應商
-              </label>
-              <select
-                id="assistant-provider"
-                value={draft.assistantProvider}
-                onChange={(e) => updateDraft("assistantProvider", e.target.value)}
-                className={`${inputClassName} mt-2`}
-                disabled={saving}
-              >
-                {(remoteData?.options.assistant_providers ?? ["claude", "gemini-lite", "openai-lite"]).map((providerId) => (
-                  <option key={providerId} value={providerId}>
-                    {(ASSISTANT_PROVIDER_META[providerId] ?? { label: providerId }).label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <AssistantRuntimeGrid
+              available={remoteData?.options.assistant_providers ?? ["claude", "gemini-lite", "gemini-full", "openai-lite"]}
+              value={draft.assistantProvider}
+              onChange={(providerId) => updateDraft("assistantProvider", providerId)}
+              disabled={saving}
+            />
 
             <div className="rounded-2xl border border-white/6 bg-black/12 px-4 py-4 text-sm text-[color:var(--wb-text-secondary)]">
               <div className="flex items-center gap-2 text-[color:var(--wb-text-primary)]">
@@ -417,7 +512,7 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
                 )}
               </div>
               <p className="mt-0.5 text-xs text-gray-500">
-                对应环境变量 ANTHROPIC_API_KEY
+                對應環境變數 ANTHROPIC_API_KEY
               </p>
               <div className="relative mt-2">
                 <input
@@ -518,7 +613,7 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
         <div>
           <SectionHeading
             title="模型設定"
-            description="指定智能體使用的 Claude 模型。留空時會使用 Claude Agent SDK 的預設值。"
+            description="指定智慧體使用的 Claude 模型。留空時會使用 Claude Agent SDK 的預設值。"
           />
 
           <div className={cardClassName}>
@@ -690,7 +785,7 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
                   最大並行會話數
                 </label>
                 <p className="mt-0.5 text-xs text-gray-500">
-                  同時維持活躍智能體會話的上限，超出時會自動釋放最久未使用的會話（被清理的會話會持久化，下一次對話時可恢復）
+                  同時維持活躍智慧體會話的上限，超出時會自動釋放最久未使用的會話（被清理的會話會持久化，下一次對話時可恢復）
                 </p>
                 <input
                   type="number"

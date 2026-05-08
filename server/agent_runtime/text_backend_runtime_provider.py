@@ -15,6 +15,7 @@ from uuid import uuid4
 
 from lib.config.resolver import ConfigResolver
 from lib.db import async_session_factory
+from lib.db.repositories.agent_message_repo import AgentMessageRepository
 from lib.text_backends.base import ImageInput, TextBackend, TextGenerationRequest
 from lib.text_backends.gemini import DEFAULT_MODEL as GEMINI_DEFAULT_MODEL
 from lib.text_backends.gemini import GeminiTextBackend
@@ -43,9 +44,9 @@ def _utc_now_iso() -> str:
 
 _PERSONA_PROMPT = """## 身份
 
-你是 ArcReel 智能體，一個專業的 AI 影片內容創作助理。你的職責是將小說轉化為可發布的短影片內容。
+你是 ArcReel 智慧體，一個專業的 AI 影片內容創作助理。你的職責是將小說轉化為可發布的短影片內容。
 
-## 行为准则
+## 行為準則
 
 - 主動引導使用者完成影片創作工作流，而不只是被動回答問題
 - 遇到不確定的創作決策時，向使用者提出選項並給出建議，而不是自行決定
@@ -61,9 +62,12 @@ class LiteManagedSession:
     subscribers: set[asyncio.Queue] = field(default_factory=set)
     pending_questions: list[dict[str, Any]] = field(default_factory=list)
     generation_task: asyncio.Task | None = None
+    persist_callback: Any = None  # Callable[[str, dict], Awaitable[None]] | None
+    _persist_tasks: set[asyncio.Task] = field(default_factory=set)
 
     def add_message(self, message: dict[str, Any]) -> None:
         self.message_buffer.append(message)
+        # 記憶體 buffer 仍維持上限（僅作快取，DB 是真相源）
         if len(self.message_buffer) > 200:
             self.message_buffer.pop(0)
         stale: list[asyncio.Queue] = []
@@ -74,6 +78,16 @@ class LiteManagedSession:
                 stale.append(queue)
         for queue in stale:
             self.subscribers.discard(queue)
+
+        if self.persist_callback is not None:
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+            if loop is not None:
+                task = loop.create_task(self.persist_callback(self.session_id, message))
+                self._persist_tasks.add(task)
+                task.add_done_callback(self._persist_tasks.discard)
 
 
 class BaseTextBackendRuntimeProvider(AssistantRuntimeProvider):
@@ -98,6 +112,27 @@ class BaseTextBackendRuntimeProvider(AssistantRuntimeProvider):
         self._attachments_dir.mkdir(parents=True, exist_ok=True)
         self._sessions: dict[str, LiteManagedSession] = {}
 
+    async def _persist_message(self, sdk_session_id: str, message: dict[str, Any]) -> None:
+        # local_echo 是 SSE 流期间的瞬态标记，落库后应视为最终 real message。
+        # 否则 projector 重建历史时所有 user 都是 echo，dedup 找不到 "real user"
+        # 会让本轮 user echo 重复 apply 一次（双倍显示）。
+        persisted = message
+        if message.get("local_echo"):
+            persisted = {k: v for k, v in message.items() if k != "local_echo"}
+        try:
+            async with async_session_factory() as db:
+                await AgentMessageRepository(db).append(sdk_session_id, persisted)
+        except Exception:
+            logger.warning("persist agent message failed for %s", sdk_session_id, exc_info=True)
+
+    async def _load_history(self, sdk_session_id: str) -> list[dict[str, Any]]:
+        try:
+            async with async_session_factory() as db:
+                return await AgentMessageRepository(db).list(sdk_session_id)
+        except Exception:
+            logger.warning("load agent history failed for %s", sdk_session_id, exc_info=True)
+            return []
+
     @property
     def provider_id(self) -> str:
         return self._provider_id
@@ -116,7 +151,11 @@ class BaseTextBackendRuntimeProvider(AssistantRuntimeProvider):
     ) -> str:
         session_id = build_external_session_id(self.provider_id, uuid4().hex)
         await self._meta_store.create(project_name, session_id)
-        managed = LiteManagedSession(session_id=session_id, project_name=project_name)
+        managed = LiteManagedSession(
+            session_id=session_id,
+            project_name=project_name,
+            persist_callback=self._persist_message,
+        )
         self._sessions[session_id] = managed
         await self._start_generation(managed, prompt, echo_text=echo_text, echo_content=echo_content)
         return session_id
@@ -133,13 +172,22 @@ class BaseTextBackendRuntimeProvider(AssistantRuntimeProvider):
         managed = self._sessions.get(session_id)
         if managed is None:
             existing = meta or await self._meta_store.get(session_id)
-            if existing is not None:
-                raise UnsupportedCapabilityError(
-                    self.provider_id,
-                    "resume",
-                    "lite provider 會話目前無法在程序重啟後延續",
-                )
-            raise FileNotFoundError(f"session not found: {session_id}")
+            if existing is None:
+                raise FileNotFoundError(f"session not found: {session_id}")
+            project_name = (
+                existing.project_name
+                if hasattr(existing, "project_name")
+                else (existing.get("project_name", "") if isinstance(existing, dict) else "")
+            )
+            managed = LiteManagedSession(
+                session_id=session_id,
+                project_name=project_name,
+                persist_callback=self._persist_message,
+            )
+            # 注意：不預先把 DB 歷史填入 message_buffer。
+            # buffer 僅用於本次程序內的 SSE replay；歷史由 read_history_messages 直接讀 DB。
+            # 否則 projector 會先吃 DB 歷史一次，再吃 buffer 裡同樣的內容一次（重複）。
+            self._sessions[session_id] = managed
         await self._start_generation(managed, prompt, echo_text=echo_text, echo_content=echo_content)
 
     async def _start_generation(
@@ -218,7 +266,9 @@ class BaseTextBackendRuntimeProvider(AssistantRuntimeProvider):
             managed.add_message(self._build_runtime_status_message(managed.session_id, managed.status))
             raise
         except Exception as exc:
-            logger.exception("lite provider generation failed provider=%s session=%s", self.provider_id, managed.session_id)
+            logger.exception(
+                "lite provider generation failed provider=%s session=%s", self.provider_id, managed.session_id
+            )
             managed.status = "error"
             await self._meta_store.update_status(managed.session_id, "error")
             managed.add_message(
@@ -421,6 +471,9 @@ class BaseTextBackendRuntimeProvider(AssistantRuntimeProvider):
         return list(managed.message_buffer)
 
     async def read_history_messages(self, session_id: str) -> list[dict[str, Any]]:
+        history = await self._load_history(session_id)
+        if history:
+            return history
         return self.get_buffered_messages(session_id)
 
     async def get_pending_questions_snapshot(self, session_id: str) -> list[dict[str, Any]]:
@@ -448,7 +501,7 @@ class GeminiLiteProvider(BaseTextBackendRuntimeProvider):
                 supports_images=True,
                 supports_tool_calls=False,
                 supports_interrupt=True,
-                supports_resume=False,
+                supports_resume=True,
                 supports_subagents=False,
                 supports_permission_hooks=False,
             ),
@@ -464,7 +517,9 @@ class GeminiLiteProvider(BaseTextBackendRuntimeProvider):
             vertex = await resolver.provider_config("gemini-vertex")
 
         if provider_id == "gemini-vertex":
-            return GeminiTextBackend(model=model_id or GEMINI_DEFAULT_MODEL, backend="vertex", gcs_bucket=vertex.get("gcs_bucket"))
+            return GeminiTextBackend(
+                model=model_id or GEMINI_DEFAULT_MODEL, backend="vertex", gcs_bucket=vertex.get("gcs_bucket")
+            )
 
         model = model_id if provider_id == "gemini-aistudio" else GEMINI_DEFAULT_MODEL
         return GeminiTextBackend(
@@ -486,7 +541,7 @@ class OpenAILiteProvider(BaseTextBackendRuntimeProvider):
                 supports_images=True,
                 supports_tool_calls=False,
                 supports_interrupt=True,
-                supports_resume=False,
+                supports_resume=True,
                 supports_subagents=False,
                 supports_permission_hooks=False,
             ),

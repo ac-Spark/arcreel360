@@ -4,9 +4,13 @@ from __future__ import annotations
 
 CLAUDE_PROVIDER_ID = "claude"
 GEMINI_LITE_PROVIDER_ID = "gemini-lite"
+GEMINI_FULL_PROVIDER_ID = "gemini-full"
 OPENAI_LITE_PROVIDER_ID = "openai-lite"
 
+# 前缀越长越要先匹配（split 时按 ":" 第一个段命中），
+# 因此 `gemini-full` 必须在 `gemini` 之前，否则 `gemini-full:xxx` 会被误识为 lite。
 _PROVIDER_TO_PREFIX = {
+    GEMINI_FULL_PROVIDER_ID: "gemini-full",
     GEMINI_LITE_PROVIDER_ID: "gemini",
     OPENAI_LITE_PROVIDER_ID: "openai",
 }

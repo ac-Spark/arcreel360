@@ -311,6 +311,17 @@ class TestPatchSystemConfig:
         assert res.status_code == 200
         assert res.json()["settings"]["video_generate_audio"] is False
 
+    def test_patch_accepts_assistant_provider_alias(self):
+        mock_svc = _make_mock_svc()
+        with TestClient(self._make_patch_app(mock_svc)) as client:
+            res = client.patch(
+                "/api/v1/system/config",
+                json={"assistant_provider": "gemini_full"},
+            )
+        assert res.status_code == 200
+        assert res.json()["settings"]["assistant_provider"] == "gemini-full"
+        mock_svc.set_setting.assert_any_await("assistant_provider", "gemini-full")
+
     def test_patch_sets_model_fields(self):
         mock_svc = _make_mock_svc()
         with TestClient(self._make_patch_app(mock_svc)) as client:
