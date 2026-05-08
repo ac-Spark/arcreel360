@@ -1,4 +1,4 @@
-"""图片生成服务层公共 API。"""
+"""圖片生成服務層公共 API。"""
 
 from lib.image_backends.base import (
     ImageBackend,

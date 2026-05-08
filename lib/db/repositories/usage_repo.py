@@ -105,7 +105,7 @@ class UsageRepository(BaseRepository):
         if not row:
             return
 
-        # 后端回写的实际 generate_audio 覆盖 start_call 时的请求值
+        # 後端回寫的實際 generate_audio 覆蓋 start_call 時的請求值
         if generate_audio is not None:
             row.generate_audio = generate_audio
 
@@ -315,7 +315,7 @@ class UsageRepository(BaseRepository):
                 try:
                     custom_ids.add(parse_provider_id(p))
                 except ValueError:
-                    pass  # 防御畸形 provider 字符串（如 "custom-abc"）
+                    pass  # 防禦畸形 provider 字串（如 "custom-abc"）
 
         custom_names: dict[int, str] = {}
         if custom_ids:
@@ -389,11 +389,11 @@ class UsageRepository(BaseRepository):
         self,
         project_name: str,
     ) -> dict[str, dict[str, dict[str, float]]]:
-        """按 segment_id + call_type + currency 汇总实际费用。
+        """按 segment_id + call_type + currency 彙總實際費用。
 
         Returns:
             {segment_id: {call_type: {currency: total_amount}}}
-            segment_id 为 None 的记录归入 "__project__" 键。
+            segment_id 為 None 的記錄歸入 "__project__" 鍵。
         """
         stmt = (
             select(

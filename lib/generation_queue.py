@@ -68,9 +68,9 @@ class GenerationQueue:
                 user_id=user_id,
             )
         if not result.get("deduped"):
-            logger.info("任务入队 task_id=%s type=%s", result["task_id"], task_type)
+            logger.info("任務入隊 task_id=%s type=%s", result["task_id"], task_type)
         else:
-            logger.debug("任务去重 task_id=%s", result["task_id"])
+            logger.debug("任務去重 task_id=%s", result["task_id"])
         return result
 
     async def claim_next_task(self, media_type: str) -> dict[str, Any] | None:
@@ -79,7 +79,7 @@ class GenerationQueue:
             repo = TaskRepository(session)
             task = await repo.claim_next(media_type)
         if task:
-            logger.debug("任务被领取 task_id=%s", task["task_id"])
+            logger.debug("任務被領取 task_id=%s", task["task_id"])
         return task
 
     async def requeue_running_tasks(self, *, limit: int = 1000) -> int:
@@ -88,7 +88,7 @@ class GenerationQueue:
             repo = TaskRepository(session)
             recovered = await repo.requeue_running(limit=limit)
         if recovered > 0:
-            logger.warning("回收 %d 个 running 任务", recovered)
+            logger.warning("回收 %d 個 running 任務", recovered)
         return recovered
 
     async def mark_task_succeeded(self, task_id: str, result: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -97,7 +97,7 @@ class GenerationQueue:
             repo = TaskRepository(session)
             task = await repo.mark_succeeded(task_id, result)
         if task:
-            logger.info("任务成功 task_id=%s", task_id)
+            logger.info("任務成功 task_id=%s", task_id)
         return task
 
     async def mark_task_failed(self, task_id: str, error_message: str) -> dict[str, Any] | None:
@@ -106,7 +106,7 @@ class GenerationQueue:
             repo = TaskRepository(session)
             task = await repo.mark_failed(task_id, error_message)
         if task:
-            logger.warning("任务失败 task_id=%s error=%s", task_id, error_message[:200])
+            logger.warning("任務失敗 task_id=%s error=%s", task_id, error_message[:200])
         return task
 
     async def get_task(self, task_id: str) -> dict[str, Any] | None:

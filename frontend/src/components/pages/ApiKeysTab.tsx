@@ -1,6 +1,6 @@
 /**
  * API Keys 管理 Tab
- * 列表展示、创建（弹窗显示完整 key）、删除（确认弹窗）
+ * 列表展示、建立（彈窗顯示完整 key）、刪除（確認彈窗）
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -59,8 +59,8 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
     if (!canCreate || creating) return;
     setCreating(true);
     try {
-      // expiresDays === "" 或 0 时发送 0（后端解释为永不过期）；
-      // 正整数直接传递；undefined 让后端使用默认值（30天）。
+      // expiresDays === "" 或 0 時傳送 0（後端解釋為永不過期）；
+      // 正整數直接傳遞；undefined 讓後端使用預設值（30天）。
       const days: number | undefined = expiresDays === "" ? 0 : expiresDays;
       const res = await API.createApiKey(name.trim(), days);
       setCreated(res);
@@ -122,17 +122,17 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
 
         <div className="p-5">
           {created ? (
-            /* ——— 创建成功视图 ——— */
+            /* ——— 建立成功檢視 ——— */
             <div className="space-y-4">
-              {/* 仅此一次警告 */}
+              {/* 僅此一次警告 */}
               <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/8 px-3 py-3">
                 <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-400" />
                 <p className="text-xs leading-5 text-amber-200">
-                  請立即複製並妥善保存此 API Key。基於安全考量，完整金鑰<strong className="font-semibold"> 只會在建立時顯示一次</strong>，關閉後將無法再次查看。
+                  請立即複製並妥善儲存此 API Key。基於安全考量，完整金鑰<strong className="font-semibold"> 只會在建立時顯示一次</strong>，關閉後將無法再次檢視。
                 </p>
               </div>
 
-              {/* 密钥展示 */}
+              {/* 金鑰展示 */}
               <div>
                 <div className="mb-1.5 text-xs font-medium text-gray-400">你的 API Key</div>
                 <div className="group relative flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-950 px-3 py-2.5">
@@ -154,14 +154,14 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
                 </div>
               </div>
 
-              {/* 元信息 */}
+              {/* 元資訊 */}
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="rounded-lg border border-gray-800 bg-gray-950/50 px-3 py-2">
                   <div className="text-gray-500">名稱</div>
                   <div className="mt-0.5 truncate font-medium text-gray-200">{created.name}</div>
                 </div>
                 <div className="rounded-lg border border-gray-800 bg-gray-950/50 px-3 py-2">
-                  <div className="text-gray-500">前綴</div>
+                  <div className="text-gray-500">字首</div>
                   <div className="mt-0.5 font-mono font-medium text-gray-200">{created.key_prefix}…</div>
                 </div>
               </div>
@@ -175,7 +175,7 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
               </button>
             </div>
           ) : (
-            /* ——— 创建表单视图 ——— */
+            /* ——— 建立表單檢視 ——— */
             <div className="space-y-4">
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-gray-300">
@@ -185,7 +185,7 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="例如：OpenClaw 集成"
+                  placeholder="例如：OpenClaw 整合"
                   autoFocus
                   className="w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-gray-200 placeholder:text-gray-600 focus:border-indigo-500/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40"
                 />
@@ -288,7 +288,7 @@ function DeleteModal({ keyInfo, onClose, onDeleted }: DeleteModalProps) {
               <p className="mt-1.5 text-xs leading-5 text-gray-400">
                 將永久撤銷{" "}
                 <span className="font-mono text-gray-200">{keyInfo.key_prefix}…</span>（{keyInfo.name}）。
-                使用此 Key 的服務將立即失去存取權限，且操作無法復原。
+                使用此 Key 的服務將立即失去存取許可權，且操作無法復原。
               </p>
             </div>
           </div>
@@ -338,7 +338,7 @@ function ApiKeyRow({ keyInfo, onDelete }: ApiKeyRowProps) {
 
   return (
     <tr className="group border-t border-gray-800/70 transition-colors hover:bg-gray-800/30">
-      {/* 名称 */}
+      {/* 名稱 */}
       <td className="py-3 pl-4 pr-3">
         <div className="flex items-center gap-2">
           <div className="min-w-0">
@@ -348,12 +348,12 @@ function ApiKeyRow({ keyInfo, onDelete }: ApiKeyRowProps) {
         </div>
       </td>
 
-      {/* 创建时间 */}
+      {/* 建立時間 */}
       <td className="hidden px-3 py-3 sm:table-cell">
         <span className="text-xs text-gray-400">{formatDate(keyInfo.created_at)}</span>
       </td>
 
-      {/* 过期时间 */}
+      {/* 過期時間 */}
       <td className="hidden px-3 py-3 md:table-cell">
         {keyInfo.expires_at ? (
           <span
@@ -430,7 +430,7 @@ export function ApiKeysTab() {
 
   return (
     <>
-      {/* 操作栏 */}
+      {/* 操作欄 */}
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold text-gray-100">API Keys</h2>
@@ -459,13 +459,13 @@ export function ApiKeysTab() {
           <div className="flex flex-col items-center justify-center gap-2 py-14 text-gray-600">
             <KeyRound className="h-8 w-8 opacity-40" />
             <p className="text-sm">還沒有 API Key</p>
-            <p className="text-xs">點擊「建立 Key」建立第一個</p>
+            <p className="text-xs">點選「建立 Key」建立第一個</p>
           </div>
         ) : (
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-gray-800">
-                <th className="py-2.5 pl-4 pr-3 text-xs font-medium text-gray-500">名稱 / 前綴</th>
+                <th className="py-2.5 pl-4 pr-3 text-xs font-medium text-gray-500">名稱 / 字首</th>
                 <th className="hidden px-3 py-2.5 text-xs font-medium text-gray-500 sm:table-cell">
                   建立時間
                 </th>
@@ -489,7 +489,7 @@ export function ApiKeysTab() {
         )}
       </div>
 
-      {/* 说明 */}
+      {/* 說明 */}
       <p className="mt-3 text-xs text-gray-600">
         在請求標頭中攜帶：
         <code className="mx-1 rounded bg-gray-800 px-1.5 py-0.5 font-mono text-gray-400">
@@ -497,7 +497,7 @@ export function ApiKeysTab() {
         </code>
       </p>
 
-      {/* 弹窗 */}
+      {/* 彈窗 */}
       {showCreate && (
         <CreateModal onClose={handleCloseCreate} onCreated={handleCreated} />
       )}

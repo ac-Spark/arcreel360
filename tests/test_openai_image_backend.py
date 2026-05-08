@@ -1,4 +1,4 @@
-"""OpenAIImageBackend 单元测试。"""
+"""OpenAIImageBackend 單元測試。"""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from lib.providers import PROVIDER_OPENAI
 
 
 def _make_mock_image_response(b64_data: str = "aW1hZ2VfZGF0YQ=="):
-    """构造 mock ImagesResponse。"""
+    """構造 mock ImagesResponse。"""
     datum = MagicMock()
     datum.b64_json = b64_data
 
@@ -49,7 +49,7 @@ class TestOpenAIImageBackend:
             assert ImageCapability.IMAGE_TO_IMAGE in backend.capabilities
 
     async def test_text_to_image(self, tmp_path: Path):
-        """T2I 路径应调用 images.generate()。"""
+        """T2I 路徑應呼叫 images.generate()。"""
         b64_data = base64.b64encode(b"fake-png-data").decode()
         mock_client = AsyncMock()
         mock_client.images.generate = AsyncMock(return_value=_make_mock_image_response(b64_data))
@@ -80,7 +80,7 @@ class TestOpenAIImageBackend:
         assert call_kwargs["response_format"] == "b64_json"
 
     async def test_image_to_image(self, tmp_path: Path):
-        """I2I 路径应调用 images.edit()。"""
+        """I2I 路徑應呼叫 images.edit()。"""
         b64_data = base64.b64encode(b"edited-image").decode()
         mock_client = AsyncMock()
         mock_client.images.edit = AsyncMock(return_value=_make_mock_image_response(b64_data))
@@ -106,7 +106,7 @@ class TestOpenAIImageBackend:
         mock_client.images.generate.assert_not_awaited()
 
     async def test_size_mapping(self, tmp_path: Path):
-        """验证 aspect_ratio → size 映射。"""
+        """驗證 aspect_ratio → size 對映。"""
         b64_data = base64.b64encode(b"img").decode()
         mock_client = AsyncMock()
         mock_client.images.generate = AsyncMock(return_value=_make_mock_image_response(b64_data))
@@ -128,7 +128,7 @@ class TestOpenAIImageBackend:
                 assert call_kwargs["size"] == expected_size, f"aspect={aspect}"
 
     async def test_quality_mapping(self, tmp_path: Path):
-        """验证 image_size → quality 映射。"""
+        """驗證 image_size → quality 對映。"""
         b64_data = base64.b64encode(b"img").decode()
         mock_client = AsyncMock()
         mock_client.images.generate = AsyncMock(return_value=_make_mock_image_response(b64_data))

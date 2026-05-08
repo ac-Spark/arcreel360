@@ -38,7 +38,7 @@ const CredentialRow = memo(function CredentialRow({ cred, providerId, isVertex, 
       await API.activateCredential(providerId, cred.id);
       onChanged();
     } catch {
-      // 网络错误静默处理，用户可重试
+      // 網路錯誤靜默處理，使用者可重試
     }
   }, [providerId, cred.id, onChanged]);
 
@@ -231,7 +231,7 @@ const CredentialRow = memo(function CredentialRow({ cred, providerId, isVertex, 
               autoComplete="off"
               value={draft.api_key}
               onChange={(e) => setDraft((d) => ({ ...d, api_key: e.target.value }))}
-              placeholder="留空保留现有值…"
+              placeholder="留空保留現有值…"
               className={inputClsPlaceholder}
             />
           </div>
@@ -420,7 +420,7 @@ export function CredentialList({ providerId, onChanged }: Props) {
   const [showAdd, setShowAdd] = useState(false);
   const isVertex = providerId === "gemini-vertex";
 
-  // 用 ref 存储 onChanged 以稳定 refresh 引用，避免父组件 re-render 导致无限循环
+  // 用 ref 儲存 onChanged 以穩定 refresh 引用，避免父元件 re-render 導致無限迴圈
   const onChangedRef = useRef(onChanged);
   onChangedRef.current = onChanged;
 
@@ -433,7 +433,7 @@ export function CredentialList({ providerId, onChanged }: Props) {
     }
   }, [providerId]);
 
-  // 用户操作后：刷新列表 + 通知父组件
+  // 使用者操作後：重新整理列表 + 通知父元件
   const handleChanged = useCallback(async () => {
     await refresh();
     onChangedRef.current?.();

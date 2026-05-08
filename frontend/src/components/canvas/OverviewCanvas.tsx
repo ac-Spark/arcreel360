@@ -201,7 +201,7 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
             <p className="mt-1 text-sm leading-6 text-gray-300">
               {styleImageUrl
                 ? "目前參考圖會作為統一視覺基線，用於角色圖、分鏡圖與影片生成。"
-                : "目前還沒有綁定專案級參考圖，可以先上傳一張目標風格樣片作為統一基線。"}
+                : "目前還沒有繫結專案級參考圖，可以先上傳一張目標風格樣片作為統一基線。"}
             </p>
 
             <div className="mt-3 flex flex-wrap gap-2">
@@ -288,7 +288,7 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
           <p className="mt-1 text-sm text-gray-400">
             {projectData.content_mode === "narration"
               ? "說書＋畫面模式"
-              : "劇集動畫模式"}{" "}
+              : "劇本動畫模式"}{" "}
             · {projectData.style || "未設定風格"}
           </p>
         </div>
@@ -341,7 +341,7 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
                         : 0;
                     const labels: Record<string, string> = {
                       characters: "角色",
-                      clues: "線索",
+                      clues: "道具",
                     };
                     return (
                       <div
@@ -391,7 +391,7 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
                   <div className="min-w-0">
                     <dt className="mb-1 text-[11px] text-gray-600">預估</dt>
                     <dd className="text-sm text-gray-400">
-                      <span className="text-gray-500">分镜 </span>
+                      <span className="text-gray-500">分鏡 </span>
                       <span className="text-gray-200">{formatCost(projectTotals.estimate.image)}</span>
                       <span className="ml-3 text-gray-500">影片 </span>
                       <span className="text-gray-200">{formatCost(projectTotals.estimate.video)}</span>
@@ -403,13 +403,13 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
                   <div className="min-w-0">
                     <dt className="mb-1 text-[11px] text-gray-600">實際</dt>
                     <dd className="text-sm text-gray-400">
-                      <span className="text-gray-500">分镜 </span>
+                      <span className="text-gray-500">分鏡 </span>
                       <span className="text-gray-200">{formatCost(projectTotals.actual.image)}</span>
                       <span className="ml-3 text-gray-500">影片 </span>
                       <span className="text-gray-200">{formatCost(projectTotals.actual.video)}</span>
                       {projectTotals.actual.character_and_clue && (
                         <>
-                          <span className="ml-3 text-gray-500">角色／線索 </span>
+                          <span className="ml-3 text-gray-500">角色／道具 </span>
                           <span className="text-gray-200">{formatCost(projectTotals.actual.character_and_clue)}</span>
                         </>
                       )}
@@ -422,10 +422,10 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
             )}
 
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-300">劇集</h3>
+              <h3 className="text-sm font-semibold text-gray-300">劇本</h3>
               {(projectData.episodes?.length ?? 0) === 0 ? (
                 <p className="text-sm text-gray-500">
-                  暫無劇集。可使用 AI 助理生成劇本。
+                  暫無劇本。可使用 AI 助理生成劇本。
                 </p>
               ) : (
                 (projectData.episodes ?? []).map((ep) => {
@@ -446,14 +446,14 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
                         <span className="ml-auto flex min-w-0 flex-shrink flex-wrap gap-4 text-xs text-gray-400">
                           <span>
                             <span className="text-gray-500">預估 </span>
-                            <span className="text-gray-500">分镜 </span><span className="text-gray-300">{formatCost(epCost.totals.estimate.image)}</span>
+                            <span className="text-gray-500">分鏡 </span><span className="text-gray-300">{formatCost(epCost.totals.estimate.image)}</span>
                             <span className="ml-2 text-gray-500">影片 </span><span className="text-gray-300">{formatCost(epCost.totals.estimate.video)}</span>
                             <span className="ml-2 text-gray-500">總計 </span><span className="font-medium text-amber-400">{formatCost(totalBreakdown(epCost.totals.estimate))}</span>
                           </span>
                           <span className="text-gray-700">|</span>
                           <span>
                             <span className="text-gray-500">實際 </span>
-                            <span className="text-gray-500">分镜 </span><span className="text-gray-300">{formatCost(epCost.totals.actual.image)}</span>
+                            <span className="text-gray-500">分鏡 </span><span className="text-gray-300">{formatCost(epCost.totals.actual.image)}</span>
                             <span className="ml-2 text-gray-500">影片 </span><span className="text-gray-300">{formatCost(epCost.totals.actual.video)}</span>
                             <span className="ml-2 text-gray-500">總計 </span><span className="font-medium text-emerald-400">{formatCost(totalBreakdown(epCost.totals.actual))}</span>
                           </span>

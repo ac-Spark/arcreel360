@@ -13,8 +13,8 @@ function getDefaultDraftPath(): string {
     typeof navigator !== "undefined" &&
     navigator.userAgent.includes("Windows");
   return isWindows
-    ? String.raw`C:\Users\你的用户名\AppData\Local\JianyingPro\User Data\Projects\com.lveditor.draft`
-    : "/Users/你的用户名/Movies/JianyingPro/User Data/Projects/com.lveditor.draft";
+    ? String.raw`C:\Users\你的使用者名稱\AppData\Local\JianyingPro\User Data\Projects\com.lveditor.draft`
+    : "/Users/你的使用者名稱/Movies/JianyingPro/User Data/Projects/com.lveditor.draft";
 }
 
 interface ExportScopeDialogProps {
@@ -190,7 +190,7 @@ export function ExportScopeDialog({
                 className="w-full rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1.5 text-sm text-gray-200 placeholder:text-gray-600 outline-none focus:border-indigo-500"
               />
               <p className="mt-1.5 text-[11px] leading-relaxed text-gray-500">
-                請填入剪映草稿目錄的完整路徑。開啟剪映 → 設定 → 草稿位置即可查看。
+                請填入剪映草稿目錄的完整路徑。開啟剪映 → 設定 → 草稿位置即可檢視。
               </p>
             </div>
 

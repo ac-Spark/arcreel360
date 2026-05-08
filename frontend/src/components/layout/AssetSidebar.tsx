@@ -178,7 +178,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
   const episodes = currentProjectData?.episodes ?? [];
   const projectName = currentProjectName ?? "";
 
-  // 源文件列表
+  // 原始檔列表
   const [sourceFiles, setSourceFiles] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -206,7 +206,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
     loadSourceFiles();
   }, [loadSourceFiles, sourceFilesVersion]);
 
-  // 上传源文件
+  // 上傳原始檔
   const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !projectName) return;
@@ -215,13 +215,13 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
       loadSourceFiles();
       useAppStore.getState().invalidateSourceFiles();
     } catch {
-      // 静默失败
+      // 靜默失敗
     }
-    // 重置 input 以允许再次选择同一文件
+    // 重置 input 以允許再次選擇同一檔案
     e.target.value = "";
   }, [projectName, loadSourceFiles]);
 
-  // 删除源文件
+  // 刪除原始檔
   const handleDeleteFile = useCallback(async (filename: string) => {
     if (!projectName) return;
     if (!confirm(`確定要刪除「${filename}」嗎？`)) return;
@@ -229,12 +229,12 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
       await API.deleteSourceFile(projectName, filename);
       loadSourceFiles();
       useAppStore.getState().invalidateSourceFiles();
-      // 如果当前正在查看该文件，返回概览
+      // 如果當前正在檢視該檔案，返回概覽
       if (location === `/source/${encodeURIComponent(filename)}`) {
         setLocation("/");
       }
     } catch {
-      // 静默失败
+      // 靜默失敗
     }
   }, [projectName, loadSourceFiles, location, setLocation]);
 
@@ -252,11 +252,10 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
       <button
         type="button"
         onClick={() => setLocation("/")}
-        className={`focus-ring flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-colors ${
-          isActive("/")
-            ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
-            : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
-        }`}
+        className={`focus-ring flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-colors ${isActive("/")
+          ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
+          : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
+          }`}
       >
         <LayoutDashboard className="h-4 w-4 shrink-0 text-[color:var(--wb-accent)]" />
         <span className="font-medium">專案總覽</span>
@@ -299,11 +298,10 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
               return (
                 <li key={name}>
                   <div
-                    className={`group flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors ${
-                      active
-                        ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
-                        : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
-                    }`}
+                    className={`group flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors ${active
+                      ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
+                      : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
+                      }`}
                   >
                     <button
                       type="button"
@@ -336,12 +334,25 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
       <CollapsibleSection title="設定集" icon={Users} defaultOpen={true}>
         {/* Characters sub-section */}
         <div className="mb-1">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[color:var(--wb-text-dim)]">
+          <button
+            type="button"
+            onClick={() => setLocation("/characters")}
+            className={`focus-ring flex w-full items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${isActive("/characters")
+              ? "text-[color:var(--wb-text-primary)]"
+              : "text-[color:var(--wb-text-dim)] hover:text-[color:var(--wb-text-secondary)]"
+              }`}
+          >
             <Users className="h-3 w-3" />
             <span>角色</span>
-          </div>
+          </button>
           {characterEntries.length === 0 ? (
-            <EmptyState text="暫無角色" />
+            <button
+              type="button"
+              onClick={() => setLocation("/characters")}
+              className="focus-ring w-full px-3 py-1.5 text-left text-xs text-[color:var(--wb-text-dim)] italic hover:text-[color:var(--wb-text-secondary)]"
+            >
+              暫無角色，點選新增
+            </button>
           ) : (
             <ul>
               {characterEntries.map(([name, char]) => (
@@ -349,11 +360,10 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
                   <button
                     type="button"
                     onClick={() => setLocation("/characters")}
-                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors focus-ring ${
-                      isActive("/characters")
-                        ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
-                        : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
-                    }`}
+                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors focus-ring ${isActive("/characters")
+                      ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
+                      : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
+                      }`}
                   >
                     <CharacterThumbnail
                       name={name}
@@ -370,12 +380,25 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
 
         {/* Clues sub-section */}
         <div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[color:var(--wb-text-dim)]">
+          <button
+            type="button"
+            onClick={() => setLocation("/clues")}
+            className={`focus-ring flex w-full items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${isActive("/clues")
+              ? "text-[color:var(--wb-text-primary)]"
+              : "text-[color:var(--wb-text-dim)] hover:text-[color:var(--wb-text-secondary)]"
+              }`}
+          >
             <Puzzle className="h-3 w-3" />
-            <span>線索</span>
-          </div>
+            <span>道具</span>
+          </button>
           {clueEntries.length === 0 ? (
-            <EmptyState text="暫無線索" />
+            <button
+              type="button"
+              onClick={() => setLocation("/clues")}
+              className="focus-ring w-full px-3 py-1.5 text-left text-xs text-[color:var(--wb-text-dim)] italic hover:text-[color:var(--wb-text-secondary)]"
+            >
+              暫無道具，點選新增
+            </button>
           ) : (
             <ul>
               {clueEntries.map(([name, clue]) => (
@@ -383,11 +406,10 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
                   <button
                     type="button"
                     onClick={() => setLocation("/clues")}
-                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors focus-ring ${
-                      isActive("/clues")
-                        ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
-                        : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
-                    }`}
+                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors focus-ring ${isActive("/clues")
+                      ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
+                      : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
+                      }`}
                   >
                     <ClueThumbnail
                       name={name}
@@ -407,9 +429,9 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
       <div className="mx-3 border-t border-[color:var(--wb-border-soft)]" />
 
       {/* ---- Section 3: Episodes ---- */}
-      <CollapsibleSection title="劇集" icon={Film}>
+      <CollapsibleSection title="劇本" icon={Film}>
         {episodes.length === 0 ? (
-          <EmptyState text="暫無劇集" />
+          <EmptyState text="暫無劇本" />
         ) : (
           <ul>
             {episodes.map((ep) => {
@@ -425,11 +447,10 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
                   <button
                     type="button"
                     onClick={() => setLocation(episodePath)}
-                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors focus-ring ${
-                      active
-                        ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
-                        : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
-                    }`}
+                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors focus-ring ${active
+                      ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
+                      : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
+                      }`}
                   >
                     <Circle
                       className={`h-2.5 w-2.5 shrink-0 fill-current ${statusClass}`}

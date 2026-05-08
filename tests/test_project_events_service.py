@@ -48,7 +48,7 @@ class TestProjectEventService:
         project = pm.load_project("demo")
         project["characters"]["Hero"] = {
             "description": "主角",
-            "voice_style": "冷静",
+            "voice_style": "冷靜",
             "character_sheet": "",
             "reference_image": "",
         }
@@ -199,7 +199,7 @@ class TestProjectEventService:
                     "entity_type": "segment",
                     "action": "storyboard_ready",
                     "entity_id": "E1S01",
-                    "label": "分镜「E1S01」",
+                    "label": "分鏡「E1S01」",
                     "focus": None,
                     "important": True,
                 }

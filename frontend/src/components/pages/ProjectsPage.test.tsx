@@ -46,7 +46,7 @@ describe("ProjectsPage", () => {
 
     expect(await screen.findByText("暫無專案")).toBeInTheDocument();
     expect(
-      screen.getByText("點擊右上角「新建專案」或「匯入 ZIP」開始創作"),
+      screen.getByText("點選右上角「新建專案」或「匯入 ZIP」開始創作"),
     ).toBeInTheDocument();
   });
 
@@ -121,11 +121,11 @@ describe("ProjectsPage", () => {
         characters: {},
         clues: {},
       },
-      warnings: ["发现未识别的附加文件/目录: extras"],
+      warnings: ["發現未識別的附加檔案/目錄: extras"],
       conflict_resolution: "none",
       diagnostics: {
-        auto_fixed: [{ code: "missing_clues_field", message: "segments[0]: 补全缺失字段 clues_in_segment" }],
-        warnings: [{ code: "validation_warning", message: "发现未识别的附加文件/目录: extras" }],
+        auto_fixed: [{ code: "missing_clues_field", message: "segments[0]: 補全缺失欄位 clues_in_segment" }],
+        warnings: [{ code: "validation_warning", message: "發現未識別的附加檔案/目錄: extras" }],
       },
     });
 

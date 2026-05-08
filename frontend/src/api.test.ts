@@ -141,7 +141,7 @@ describe("API", () => {
       const location = { href: "/app" };
       vi.stubGlobal("location", location);
 
-      await expect(API.request("/projects")).rejects.toThrow("认证已过期，请重新登录");
+      await expect(API.request("/projects")).rejects.toThrow("認證已過期，請重新登入");
 
       expect(clearTokenMock).toHaveBeenCalledTimes(1);
       expect(location.href).toBe("/login");
@@ -510,19 +510,19 @@ describe("API", () => {
             ok: false,
             statusText: "Bad Request",
             jsonData: {
-              detail: "导入包校验失败",
+              detail: "匯入包校驗失敗",
               errors: ["缺少 project.json", "缺少 scripts/episode_1.json"],
-              warnings: ["发现未识别的附加文件/目录: extra"],
+              warnings: ["發現未識別的附加檔案/目錄: extra"],
               diagnostics: {
                 blocking: [
                   { code: "validation_error", message: "缺少 project.json" },
                   { code: "validation_error", message: "缺少 scripts/episode_1.json" },
                 ],
                 auto_fixable: [
-                  { code: "missing_clues_field", message: "segments[0]: 补全缺失字段 clues_in_segment" },
+                  { code: "missing_clues_field", message: "segments[0]: 補全缺失欄位 clues_in_segment" },
                 ],
                 warnings: [
-                  { code: "validation_warning", message: "发现未识别的附加文件/目录: extra" },
+                  { code: "validation_warning", message: "發現未識別的附加檔案/目錄: extra" },
                 ],
               },
             },
@@ -535,20 +535,20 @@ describe("API", () => {
       expect(result.project_name).toBe("demo");
 
       await expect(API.importProject(file)).rejects.toMatchObject({
-        message: "导入包校验失败",
-        detail: "导入包校验失败",
+        message: "匯入包校驗失敗",
+        detail: "匯入包校驗失敗",
         errors: ["缺少 project.json", "缺少 scripts/episode_1.json"],
-        warnings: ["发现未识别的附加文件/目录: extra"],
+        warnings: ["發現未識別的附加檔案/目錄: extra"],
         diagnostics: {
           blocking: [
             { code: "validation_error", message: "缺少 project.json" },
             { code: "validation_error", message: "缺少 scripts/episode_1.json" },
           ],
           auto_fixable: [
-            { code: "missing_clues_field", message: "segments[0]: 补全缺失字段 clues_in_segment" },
+            { code: "missing_clues_field", message: "segments[0]: 補全缺失欄位 clues_in_segment" },
           ],
           warnings: [
-            { code: "validation_warning", message: "发现未识别的附加文件/目录: extra" },
+            { code: "validation_warning", message: "發現未識別的附加檔案/目錄: extra" },
           ],
         },
       });
@@ -565,8 +565,8 @@ describe("API", () => {
           status: 409,
           statusText: "Conflict",
           jsonData: {
-            detail: "检测到项目编号冲突",
-            errors: ["项目编号 'demo' 已存在"],
+            detail: "檢測到專案編號衝突",
+            errors: ["專案編號 'demo' 已存在"],
             warnings: [],
             conflict_project_name: "demo",
             diagnostics: {
@@ -582,7 +582,7 @@ describe("API", () => {
       await expect(
         API.importProject(new File(["zip"], "demo.zip", { type: "application/zip" }))
       ).rejects.toMatchObject({
-        message: "检测到项目编号冲突",
+        message: "檢測到專案編號衝突",
         status: 409,
         conflict_project_name: "demo",
       });
@@ -603,7 +603,7 @@ describe("API", () => {
 
       await expect(
         API.importProject(new File(["zip"], "demo.zip", { type: "application/zip" }))
-      ).rejects.toThrow("认证已过期，请重新登录");
+      ).rejects.toThrow("認證已過期，請重新登入");
 
       expect(clearTokenMock).toHaveBeenCalledTimes(1);
       expect(location.href).toBe("/login");

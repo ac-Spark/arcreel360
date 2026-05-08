@@ -52,7 +52,7 @@ except ImportError:
 
 
 class SessionCapacityError(Exception):
-    """所有并发槽位已被 running 会话占满，无法创建新连接。"""
+    """所有併發槽位已被 running 會話佔滿，無法建立新連線。"""
 
     pass
 
@@ -75,12 +75,12 @@ class PendingQuestion:
 class ManagedSession:
     """A managed ClaudeSDKClient session."""
 
-    session_id: str  # sdk_session_id（已有会话）或临时 UUID（新会话等待中）
+    session_id: str  # sdk_session_id（已有會話）或臨時 UUID（新會話等待中）
     client: Any  # ClaudeSDKClient
     status: SessionStatus = "idle"
-    project_name: str = ""  # 用于 _register_new_session
+    project_name: str = ""  # 用於 _register_new_session
     sdk_id_event: asyncio.Event = field(default_factory=asyncio.Event)
-    resolved_sdk_id: str | None = None  # consumer 设置，send_new_session 读取
+    resolved_sdk_id: str | None = None  # consumer 設定，send_new_session 讀取
     message_buffer: list[dict[str, Any]] = field(default_factory=list)
     subscribers: set[asyncio.Queue] = field(default_factory=set)
     consumer_task: asyncio.Task | None = None
@@ -311,16 +311,16 @@ class SessionManager:
                     self.max_turns = int(raw)
                     return
         except Exception:
-            logger.warning("从 DB 加载 assistant 配置失败，回退到环境变量", exc_info=True)
+            logger.warning("從 DB 載入 assistant 配置失敗，回退到環境變數", exc_info=True)
         # Fallback to env var
         self._load_config()
 
     _PERSONA_PROMPT = """\
 ## 身份
 
-你是 ArcReel 智能體，一個專業的 AI 影片內容創作助理。你的職責是將小說轉化為可發布的短影片內容。
+你是 ArcReel 智慧體，一個專業的 AI 影片內容創作助理。你的職責是將小說轉化為可發布的短影片內容。
 
-## 行为准则
+## 行為準則
 
 - 主動引導使用者完成影片創作工作流，而不只是被動回答問題
 - 遇到不確定的創作決策時，向使用者提出選項並給出建議，而不是自行決定
@@ -370,9 +370,9 @@ class SessionManager:
             "",
         ]
 
-        # TODO: 当前定位是自部署服务，这里直接拼接项目元数据以保持实现简单。
-        # TODO: 若后续演进为 SaaS / 多租户服务，需要把 title/style/overview 等用户输入
-        # TODO: 按“非指令上下文”做边界化或转义，降低 prompt injection 风险。
+        # TODO: 當前定位是自部署服務，這裡直接拼接專案後設資料以保持實現簡單。
+        # TODO: 若後續演進為 SaaS / 多租戶服務，需要把 title/style/overview 等使用者輸入
+        # TODO: 按“非指令上下文”做邊界化或轉義，降低 prompt injection 風險。
         parts.append(f"- 專案識別：{project_name}")
         if title := config.get("title"):
             parts.append(f"- 專案標題：{title}")
@@ -384,12 +384,12 @@ class SessionManager:
             parts.append(f"- 風格描述：{style_desc}")
         parts.append(f"- 專案目錄（即目前工作目錄 cwd）：{project_cwd}")
         parts.append(
-            "- Read/Edit/Write 等工具的 file_path 參數必須使用絕對路徑，不要使用相對路徑，也不要把專案標題當成目錄名。"
+            "- Read/Edit/Write 等工具的 file_path 引數必須使用絕對路徑，不要使用相對路徑，也不要把專案標題當成目錄名。"
         )
         parts.append(
-            "- Bash 呼叫 skill 腳本時必須使用相對路徑（如 `python .claude/skills/.../script.py`），不要轉成絕對路徑。"
+            "- Bash 呼叫 skill 指令碼時必須使用相對路徑（如 `python .claude/skills/.../script.py`），不要轉成絕對路徑。"
         )
-        parts.append("- Bash 命令必須寫在單行，禁止使用 `\\` 換行，JSON 參數請使用緊湊格式。")
+        parts.append("- Bash 命令必須寫在單行，禁止使用 `\\` 換行，JSON 引數請使用緊湊格式。")
 
         self._append_overview_section(parts, config.get("overview", {}))
 
@@ -409,7 +409,7 @@ class SessionManager:
         if theme := overview.get("theme"):
             parts.append(f"- 主題：{theme}")
         if world := overview.get("world_setting"):
-            parts.append(f"- 世界观：{world}")
+            parts.append(f"- 世界觀：{world}")
 
     def _build_options(
         self,
@@ -574,7 +574,7 @@ class SessionManager:
             if tool_name == "Write":
                 simulated = tool_input.get("content")
                 logger.info(
-                    "JSON 校验 hook: tool=Write file=%s content_len=%s",
+                    "JSON 校驗 hook: tool=Write file=%s content_len=%s",
                     file_path,
                     len(simulated) if simulated else 0,
                 )
@@ -583,7 +583,7 @@ class SessionManager:
                 new_string = tool_input.get("new_string", "")
                 if not old_string:
                     logger.info(
-                        "JSON 校验 hook: tool=Edit file=%s skip=old_string为空",
+                        "JSON 校驗 hook: tool=Edit file=%s skip=old_string為空",
                         file_path,
                     )
                     return {}
@@ -596,7 +596,7 @@ class SessionManager:
                 if _has_curly_quotes(new_string):
                     curly_found = [f"U+{ord(ch):04X}" for ch in new_string if ch in _CURLY_QUOTES]
                     logger.warning(
-                        "PreToolUse JSON 校验拦截(弯引号): file=%s curly=%s",
+                        "PreToolUse JSON 校驗攔截(彎引號): file=%s curly=%s",
                         file_path,
                         curly_found[:5],
                     )
@@ -605,11 +605,11 @@ class SessionManager:
                             "hookEventName": "PreToolUse",
                             "permissionDecision": "deny",
                             "permissionDecisionReason": (
-                                "操作被阻止：new_string 包含弯引号"
+                                "操作被阻止：new_string 包含彎引號"
                                 "（\u201c 或 \u201d），"
-                                "这会破坏 JSON 格式。"
-                                "请将所有弯引号替换为标准 ASCII "
-                                "双引号 (U+0022) 后重试。"
+                                "這會破壞 JSON 格式。"
+                                "請將所有彎引號替換為標準 ASCII "
+                                "雙引號 (U+0022) 後重試。"
                             ),
                         },
                     }
@@ -620,7 +620,7 @@ class SessionManager:
                     current = resolved.read_text(encoding="utf-8")
                 except OSError as read_err:
                     logger.info(
-                        "JSON 校验 hook: tool=Edit file=%s skip=读取失败 error=%s",
+                        "JSON 校驗 hook: tool=Edit file=%s skip=讀取失敗 error=%s",
                         file_path,
                         read_err,
                     )
@@ -633,7 +633,7 @@ class SessionManager:
                 if old_string not in current:
                     # Edit tool will fail on its own; no need to intervene.
                     logger.info(
-                        "JSON 校验 hook: tool=Edit file=%s skip=old_string未匹配 old_len=%d new_len=%d file_len=%d",
+                        "JSON 校驗 hook: tool=Edit file=%s skip=old_string未匹配 old_len=%d new_len=%d file_len=%d",
                         file_path,
                         len(old_string),
                         len(new_string),
@@ -648,7 +648,7 @@ class SessionManager:
                     simulated = current.replace(old_string, new_string, 1)
 
                 logger.info(
-                    "JSON 校验 hook: tool=Edit file=%s matched=True "
+                    "JSON 校驗 hook: tool=Edit file=%s matched=True "
                     "old_len=%d new_len=%d simulated_len=%d replace_all=%s",
                     file_path,
                     len(old_string),
@@ -663,14 +663,14 @@ class SessionManager:
             try:
                 json.loads(simulated)
                 logger.info(
-                    "JSON 校验 hook: tool=%s file=%s result=valid",
+                    "JSON 校驗 hook: tool=%s file=%s result=valid",
                     tool_name,
                     file_path,
                 )
                 return {}
             except json.JSONDecodeError as exc:
                 logger.warning(
-                    "PreToolUse JSON 校验拦截: file=%s tool=%s error=%s",
+                    "PreToolUse JSON 校驗攔截: file=%s tool=%s error=%s",
                     file_path,
                     tool_name,
                     exc,
@@ -719,7 +719,7 @@ class SessionManager:
                     tool_use_id,
                 )
             except Exception:
-                logger.exception("PostToolUse JSON 校验 hook 异常")
+                logger.exception("PostToolUse JSON 校驗 hook 異常")
                 return {}
 
         async def _json_post_validation_impl(
@@ -747,7 +747,7 @@ class SessionManager:
             try:
                 json.loads(actual)
                 logger.info(
-                    "PostToolUse JSON 校验: tool=%s file=%s result=valid",
+                    "PostToolUse JSON 校驗: tool=%s file=%s result=valid",
                     tool_name,
                     file_path,
                 )
@@ -761,20 +761,20 @@ class SessionManager:
                         backup_path.write_text(backup_content, encoding="utf-8")
                         restored = True
                         logger.warning(
-                            "PostToolUse JSON 校验拦截并恢复: file=%s tool=%s error=%s backup_restored=True",
+                            "PostToolUse JSON 校驗攔截並恢復: file=%s tool=%s error=%s backup_restored=True",
                             file_path,
                             tool_name,
                             exc,
                         )
                     except OSError as write_err:
                         logger.error(
-                            "PostToolUse JSON 备份恢复失败: file=%s error=%s",
+                            "PostToolUse JSON 備份恢復失敗: file=%s error=%s",
                             file_path,
                             write_err,
                         )
                 else:
                     logger.warning(
-                        "PostToolUse JSON 校验拦截(无备份): file=%s tool=%s error=%s",
+                        "PostToolUse JSON 校驗攔截(無備份): file=%s tool=%s error=%s",
                         file_path,
                         tool_name,
                         exc,
@@ -859,12 +859,12 @@ class SessionManager:
         try:
             await managed.client.query(prompt)
         except Exception:
-            logger.exception("新会话消息发送失败")
+            logger.exception("新會話訊息傳送失敗")
             del self.sessions[temp_id]
             try:
                 await client.disconnect()
             except Exception as disconnect_err:
-                logger.warning("新会话断开连接失败: %s", disconnect_err)
+                logger.warning("新會話斷開連線失敗: %s", disconnect_err)
             raise
 
         managed.consumer_task = asyncio.create_task(self._consume_messages(managed))
@@ -884,9 +884,9 @@ class SessionManager:
 
         if not managed.sdk_id_event.is_set():
             if managed.consumer_task.done():
-                logger.error("consumer_task 提前退出，未获得 sdk_session_id temp_id=%s", temp_id)
+                logger.error("consumer_task 提前退出，未獲得 sdk_session_id temp_id=%s", temp_id)
             else:
-                logger.error("等待 sdk_session_id 超时 temp_id=%s", temp_id)
+                logger.error("等待 sdk_session_id 超時 temp_id=%s", temp_id)
             managed.cancel_pending_questions("session creation timed out")
             if managed.consumer_task and not managed.consumer_task.done():
                 managed.consumer_task.cancel()
@@ -895,8 +895,8 @@ class SessionManager:
             try:
                 await client.disconnect()
             except Exception as disconnect_err:
-                logger.warning("清理断开连接失败: %s", disconnect_err)
-            raise TimeoutError("SDK 会话创建超时")
+                logger.warning("清理斷開連線失敗: %s", disconnect_err)
+            raise TimeoutError("SDK 會話建立超時")
 
         sdk_id = managed.resolved_sdk_id
         assert sdk_id is not None
@@ -938,13 +938,13 @@ class SessionManager:
             await client.connect()
 
             managed = ManagedSession(
-                session_id=meta.id,  # 现在就是 sdk_session_id
+                session_id=meta.id,  # 現在就是 sdk_session_id
                 client=client,
                 status=meta.status if meta.status != "idle" else "idle",
                 project_name=meta.project_name,
-                resolved_sdk_id=meta.id,  # 标记为已注册，防止重复创建 DB 记录
+                resolved_sdk_id=meta.id,  # 標記為已註冊，防止重複建立 DB 記錄
             )
-            managed.sdk_id_event.set()  # 已有会话不需要等待
+            managed.sdk_id_event.set()  # 已有會話不需要等待
             self.sessions[session_id] = managed
             return managed
 
@@ -960,7 +960,7 @@ class SessionManager:
         """Send a message and start background consumer."""
         managed = await self.get_or_connect(session_id, meta=meta)
         managed.last_activity = time.monotonic()
-        # 取消待执行的 cleanup（会话恢复活跃）
+        # 取消待執行的 cleanup（會話恢復活躍）
         if managed._cleanup_task and not managed._cleanup_task.done():
             managed._cleanup_task.cancel()
             managed._cleanup_task = None
@@ -993,7 +993,7 @@ class SessionManager:
         try:
             await managed.client.query(prompt)
         except Exception:
-            logger.exception("会话消息处理失败")
+            logger.exception("會話訊息處理失敗")
             managed.pending_user_echoes.clear()
             managed.status = "error"
             await self.meta_store.update_status(session_id, "error")
@@ -1058,7 +1058,7 @@ class SessionManager:
             await self._mark_session_terminal(managed, "interrupted", "session interrupted")
             raise
         except Exception:
-            logger.exception("会话消费循环异常")
+            logger.exception("會話消費迴圈異常")
             await self._mark_session_terminal(managed, "error", "session error")
             raise
 
@@ -1132,11 +1132,11 @@ class SessionManager:
         self._schedule_cleanup(managed.session_id)
 
     def _schedule_cleanup(self, session_id: str) -> None:
-        """为非 running 会话调度延迟清理，延迟从配置读取。"""
+        """為非 running 會話排程延遲清理，延遲從配置讀取。"""
         managed = self.sessions.get(session_id)
         if managed is None:
             return
-        # 取消旧的 cleanup task
+        # 取消舊的 cleanup task
         if managed._cleanup_task and not managed._cleanup_task.done():
             managed._cleanup_task.cancel()
 
@@ -1146,16 +1146,16 @@ class SessionManager:
             m = self.sessions.get(session_id)
             if m is None:
                 return
-            # 会话已恢复活跃 → 跳过
+            # 會話已恢復活躍 → 跳過
             if m.status == "running":
                 return
-            logger.info("清理会话 session_id=%s status=%s", session_id, m.status)
-            # 清除自身引用，避免 _disconnect_session 尝试 cancel/gather 当前任务
+            logger.info("清理會話 session_id=%s status=%s", session_id, m.status)
+            # 清除自身引用，避免 _disconnect_session 嘗試 cancel/gather 當前任務
             m._cleanup_task = None
             try:
                 await self._disconnect_session(session_id, reason="cleanup timer")
             except Exception:
-                logger.warning("清理会话失败 session_id=%s", session_id, exc_info=True)
+                logger.warning("清理會話失敗 session_id=%s", session_id, exc_info=True)
 
         managed._cleanup_task = asyncio.create_task(_do_cleanup())
 
@@ -1200,7 +1200,7 @@ class SessionManager:
         except TimeoutError:
             return False
         except Exception:
-            logger.warning("等待 Claude 子进程退出失败", exc_info=True)
+            logger.warning("等待 Claude 子程序退出失敗", exc_info=True)
             return False
         return self._process_returncode(process) is not None
 
@@ -1215,7 +1215,7 @@ class SessionManager:
         """Force terminate lingering Claude CLI process."""
         if process is None:
             logger.error(
-                "会话断开失败且无法访问底层进程 session_id=%s cause=%s",
+                "會話斷開失敗且無法訪問底層程序 session_id=%s cause=%s",
                 session_id,
                 cause,
             )
@@ -1225,7 +1225,7 @@ class SessionManager:
             return True
 
         logger.warning(
-            "会话断开异常，尝试强制终止 Claude 子进程 session_id=%s pid=%s cause=%s",
+            "會話斷開異常，嘗試強制終止 Claude 子程序 session_id=%s pid=%s cause=%s",
             session_id,
             pid,
             cause,
@@ -1236,7 +1236,7 @@ class SessionManager:
             return True
         except Exception:
             logger.warning(
-                "发送 SIGTERM 失败 session_id=%s pid=%s",
+                "傳送 SIGTERM 失敗 session_id=%s pid=%s",
                 session_id,
                 pid,
                 exc_info=True,
@@ -1244,7 +1244,7 @@ class SessionManager:
         else:
             if await self._wait_for_process_exit(process, timeout=self._TERMINATE_WAIT_TIMEOUT):
                 logger.warning(
-                    "Claude 子进程已通过 SIGTERM 退出 session_id=%s pid=%s returncode=%s",
+                    "Claude 子程序已透過 SIGTERM 退出 session_id=%s pid=%s returncode=%s",
                     session_id,
                     pid,
                     self._process_returncode(process),
@@ -1252,7 +1252,7 @@ class SessionManager:
                 return True
 
         logger.error(
-            "Claude 子进程在 SIGTERM 后仍存活，发送 SIGKILL session_id=%s pid=%s",
+            "Claude 子程序在 SIGTERM 後仍存活，傳送 SIGKILL session_id=%s pid=%s",
             session_id,
             pid,
         )
@@ -1262,7 +1262,7 @@ class SessionManager:
             return True
         except Exception:
             logger.error(
-                "发送 SIGKILL 失败 session_id=%s pid=%s",
+                "傳送 SIGKILL 失敗 session_id=%s pid=%s",
                 session_id,
                 pid,
                 exc_info=True,
@@ -1271,7 +1271,7 @@ class SessionManager:
 
         if await self._wait_for_process_exit(process, timeout=self._KILL_WAIT_TIMEOUT):
             logger.warning(
-                "Claude 子进程已通过 SIGKILL 退出 session_id=%s pid=%s returncode=%s",
+                "Claude 子程序已透過 SIGKILL 退出 session_id=%s pid=%s returncode=%s",
                 session_id,
                 pid,
                 self._process_returncode(process),
@@ -1279,7 +1279,7 @@ class SessionManager:
             return True
 
         logger.error(
-            "Claude 子进程在 SIGKILL 后仍未退出 session_id=%s pid=%s",
+            "Claude 子程序在 SIGKILL 後仍未退出 session_id=%s pid=%s",
             session_id,
             pid,
         )
@@ -1300,7 +1300,7 @@ class SessionManager:
         reason: str = "session closed",
         interrupt_running: bool = False,
     ) -> None:
-        """安全断开会话，确认子进程退出后再释放槽位。"""
+        """安全斷開會話，確認子程序退出後再釋放槽位。"""
         if session_id in self._disconnecting:
             return
         managed = self.sessions.get(session_id)
@@ -1337,16 +1337,16 @@ class SessionManager:
                     timeout=self._INTERRUPT_TIMEOUT,
                 )
             except TimeoutError:
-                logger.warning("中断会话超时 session_id=%s", session_id)
+                logger.warning("中斷會話超時 session_id=%s", session_id)
             except Exception:
-                logger.warning("中断会话失败 session_id=%s", session_id, exc_info=True)
+                logger.warning("中斷會話失敗 session_id=%s", session_id, exc_info=True)
 
             managed.status = "interrupted"
             try:
                 await self.meta_store.update_status(session_id, "interrupted")
             except Exception:
                 logger.warning(
-                    "更新会话中断状态失败 session_id=%s",
+                    "更新會話中斷狀態失敗 session_id=%s",
                     session_id,
                     exc_info=True,
                 )
@@ -1357,7 +1357,7 @@ class SessionManager:
         process = self._get_client_process(managed.client)
         pid = self._process_pid(process)
         logger.info(
-            "开始断开会话 session_id=%s status=%s pid=%s reason=%s",
+            "開始斷開會話 session_id=%s status=%s pid=%s reason=%s",
             session_id,
             managed.status,
             pid,
@@ -1380,13 +1380,13 @@ class SessionManager:
             closed = process is None or self._process_returncode(process) is not None
             if not closed:
                 logger.warning(
-                    "disconnect 返回后 Claude 子进程仍存活 session_id=%s pid=%s",
+                    "disconnect 返回後 Claude 子程序仍存活 session_id=%s pid=%s",
                     session_id,
                     pid,
                 )
         else:
             logger.warning(
-                "优雅断开会话失败 session_id=%s pid=%s reason=%s error=%s",
+                "優雅斷開會話失敗 session_id=%s pid=%s reason=%s error=%s",
                 session_id,
                 pid,
                 reason,
@@ -1410,43 +1410,43 @@ class SessionManager:
         self.sessions.pop(session_id, None)
         self._connect_locks.pop(session_id, None)
         logger.info(
-            "会话已断开 session_id=%s pid=%s returncode=%s",
+            "會話已斷開 session_id=%s pid=%s returncode=%s",
             session_id,
             pid,
             self._process_returncode(process),
         )
 
     async def _get_cleanup_delay(self) -> int:
-        """返回会话清理延迟秒数，默认 300（5 分钟）。"""
+        """返回會話清理延遲秒數，預設 300（5 分鐘）。"""
         try:
             async with async_session_factory() as session:
                 svc = ConfigService(session)
                 val = await svc.get_setting("agent_session_cleanup_delay_seconds", "300")
             return max(int(val), 10)
         except Exception:
-            logger.warning("读取 cleanup delay 配置失败，使用默认值", exc_info=True)
+            logger.warning("讀取 cleanup delay 配置失敗，使用預設值", exc_info=True)
             return 300
 
     async def _get_max_concurrent(self) -> int:
-        """返回最大并发会话数，默认 5。"""
+        """返回最大併發會話數，預設 5。"""
         try:
             async with async_session_factory() as session:
                 svc = ConfigService(session)
                 val = await svc.get_setting("agent_max_concurrent_sessions", "5")
             return max(int(val), 1)
         except Exception:
-            logger.warning("读取 max_concurrent 配置失败，使用默认值", exc_info=True)
+            logger.warning("讀取 max_concurrent 配置失敗，使用預設值", exc_info=True)
             return 5
 
     async def _ensure_capacity(self) -> None:
-        """确保有空余并发槽位，必要时淘汰最久未活跃的非 running 会话。"""
+        """確保有空餘併發槽位，必要時淘汰最久未活躍的非 running 會話。"""
         max_concurrent = await self._get_max_concurrent()
         active = [s for s in self.sessions.values() if s.client is not None and s.session_id not in self._disconnecting]
 
         if len(active) < max_concurrent:
             return
 
-        # 可淘汰的会话：非 running 状态（idle / completed / error / interrupted）
+        # 可淘汰的會話：非 running 狀態（idle / completed / error / interrupted）
         evictable = sorted(
             [s for s in active if s.status != "running"],
             key=lambda s: s.last_activity or 0,
@@ -1455,7 +1455,7 @@ class SessionManager:
         if evictable:
             victim = evictable[0]
             logger.info(
-                "并发上限，淘汰 session_id=%s (status=%s)",
+                "併發上限，淘汰 session_id=%s (status=%s)",
                 victim.session_id,
                 victim.status,
             )
@@ -1466,20 +1466,20 @@ class SessionManager:
                 )
             except Exception as exc:
                 logger.error(
-                    "淘汰会话失败，无法释放并发槽位 session_id=%s",
+                    "淘汰會話失敗，無法釋放併發槽位 session_id=%s",
                     victim.session_id,
                     exc_info=True,
                 )
                 raise SessionCapacityError("有尚未關閉的閒置會話，目前無法釋放並發槽位，請稍後再試") from exc
             return
 
-        # 所有会话都在 running → 拒绝
+        # 所有會話都在 running → 拒絕
         raise SessionCapacityError(f"目前有 {len(active)} 個正在進行的會話，已達最大上限，請稍後再試")
 
-    _PATROL_INTERVAL = 300  # 5 分钟
+    _PATROL_INTERVAL = 300  # 5 分鐘
 
     async def _patrol_once(self) -> None:
-        """单次巡检：清理所有超时的非 running 会话。"""
+        """單次巡檢：清理所有超時的非 running 會話。"""
         cleanup_delay = await self._get_cleanup_delay()
         now = time.monotonic()
         for sid, managed in list(self.sessions.items()):
@@ -1487,27 +1487,27 @@ class SessionManager:
                 continue
             activity_age = now - (managed.last_activity or 0)
             if activity_age > cleanup_delay * 2:
-                logger.info("巡检兜底清理会话 session_id=%s status=%s", sid, managed.status)
+                logger.info("巡檢兜底清理會話 session_id=%s status=%s", sid, managed.status)
                 try:
                     await self._disconnect_session(sid, reason="patrol cleanup")
                 except Exception:
                     logger.warning(
-                        "巡检兜底清理失败 session_id=%s",
+                        "巡檢兜底清理失敗 session_id=%s",
                         sid,
                         exc_info=True,
                     )
 
     async def _patrol_loop(self) -> None:
-        """后台定期巡检循环。"""
+        """後臺定期巡檢迴圈。"""
         while True:
             await asyncio.sleep(self._PATROL_INTERVAL)
             try:
                 await self._patrol_once()
             except Exception:
-                logger.warning("巡检循环异常", exc_info=True)
+                logger.warning("巡檢迴圈異常", exc_info=True)
 
     def start_patrol(self) -> None:
-        """启动巡检后台任务（应在应用 startup 时调用）。"""
+        """啟動巡檢後臺任務（應在應用 startup 時呼叫）。"""
         self._patrol_task = asyncio.create_task(self._patrol_loop())
 
     @staticmethod
@@ -1566,9 +1566,9 @@ class SessionManager:
                 ext = resolved.suffix.lower()
                 if ext not in self._WRITABLE_EXTENSIONS:
                     return False, (
-                        f"不允許建立／編輯 {ext} 類型的檔案。"
+                        f"不允許建立／編輯 {ext} 型別的檔案。"
                         "Write/Edit 僅限 .json、.md、.txt 檔案。"
-                        "如果你需要執行資料處理，請使用既有的 skill 腳本。"
+                        "如果你需要執行資料處理，請使用既有的 skill 指令碼。"
                     )
             return True, None
 
@@ -1960,7 +1960,7 @@ class SessionManager:
 
     async def shutdown_gracefully(self, timeout: float = 30.0) -> None:
         """Gracefully shutdown all sessions."""
-        # 取消巡检任务
+        # 取消巡檢任務
         patrol = getattr(self, "_patrol_task", None)
         if patrol and not patrol.done():
             patrol.cancel()
@@ -1979,7 +1979,7 @@ class SessionManager:
                             await managed.client.interrupt()
                         except Exception:
                             logger.warning(
-                                "优雅关闭时中断会话失败 session_id=%s",
+                                "優雅關閉時中斷會話失敗 session_id=%s",
                                 session_id,
                                 exc_info=True,
                             )
@@ -1995,7 +1995,7 @@ class SessionManager:
                 )
             except Exception:
                 logger.warning(
-                    "优雅关闭会话失败 session_id=%s",
+                    "優雅關閉會話失敗 session_id=%s",
                     session_id,
                     exc_info=True,
                 )

@@ -25,13 +25,13 @@ const ICON_MAP: Record<string, LucideIcon> = {
 
 /** Fallback metadata when API doesn't provide label/icon. */
 const SKILL_META_FALLBACK: Record<string, { label: string; icon: LucideIcon }> = {
-  "manga-workflow":      { label: "影片工作流程", icon: Clapperboard },
-  "generate-script":     { label: "生成劇本",     icon: ScrollText },
-  "generate-storyboard": { label: "生成分鏡圖",   icon: LayoutGrid },
-  "generate-video":      { label: "生成影片",     icon: Film },
-  "generate-characters": { label: "生成角色圖",   icon: Users },
-  "generate-clues":      { label: "生成線索圖",   icon: Search },
-  "compose-video":       { label: "合成影片",     icon: Scissors },
+  "manga-workflow": { label: "影片工作流程", icon: Clapperboard },
+  "generate-script": { label: "生成劇本", icon: ScrollText },
+  "generate-storyboard": { label: "生成分鏡圖", icon: LayoutGrid },
+  "generate-video": { label: "生成影片", icon: Film },
+  "generate-characters": { label: "生成角色圖", icon: Users },
+  "generate-clues": { label: "生成道具圖", icon: Search },
+  "compose-video": { label: "合成影片", icon: Scissors },
 };
 
 export interface SlashCommandMenuHandle {
@@ -62,8 +62,8 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandM
     const filtered = skills.filter(
       (s) =>
         s.name.toLowerCase().includes(query) ||
-          s.description.toLowerCase().includes(query) ||
-          (s.label ?? SKILL_META_FALLBACK[s.name]?.label ?? "").includes(query),
+        s.description.toLowerCase().includes(query) ||
+        (s.label ?? SKILL_META_FALLBACK[s.name]?.label ?? "").includes(query),
     );
 
     // Reset active index when filter or list changes
@@ -135,9 +135,8 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandM
                 onSelect(`/${skill.name}`);
               }}
               onMouseEnter={() => setActiveIndex(i)}
-              className={`flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                isActive ? "bg-gray-800" : "hover:bg-gray-800"
-              }`}
+              className={`flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition-colors ${isActive ? "bg-gray-800" : "hover:bg-gray-800"
+                }`}
             >
               <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-400" />
               <div className="min-w-0">

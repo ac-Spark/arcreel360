@@ -60,7 +60,7 @@ class TestCluesRouter:
         with _client(monkeypatch, fake_pm) as client:
             add_resp = client.post(
                 "/api/v1/projects/demo/clues",
-                json={"name": "祠堂", "clue_type": "location", "description": "阴森", "importance": "major"},
+                json={"name": "祠堂", "clue_type": "location", "description": "陰森", "importance": "major"},
             )
             assert add_resp.status_code == 200
             assert add_resp.json()["clue"]["type"] == "location"

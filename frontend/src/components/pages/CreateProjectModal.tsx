@@ -7,9 +7,9 @@ import { useAppStore } from "@/stores/app-store";
 import { DEFAULT_DURATIONS } from "@/utils/provider-models";
 
 const STYLE_OPTIONS = [
-  { value: "Photographic", label: "写实摄影" },
+  { value: "Photographic", label: "寫實攝影" },
   { value: "Anime", label: "動漫風格" },
-  { value: "3D Animation", label: "3D 动画" },
+  { value: "3D Animation", label: "3D 動畫" },
 ] as const;
 
 export function CreateProjectModal() {
@@ -31,7 +31,7 @@ export function CreateProjectModal() {
     const file = e.target.files?.[0];
     if (!file) return;
     setStyleImageFile(file);
-    // 创建预览 URL
+    // 建立預覽 URL
     const url = URL.createObjectURL(file);
     setStyleImagePreview(url);
   };
@@ -58,12 +58,12 @@ export function CreateProjectModal() {
       const response = await API.createProject(title.trim(), style, contentMode, aspectRatio, defaultDuration);
       const projectName = response.name;
 
-      // 如果用户选择了风格参考图，在项目创建后上传
+      // 如果使用者選擇了風格參考圖，在專案建立後上傳
       if (styleImageFile) {
         try {
           await API.uploadStyleImage(projectName, styleImageFile);
         } catch {
-          // 风格图上传失败不阻塞项目创建
+          // 風格圖上傳失敗不阻塞專案建立
           useAppStore.getState().pushToast(
             "風格參考圖上傳失敗，可稍後在專案設定中重新上傳",
             "warning"
@@ -128,11 +128,10 @@ export function CreateProjectModal() {
               內容模式
             </label>
             <div className="flex gap-3">
-              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors ${
-                contentMode === "narration"
+              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors ${contentMode === "narration"
                   ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
                   : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-              }`}>
+                }`}>
                 <input
                   type="radio"
                   name="contentMode"
@@ -143,11 +142,10 @@ export function CreateProjectModal() {
                 />
                 說書 + 畫面
               </label>
-              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors ${
-                contentMode === "drama"
+              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors ${contentMode === "drama"
                   ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
                   : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-              }`}>
+                }`}>
                 <input
                   type="radio"
                   name="contentMode"
@@ -156,7 +154,7 @@ export function CreateProjectModal() {
                   onChange={() => setContentMode("drama")}
                   className="sr-only"
                 />
-                劇集動畫
+                劇本動畫
               </label>
             </div>
           </div>
@@ -167,11 +165,10 @@ export function CreateProjectModal() {
               畫面比例
             </label>
             <div className="flex gap-3">
-              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors ${
-                aspectRatio === "9:16"
+              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors ${aspectRatio === "9:16"
                   ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
                   : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-              }`}>
+                }`}>
                 <input
                   type="radio"
                   name="aspectRatio"
@@ -180,13 +177,12 @@ export function CreateProjectModal() {
                   onChange={() => setAspectRatio("9:16")}
                   className="sr-only"
                 />
-                竖屏 9:16
+                豎屏 9:16
               </label>
-              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors ${
-                aspectRatio === "16:9"
+              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors ${aspectRatio === "16:9"
                   ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
                   : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-              }`}>
+                }`}>
                 <input
                   type="radio"
                   name="aspectRatio"
@@ -195,7 +191,7 @@ export function CreateProjectModal() {
                   onChange={() => setAspectRatio("16:9")}
                   className="sr-only"
                 />
-                横屏 16:9
+                橫屏 16:9
               </label>
             </div>
           </div>
@@ -214,11 +210,10 @@ export function CreateProjectModal() {
                 role="radio"
                 aria-checked={defaultDuration === null}
                 onClick={() => setDefaultDuration(null)}
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                  defaultDuration === null
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${defaultDuration === null
                     ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
                     : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-                }`}
+                  }`}
               >
                 自動
               </button>
@@ -229,11 +224,10 @@ export function CreateProjectModal() {
                   role="radio"
                   aria-checked={defaultDuration === d}
                   onClick={() => setDefaultDuration(d)}
-                  className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                    defaultDuration === d
+                  className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${defaultDuration === d
                       ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
                       : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-                  }`}
+                    }`}
                 >
                   {d}s
                 </button>
@@ -250,11 +244,10 @@ export function CreateProjectModal() {
               {STYLE_OPTIONS.map((opt) => (
                 <label
                   key={opt.value}
-                  className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors ${
-                    style === opt.value
+                  className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors ${style === opt.value
                       ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
                       : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-                  }`}
+                    }`}
                 >
                   <input
                     type="radio"

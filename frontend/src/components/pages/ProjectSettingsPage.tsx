@@ -146,7 +146,7 @@ export function ProjectSettingsPage() {
   }, [isDirty]);
 
   const guardedNavigate = useCallback((path: string) => {
-    if (isDirty && !window.confirm("有未保存的修改，确定要离开吗？")) return;
+    if (isDirty && !window.confirm("有未儲存的修改，確定要離開嗎？")) return;
     navigate(path);
   }, [isDirty, navigate]);
 
@@ -246,7 +246,7 @@ export function ProjectSettingsPage() {
                         }}
                         className="sr-only"
                       />
-                      {ar === "9:16" ? "竖屏 9:16" : "横屏 16:9"}
+                      {ar === "9:16" ? "豎屏 9:16" : "橫屏 16:9"}
                     </label>
                   ))}
                 </div>
@@ -332,7 +332,7 @@ export function ProjectSettingsPage() {
             {/* Text model overrides */}
             <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">
               <div className="mb-3 text-sm font-medium text-gray-100">文字模型</div>
-              <p className="mb-2 text-xs text-gray-500">依任務類型覆寫，留空則跟隨全域預設</p>
+              <p className="mb-2 text-xs text-gray-500">依任務型別覆寫，留空則跟隨全域預設</p>
               <div className="space-y-3">
                 {([
                   [textScript, setTextScript, "劇本生成"] as const,

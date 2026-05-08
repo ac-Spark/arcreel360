@@ -34,7 +34,7 @@ class ProviderMeta:
 PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
     "gemini-aistudio": ProviderMeta(
         display_name="AI Studio",
-        description="Google AI Studio 提供 Gemini 系列模型，支持图片和视频生成，适合快速原型和个人项目。",
+        description="Google AI Studio 提供 Gemini 系列模型，支援圖片和影片生成，適合快速原型和個人專案。",
         required_keys=["api_key"],
         optional_keys=["base_url", "image_rpm", "video_rpm", "request_gap", "image_max_workers", "video_max_workers"],
         secret_keys=["api_key"],
@@ -95,7 +95,7 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
     ),
     "gemini-vertex": ProviderMeta(
         display_name="Vertex AI",
-        description="Google Cloud Vertex AI 企业级平台，支持 Gemini 和 Imagen 模型，提供更高配额和音频生成能力。",
+        description="Google Cloud Vertex AI 企業級平臺，支援 Gemini 和 Imagen 模型，提供更高配額和音訊生成能力。",
         required_keys=["credentials_path"],
         optional_keys=["gcs_bucket", "image_rpm", "video_rpm", "request_gap", "image_max_workers", "video_max_workers"],
         secret_keys=[],
@@ -147,7 +147,7 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
     ),
     "ark": ProviderMeta(
         display_name="火山方舟",
-        description="字节跳动火山方舟 AI 平台，支持 Seedance 视频生成和 Seedream 图片生成，具备音频生成和种子控制能力。",
+        description="位元組跳動火山方舟 AI 平臺，支援 Seedance 影片生成和 Seedream 圖片生成，具備音訊生成和種子控制能力。",
         required_keys=["api_key"],
         optional_keys=["video_max_workers", "image_max_workers"],
         secret_keys=["api_key"],
@@ -220,7 +220,7 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
     ),
     "grok": ProviderMeta(
         display_name="Grok",
-        description="xAI Grok 模型，支持视频和图片生成。",
+        description="xAI Grok 模型，支援影片和圖片生成。",
         required_keys=["api_key"],
         optional_keys=["video_max_workers", "image_max_workers"],
         secret_keys=["api_key"],
@@ -271,7 +271,7 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
     ),
     "openai": ProviderMeta(
         display_name="OpenAI",
-        description="OpenAI 官方平台，支持 GPT-5.4 文本、GPT Image 图片和 Sora 视频生成。",
+        description="OpenAI 官方平臺，支援 GPT-5.4 文字、GPT Image 圖片和 Sora 影片生成。",
         required_keys=["api_key"],
         optional_keys=["base_url", "image_max_workers", "video_max_workers"],
         secret_keys=["api_key"],

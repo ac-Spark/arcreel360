@@ -1,5 +1,5 @@
 """
-任务队列与 SSE 路由。
+任務佇列與 SSE 路由。
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ def _parse_last_event_id(value: str | None) -> int | None:
 
 
 def _transform_task_event(raw_event: dict, stats: dict) -> dict:
-    """将原始 task_events 行转换为前端期望的 TaskStreamTaskPayload 结构。"""
+    """將原始 task_events 行轉換為前端期望的 TaskStreamTaskPayload 結構。"""
     event_type = raw_event.get("event_type", "")
     action = "created" if event_type == "queued" else "updated"
     return {
@@ -160,5 +160,5 @@ async def get_task(task_id: str, _user: CurrentUser):
     queue = get_task_queue()
     task = await queue.get_task(task_id)
     if not task:
-        raise HTTPException(status_code=404, detail=f"任务 '{task_id}' 不存在")
+        raise HTTPException(status_code=404, detail=f"任務 '{task_id}' 不存在")
     return {"task": task}

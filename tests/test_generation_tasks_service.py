@@ -45,7 +45,7 @@ class _FakePM:
                     "segment_break": False,
                     "characters_in_segment": [],
                     "clues_in_segment": [],
-                    "image_prompt": "首镜头",
+                    "image_prompt": "首鏡頭",
                 },
                 {
                     "segment_id": "E1S02",
@@ -58,7 +58,7 @@ class _FakePM:
                         "composition": {
                             "shot_type": "Medium Shot",
                             "lighting": "暖光",
-                            "ambiance": "薄雾",
+                            "ambiance": "薄霧",
                         },
                     },
                 },
@@ -68,7 +68,7 @@ class _FakePM:
                     "segment_break": True,
                     "characters_in_segment": ["Alice"],
                     "clues_in_segment": ["玉佩"],
-                    "image_prompt": "切场后的镜头",
+                    "image_prompt": "切場後的鏡頭",
                 },
             ],
         }
@@ -152,7 +152,7 @@ class TestGenerationTasks:
             {
                 "action": "行走",
                 "camera_motion": "",
-                "ambiance_audio": "风声",
+                "ambiance_audio": "風聲",
                 "dialogue": [{"speaker": "Alice", "line": "hello"}],
             }
         )
@@ -232,7 +232,7 @@ class TestGenerationTasks:
         clue_result = await generation_tasks.execute_clue_task(
             "demo",
             "玉佩",
-            {"prompt": "线索描述"},
+            {"prompt": "線索描述"},
         )
         assert clue_result["resource_type"] == "clues"
 
@@ -258,7 +258,7 @@ class TestGenerationTasks:
             )
 
     async def test_execute_video_task_generates_thumbnail(self, monkeypatch, tmp_path):
-        """视频生成后应自动提取首帧缩略图"""
+        """影片生成後應自動提取首幀縮圖"""
         project_path = _prepare_files(tmp_path)
         fake_pm = _FakePM(project_path)
         fake_generator = _FakeGenerator()
@@ -282,13 +282,13 @@ class TestGenerationTasks:
         )
 
         assert result["resource_type"] == "videos"
-        # 验证 update_scene_asset 被调用，其中包含 video_thumbnail
+        # 驗證 update_scene_asset 被呼叫，其中包含 video_thumbnail
         asset_types = [call["asset_type"] for call in fake_pm.updated_assets]
         assert "video_thumbnail" in asset_types
         assert thumbnail_path.exists()
 
     async def test_get_media_generator_skips_image_backend_for_video_tasks(self, monkeypatch, tmp_path):
-        """视频任务只应初始化视频 backend，避免图片配置缺失导致提前失败。"""
+        """影片任務只應初始化影片 backend，避免圖片配置缺失導致提前失敗。"""
         project_path = _prepare_files(tmp_path)
         fake_pm = _FakePM(project_path)
         fake_video_backend = object()
@@ -326,7 +326,7 @@ class TestGenerationTasks:
         assert generator._video_backend is fake_video_backend
 
     def test_emit_success_batch_includes_fingerprints(self, monkeypatch, tmp_path):
-        """生成成功事件应携带 asset_fingerprints"""
+        """生成成功事件應攜帶 asset_fingerprints"""
         captured = []
         monkeypatch.setattr(
             generation_tasks,

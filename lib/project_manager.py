@@ -1,7 +1,7 @@
 """
-项目文件管理器
+專案檔案管理器
 
-管理视频项目的目录结构、分镜剧本读写、状态追踪。
+管理影片專案的目錄結構、分鏡劇本讀寫、狀態追蹤。
 """
 
 import fcntl
@@ -27,22 +27,22 @@ logger = logging.getLogger(__name__)
 PROJECT_NAME_PATTERN = re.compile(r"^[A-Za-z0-9-]+$")
 PROJECT_SLUG_SANITIZER = re.compile(r"[^a-zA-Z0-9]+")
 
-# ==================== 数据模型 ====================
+# ==================== 資料模型 ====================
 
 
 class ProjectOverview(BaseModel):
-    """项目概述数据模型，用于 Gemini Structured Outputs"""
+    """專案概述資料模型，用於 Gemini Structured Outputs"""
 
-    synopsis: str = Field(description="故事梗概，200-300字，概括主线剧情")
-    genre: str = Field(description="题材类型，如：古装宫斗、现代悬疑、玄幻修仙")
-    theme: str = Field(description="核心主题，如：复仇与救赎、成长与蜕变")
-    world_setting: str = Field(description="时代背景和世界观设定，100-200字")
+    synopsis: str = Field(description="故事梗概，200-300字，概括主線劇情")
+    genre: str = Field(description="題材型別，如：古裝宮鬥、現代懸疑、玄幻修仙")
+    theme: str = Field(description="核心主題，如：復仇與救贖、成長與蛻變")
+    world_setting: str = Field(description="時代背景和世界觀設定，100-200字")
 
 
 class ProjectManager:
-    """视频项目管理器"""
+    """影片專案管理器"""
 
-    # 项目子目录结构
+    # 專案子目錄結構
     SUBDIRS = [
         "source",
         "scripts",
@@ -55,7 +55,7 @@ class ProjectManager:
         "output",
     ]
 
-    # 项目元数据文件名
+    # 專案後設資料檔名
     PROJECT_FILE = "project.json"
 
     @staticmethod
@@ -63,9 +63,9 @@ class ProjectManager:
         """Validate and normalize a project identifier."""
         normalized = str(name).strip()
         if not normalized:
-            raise ValueError("项目标识不能为空")
+            raise ValueError("專案標識不能為空")
         if not PROJECT_NAME_PATTERN.fullmatch(normalized):
-            raise ValueError("项目标识仅允许英文字母、数字和中划线")
+            raise ValueError("專案標識僅允許英文字母、數字和中劃線")
         return normalized
 
     @staticmethod
@@ -85,54 +85,54 @@ class ProjectManager:
 
     @classmethod
     def from_cwd(cls) -> tuple["ProjectManager", str]:
-        """从当前工作目录推断 ProjectManager 和项目名称。
+        """從當前工作目錄推斷 ProjectManager 和專案名稱。
 
-        假定 cwd 为 ``projects/{project_name}/`` 格式。
-        返回 ``(ProjectManager, project_name)`` 元组。
+        假定 cwd 為 ``projects/{project_name}/`` 格式。
+        返回 ``(ProjectManager, project_name)`` 元組。
         """
         cwd = Path.cwd().resolve()
         project_name = cwd.name
         projects_root = cwd.parent
         pm = cls(projects_root)
         if not (projects_root / project_name / cls.PROJECT_FILE).exists():
-            raise FileNotFoundError(f"当前目录不是有效的项目目录: {cwd}")
+            raise FileNotFoundError(f"當前目錄不是有效的專案目錄: {cwd}")
         return pm, project_name
 
     def __init__(self, projects_root: str | None = None):
         """
-        初始化项目管理器
+        初始化專案管理器
 
         Args:
-            projects_root: 项目根目录，默认为当前目录下的 projects/
+            projects_root: 專案根目錄，預設為當前目錄下的 projects/
         """
         if projects_root is None:
-            # 尝试从环境变量或默认路径获取
+            # 嘗試從環境變數或預設路徑獲取
             projects_root = os.environ.get("AI_ANIME_PROJECTS", "projects")
 
         self.projects_root = Path(projects_root)
         self.projects_root.mkdir(parents=True, exist_ok=True)
 
     def list_projects(self) -> list[str]:
-        """列出所有项目"""
+        """列出所有專案"""
         return [d.name for d in self.projects_root.iterdir() if d.is_dir() and not d.name.startswith(".")]
 
     def create_project(self, name: str) -> Path:
         """
-        创建新项目
+        建立新專案
 
         Args:
-            name: 项目标识（全局唯一，用于 URL 和文件系统）
+            name: 專案標識（全域性唯一，用於 URL 和檔案系統）
 
         Returns:
-            项目目录路径
+            專案目錄路徑
         """
         name = self.normalize_project_name(name)
         project_dir = self.projects_root / name
 
         if project_dir.exists():
-            raise FileExistsError(f"项目 '{name}' 已存在")
+            raise FileExistsError(f"專案 '{name}' 已存在")
 
-        # 创建所有子目录
+        # 建立所有子目錄
         for subdir in self.SUBDIRS:
             (project_dir / subdir).mkdir(parents=True, exist_ok=True)
 
@@ -141,12 +141,12 @@ class ProjectManager:
         return project_dir
 
     def repair_claude_symlink(self, project_dir: Path) -> dict:
-        """修复项目目录的 .claude 和 CLAUDE.md 软连接。
+        """修復專案目錄的 .claude 和 CLAUDE.md 軟連線。
 
-        对每条软连接执行：
-        - 损坏（is_symlink but not exists）→ 删除并重建
-        - 缺失（not exists and not is_symlink）→ 创建
-        - 正常（exists）→ 跳过
+        對每條軟連線執行：
+        - 損壞（is_symlink but not exists）→ 刪除並重建
+        - 缺失（not exists and not is_symlink）→ 建立
+        - 正常（exists）→ 跳過
 
         Returns:
             {"created": int, "repaired": int, "skipped": int, "errors": int}
@@ -169,13 +169,13 @@ class ProjectManager:
                 continue
             symlink_path = project_dir / name
             if symlink_path.is_symlink() and not symlink_path.exists():
-                # 损坏的软连接
+                # 損壞的軟連線
                 try:
                     symlink_path.unlink()
                     symlink_path.symlink_to(REL_TARGETS[name])
                     stats["repaired"] += 1
                 except OSError as e:
-                    logger.warning("无法修复项目 %s 的 %s 符号链接: %s", project_dir.name, name, e)
+                    logger.warning("無法修復專案 %s 的 %s 符號連結: %s", project_dir.name, name, e)
                     stats["errors"] += 1
             elif not symlink_path.exists() and not symlink_path.is_symlink():
                 # 缺失
@@ -183,14 +183,14 @@ class ProjectManager:
                     symlink_path.symlink_to(REL_TARGETS[name])
                     stats["created"] += 1
                 except OSError as e:
-                    logger.warning("无法为项目 %s 创建 %s 符号链接: %s", project_dir.name, name, e)
+                    logger.warning("無法為專案 %s 建立 %s 符號連結: %s", project_dir.name, name, e)
                     stats["errors"] += 1
             else:
                 stats["skipped"] += 1
         return stats
 
     def repair_all_symlinks(self) -> dict:
-        """扫描所有项目目录，修复软连接。
+        """掃描所有專案目錄，修復軟連線。
 
         Returns:
             {"created": int, "repaired": int, "skipped": int, "errors": int}
@@ -206,37 +206,37 @@ class ProjectManager:
                 for key in ("created", "repaired", "skipped", "errors"):
                     totals[key] += result.get(key, 0)
             except Exception as e:
-                logger.warning("修复项目 %s 软连接时出错: %s", project_dir.name, e)
+                logger.warning("修復專案 %s 軟連線時出錯: %s", project_dir.name, e)
                 totals["errors"] += 1
         return totals
 
     def get_project_path(self, name: str) -> Path:
-        """获取项目路径（含路径遍历防护）"""
+        """獲取專案路徑（含路徑遍歷防護）"""
         name = self.normalize_project_name(name)
         real = os.path.realpath(self.projects_root / name)
         base = os.path.realpath(self.projects_root) + os.sep
         if not real.startswith(base):
-            raise ValueError(f"非法项目名称: '{name}'")
+            raise ValueError(f"非法專案名稱: '{name}'")
         project_dir = Path(real)
         if not project_dir.exists():
-            raise FileNotFoundError(f"项目 '{name}' 不存在")
+            raise FileNotFoundError(f"專案 '{name}' 不存在")
         return project_dir
 
     @staticmethod
     def _safe_subpath(base_dir: Path, filename: str) -> str:
-        """校验 filename 拼接后不逃出 base_dir，返回 realpath 字符串。"""
+        """校驗 filename 拼接後不逃出 base_dir，返回 realpath 字串。"""
         real = os.path.realpath(base_dir / filename)
         bound = os.path.realpath(base_dir) + os.sep
         if not real.startswith(bound):
-            raise ValueError(f"非法文件名: '{filename}'")
+            raise ValueError(f"非法檔名: '{filename}'")
         return real
 
     def get_project_status(self, name: str) -> dict[str, Any]:
         """
-        获取项目状态
+        獲取專案狀態
 
         Returns:
-            包含各阶段完成情况的字典
+            包含各階段完成情況的字典
         """
         project_dir = self.get_project_path(name)
 
@@ -253,7 +253,7 @@ class ProjectManager:
             "current_stage": "empty",
         }
 
-        # 检查各目录内容
+        # 檢查各目錄內容
         for subdir in self.SUBDIRS:
             subdir_path = project_dir / subdir
             if subdir_path.exists():
@@ -273,7 +273,7 @@ class ProjectManager:
                 elif subdir == "output":
                     status["outputs"] = [f.name for f in files if f.suffix in [".mp4", ".webm"]]
 
-        # 确定当前阶段
+        # 確定當前階段
         if status["outputs"]:
             status["current_stage"] = "completed"
         elif status["videos"]:
@@ -291,19 +291,19 @@ class ProjectManager:
 
         return status
 
-    # ==================== 分镜剧本操作 ====================
+    # ==================== 分鏡劇本操作 ====================
 
     def create_script(self, project_name: str, title: str, chapter: str) -> dict:
         """
-        创建新的分镜剧本模板
+        建立新的分鏡劇本模板
 
         Args:
-            project_name: 项目名称
-            title: 小说标题
-            chapter: 章节名称
+            project_name: 專案名稱
+            title: 小說標題
+            chapter: 章節名稱
 
         Returns:
-            剧本字典
+            劇本字典
         """
         script = {
             "novel": {"title": title, "chapter": chapter},
@@ -321,15 +321,15 @@ class ProjectManager:
 
     def save_script(self, project_name: str, script: dict, filename: str | None = None) -> Path:
         """
-        保存分镜剧本
+        儲存分鏡劇本
 
         Args:
-            project_name: 项目名称
-            script: 剧本字典
-            filename: 可选的文件名，默认使用章节名
+            project_name: 專案名稱
+            script: 劇本字典
+            filename: 可選的檔名，預設使用章節名
 
         Returns:
-            保存的文件路径
+            儲存的檔案路徑
         """
         project_dir = self.get_project_path(project_name)
         scripts_dir = project_dir / "scripts"
@@ -341,7 +341,7 @@ class ProjectManager:
             chapter = script["novel"].get("chapter", "chapter_01")
             filename = f"{chapter.replace(' ', '_')}_script.json"
 
-        # 更新元数据（兼容旧脚本：可能缺少 metadata，或 narration 使用 segments）
+        # 更新後設資料（相容舊指令碼：可能缺少 metadata，或 narration 使用 segments）
         now = datetime.now().isoformat()
         metadata = script.get("metadata")
         if not isinstance(metadata, dict):
@@ -371,12 +371,12 @@ class ProjectManager:
 
         metadata["total_scenes"] = len(items)
 
-        # 计算总时长：按当前选中的数据结构决定回退值，避免 content_mode 缺失时误判
+        # 計算總時長：按當前選中的資料結構決定回退值，避免 content_mode 缺失時誤判
         default_duration = 4 if items_type == "segments" else 8
         total_duration = sum(item.get("duration_seconds", default_duration) for item in items)
         metadata["estimated_duration_seconds"] = total_duration
 
-        # 保存文件（含路径遍历防护）
+        # 儲存檔案（含路徑遍歷防護）
         real = self._safe_subpath(scripts_dir, filename)
         with open(real, "w", encoding="utf-8") as f:  # noqa: PTH123
             json.dump(script, f, ensure_ascii=False, indent=2)
@@ -387,7 +387,7 @@ class ProjectManager:
             changed_paths=[f"scripts/{output_path.name}"],
         )
 
-        # 自动同步到 project.json
+        # 自動同步到 project.json
         if self.project_exists(project_name) and isinstance(script.get("episode"), int):
             self.sync_episode_from_script(project_name, filename)
 
@@ -395,16 +395,16 @@ class ProjectManager:
 
     def sync_episode_from_script(self, project_name: str, script_filename: str) -> dict:
         """
-        从剧本文件同步集数信息到 project.json
+        從劇本檔案同步集數資訊到 project.json
 
-        Agent 写入剧本后必须调用此方法以确保 WebUI 能正确显示剧集列表。
+        Agent 寫入劇本後必須呼叫此方法以確保 WebUI 能正確顯示劇集列表。
 
         Args:
-            project_name: 项目名称
-            script_filename: 剧本文件名（如 episode_1.json）
+            project_name: 專案名稱
+            script_filename: 劇本檔名（如 episode_1.json）
 
         Returns:
-            更新后的 project 字典
+            更新後的 project 字典
         """
         script = self.load_script(project_name, script_filename)
         project = self.load_project(project_name)
@@ -413,7 +413,7 @@ class ProjectManager:
         episode_title = script.get("title", "")
         script_file = f"scripts/{script_filename}"
 
-        # 查找或创建 episode 条目
+        # 查詢或建立 episode 條目
         episodes = project.setdefault("episodes", [])
         episode_entry = next((ep for ep in episodes if ep["episode"] == episode_num), None)
 
@@ -421,27 +421,27 @@ class ProjectManager:
             episode_entry = {"episode": episode_num}
             episodes.append(episode_entry)
 
-        # 同步核心元数据（不包含统计字段，统计字段由 StatusCalculator 读时计算）
+        # 同步核心後設資料（不包含統計欄位，統計欄位由 StatusCalculator 讀時計算）
         episode_entry["title"] = episode_title
         episode_entry["script_file"] = script_file
 
-        # 排序并保存
+        # 排序並儲存
         episodes.sort(key=lambda x: x["episode"])
         self.save_project(project_name, project)
 
-        logger.info("已同步剧集信息: Episode %d - %s", episode_num, episode_title)
+        logger.info("已同步劇集資訊: Episode %d - %s", episode_num, episode_title)
         return project
 
     def load_script(self, project_name: str, filename: str) -> dict:
         """
-        加载分镜剧本
+        載入分鏡劇本
 
         Args:
-            project_name: 项目名称
-            filename: 剧本文件名
+            project_name: 專案名稱
+            filename: 劇本檔名
 
         Returns:
-            剧本字典
+            劇本字典
         """
         project_dir = self.get_project_path(project_name)
         if filename.startswith("scripts/"):
@@ -449,13 +449,13 @@ class ProjectManager:
         real = self._safe_subpath(project_dir / "scripts", filename)
 
         if not os.path.exists(real):
-            raise FileNotFoundError(f"剧本文件不存在: {real}")
+            raise FileNotFoundError(f"劇本檔案不存在: {real}")
 
         with open(real, encoding="utf-8") as f:  # noqa: PTH123
             return json.load(f)
 
     def list_scripts(self, project_name: str) -> list[str]:
-        """列出项目中的所有剧本"""
+        """列出專案中的所有劇本"""
         project_dir = self.get_project_path(project_name)
         scripts_dir = project_dir / "scripts"
         return [f.name for f in scripts_dir.glob("*.json")]
@@ -463,7 +463,7 @@ class ProjectManager:
     # ==================== 角色管理 ====================
 
     def update_character_sheet(self, project_name: str, script_filename: str, name: str, sheet_path: str) -> dict:
-        """更新角色设计图路径"""
+        """更新角色設計圖路徑"""
         script = self.load_script(project_name, script_filename)
 
         if name not in script["characters"]:
@@ -473,18 +473,18 @@ class ProjectManager:
         self.save_script(project_name, script, script_filename)
         return script
 
-    # ==================== 数据结构标准化 ====================
+    # ==================== 資料結構標準化 ====================
 
     @staticmethod
     def create_generated_assets(content_mode: str = "narration") -> dict:
         """
-        创建标准的 generated_assets 结构
+        建立標準的 generated_assets 結構
 
         Args:
-            content_mode: 内容模式（'narration' 或 'drama'）
+            content_mode: 內容模式（'narration' 或 'drama'）
 
         Returns:
-            标准的 generated_assets 字典
+            標準的 generated_assets 字典
         """
         return {
             "storyboard_image": None,
@@ -497,21 +497,21 @@ class ProjectManager:
     @staticmethod
     def create_scene_template(scene_id: str, episode: int = 1, duration_seconds: int = 8) -> dict:
         """
-        创建标准场景对象模板
+        建立標準場景物件模板
 
         Args:
-            scene_id: 场景 ID（如 "E1S01"）
-            episode: 集数编号
-            duration_seconds: 场景时长（秒）
+            scene_id: 場景 ID（如 "E1S01"）
+            episode: 集數編號
+            duration_seconds: 場景時長（秒）
 
         Returns:
-            标准的场景字典
+            標準的場景字典
         """
         return {
             "scene_id": scene_id,
             "episode": episode,
             "title": "",
-            "scene_type": "剧情",
+            "scene_type": "劇情",
             "duration_seconds": duration_seconds,
             "segment_break": False,
             "characters_in_scene": [],
@@ -532,14 +532,14 @@ class ProjectManager:
 
     def normalize_scene(self, scene: dict, episode: int = 1) -> dict:
         """
-        补全单个场景中缺失的字段
+        補全單個場景中缺失的欄位
 
         Args:
-            scene: 场景字典
-            episode: 集数编号（用于补全 episode 字段）
+            scene: 場景字典
+            episode: 集數編號（用於補全 episode 欄位）
 
         Returns:
-            补全后的场景字典
+            補全後的場景字典
         """
         template = self.create_scene_template(
             scene_id=scene.get("scene_id", "000"),
@@ -547,7 +547,7 @@ class ProjectManager:
             duration_seconds=scene.get("duration_seconds", 8),
         )
 
-        # 合并 visual 字段
+        # 合併 visual 欄位
         if "visual" not in scene:
             scene["visual"] = template["visual"]
         else:
@@ -555,7 +555,7 @@ class ProjectManager:
                 if key not in scene["visual"]:
                     scene["visual"][key] = template["visual"][key]
 
-        # 合并 audio 字段
+        # 合併 audio 欄位
         if "audio" not in scene:
             scene["audio"] = template["audio"]
         else:
@@ -563,7 +563,7 @@ class ProjectManager:
                 if key not in scene["audio"]:
                     scene["audio"][key] = template["audio"][key]
 
-        # 补全 generated_assets 字段
+        # 補全 generated_assets 欄位
         if "generated_assets" not in scene:
             scene["generated_assets"] = self.create_generated_assets()
         else:
@@ -572,11 +572,11 @@ class ProjectManager:
                 if key not in scene["generated_assets"]:
                     scene["generated_assets"][key] = assets_template[key]
 
-        # 补全其他顶层字段
+        # 補全其他頂層欄位
         top_level_defaults = {
             "episode": episode,
             "title": "",
-            "scene_type": "剧情",
+            "scene_type": "劇情",
             "segment_break": False,
             "characters_in_scene": [],
             "clues_in_scene": [],
@@ -589,25 +589,25 @@ class ProjectManager:
             if key not in scene:
                 scene[key] = default_value
 
-        # 更新状态
+        # 更新狀態
         self.update_scene_status(scene)
 
         return scene
 
     def update_scene_status(self, scene: dict) -> str:
         """
-        根据 generated_assets 内容更新并返回场景状态
+        根據 generated_assets 內容更新並返回場景狀態
 
-        状态值:
-        - pending: 未开始
-        - storyboard_ready: 分镜图完成
-        - completed: 视频完成
+        狀態值:
+        - pending: 未開始
+        - storyboard_ready: 分鏡圖完成
+        - completed: 影片完成
 
         Args:
-            scene: 场景字典
+            scene: 場景字典
 
         Returns:
-            更新后的状态值
+            更新後的狀態值
         """
         assets = scene.get("generated_assets", {})
 
@@ -626,21 +626,21 @@ class ProjectManager:
 
     def normalize_script(self, project_name: str, script_filename: str, save: bool = True) -> dict:
         """
-        补全现有 script.json 中缺失的字段
+        補全現有 script.json 中缺失的欄位
 
         Args:
-            project_name: 项目名称
-            script_filename: 剧本文件名
-            save: 是否保存修改后的剧本
+            project_name: 專案名稱
+            script_filename: 劇本檔名
+            save: 是否儲存修改後的劇本
 
         Returns:
-            补全后的剧本字典
+            補全後的劇本字典
         """
         import re
 
         script = self.load_script(project_name, script_filename)
 
-        # 从文件名或现有数据推断 episode
+        # 從檔名或現有資料推斷 episode
         episode = script.get("episode", 1)
         if not episode:
             match = re.search(r"episode[_\s]*(\d+)", script_filename, re.IGNORECASE)
@@ -649,7 +649,7 @@ class ProjectManager:
             else:
                 episode = 1
 
-        # 补全顶层字段
+        # 補全頂層欄位
         script_defaults = {
             "episode": episode,
             "title": script.get("novel", {}).get("chapter", ""),
@@ -661,28 +661,28 @@ class ProjectManager:
             if key not in script:
                 script[key] = default_value
 
-        # 确保必要的顶层结构存在
+        # 確保必要的頂層結構存在
         if "novel" not in script:
             script["novel"] = {"title": "", "chapter": ""}
-        # 剥离已废弃的 source_file 字段
+        # 剝離已廢棄的 source_file 欄位
         if isinstance(script.get("novel"), dict):
             script["novel"].pop("source_file", None)
 
-        # 处理旧格式：如果有 characters 对象，同步到 project.json
+        # 處理舊格式：如果有 characters 物件，同步到 project.json
         if "characters" in script and isinstance(script["characters"], dict) and script["characters"]:
-            logger.warning("检测到旧格式 characters 对象，自动同步到 project.json")
+            logger.warning("檢測到舊格式 characters 物件，自動同步到 project.json")
             self.sync_characters_from_script(project_name, script_filename)
-            # sync_characters_from_script 会重新加载和保存 script，所以需要重新加载
+            # sync_characters_from_script 會重新載入和儲存 script，所以需要重新載入
             script = self.load_script(project_name, script_filename)
 
-        # 处理旧格式：如果有 clues 对象，同步到 project.json
+        # 處理舊格式：如果有 clues 物件，同步到 project.json
         if "clues" in script and isinstance(script["clues"], dict) and script["clues"]:
-            logger.warning("检测到旧格式 clues 对象，自动同步到 project.json")
+            logger.warning("檢測到舊格式 clues 物件，自動同步到 project.json")
             self.sync_clues_from_script(project_name, script_filename)
             script = self.load_script(project_name, script_filename)
 
-        # 注意：characters_in_episode 和 clues_in_episode 已改为读时计算
-        # 不再在 normalize_script 中创建这些字段
+        # 注意：characters_in_episode 和 clues_in_episode 已改為讀時計算
+        # 不再在 normalize_script 中建立這些欄位
 
         if "scenes" not in script:
             script["scenes"] = []
@@ -696,43 +696,43 @@ class ProjectManager:
                 "status": "draft",
             }
 
-        # 规范化每个场景
+        # 規範化每個場景
         for scene in script["scenes"]:
             self.normalize_scene(scene, episode)
 
-        # 更新统计信息
+        # 更新統計資訊
         script["metadata"]["total_scenes"] = len(script["scenes"])
         script["metadata"]["estimated_duration_seconds"] = sum(s.get("duration_seconds", 8) for s in script["scenes"])
         script["duration_seconds"] = script["metadata"]["estimated_duration_seconds"]
 
         if save:
             self.save_script(project_name, script, script_filename)
-            logger.info("剧本已规范化并保存: %s", script_filename)
+            logger.info("劇本已規範化並儲存: %s", script_filename)
 
         return script
 
-    # ==================== 场景管理 ====================
+    # ==================== 場景管理 ====================
 
     def add_scene(self, project_name: str, script_filename: str, scene: dict) -> dict:
         """
-        向剧本添加场景
+        向劇本新增場景
 
         Args:
-            project_name: 项目名称
-            script_filename: 剧本文件名
-            scene: 场景字典
+            project_name: 專案名稱
+            script_filename: 劇本檔名
+            scene: 場景字典
 
         Returns:
-            更新后的剧本
+            更新後的劇本
         """
         script = self.load_script(project_name, script_filename)
 
-        # 自动生成场景 ID
+        # 自動生成場景 ID
         existing_ids = [s["scene_id"] for s in script["scenes"]]
         next_id = f"{len(existing_ids) + 1:03d}"
         scene["scene_id"] = next_id
 
-        # 确保有 generated_assets 字段
+        # 確保有 generated_assets 欄位
         if "generated_assets" not in scene:
             scene["generated_assets"] = {
                 "storyboard_image": None,
@@ -753,21 +753,21 @@ class ProjectManager:
         asset_path: str,
     ) -> dict:
         """
-        更新场景的生成资源路径
+        更新場景的生成資源路徑
 
         Args:
-            project_name: 项目名称
-            script_filename: 剧本文件名
-            scene_id: 场景/片段 ID
-            asset_type: 资源类型 ('storyboard_image' 或 'video_clip')
-            asset_path: 资源路径
+            project_name: 專案名稱
+            script_filename: 劇本檔名
+            scene_id: 場景/片段 ID
+            asset_type: 資源型別 ('storyboard_image' 或 'video_clip')
+            asset_path: 資源路徑
 
         Returns:
-            更新后的剧本
+            更新後的劇本
         """
         script = self.load_script(project_name, script_filename)
 
-        # 根据内容模式选择正确的数据结构
+        # 根據內容模式選擇正確的資料結構
         content_mode = script.get("content_mode", "narration")
         if content_mode == "narration" and "segments" in script:
             items = script["segments"]
@@ -790,29 +790,29 @@ class ProjectManager:
 
                 assets[asset_type] = asset_path
 
-                # 使用 update_scene_status 更新状态
+                # 使用 update_scene_status 更新狀態
                 self.update_scene_status(item)
 
                 self.save_script(project_name, script, script_filename)
                 return script
 
-        raise KeyError(f"场景 '{scene_id}' 不存在")
+        raise KeyError(f"場景 '{scene_id}' 不存在")
 
     def get_pending_scenes(self, project_name: str, script_filename: str, asset_type: str) -> list[dict]:
         """
-        获取待处理的场景/片段列表
+        獲取待處理的場景/片段列表
 
         Args:
-            project_name: 项目名称
-            script_filename: 剧本文件名
-            asset_type: 资源类型
+            project_name: 專案名稱
+            script_filename: 劇本檔名
+            asset_type: 資源型別
 
         Returns:
-            待处理场景/片段列表
+            待處理場景/片段列表
         """
         script = self.load_script(project_name, script_filename)
 
-        # 根据内容模式选择正确的数据结构
+        # 根據內容模式選擇正確的資料結構
         content_mode = script.get("content_mode", "narration")
         if content_mode == "narration" and "segments" in script:
             items = script["segments"]
@@ -821,38 +821,38 @@ class ProjectManager:
 
         return [item for item in items if not item["generated_assets"].get(asset_type)]
 
-    # ==================== 文件路径工具 ====================
+    # ==================== 檔案路徑工具 ====================
 
     def get_source_path(self, project_name: str, filename: str) -> Path:
-        """获取源文件路径"""
+        """獲取原始檔路徑"""
         return self.get_project_path(project_name) / "source" / filename
 
     def get_character_path(self, project_name: str, filename: str) -> Path:
-        """获取角色设计图路径"""
+        """獲取角色設計圖路徑"""
         return self.get_project_path(project_name) / "characters" / filename
 
     def get_storyboard_path(self, project_name: str, filename: str) -> Path:
-        """获取分镜图片路径"""
+        """獲取分鏡圖片路徑"""
         return self.get_project_path(project_name) / "storyboards" / filename
 
     def get_video_path(self, project_name: str, filename: str) -> Path:
-        """获取视频路径"""
+        """獲取影片路徑"""
         return self.get_project_path(project_name) / "videos" / filename
 
     def get_output_path(self, project_name: str, filename: str) -> Path:
-        """获取输出路径"""
+        """獲取輸出路徑"""
         return self.get_project_path(project_name) / "output" / filename
 
     def get_scenes_needing_storyboard(self, project_name: str, script_filename: str) -> list[dict]:
         """
-        获取需要生成分镜图的场景/片段列表（两种模式统一逻辑）
+        獲取需要生成分鏡圖的場景/片段列表（兩種模式統一邏輯）
 
         Args:
-            project_name: 项目名称
-            script_filename: 剧本文件名
+            project_name: 專案名稱
+            script_filename: 劇本檔名
 
         Returns:
-            需要生成分镜图的场景/片段列表
+            需要生成分鏡圖的場景/片段列表
         """
         script = self.load_script(project_name, script_filename)
 
@@ -864,14 +864,14 @@ class ProjectManager:
 
         return [item for item in items if not item.get("generated_assets", {}).get("storyboard_image")]
 
-    # ==================== 项目级元数据管理 ====================
+    # ==================== 專案級後設資料管理 ====================
 
     def _get_project_file_path(self, project_name: str) -> Path:
-        """获取项目元数据文件路径"""
+        """獲取專案後設資料檔案路徑"""
         return self.get_project_path(project_name) / self.PROJECT_FILE
 
     def project_exists(self, project_name: str) -> bool:
-        """检查项目元数据文件是否存在"""
+        """檢查專案後設資料檔案是否存在"""
         try:
             return self._get_project_file_path(project_name).exists()
         except FileNotFoundError:
@@ -879,28 +879,28 @@ class ProjectManager:
 
     def load_project(self, project_name: str) -> dict:
         """
-        加载项目元数据
+        載入專案後設資料
 
         Args:
-            project_name: 项目名称
+            project_name: 專案名稱
 
         Returns:
-            项目元数据字典
+            專案後設資料字典
         """
         project_file = self._get_project_file_path(project_name)
 
         if not project_file.exists():
-            raise FileNotFoundError(f"项目元数据文件不存在: {project_file}")
+            raise FileNotFoundError(f"專案後設資料檔案不存在: {project_file}")
 
         with open(project_file, encoding="utf-8") as f:
             return json.load(f)
 
     @contextmanager
     def _project_lock(self, project_name: str):
-        """通过专用 lock file 获取项目元数据的排他锁。
+        """透過專用 lock file 獲取專案後設資料的排他鎖。
 
-        使用独立的 .project.json.lock 而非数据文件本身，避免 os.replace
-        更换 inode 后锁失效的问题。
+        使用獨立的 .project.json.lock 而非資料檔案本身，避免 os.replace
+        更換 inode 後鎖失效的問題。
         """
         lock_path = self._get_project_file_path(project_name).with_suffix(".lock")
         lock_path.touch(exist_ok=True)
@@ -914,7 +914,7 @@ class ProjectManager:
 
     @staticmethod
     def _atomic_write_json(path: Path, data: dict) -> None:
-        """通过临时文件 + os.replace 原子写入 JSON。"""
+        """透過臨時檔案 + os.replace 原子寫入 JSON。"""
         tmp_path = None
         try:
             with tempfile.NamedTemporaryFile(
@@ -938,14 +938,14 @@ class ProjectManager:
 
     def save_project(self, project_name: str, project: dict) -> Path:
         """
-        保存项目元数据
+        儲存專案後設資料
 
         Args:
-            project_name: 项目名称
-            project: 项目元数据字典
+            project_name: 專案名稱
+            project: 專案後設資料字典
 
         Returns:
-            保存的文件路径
+            儲存的檔案路徑
         """
         project_file = self._get_project_file_path(project_name)
 
@@ -966,13 +966,13 @@ class ProjectManager:
         project_name: str,
         mutate_fn: Callable[[dict], None],
     ) -> Path:
-        """原子性地更新 project.json：加文件锁 → 读 → 修改 → 原子写回。
+        """原子性地更新 project.json：加檔案鎖 → 讀 → 修改 → 原子寫回。
 
-        避免并发任务（如同时生成多张角色图片）之间的 lost-update 竞态。
+        避免併發任務（如同時生成多張角色圖片）之間的 lost-update 競態。
 
         Args:
-            project_name: 项目名称
-            mutate_fn: 接收 project dict 并就地修改的回调函数
+            project_name: 專案名稱
+            mutate_fn: 接收 project dict 並就地修改的回撥函式
         """
         project_file = self._get_project_file_path(project_name)
 
@@ -1008,18 +1008,18 @@ class ProjectManager:
         default_duration: int | None = None,
     ) -> dict:
         """
-        创建新的项目元数据文件
+        建立新的專案後設資料檔案
 
         Args:
-            project_name: 项目标识
-            title: 项目标题，留空时默认使用项目标识
-            style: 整体视觉风格描述
-            content_mode: 内容模式 ('narration' 或 'drama')
-            aspect_ratio: 视频宽高比（独立于 content_mode）
-            default_duration: 默认视频时长（秒），None 表示使用系统默认值
+            project_name: 專案標識
+            title: 專案標題，留空時預設使用專案標識
+            style: 整體視覺風格描述
+            content_mode: 內容模式 ('narration' 或 'drama')
+            aspect_ratio: 影片寬高比（獨立於 content_mode）
+            default_duration: 預設影片時長（秒），None 表示使用系統預設值
 
         Returns:
-            项目元数据字典
+            專案後設資料字典
         """
         project_name = self.normalize_project_name(project_name)
         project_title = str(title).strip() if title is not None else ""
@@ -1045,20 +1045,20 @@ class ProjectManager:
 
     def add_episode(self, project_name: str, episode: int, title: str, script_file: str) -> dict:
         """
-        向项目添加剧集
+        向專案新增劇集
 
         Args:
-            project_name: 项目名称
-            episode: 集数
-            title: 剧集标题
-            script_file: 剧本文件相对路径
+            project_name: 專案名稱
+            episode: 集數
+            title: 劇集標題
+            script_file: 劇本檔案相對路徑
 
         Returns:
-            更新后的项目元数据
+            更新後的專案後設資料
         """
         project = self.load_project(project_name)
 
-        # 检查是否已存在
+        # 檢查是否已存在
         for ep in project["episodes"]:
             if ep["episode"] == episode:
                 ep["title"] = title
@@ -1066,10 +1066,10 @@ class ProjectManager:
                 self.save_project(project_name, project)
                 return project
 
-        # 添加新剧集（不包含统计字段，由 StatusCalculator 读时计算）
+        # 新增新劇集（不包含統計欄位，由 StatusCalculator 讀時計算）
         project["episodes"].append({"episode": episode, "title": title, "script_file": script_file})
 
-        # 按集数排序
+        # 按集數排序
         project["episodes"].sort(key=lambda x: x["episode"])
 
         self.save_project(project_name, project)
@@ -1077,30 +1077,30 @@ class ProjectManager:
 
     def sync_project_status(self, project_name: str) -> dict:
         """
-        [已废弃] 同步项目状态
+        [已廢棄] 同步專案狀態
 
-        此方法已废弃。status、progress、scenes_count 等统计字段
-        现在由 StatusCalculator 读时计算，不再存储在 JSON 文件中。
+        此方法已廢棄。status、progress、scenes_count 等統計欄位
+        現在由 StatusCalculator 讀時計算，不再儲存在 JSON 檔案中。
 
-        保留此方法仅为向后兼容，实际不执行任何写入操作。
+        保留此方法僅為向後相容，實際不執行任何寫入操作。
 
         Args:
-            project_name: 项目名称
+            project_name: 專案名稱
 
         Returns:
-            项目元数据（不含统计字段，统计字段由 StatusCalculator 注入）
+            專案後設資料（不含統計欄位，統計欄位由 StatusCalculator 注入）
         """
         import warnings
 
         warnings.warn(
-            "sync_project_status() 已废弃。status 等统计字段现由 StatusCalculator 读时计算。",
+            "sync_project_status() 已廢棄。status 等統計欄位現由 StatusCalculator 讀時計算。",
             DeprecationWarning,
             stacklevel=2,
         )
-        # 仅返回项目数据，不执行任何写入
+        # 僅返回專案資料，不執行任何寫入
         return self.load_project(project_name)
 
-    # ==================== 项目级角色管理 ====================
+    # ==================== 專案級角色管理 ====================
 
     def add_project_character(
         self,
@@ -1111,17 +1111,17 @@ class ProjectManager:
         character_sheet: str | None = None,
     ) -> dict:
         """
-        向项目添加角色（项目级）
+        向專案新增角色（專案級）
 
         Args:
-            project_name: 项目名称
-            name: 角色名称
+            project_name: 專案名稱
+            name: 角色名稱
             description: 角色描述
-            voice_style: 声音风格
-            character_sheet: 角色设计图路径
+            voice_style: 聲音風格
+            character_sheet: 角色設計圖路徑
 
         Returns:
-            更新后的项目元数据
+            更新後的專案後設資料
         """
         project = self.load_project(project_name)
 
@@ -1135,7 +1135,7 @@ class ProjectManager:
         return project
 
     def update_project_character_sheet(self, project_name: str, name: str, sheet_path: str) -> dict:
-        """更新项目级角色设计图路径"""
+        """更新專案級角色設計圖路徑"""
         project = self.load_project(project_name)
 
         if name not in project["characters"]:
@@ -1147,15 +1147,15 @@ class ProjectManager:
 
     def update_character_reference_image(self, project_name: str, char_name: str, ref_path: str) -> dict:
         """
-        更新角色的参考图路径
+        更新角色的參考圖路徑
 
         Args:
-            project_name: 项目名称
-            char_name: 角色名称
-            ref_path: 参考图相对路径
+            project_name: 專案名稱
+            char_name: 角色名稱
+            ref_path: 參考圖相對路徑
 
         Returns:
-            更新后的项目数据
+            更新後的專案資料
         """
         project = self.load_project(project_name)
 
@@ -1167,7 +1167,7 @@ class ProjectManager:
         return project
 
     def get_project_character(self, project_name: str, name: str) -> dict:
-        """获取项目级角色定义"""
+        """獲取專案級角色定義"""
         project = self.load_project(project_name)
 
         if name not in project["characters"]:
@@ -1175,24 +1175,24 @@ class ProjectManager:
 
         return project["characters"][name]
 
-    # ==================== 线索管理 ====================
+    # ==================== 線索管理 ====================
 
     def update_clue_sheet(self, project_name: str, name: str, sheet_path: str) -> dict:
         """
-        更新线索设计图路径
+        更新線索設計圖路徑
 
         Args:
-            project_name: 项目名称
-            name: 线索名称
-            sheet_path: 设计图路径
+            project_name: 專案名稱
+            name: 線索名稱
+            sheet_path: 設計圖路徑
 
         Returns:
-            更新后的项目元数据
+            更新後的專案後設資料
         """
         project = self.load_project(project_name)
 
         if name not in project["clues"]:
-            raise KeyError(f"线索 '{name}' 不存在")
+            raise KeyError(f"線索 '{name}' 不存在")
 
         project["clues"][name]["clue_sheet"] = sheet_path
         self.save_project(project_name, project)
@@ -1200,31 +1200,31 @@ class ProjectManager:
 
     def get_clue(self, project_name: str, name: str) -> dict:
         """
-        获取线索定义
+        獲取線索定義
 
         Args:
-            project_name: 项目名称
-            name: 线索名称
+            project_name: 專案名稱
+            name: 線索名稱
 
         Returns:
-            线索定义字典
+            線索定義字典
         """
         project = self.load_project(project_name)
 
         if name not in project["clues"]:
-            raise KeyError(f"线索 '{name}' 不存在")
+            raise KeyError(f"線索 '{name}' 不存在")
 
         return project["clues"][name]
 
     def get_pending_characters(self, project_name: str) -> list[dict]:
         """
-        获取待生成设计图的角色列表
+        獲取待生成設計圖的角色列表
 
         Args:
-            project_name: 项目名称
+            project_name: 專案名稱
 
         Returns:
-            待处理角色列表（无 character_sheet 或文件不存在）
+            待處理角色列表（無 character_sheet 或檔案不存在）
         """
         project = self.load_project(project_name)
         project_dir = self.get_project_path(project_name)
@@ -1239,13 +1239,13 @@ class ProjectManager:
 
     def get_pending_clues(self, project_name: str) -> list[dict]:
         """
-        获取待生成设计图的线索列表
+        獲取待生成設計圖的線索列表
 
         Args:
-            project_name: 项目名称
+            project_name: 專案名稱
 
         Returns:
-            待处理线索列表（importance='major' 且无 clue_sheet）
+            待處理線索列表（importance='major' 且無 clue_sheet）
         """
         project = self.load_project(project_name)
         project_dir = self.get_project_path(project_name)
@@ -1260,22 +1260,22 @@ class ProjectManager:
         return pending
 
     def get_clue_path(self, project_name: str, filename: str) -> Path:
-        """获取线索设计图路径"""
+        """獲取線索設計圖路徑"""
         return self.get_project_path(project_name) / "clues" / filename
 
-    # ==================== 角色/线索直接写入工具 ====================
+    # ==================== 角色/線索直接寫入工具 ====================
 
     def add_character(self, project_name: str, name: str, description: str, voice_style: str = "") -> bool:
         """
-        直接添加角色到 project.json
+        直接新增角色到 project.json
 
-        如果角色已存在，跳过不覆盖。
+        如果角色已存在，跳過不覆蓋。
 
         Args:
-            project_name: 项目名称
-            name: 角色名称
+            project_name: 專案名稱
+            name: 角色名稱
             description: 角色描述
-            voice_style: 声音风格（可选）
+            voice_style: 聲音風格（可選）
 
         Returns:
             True 如果新增成功，False 如果已存在
@@ -1283,7 +1283,7 @@ class ProjectManager:
         project = self.load_project(project_name)
 
         if name in project.get("characters", {}):
-            logger.debug("角色 '%s' 已存在于 project.json，跳过", name)
+            logger.debug("角色 '%s' 已存在於 project.json，跳過", name)
             return False
 
         if "characters" not in project:
@@ -1296,7 +1296,7 @@ class ProjectManager:
         }
 
         self.save_project(project_name, project)
-        logger.info("添加角色: %s", name)
+        logger.info("新增角色: %s", name)
         return True
 
     def add_clue(
@@ -1308,16 +1308,16 @@ class ProjectManager:
         importance: str = "minor",
     ) -> bool:
         """
-        直接添加线索到 project.json
+        直接新增線索到 project.json
 
-        如果线索已存在，跳过不覆盖。
+        如果線索已存在，跳過不覆蓋。
 
         Args:
-            project_name: 项目名称
-            name: 线索名称
-            clue_type: 线索类型（prop 或 location）
-            description: 线索描述
-            importance: 重要性（major 或 minor，默认 minor）
+            project_name: 專案名稱
+            name: 線索名稱
+            clue_type: 線索型別（prop 或 location）
+            description: 線索描述
+            importance: 重要性（major 或 minor，預設 minor）
 
         Returns:
             True 如果新增成功，False 如果已存在
@@ -1325,7 +1325,7 @@ class ProjectManager:
         project = self.load_project(project_name)
 
         if name in project.get("clues", {}):
-            logger.debug("线索 '%s' 已存在于 project.json，跳过", name)
+            logger.debug("線索 '%s' 已存在於 project.json，跳過", name)
             return False
 
         if "clues" not in project:
@@ -1339,19 +1339,19 @@ class ProjectManager:
         }
 
         self.save_project(project_name, project)
-        logger.info("添加线索: %s", name)
+        logger.info("新增線索: %s", name)
         return True
 
     def add_characters_batch(self, project_name: str, characters: dict[str, dict]) -> int:
         """
-        批量添加角色到 project.json
+        批次新增角色到 project.json
 
         Args:
-            project_name: 项目名称
+            project_name: 專案名稱
             characters: 角色字典 {name: {description, voice_style}}
 
         Returns:
-            新增的角色数量
+            新增的角色數量
         """
         project = self.load_project(project_name)
 
@@ -1367,9 +1367,9 @@ class ProjectManager:
                     "voice_style": data.get("voice_style", ""),
                 }
                 added += 1
-                logger.info("添加角色: %s", name)
+                logger.info("新增角色: %s", name)
             else:
-                logger.debug("角色 '%s' 已存在，跳过", name)
+                logger.debug("角色 '%s' 已存在，跳過", name)
 
         if added > 0:
             self.save_project(project_name, project)
@@ -1378,14 +1378,14 @@ class ProjectManager:
 
     def add_clues_batch(self, project_name: str, clues: dict[str, dict]) -> int:
         """
-        批量添加线索到 project.json
+        批次新增線索到 project.json
 
         Args:
-            project_name: 项目名称
-            clues: 线索字典 {name: {type, description, importance}}
+            project_name: 專案名稱
+            clues: 線索字典 {name: {type, description, importance}}
 
         Returns:
-            新增的线索数量
+            新增的線索數量
         """
         project = self.load_project(project_name)
 
@@ -1402,33 +1402,33 @@ class ProjectManager:
                     "clue_sheet": data.get("clue_sheet", ""),
                 }
                 added += 1
-                logger.info("添加线索: %s", name)
+                logger.info("新增線索: %s", name)
             else:
-                logger.debug("线索 '%s' 已存在，跳过", name)
+                logger.debug("線索 '%s' 已存在，跳過", name)
 
         if added > 0:
             self.save_project(project_name, project)
 
         return added
 
-    # ==================== 参考图收集工具 ====================
+    # ==================== 參考圖收集工具 ====================
 
     def collect_reference_images(self, project_name: str, scene: dict) -> list[Path]:
         """
-        收集场景所需的所有参考图
+        收集場景所需的所有參考圖
 
         Args:
-            project_name: 项目名称
-            scene: 场景字典
+            project_name: 專案名稱
+            scene: 場景字典
 
         Returns:
-            参考图路径列表
+            參考圖路徑列表
         """
         project = self.load_project(project_name)
         project_dir = self.get_project_path(project_name)
         refs = []
 
-        # 角色参考图
+        # 角色參考圖
         for char in scene.get("characters_in_scene", []):
             char_data = project["characters"].get(char, {})
             sheet = char_data.get("character_sheet")
@@ -1437,7 +1437,7 @@ class ProjectManager:
                 if sheet_path.exists():
                     refs.append(sheet_path)
 
-        # 线索参考图
+        # 線索參考圖
         for clue in scene.get("clues_in_scene", []):
             clue_data = project["clues"].get(clue, {})
             sheet = clue_data.get("clue_sheet")
@@ -1448,18 +1448,18 @@ class ProjectManager:
 
         return refs
 
-    # ==================== 项目概述生成 ====================
+    # ==================== 專案概述生成 ====================
 
     def _read_source_files(self, project_name: str, max_chars: int = 50000) -> str:
         """
-        读取项目 source 目录下的所有文本文件内容
+        讀取專案 source 目錄下的所有文字檔案內容
 
         Args:
-            project_name: 项目名称
-            max_chars: 最大读取字符数（避免超出 API 限制）
+            project_name: 專案名稱
+            max_chars: 最大讀取字元數（避免超出 API 限制）
 
         Returns:
-            合并后的文本内容
+            合併後的文字內容
         """
         project_dir = self.get_project_path(project_name)
         source_dir = project_dir / "source"
@@ -1470,7 +1470,7 @@ class ProjectManager:
         contents = []
         total_chars = 0
 
-        # 按文件名排序，确保顺序一致
+        # 按檔名排序，確保順序一致
         for file_path in sorted(source_dir.glob("*")):
             if file_path.is_file() and file_path.suffix.lower() in [".txt", ".md"]:
                 try:
@@ -1484,16 +1484,16 @@ class ProjectManager:
                         contents.append(f"--- {file_path.name} ---\n{content}")
                         total_chars += len(content)
                 except Exception as e:
-                    logger.error("读取文件失败 %s: %s", file_path.name, e)
+                    logger.error("讀取檔案失敗 %s: %s", file_path.name, e)
 
         return "\n\n".join(contents)
 
     async def generate_overview(self, project_name: str) -> dict:
         """
-        使用 Gemini API 异步生成项目概述
+        使用 Gemini API 非同步生成專案概述
 
         Args:
-            project_name: 项目名称
+            project_name: 專案名稱
 
         Returns:
             生成的 overview 字典，包含 synopsis, genre, theme, world_setting, generated_at
@@ -1501,16 +1501,16 @@ class ProjectManager:
         from .text_backends.base import TextGenerationRequest, TextTaskType
         from .text_generator import TextGenerator
 
-        # 读取源文件内容
+        # 讀取原始檔內容
         source_content = self._read_source_files(project_name)
         if not source_content:
-            raise ValueError("source 目录为空，无法生成概述")
+            raise ValueError("source 目錄為空，無法生成概述")
 
-        # 创建 TextGenerator（自动追踪用量）
+        # 建立 TextGenerator（自動追蹤用量）
         generator = await TextGenerator.create(TextTaskType.OVERVIEW, project_name)
 
-        # 调用 TextGenerator（Structured Outputs）
-        prompt = f"请分析以下小说内容，提取关键信息：\n\n{source_content}"
+        # 呼叫 TextGenerator（Structured Outputs）
+        prompt = f"請分析以下小說內容，提取關鍵資訊：\n\n{source_content}"
 
         result = await generator.generate(
             TextGenerationRequest(
@@ -1521,15 +1521,15 @@ class ProjectManager:
         )
         response_text = result.text
 
-        # 解析并验证响应
+        # 解析並驗證響應
         overview = ProjectOverview.model_validate_json(response_text)
         overview_dict = overview.model_dump()
         overview_dict["generated_at"] = datetime.now().isoformat()
 
-        # 保存到 project.json
+        # 儲存到 project.json
         project = self.load_project(project_name)
         project["overview"] = overview_dict
         self.save_project(project_name, project)
 
-        logger.info("项目概述已生成并保存")
+        logger.info("專案概述已生成並儲存")
         return overview_dict

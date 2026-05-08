@@ -27,7 +27,7 @@ function TaskStatusIcon({ status }: { status: TaskItem["status"] }) {
 }
 
 // ---------------------------------------------------------------------------
-// RunningProgressBar — 运行中任务的动态进度条
+// RunningProgressBar — 執行中任務的動態進度條
 // ---------------------------------------------------------------------------
 
 function RunningProgressBar() {
@@ -47,7 +47,7 @@ function RunningProgressBar() {
 }
 
 // ---------------------------------------------------------------------------
-// TaskRow — 单个任务条目（含完成高亮、失败展开、运行进度条）
+// TaskRow — 單個任務條目（含完成高亮、失敗展開、執行進度條）
 // ---------------------------------------------------------------------------
 
 function TaskRow({
@@ -75,7 +75,7 @@ function TaskRow({
     failed: "text-red-400",
   };
 
-  // 根据状态确定行背景样式
+  // 根據狀態確定行背景樣式
   const rowBg =
     task.status === "failed"
       ? "bg-red-500/10"
@@ -98,7 +98,7 @@ function TaskRow({
       transition={{ duration: isFading ? 0.4 : 0.2 }}
       className="overflow-hidden"
     >
-      {/* 主行内容 */}
+      {/* 主行內容 */}
       <div
         className={`flex items-center gap-2 px-3 py-1.5 text-sm ${rowBg} ${
           hasError ? "cursor-pointer hover:bg-red-500/15" : ""
@@ -122,14 +122,14 @@ function TaskRow({
         )}
       </div>
 
-      {/* 运行中任务的进度条 */}
+      {/* 執行中任務的進度條 */}
       {task.status === "running" && (
         <div className="px-3 pb-1">
           <RunningProgressBar />
         </div>
       )}
 
-      {/* 失败任务的错误详情展开区域 */}
+      {/* 失敗任務的錯誤詳情展開區域 */}
       <AnimatePresence>
         {hasError && isErrorExpanded && (
           <motion.div
@@ -150,7 +150,7 @@ function TaskRow({
 }
 
 // ---------------------------------------------------------------------------
-// ChannelSection — 按图片/视频通道分组，含自动淡出逻辑
+// ChannelSection — 按圖片/影片通道分組，含自動淡出邏輯
 // ---------------------------------------------------------------------------
 
 function ChannelSection({
@@ -162,21 +162,21 @@ function ChannelSection({
   icon: React.ComponentType<{ className?: string }>;
   tasks: TaskItem[];
 }) {
-  // 跟踪正在淡出的任务 ID
+  // 跟蹤正在淡出的任務 ID
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set());
-  // 跟踪已完全淡出（应隐藏）的任务 ID
+  // 跟蹤已完全淡出（應隱藏）的任務 ID
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
-  // 保存定时器引用以便清理
+  // 儲存定時器引用以便清理
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
-  // 失败任务错误详情展开状态
+  // 失敗任務錯誤詳情展開狀態
   const [expandedErrorId, setExpandedErrorId] = useState<string | null>(null);
 
   const toggleError = useCallback((taskId: string) => {
     setExpandedErrorId((prev) => (prev === taskId ? null : taskId));
   }, []);
 
-  // 监听任务状态变化，为 succeeded 任务设置自动淡出
+  // 監聽任務狀態變化，為 succeeded 任務設定自動淡出
   useEffect(() => {
     const succeededTasks = tasks.filter(
       (t) =>
@@ -188,11 +188,11 @@ function ChannelSection({
     for (const task of succeededTasks) {
       if (timersRef.current.has(task.task_id)) continue;
 
-      // 3 秒后开始淡出动画
+      // 3 秒後開始淡出動畫
       const fadeTimer = setTimeout(() => {
         setFadingIds((prev) => new Set(prev).add(task.task_id));
 
-        // 淡出动画完成后（400ms）标记为隐藏
+        // 淡出動畫完成後（400ms）標記為隱藏
         const hideTimer = setTimeout(() => {
           setHiddenIds((prev) => new Set(prev).add(task.task_id));
           timersRef.current.delete(task.task_id);
@@ -205,7 +205,7 @@ function ChannelSection({
     }
 
     return () => {
-      // 组件卸载时清理所有定时器
+      // 元件解除安裝時清理所有定時器
       for (const timer of timersRef.current.values()) {
         clearTimeout(timer);
       }
@@ -244,14 +244,14 @@ function ChannelSection({
         ))}
       </AnimatePresence>
       {visible.length === 0 && (
-        <div className="px-3 py-2 text-xs text-gray-600">暂无任务</div>
+        <div className="px-3 py-2 text-xs text-gray-600">暫無任務</div>
       )}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// TaskHud — 弹出面板，实时展示任务队列状态
+// TaskHud — 彈出面板，實時展示任務佇列狀態
 // ---------------------------------------------------------------------------
 
 export function TaskHud({ anchorRef }: { anchorRef: RefObject<HTMLElement | null> }) {
@@ -284,7 +284,7 @@ export function TaskHud({ anchorRef }: { anchorRef: RefObject<HTMLElement | null
             backgroundColor: POPOVER_BG,
           }}
         >
-          {/* 统计栏 */}
+          {/* 統計欄 */}
           <div className="flex gap-3 border-b border-gray-800 px-3 py-2 text-xs text-gray-400">
             <span>
               排隊{" "}
@@ -304,7 +304,7 @@ export function TaskHud({ anchorRef }: { anchorRef: RefObject<HTMLElement | null
             </span>
           </div>
 
-          {/* 双通道 */}
+          {/* 雙通道 */}
           <div className="max-h-80 divide-y divide-gray-800/50 overflow-y-auto">
             <ChannelSection title="圖片通道" icon={Image} tasks={imageTasks} />
             <ChannelSection title="影片通道" icon={Video} tasks={videoTasks} />

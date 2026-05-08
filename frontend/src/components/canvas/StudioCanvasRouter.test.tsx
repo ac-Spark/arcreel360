@@ -312,7 +312,7 @@ describe("StudioCanvasRouter", () => {
       expect(API.updateClue).toHaveBeenCalledWith("demo", "Key", {
         description: "new clue",
       });
-      expect(useAppStore.getState().toast?.text).toContain("更新線索失敗");
+      expect(useAppStore.getState().toast?.text).toContain("更新道具失敗");
       expect(useAppStore.getState().toast?.tone).toBe("error");
     });
 

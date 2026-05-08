@@ -50,7 +50,7 @@ function StudioWorkspace() {
     if (!projectName) return;
     let cancelled = false;
 
-    // 清空上一个项目的 assistant 状态，确保会话隔离
+    // 清空上一個專案的 assistant 狀態，確保會話隔離
     const assistantState = useAssistantStore.getState();
     assistantState.setSessions([]);
     assistantState.setCurrentSessionId(null);

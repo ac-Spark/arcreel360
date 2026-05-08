@@ -31,9 +31,9 @@ interface LorebookGalleryProps {
   onRestoreClueVersion?: () => Promise<void> | void;
   generatingCharacterNames?: Set<string>;
   generatingClueNames?: Set<string>;
-  /** Called when the user clicks "添加角色". */
+  /** Called when the user clicks "新增角色". */
   onAddCharacter?: () => void;
-  /** Called when the user clicks "添加线索". */
+  /** Called when the user clicks "新增線索". */
   onAddClue?: () => void;
 }
 
@@ -100,20 +100,20 @@ export function LorebookGallery({
     <div className="flex flex-col gap-4">
       {/* ---- Tab bar (hidden when mode is specified) ---- */}
       {showTabs && (
-      <div className="flex border-b border-gray-800">
-        <TabButton
-          active={activeTab === "characters"}
-          onClick={() => setActiveTab("characters")}
-        >
-          角色 ({charCount})
-        </TabButton>
-        <TabButton
-          active={activeTab === "clues"}
-          onClick={() => setActiveTab("clues")}
-        >
-          線索 ({clueCount})
-        </TabButton>
-      </div>
+        <div className="flex border-b border-gray-800">
+          <TabButton
+            active={activeTab === "characters"}
+            onClick={() => setActiveTab("characters")}
+          >
+            角色 ({charCount})
+          </TabButton>
+          <TabButton
+            active={activeTab === "clues"}
+            onClick={() => setActiveTab("clues")}
+          >
+            道具 ({clueCount})
+          </TabButton>
+        </div>
       )}
 
       {/* ---- Characters tab ---- */}
@@ -122,7 +122,7 @@ export function LorebookGallery({
           {charCount === 0 ? (
             <EmptyState
               icon={<User className="h-12 w-12 text-gray-600" />}
-              message="暫無角色，點擊下方按鈕新增"
+              message="暫無角色，點選下方按鈕新增"
             />
           ) : (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -154,7 +154,7 @@ export function LorebookGallery({
           {clueCount === 0 ? (
             <EmptyState
               icon={<Puzzle className="h-12 w-12 text-gray-600" />}
-              message="暫無線索，點擊下方按鈕新增"
+              message="暫無道具，點選下方按鈕新增"
             />
           ) : (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -174,7 +174,7 @@ export function LorebookGallery({
             </div>
           )}
 
-          {onAddClue && <AddButton onClick={onAddClue}>新增線索</AddButton>}
+          {onAddClue && <AddButton onClick={onAddClue}>新增道具</AddButton>}
         </>
       )}
     </div>
@@ -198,11 +198,10 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`px-4 py-2 text-sm font-medium transition-colors ${
-        active
+      className={`px-4 py-2 text-sm font-medium transition-colors ${active
           ? "border-b-2 border-indigo-500 text-white"
           : "text-gray-400 hover:text-gray-200"
-      }`}
+        }`}
     >
       {children}
     </button>

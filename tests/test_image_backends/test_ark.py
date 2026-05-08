@@ -1,4 +1,4 @@
-"""ArkImageBackend 单元测试。"""
+"""ArkImageBackend 單元測試。"""
 
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ def _make_client_mock() -> MagicMock:
 
 
 class TestArkImageBackendInit:
-    """构造函数测试。"""
+    """建構函式測試。"""
 
     def test_missing_api_key_raises(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.delenv("ARK_API_KEY", raising=False)
@@ -76,7 +76,7 @@ class TestArkImageBackendInit:
 
 
 class TestArkImageBackendProperties:
-    """属性测试。"""
+    """屬性測試。"""
 
     @pytest.fixture()
     def backend(self, monkeypatch: pytest.MonkeyPatch):
@@ -108,7 +108,7 @@ class TestArkImageBackendProperties:
 
 
 class TestArkImageBackendGenerate:
-    """generate() 方法测试。"""
+    """generate() 方法測試。"""
 
     @pytest.fixture()
     def backend_and_client(self, monkeypatch: pytest.MonkeyPatch):

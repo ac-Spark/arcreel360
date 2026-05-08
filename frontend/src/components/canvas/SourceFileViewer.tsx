@@ -5,7 +5,7 @@ import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
 
 // ---------------------------------------------------------------------------
-// SourceFileViewer — 源文件预览/编辑组件
+// SourceFileViewer — 原始檔預覽/編輯元件
 // ---------------------------------------------------------------------------
 
 interface SourceFileViewerProps {
@@ -21,7 +21,7 @@ export function SourceFileViewer({ projectName, filename }: SourceFileViewerProp
   const [editContent, setEditContent] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // 加载文件内容
+  // 載入檔案內容
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -44,7 +44,7 @@ export function SourceFileViewer({ projectName, filename }: SourceFileViewerProp
     return () => { cancelled = true; };
   }, [projectName, filename]);
 
-  // 保存文件
+  // 儲存檔案
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
@@ -52,13 +52,13 @@ export function SourceFileViewer({ projectName, filename }: SourceFileViewerProp
       setContent(editContent);
       setEditing(false);
     } catch {
-      // 可以添加 toast 提示
+      // 可以新增 toast 提示
     } finally {
       setSaving(false);
     }
   }, [projectName, filename, editContent]);
 
-  // 删除文件
+  // 刪除檔案
   const handleDelete = useCallback(async () => {
     if (!confirm(`確定要刪除檔案「${filename}」嗎？此操作無法復原。`)) return;
     try {
@@ -66,7 +66,7 @@ export function SourceFileViewer({ projectName, filename }: SourceFileViewerProp
       useAppStore.getState().invalidateSourceFiles();
       setLocation("/");
     } catch {
-      // 可以添加 toast 提示
+      // 可以新增 toast 提示
     }
   }, [projectName, filename, setLocation]);
 

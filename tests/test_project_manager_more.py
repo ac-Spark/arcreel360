@@ -36,7 +36,7 @@ class _FakeTextBackend:
             text=json.dumps(
                 {
                     "synopsis": "故事梗概",
-                    "genre": "悬疑",
+                    "genre": "懸疑",
                     "theme": "真相",
                     "world_setting": "古代",
                 },
@@ -91,7 +91,7 @@ class TestProjectManagerMore:
         pm = ProjectManager(tmp_path / "projects")
 
         first = pm.generate_project_name("My Demo Project")
-        second = pm.generate_project_name("我的项目")
+        second = pm.generate_project_name("我的專案")
 
         assert first.startswith("my-demo-project-")
         assert second.startswith("project-")
@@ -161,7 +161,7 @@ class TestProjectManagerMore:
             pm.update_scene_asset("demo", "episode_1.json", "NOT_FOUND", "video_clip", "x.mp4")
 
     def test_load_script_strips_scripts_prefix(self, tmp_path):
-        """load_script / save_script / update_scene_asset 应兼容带 scripts/ 前缀的文件名"""
+        """load_script / save_script / update_scene_asset 應相容帶 scripts/ 字首的檔名"""
         pm = ProjectManager(tmp_path / "projects")
         pm.create_project("demo")
         pm.create_project_metadata("demo", "Demo", "Anime", "narration")
@@ -174,21 +174,21 @@ class TestProjectManagerMore:
         }
         pm.save_script("demo", script, "episode_1.json")
 
-        # 纯文件名
+        # 純檔名
         loaded1 = pm.load_script("demo", "episode_1.json")
         assert loaded1["episode"] == 1
 
-        # 带 scripts/ 前缀（前端传入的格式）
+        # 帶 scripts/ 字首（前端傳入的格式）
         loaded2 = pm.load_script("demo", "scripts/episode_1.json")
         assert loaded2["episode"] == 1
 
-        # save_script 也应兼容带前缀的文件名
-        script["title"] = "修改后"
+        # save_script 也應相容帶字首的檔名
+        script["title"] = "修改後"
         pm.save_script("demo", script, "scripts/episode_1.json")
         loaded3 = pm.load_script("demo", "episode_1.json")
-        assert loaded3["title"] == "修改后"
+        assert loaded3["title"] == "修改後"
 
-        # update_scene_asset 也应兼容
+        # update_scene_asset 也應相容
         pm.update_scene_asset(
             "demo", "scripts/episode_1.json", "E1S01", "storyboard_image", "storyboards/scene_E1S01.png"
         )
@@ -247,12 +247,12 @@ class TestProjectManagerMore:
         # direct add_* return bool
         assert pm.add_character("demo", "Bob", "side", "") is True
         assert pm.add_character("demo", "Bob", "side", "") is False
-        assert pm.add_clue("demo", "线索X", "prop", "desc", "minor") is True
-        assert pm.add_clue("demo", "线索X", "prop", "desc", "minor") is False
+        assert pm.add_clue("demo", "線索X", "prop", "desc", "minor") is True
+        assert pm.add_clue("demo", "線索X", "prop", "desc", "minor") is False
 
         added_chars = pm.add_characters_batch("demo", {"Bob": {"description": "d"}, "C": {"description": "d"}})
         assert added_chars == 1
-        added_clues = pm.add_clues_batch("demo", {"线索X": {"type": "prop"}, "线索Y": {"type": "location"}})
+        added_clues = pm.add_clues_batch("demo", {"線索X": {"type": "prop"}, "線索Y": {"type": "location"}})
         assert added_clues == 1
 
         pm.add_episode("demo", 1, "第一集", "scripts/episode_1.json")
@@ -312,7 +312,7 @@ class TestProjectManagerMore:
 
         monkeypatch.setattr("lib.text_generator.create_text_backend_for_task", _fake_create_backend)
         overview = await pm.generate_overview("demo")
-        assert overview["genre"] == "悬疑"
+        assert overview["genre"] == "懸疑"
         assert "generated_at" in overview
 
         with warnings.catch_warnings(record=True) as captured:
@@ -347,17 +347,17 @@ class TestFromCwd:
         project_dir.mkdir(parents=True)
 
         monkeypatch.chdir(project_dir)
-        with pytest.raises(FileNotFoundError, match="不是有效的项目目录"):
+        with pytest.raises(FileNotFoundError, match="不是有效的專案目錄"):
             ProjectManager.from_cwd()
 
 
 class TestPathTraversalProtection:
-    """路径遍历防护测试"""
+    """路徑遍歷防護測試"""
 
     def test_get_project_path_rejects_traversal(self, tmp_path):
         pm = ProjectManager(tmp_path / "projects")
         pm.create_project("demo")
-        # normalize_project_name 的正则先拦截
+        # normalize_project_name 的正則先攔截
         with pytest.raises(ValueError):
             pm.get_project_path("../etc")
         with pytest.raises(ValueError):
@@ -376,7 +376,7 @@ class TestPathTraversalProtection:
         pm = ProjectManager(tmp_path / "projects")
         pm.create_project("demo")
         pm.create_project_metadata("demo", "Demo")
-        with pytest.raises(ValueError, match="非法文件名"):
+        with pytest.raises(ValueError, match="非法檔名"):
             pm.load_script("demo", "../../etc/passwd")
 
     def test_save_script_rejects_traversal_filename(self, tmp_path):
@@ -384,7 +384,7 @@ class TestPathTraversalProtection:
         pm.create_project("demo")
         pm.create_project_metadata("demo", "Demo")
         script = {"novel": {"chapter": "ch1"}, "scenes": [], "metadata": {}}
-        with pytest.raises(ValueError, match="非法文件名"):
+        with pytest.raises(ValueError, match="非法檔名"):
             pm.save_script("demo", script, filename="../../evil.json")
 
     def test_safe_subpath_allows_normal_filenames(self, tmp_path):
@@ -393,6 +393,6 @@ class TestPathTraversalProtection:
         project_dir = pm.get_project_path("demo")
         scripts_dir = project_dir / "scripts"
         scripts_dir.mkdir(exist_ok=True)
-        # 正常文件名不应被拦截
+        # 正常檔名不應被攔截
         real = pm._safe_subpath(scripts_dir, "episode_1.json")
         assert real.endswith("episode_1.json")

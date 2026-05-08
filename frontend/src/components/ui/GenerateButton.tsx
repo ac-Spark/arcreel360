@@ -2,7 +2,7 @@ import { Sparkles, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ---------------------------------------------------------------------------
-// GenerateButton — 带 framer-motion 平滑状态过渡的生成按钮
+// GenerateButton — 帶 framer-motion 平滑狀態過渡的生成按鈕
 // ---------------------------------------------------------------------------
 
 interface GenerateButtonProps {

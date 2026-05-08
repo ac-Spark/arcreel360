@@ -79,7 +79,7 @@ describe("GlobalHeader", () => {
     useProjectsStore.setState({
       currentProjectName: "halou-92d19a04",
       currentProjectData: {
-        title: "哈喽项目",
+        title: "哈嘍專案",
         content_mode: "narration",
         style: "Anime",
         episodes: [],
@@ -90,7 +90,7 @@ describe("GlobalHeader", () => {
 
     renderHeader();
 
-    expect(screen.getByText("哈喽项目")).toBeInTheDocument();
+    expect(screen.getByText("哈嘍專案")).toBeInTheDocument();
     expect(screen.queryByText("halou-92d19a04")).not.toBeInTheDocument();
 
     await waitFor(() => {
@@ -110,7 +110,7 @@ describe("GlobalHeader", () => {
     });
 
     useAppStore.getState().pushWorkspaceNotification({
-      text: "AI 刚更新了线索「玉佩」，点击查看",
+      text: "AI 剛更新了線索「玉佩」，點選檢視",
       target: {
         type: "clue",
         id: "玉佩",
@@ -138,7 +138,7 @@ describe("GlobalHeader", () => {
       expires_in: 300,
       diagnostics: {
         blocking: [],
-        auto_fixed: [{ code: "current_asset_restored_from_version", message: "修复视频引用" }],
+        auto_fixed: [{ code: "current_asset_restored_from_version", message: "修復影片引用" }],
         warnings: [],
       },
     });

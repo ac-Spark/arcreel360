@@ -38,7 +38,7 @@ class TestStatusCalculator:
     def test_calculate_episode_stats_statuses(self, tmp_path):
         calc = StatusCalculator(_FakePM(tmp_path, {}, {}))
 
-        # draft：无任何资源
+        # draft：無任何資源
         draft = calc.calculate_episode_stats(
             "demo",
             {"content_mode": "narration", "segments": [{"duration_seconds": 4}]},
@@ -49,7 +49,7 @@ class TestStatusCalculator:
         assert draft["scenes_count"] == 1
         assert draft["duration_seconds"] == 4
 
-        # in_production：有分镜图
+        # in_production：有分鏡圖
         in_prod = calc.calculate_episode_stats(
             "demo",
             {
@@ -64,7 +64,7 @@ class TestStatusCalculator:
         assert in_prod["storyboards"] == {"total": 2, "completed": 1}
         assert in_prod["videos"] == {"total": 2, "completed": 0}
 
-        # completed：所有场景有视频
+        # completed：所有場景有影片
         completed = calc.calculate_episode_stats(
             "demo",
             {
@@ -82,7 +82,7 @@ class TestStatusCalculator:
         project_root = tmp_path / "projects"
         project_path = project_root / "demo"
 
-        # Case 1: 脚本 JSON 存在 → ("generated", script)
+        # Case 1: 指令碼 JSON 存在 → ("generated", script)
         script_data = {"content_mode": "narration", "segments": []}
         scripts = {"episode_1.json": script_data}
         calc = StatusCalculator(_FakePM(project_root, {}, scripts))
@@ -90,7 +90,7 @@ class TestStatusCalculator:
         assert status == "generated"
         assert script == script_data
 
-        # Case 2: 脚本不存在，draft 文件存在 → ("segmented", None)
+        # Case 2: 指令碼不存在，draft 檔案存在 → ("segmented", None)
         draft_dir = project_path / "drafts" / "episode_2"
         draft_dir.mkdir(parents=True)
         (draft_dir / "step1_segments.md").write_text("ok")
@@ -99,7 +99,7 @@ class TestStatusCalculator:
         assert status2 == "segmented"
         assert script2 is None
 
-        # Case 3: 两者都不存在 → ("none", None)
+        # Case 3: 兩者都不存在 → ("none", None)
         calc3 = StatusCalculator(_FakePM(project_root, {}, {}))
         status3, script3 = calc3._load_episode_script("demo", 3, "scripts/episode_3.json")
         assert status3 == "none"
@@ -114,7 +114,7 @@ class TestStatusCalculator:
         assert status4 == "segmented"
         assert script4 is None
 
-        # Case 5: drama 模式 — 无 step1_normalized_script.md → ("none", None)
+        # Case 5: drama 模式 — 無 step1_normalized_script.md → ("none", None)
         calc5 = StatusCalculator(_FakePM(project_root, {}, {}))
         status5, script5 = calc5._load_episode_script("demo", 5, "scripts/episode_5.json", content_mode="drama")
         assert status5 == "none"
@@ -128,10 +128,10 @@ class TestStatusCalculator:
     def test_calculate_current_phase_worldbuilding(self, tmp_path):
         calc = StatusCalculator(_FakePM(tmp_path, {}, {}))
         project = {"overview": {"synopsis": "test"}}
-        # 无任何 generated 脚本 → worldbuilding
+        # 無任何 generated 指令碼 → worldbuilding
         episodes_stats = [{"script_status": "none"}, {"script_status": "segmented"}]
         assert calc.calculate_current_phase(project, episodes_stats) == "worldbuilding"
-        # 无集 → worldbuilding
+        # 無集 → worldbuilding
         assert calc.calculate_current_phase(project, []) == "worldbuilding"
 
     def test_calculate_current_phase_scripting(self, tmp_path):
@@ -147,7 +147,7 @@ class TestStatusCalculator:
     def test_calculate_current_phase_production_and_completed(self, tmp_path):
         calc = StatusCalculator(_FakePM(tmp_path, {}, {}))
         project = {"overview": {"synopsis": "test"}}
-        # 全部 generated，有未完成视频 → production
+        # 全部 generated，有未完成影片 → production
         episodes_stats = [
             {"script_status": "generated", "status": "in_production"},
             {"script_status": "generated", "status": "draft"},
@@ -264,7 +264,7 @@ class TestStatusCalculator:
         assert enriched_script["clues_in_episode"] == ["C"]
 
     def test_load_episode_script_corrupted_json(self, tmp_path):
-        """JSON 损坏时应降级返回 ('generated', None)，而不是上抛异常。"""
+        """JSON 損壞時應降級返回 ('generated', None)，而不是上拋異常。"""
         import json
 
         class _CorruptPM(_FakePM):

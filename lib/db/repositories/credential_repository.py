@@ -20,7 +20,7 @@ class CredentialRepository(BaseRepository):
         credentials_path: str | None = None,
         base_url: str | None = None,
     ) -> ProviderCredential:
-        """创建凭证。若为该供应商的第一条，自动设为活跃。"""
+        """建立憑證。若為該供應商的第一條，自動設為活躍。"""
         is_first = not await self.has_active_credential(provider)
         cred = ProviderCredential(
             provider=provider,
@@ -60,7 +60,7 @@ class CredentialRepository(BaseRepository):
         return await self.get_active(provider) is not None
 
     async def get_active_credentials_bulk(self) -> dict[str, ProviderCredential]:
-        """批量获取所有供应商的活跃凭证。"""
+        """批次獲取所有供應商的活躍憑證。"""
         stmt = select(ProviderCredential).where(
             ProviderCredential.is_active == True,  # noqa: E712
         )
@@ -68,7 +68,7 @@ class CredentialRepository(BaseRepository):
         return {c.provider: c for c in result.scalars()}
 
     async def activate(self, cred_id: int, provider: str) -> None:
-        """激活指定凭证，同时取消同供应商的其他活跃标记。"""
+        """啟用指定憑證，同時取消同供應商的其他活躍標記。"""
         await self.session.execute(
             update(ProviderCredential).where(ProviderCredential.provider == provider).values(is_active=False)
         )
@@ -85,7 +85,7 @@ class CredentialRepository(BaseRepository):
         credentials_path: str | None = None,
         base_url: str | None | object = _UNSET,
     ) -> None:
-        """更新凭证字段。仅更新非 None 参数（base_url 用 _UNSET 表示未传入）。"""
+        """更新憑證欄位。僅更新非 None 引數（base_url 用 _UNSET 表示未傳入）。"""
         cred = await self.get_by_id(cred_id)
         if cred is None:
             return
@@ -99,7 +99,7 @@ class CredentialRepository(BaseRepository):
             cred.base_url = normalize_base_url(base_url)  # type: ignore[arg-type]
 
     async def delete(self, cred_id: int) -> None:
-        """删除凭证。若删除的是活跃凭证，自动将最早的另一条设为活跃。"""
+        """刪除憑證。若刪除的是活躍憑證，自動將最早的另一條設為活躍。"""
         cred = await self.get_by_id(cred_id)
         if cred is None:
             return

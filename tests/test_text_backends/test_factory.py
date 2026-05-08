@@ -8,7 +8,7 @@ from lib.text_backends.factory import create_text_backend_for_task
 
 
 def _make_mock_resolver(**async_methods):
-    """创建带 session() 上下文管理器的 mock resolver。"""
+    """建立帶 session() 上下文管理器的 mock resolver。"""
     mock = MagicMock()
     for name, return_value in async_methods.items():
         setattr(mock, name, AsyncMock(return_value=return_value))

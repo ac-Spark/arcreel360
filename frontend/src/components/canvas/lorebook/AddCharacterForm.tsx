@@ -74,7 +74,7 @@ export function AddCharacterForm({ onSubmit, onCancel }: AddCharacterFormProps) 
       data-workspace-editing="true"
     >
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-200">添加角色</h3>
+        <h3 className="text-sm font-semibold text-gray-200">新增角色</h3>
         <button
           type="button"
           onClick={onCancel}
@@ -87,13 +87,13 @@ export function AddCharacterForm({ onSubmit, onCancel }: AddCharacterFormProps) 
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label className="block text-xs font-medium text-gray-400 mb-1">
-            名称 <span className="text-red-400">*</span>
+            名稱 <span className="text-red-400">*</span>
           </label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="角色名称"
+            placeholder="角色名稱"
             className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-200 placeholder-gray-500 outline-none focus:border-indigo-500"
             autoFocus
           />
@@ -114,13 +114,13 @@ export function AddCharacterForm({ onSubmit, onCancel }: AddCharacterFormProps) 
 
         <div>
           <label className="block text-xs font-medium text-gray-400 mb-1">
-            声音风格
+            聲音風格
           </label>
           <input
             type="text"
             value={voiceStyle}
             onChange={(e) => setVoiceStyle(e.target.value)}
-            placeholder="可选，例如：温柔但有威严"
+            placeholder="可選，例如：溫柔但有威嚴"
             className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-200 placeholder-gray-500 outline-none focus:border-indigo-500"
           />
         </div>
@@ -184,7 +184,7 @@ export function AddCharacterForm({ onSubmit, onCancel }: AddCharacterFormProps) 
             className="hidden"
           />
           <p className="mt-1 text-xs text-gray-600">
-            用于后续角色设计图生成时保持角色一致性
+            用於後續角色設計圖生成時保持角色一致性
           </p>
         </div>
 

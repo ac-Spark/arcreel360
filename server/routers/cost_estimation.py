@@ -1,4 +1,4 @@
-"""费用估算 API 路由。"""
+"""費用估算 API 路由。"""
 
 from __future__ import annotations
 
@@ -22,18 +22,18 @@ pm = ProjectManager(PROJECT_ROOT / "projects")
 
 @router.get("/projects/{project_name}/cost-estimate")
 async def get_cost_estimate(project_name: str, _user: CurrentUser):
-    """获取项目费用估算（预估 + 实际）。"""
+    """獲取專案費用估算（預估 + 實際）。"""
 
     def _sync():
         if not pm.project_exists(project_name):
-            raise HTTPException(status_code=404, detail=f"项目 '{project_name}' 不存在")
+            raise HTTPException(status_code=404, detail=f"專案 '{project_name}' 不存在")
 
         try:
             project_data = pm.load_project(project_name)
         except FileNotFoundError:
-            raise HTTPException(status_code=404, detail=f"项目 '{project_name}' 不存在")
+            raise HTTPException(status_code=404, detail=f"專案 '{project_name}' 不存在")
 
-        # 加载所有剧本
+        # 載入所有劇本
         scripts: dict[str, dict] = {}
         for ep in project_data.get("episodes", []):
             script_file = ep.get("script_file", "")
@@ -41,7 +41,7 @@ async def get_cost_estimate(project_name: str, _user: CurrentUser):
                 try:
                     scripts[script_file] = pm.load_script(project_name, script_file)
                 except FileNotFoundError:
-                    logger.debug("剧本文件不存在，跳过: %s/%s", project_name, script_file)
+                    logger.debug("劇本檔案不存在，跳過: %s/%s", project_name, script_file)
 
         return project_data, scripts
 
@@ -54,5 +54,5 @@ async def get_cost_estimate(project_name: str, _user: CurrentUser):
     try:
         return await service.compute(project_data, scripts, project_name=project_name)
     except Exception:
-        logger.exception("费用估算失败")
-        raise HTTPException(status_code=500, detail="费用估算失败，请稍后重试")
+        logger.exception("費用估算失敗")
+        raise HTTPException(status_code=500, detail="費用估算失敗，請稍後重試")

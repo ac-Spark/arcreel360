@@ -13,7 +13,7 @@ interface ProviderModelSelectProps {
   allowDefault?: boolean;
   /** Label for the default option (defaults to "跟隨全域預設") */
   defaultLabel?: string;
-  defaultHint?: string; // "当前: gemini-aistudio/veo-3.1-generate-001"
+  defaultHint?: string; // "當前: gemini-aistudio/veo-3.1-generate-001"
   /** Accessible label for the trigger button */
   "aria-label"?: string;
 }

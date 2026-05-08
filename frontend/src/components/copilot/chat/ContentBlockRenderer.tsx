@@ -124,7 +124,7 @@ function ChatImageBlock({ src }: Readonly<{ src: string }>) {
         type="button"
         className="mt-1 cursor-pointer border-0 bg-transparent p-0"
         onClick={() => setOpen(true)}
-        aria-label="點擊放大圖片"
+        aria-label="點選放大圖片"
       >
         <img
           src={src}

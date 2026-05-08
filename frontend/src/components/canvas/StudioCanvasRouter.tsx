@@ -39,7 +39,7 @@ export function StudioCanvasRouter() {
         setCustomProviders(customList);
         setGlobalVideoBackend(configRes.settings?.default_video_backend ?? "");
       },
-    ).catch(() => {});
+    ).catch(() => { });
     return () => { disposed = true; };
   }, []);
 
@@ -49,7 +49,7 @@ export function StudioCanvasRouter() {
     return lookupSupportedDurations(providers, backend, customProviders);
   }, [providers, customProviders, globalVideoBackend, currentProjectData?.video_backend]);
 
-  // 从任务队列派生 loading 状态（替代本地 state）
+  // 從任務佇列派生 loading 狀態（替代本地 state）
   const tasks = useTasksStore((s) => s.tasks);
   const generatingCharacterNames = useMemo(() => {
     const names = new Set<string>();
@@ -78,7 +78,7 @@ export function StudioCanvasRouter() {
     return names;
   }, [tasks, currentProjectName]);
 
-  // 刷新项目数据
+  // 重新整理專案資料
   const refreshProject = useCallback(async (invalidateKeys: string[] = []) => {
     if (!currentProjectName) return;
     try {
@@ -93,7 +93,7 @@ export function StudioCanvasRouter() {
         useAppStore.getState().invalidateEntities(invalidateKeys);
       }
     } catch {
-      // 静默失败
+      // 靜默失敗
     }
   }, [currentProjectName]);
 
@@ -121,7 +121,7 @@ export function StudioCanvasRouter() {
     const script = currentScripts[resolvedFile];
     if (!script) return;
     const segments = ("segments" in script ? script.segments : undefined) ??
-                     ("scenes" in script ? script.scenes : undefined) ?? [];
+      ("scenes" in script ? script.scenes : undefined) ?? [];
     const seg = segments.find((s) => {
       const id = "segment_id" in s ? s.segment_id : (s as { scene_id?: string }).scene_id ?? "";
       return id === segmentId;
@@ -142,7 +142,7 @@ export function StudioCanvasRouter() {
     const script = currentScripts[resolvedFile];
     if (!script) return;
     const segments = ("segments" in script ? script.segments : undefined) ??
-                     ("scenes" in script ? script.scenes : undefined) ?? [];
+      ("scenes" in script ? script.scenes : undefined) ?? [];
     const seg = segments.find((s) => {
       const id = "segment_id" in s ? s.segment_id : (s as { scene_id?: string }).scene_id ?? "";
       return id === segmentId;
@@ -242,7 +242,7 @@ export function StudioCanvasRouter() {
       await API.updateClue(currentProjectName, name, updates);
       await refreshProject();
     } catch (err) {
-      useAppStore.getState().pushToast(`更新線索失敗: ${(err as Error).message}`, "error");
+      useAppStore.getState().pushToast(`更新道具失敗: ${(err as Error).message}`, "error");
     }
   }, [currentProjectName, refreshProject]);
 
@@ -256,7 +256,7 @@ export function StudioCanvasRouter() {
       );
       useAppStore
         .getState()
-        .pushToast(`線索「${name}」生成任務已提交`, "success");
+        .pushToast(`道具「${name}」生成任務已提交`, "success");
     } catch (err) {
       useAppStore.getState().pushToast(`提交失敗: ${(err as Error).message}`, "error");
     }
@@ -268,7 +268,7 @@ export function StudioCanvasRouter() {
       await API.addClue(currentProjectName, name, clueType, description, importance);
       await refreshProject();
       setAddingClue(false);
-      useAppStore.getState().pushToast(`線索「${name}」已新增`, "success");
+      useAppStore.getState().pushToast(`道具「${name}」已新增`, "success");
     } catch (err) {
       useAppStore.getState().pushToast(`新增失敗: ${(err as Error).message}`, "error");
     }

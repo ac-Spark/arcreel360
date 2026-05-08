@@ -134,7 +134,7 @@ export function MediaModelSection() {
       {/* Text backend selectors */}
       <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">
         <div className="mb-3 text-sm font-medium text-gray-100">文字模型</div>
-        <p className="mb-3 text-xs text-gray-500">依任務類型設定文字模型，留空表示自動選擇</p>
+        <p className="mb-3 text-xs text-gray-500">依任務型別設定文字模型，留空表示自動選擇</p>
 
         {textBackends.length > 0 ? (
           <div className="space-y-3">

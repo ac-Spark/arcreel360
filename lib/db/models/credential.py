@@ -9,7 +9,7 @@ from lib.db.base import Base, TimestampMixin
 
 
 class ProviderCredential(TimestampMixin, Base):
-    """供应商凭证。每个供应商可有多条凭证，其中最多一条 is_active=True。"""
+    """供應商憑證。每個供應商可有多條憑證，其中最多一條 is_active=True。"""
 
     __tablename__ = "provider_credential"
     __table_args__ = (
@@ -32,7 +32,7 @@ class ProviderCredential(TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     def overlay_config(self, config: dict[str, str]) -> dict[str, str]:
-        """将凭证字段合并到配置字典中，返回修改后的 config。"""
+        """將憑證欄位合併到配置字典中，返回修改後的 config。"""
         if self.api_key:
             config["api_key"] = self.api_key
         if self.credentials_path:

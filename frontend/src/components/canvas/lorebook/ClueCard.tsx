@@ -28,7 +28,7 @@ interface ClueCardProps {
 
 const TYPE_LABELS: Record<string, string> = {
   prop: "道具",
-  location: "环境",
+  location: "環境",
 };
 
 // ---------------------------------------------------------------------------
@@ -120,7 +120,7 @@ export function ClueCard({
       <div className="mb-4">
         <div className="mb-1.5 flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-            線索設計圖
+            道具設計圖
           </span>
           <VersionTimeMachine
             projectName={projectName}
@@ -131,20 +131,20 @@ export function ClueCard({
         </div>
         <PreviewableImageFrame
           src={sheetUrl && !imgError ? sheetUrl : null}
-          alt={`${name} 设计图`}
+          alt={`${name} 設計圖`}
         >
           <AspectFrame ratio="16:9">
             {sheetUrl && !imgError ? (
               <img
                 src={sheetUrl}
-                alt={`${name} 设计图`}
+                alt={`${name} 設計圖`}
                 className="h-full w-full object-cover"
                 onError={() => setImgError(true)}
               />
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-500">
                 <Puzzle className="h-10 w-10" />
-                <span className="text-xs">點擊生成</span>
+                <span className="text-xs">點選生成</span>
               </div>
             )}
           </AspectFrame>
@@ -159,7 +159,7 @@ export function ClueCard({
         onInput={autoResize}
         rows={2}
         className="mb-3 w-full resize-none overflow-hidden bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-indigo-500 focus:outline-none"
-        placeholder="輸入線索描述..."
+        placeholder="輸入道具描述..."
       />
 
       {isDirty && (

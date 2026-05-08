@@ -82,7 +82,7 @@ export interface ProjectData {
   style_image?: string;
   style_description?: string;
   overview?: ProjectOverview;
-  aspect_ratio?: string | AspectRatio;  // 新项目为 string，旧项目可能为 dict
+  aspect_ratio?: string | AspectRatio;  // 新專案為 string，舊專案可能為 dict
   default_duration?: number | null;     // 新增
   episodes: EpisodeMeta[];
   characters: Record<string, Character>;

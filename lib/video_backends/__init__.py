@@ -1,4 +1,4 @@
-"""视频生成服务层公共 API。"""
+"""影片生成服務層公共 API。"""
 
 from lib.providers import PROVIDER_ARK, PROVIDER_GEMINI, PROVIDER_GROK
 from lib.video_backends.base import (

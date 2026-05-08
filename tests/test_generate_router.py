@@ -117,7 +117,7 @@ class TestGenerateRouter:
                     "script_file": "episode_1.json",
                     "prompt": {
                         "scene": "雨夜",
-                        "composition": {"shot_type": "Medium Shot", "lighting": "暖光", "ambiance": "薄雾"},
+                        "composition": {"shot_type": "Medium Shot", "lighting": "暖光", "ambiance": "薄霧"},
                     },
                 },
             )
@@ -150,7 +150,7 @@ class TestGenerateRouter:
                     "prompt": {
                         "action": "奔跑",
                         "camera_motion": "Static",
-                        "ambiance_audio": "雨声",
+                        "ambiance_audio": "雨聲",
                         "dialogue": [{"speaker": "Alice", "line": "快走"}],
                     },
                 },
@@ -174,7 +174,7 @@ class TestGenerateRouter:
         with client:
             character = client.post(
                 "/api/v1/projects/demo/generate/character/Alice",
-                json={"prompt": "女主，冷静"},
+                json={"prompt": "女主，冷靜"},
             )
             assert character.status_code == 200
             body = character.json()
@@ -195,7 +195,7 @@ class TestGenerateRouter:
         with client:
             clue = client.post(
                 "/api/v1/projects/demo/generate/clue/玉佩",
-                json={"prompt": "古朴玉佩"},
+                json={"prompt": "古樸玉佩"},
             )
             assert clue.status_code == 200
             body = clue.json()

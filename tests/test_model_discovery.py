@@ -1,4 +1,4 @@
-"""模型发现（infer_media_type / discover_models）单元测试。"""
+"""模型發現（infer_media_type / discover_models）單元測試。"""
 
 from __future__ import annotations
 
@@ -14,18 +14,18 @@ from lib.custom_provider.discovery import discover_models, infer_media_type
 
 
 class TestInferMediaType:
-    """关键字推断 media_type。"""
+    """關鍵字推斷 media_type。"""
 
     @pytest.mark.parametrize(
         "model_id, expected",
         [
-            # image 关键字
+            # image 關鍵字
             ("dall-e-4", "image"),
             ("DALL-E-3", "image"),
             ("gpt-image-1.5", "image"),
             ("flux-img-v2", "image"),
             ("stable-image-core", "image"),
-            # video 关键字
+            # video 關鍵字
             ("sora-2", "video"),
             ("kling-v2-master", "video"),
             ("wan-2.1-pro", "video"),
@@ -35,7 +35,7 @@ class TestInferMediaType:
             ("veo-3", "video"),
             ("pika-2.2", "video"),
             ("Video-Generator", "video"),
-            # text (默认)
+            # text (預設)
             ("gpt-5.4", "text"),
             ("gpt-5.4-mini", "text"),
             ("gemini-3-flash", "text"),
@@ -61,11 +61,11 @@ class TestInferMediaType:
 class TestDiscoverModelsOpenAI:
     @patch("lib.custom_provider.discovery.OpenAI")
     async def test_basic_discovery(self, mock_openai_cls):
-        """基本模型发现流程。"""
+        """基本模型發現流程。"""
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
 
-        # 模拟 models.list() 返回
+        # 模擬 models.list() 返回
         model_a = MagicMock()
         model_a.id = "gpt-5.4"
         model_b = MagicMock()
@@ -85,7 +85,7 @@ class TestDiscoverModelsOpenAI:
 
     @patch("lib.custom_provider.discovery.OpenAI")
     async def test_default_marking(self, mock_openai_cls):
-        """每种 media_type 的第一个模型（排序后）标为 is_default=True。"""
+        """每種 media_type 的第一個模型（排序後）標為 is_default=True。"""
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
 
@@ -114,7 +114,7 @@ class TestDiscoverModelsOpenAI:
 
     @patch("lib.custom_provider.discovery.OpenAI")
     async def test_all_enabled(self, mock_openai_cls):
-        """所有发现的模型都应标记为 is_enabled=True。"""
+        """所有發現的模型都應標記為 is_enabled=True。"""
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
 
@@ -128,7 +128,7 @@ class TestDiscoverModelsOpenAI:
 
     @patch("lib.custom_provider.discovery.OpenAI")
     async def test_display_name_equals_model_id(self, mock_openai_cls):
-        """display_name 应等于 model_id。"""
+        """display_name 應等於 model_id。"""
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
 
@@ -142,7 +142,7 @@ class TestDiscoverModelsOpenAI:
 
     @patch("lib.custom_provider.discovery.OpenAI")
     async def test_api_unreachable(self, mock_openai_cls):
-        """API 不可达时应抛出异常。"""
+        """API 不可達時應丟擲異常。"""
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
         mock_client.models.list.side_effect = Exception("Connection refused")
@@ -152,7 +152,7 @@ class TestDiscoverModelsOpenAI:
 
     @patch("lib.custom_provider.discovery.OpenAI")
     async def test_empty_model_list(self, mock_openai_cls):
-        """返回空模型列表时结果为空。"""
+        """返回空模型列表時結果為空。"""
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
         mock_client.models.list.return_value = []
@@ -170,7 +170,7 @@ class TestDiscoverModelsOpenAI:
 class TestDiscoverModelsGoogle:
     @patch("lib.custom_provider.discovery.genai")
     async def test_basic_discovery(self, mock_genai):
-        """Google 格式基本模型发现。"""
+        """Google 格式基本模型發現。"""
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client
 
@@ -188,7 +188,7 @@ class TestDiscoverModelsGoogle:
 
     @patch("lib.custom_provider.discovery.genai")
     async def test_infer_from_generation_methods(self, mock_genai):
-        """从 supported_generation_methods 推断 media_type。"""
+        """從 supported_generation_methods 推斷 media_type。"""
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client
 
@@ -215,7 +215,7 @@ class TestDiscoverModelsGoogle:
 
     @patch("lib.custom_provider.discovery.genai")
     async def test_fallback_to_keyword_matching(self, mock_genai):
-        """当 supported_generation_methods 不可用时，回退到关键字推断。"""
+        """當 supported_generation_methods 不可用時，回退到關鍵字推斷。"""
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client
 
@@ -230,7 +230,7 @@ class TestDiscoverModelsGoogle:
 
     @patch("lib.custom_provider.discovery.genai")
     async def test_default_marking_google(self, mock_genai):
-        """Google 格式的 default 标记逻辑。"""
+        """Google 格式的 default 標記邏輯。"""
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client
 
@@ -250,7 +250,7 @@ class TestDiscoverModelsGoogle:
 
     @patch("lib.custom_provider.discovery.genai")
     async def test_strips_models_prefix(self, mock_genai):
-        """Google API 返回的模型名带 'models/' 前缀，应去除。"""
+        """Google API 返回的模型名帶 'models/' 字首，應去除。"""
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client
 
@@ -266,7 +266,7 @@ class TestDiscoverModelsGoogle:
 
     @patch("lib.custom_provider.discovery.genai")
     async def test_no_base_url(self, mock_genai):
-        """base_url 为 None 时不传 http_options。"""
+        """base_url 為 None 時不傳 http_options。"""
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client
         mock_client.models.list.return_value = []
@@ -277,7 +277,7 @@ class TestDiscoverModelsGoogle:
 
     @patch("lib.custom_provider.discovery.genai")
     async def test_with_base_url(self, mock_genai):
-        """base_url 不为空时传 http_options。"""
+        """base_url 不為空時傳 http_options。"""
         mock_client = MagicMock()
         mock_genai.Client.return_value = mock_client
         mock_client.models.list.return_value = []

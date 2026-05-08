@@ -30,7 +30,7 @@ export function AddClueForm({ onSubmit, onCancel }: AddClueFormProps) {
       data-workspace-editing="true"
     >
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-200">新增線索</h3>
+        <h3 className="text-sm font-semibold text-gray-200">新增道具</h3>
         <button
           type="button"
           onClick={onCancel}
@@ -43,13 +43,13 @@ export function AddClueForm({ onSubmit, onCancel }: AddClueFormProps) {
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label className="block text-xs font-medium text-gray-400 mb-1">
-            名称 <span className="text-red-400">*</span>
+            名稱 <span className="text-red-400">*</span>
           </label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="線索名稱"
+            placeholder="道具名稱"
             className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-200 placeholder-gray-500 outline-none focus:border-indigo-500"
             autoFocus
           />
@@ -57,21 +57,19 @@ export function AddClueForm({ onSubmit, onCancel }: AddClueFormProps) {
 
         <div className="flex gap-3">
           <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-400 mb-1">类型</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1">型別</label>
             <div className="flex gap-2">
-              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-center text-xs transition-colors ${
-                clueType === "prop"
+              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-center text-xs transition-colors ${clueType === "prop"
                   ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
                   : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-              }`}>
+                }`}>
                 <input type="radio" name="clueType" value="prop" checked={clueType === "prop"} onChange={() => setClueType("prop")} className="sr-only" />
                 道具
               </label>
-              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-center text-xs transition-colors ${
-                clueType === "location"
+              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-center text-xs transition-colors ${clueType === "location"
                   ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
                   : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-              }`}>
+                }`}>
                 <input type="radio" name="clueType" value="location" checked={clueType === "location"} onChange={() => setClueType("location")} className="sr-only" />
                 環境
               </label>
@@ -81,19 +79,17 @@ export function AddClueForm({ onSubmit, onCancel }: AddClueFormProps) {
           <div className="flex-1">
             <label className="block text-xs font-medium text-gray-400 mb-1">重要性</label>
             <div className="flex gap-2">
-              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-center text-xs transition-colors ${
-                importance === "major"
+              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-center text-xs transition-colors ${importance === "major"
                   ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
                   : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-              }`}>
+                }`}>
                 <input type="radio" name="importance" value="major" checked={importance === "major"} onChange={() => setImportance("major")} className="sr-only" />
                 重要
               </label>
-              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-center text-xs transition-colors ${
-                importance === "minor"
+              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-center text-xs transition-colors ${importance === "minor"
                   ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
                   : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-              }`}>
+                }`}>
                 <input type="radio" name="importance" value="minor" checked={importance === "minor"} onChange={() => setImportance("minor")} className="sr-only" />
                 次要
               </label>
@@ -108,7 +104,7 @@ export function AddClueForm({ onSubmit, onCancel }: AddClueFormProps) {
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="線索的外觀、特徵、重要性等描述..."
+            placeholder="道具的外觀、特徵、重要性等描述..."
             rows={3}
             className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-200 placeholder-gray-500 outline-none focus:border-indigo-500 resize-none"
           />

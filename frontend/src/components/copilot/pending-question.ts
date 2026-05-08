@@ -28,7 +28,7 @@ export function getQuestionKey(question: Question, index: number): string {
 
 export function buildQuestionOptions(options: Question["options"]): QuestionOption[] {
   const normalized = (Array.isArray(options) ? options : []).map((option, index) => {
-    const label = option?.label || `选项 ${index + 1}`;
+    const label = option?.label || `選項 ${index + 1}`;
     const isOther = isOtherOptionLabel(label);
     return {
       label,
@@ -46,7 +46,7 @@ export function buildQuestionOptions(options: Question["options"]): QuestionOpti
     ...normalized,
     {
       label: ASSISTANT_OTHER_OPTION_LABEL,
-      description: "若以上选项都不符合，可自行输入",
+      description: "若以上選項都不符合，可自行輸入",
       value: ASSISTANT_OTHER_OPTION_VALUE,
       isOther: true,
     },

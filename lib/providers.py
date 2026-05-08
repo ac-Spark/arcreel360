@@ -1,4 +1,4 @@
-"""供应商名称常量，image_backends / video_backends 共用。"""
+"""供應商名稱常量，image_backends / video_backends 共用。"""
 
 from typing import Literal
 

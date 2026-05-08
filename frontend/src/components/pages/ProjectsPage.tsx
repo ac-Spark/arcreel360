@@ -225,7 +225,7 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
             <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">角色 {characters.completed}/{characters.total}</span>
           )}
           {clues && (
-            <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">線索 {clues.completed}/{clues.total}</span>
+            <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">道具 {clues.completed}/{clues.total}</span>
           )}
         </div>
       )}
@@ -401,7 +401,7 @@ export function ProjectsPage() {
               <span>ArcReel 專案工作臺</span>
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[color:var(--wb-text-muted)]">
-              在同一個入口管理小說轉影片專案、匯入封存與系統設定，優先突顯專案脈絡與創作進度，而不是後台表單感。
+              在同一個入口管理小說轉影片專案、匯入封存與系統設定，優先突顯專案脈絡與創作進度，而不是後臺表單感。
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -431,8 +431,8 @@ export function ProjectsPage() {
                 type="button"
                 onClick={() => setShowOpenClaw(true)}
                 className="workbench-button-secondary rounded-xl px-2.5 py-1.5 text-sm"
-                title="OpenClaw 集成"
-                aria-label="OpenClaw 集成指南"
+                title="OpenClaw 整合"
+                aria-label="OpenClaw 整合指南"
               >
                 🦞
               </button>
@@ -469,7 +469,7 @@ export function ProjectsPage() {
               <div className="text-xs uppercase tracking-[0.22em] text-[color:var(--wb-accent-cyan)]">工作臺總覽</div>
               <h2 className="mt-2 text-2xl font-semibold text-[color:var(--wb-text-primary)]">從這裡進入每個創作專案</h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--wb-text-muted)]">
-                專案卡片現在優先顯示脈絡、進度與角色／線索完成度，讓入口頁更像創作工作臺總覽，而不是單純的資料清單。
+                專案卡片現在優先顯示脈絡、進度與角色／道具完成度，讓入口頁更像創作工作臺總覽，而不是單純的資料清單。
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
@@ -498,7 +498,7 @@ export function ProjectsPage() {
           <div className="workbench-panel flex flex-col items-center justify-center rounded-[1.4rem] py-20 text-[color:var(--wb-text-muted)]">
             <FolderOpen className="h-16 w-16 mb-4" />
             <p className="text-lg text-[color:var(--wb-text-primary)]">暫無專案</p>
-            <p className="text-sm mt-1">點擊右上角「新建專案」或「匯入 ZIP」開始創作</p>
+            <p className="text-sm mt-1">點選右上角「新建專案」或「匯入 ZIP」開始創作</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">

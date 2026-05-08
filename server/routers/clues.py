@@ -1,5 +1,5 @@
 """
-线索管理路由
+線索管理路由
 """
 
 import asyncio
@@ -16,7 +16,7 @@ from server.auth import CurrentUser
 
 router = APIRouter()
 
-# 初始化项目管理器
+# 初始化專案管理器
 pm = ProjectManager(PROJECT_ROOT / "projects")
 
 
@@ -40,37 +40,41 @@ class UpdateClueRequest(BaseModel):
 
 @router.post("/projects/{project_name}/clues")
 async def add_clue(project_name: str, req: CreateClueRequest, _user: CurrentUser):
-    """添加线索"""
+    """新增線索"""
     try:
 
         def _sync():
+            manager = get_project_manager()
             with project_change_source("webui"):
-                project = get_project_manager().add_clue(
+                created = manager.add_clue(
                     project_name, req.name, req.clue_type, req.description, req.importance
                 )
+            if not created:
+                raise ValueError(f"線索 '{req.name}' 已存在")
+            project = manager.load_project(project_name)
             return {"success": True, "clue": project["clues"][req.name]}
 
         return await asyncio.to_thread(_sync)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"项目 '{project_name}' 不存在")
+        raise HTTPException(status_code=404, detail=f"專案 '{project_name}' 不存在")
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception("请求处理失败")
+        logger.exception("請求處理失敗")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.patch("/projects/{project_name}/clues/{clue_name}")
 async def update_clue(project_name: str, clue_name: str, req: UpdateClueRequest, _user: CurrentUser):
-    """更新线索"""
+    """更新線索"""
     try:
-        # 验证输入（纯 CPU，无需下沉到线程）
+        # 驗證輸入（純 CPU，無需下沉到執行緒）
         if req.clue_type is not None and req.clue_type not in ["prop", "location"]:
-            raise HTTPException(status_code=400, detail="线索类型必须是 'prop' 或 'location'")
+            raise HTTPException(status_code=400, detail="線索型別必須是 'prop' 或 'location'")
         if req.importance is not None and req.importance not in ["major", "minor"]:
-            raise HTTPException(status_code=400, detail="重要程度必须是 'major' 或 'minor'")
+            raise HTTPException(status_code=400, detail="重要程度必須是 'major' 或 'minor'")
 
         def _sync():
             manager = get_project_manager()
@@ -96,19 +100,19 @@ async def update_clue(project_name: str, clue_name: str, req: UpdateClueRequest,
 
         return await asyncio.to_thread(_sync)
     except KeyError:
-        raise HTTPException(status_code=404, detail=f"线索 '{clue_name}' 不存在")
+        raise HTTPException(status_code=404, detail=f"線索 '{clue_name}' 不存在")
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"项目 '{project_name}' 不存在")
+        raise HTTPException(status_code=404, detail=f"專案 '{project_name}' 不存在")
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception("请求处理失败")
+        logger.exception("請求處理失敗")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/projects/{project_name}/clues/{clue_name}")
 async def delete_clue(project_name: str, clue_name: str, _user: CurrentUser):
-    """删除线索"""
+    """刪除線索"""
     try:
 
         def _sync():
@@ -121,15 +125,15 @@ async def delete_clue(project_name: str, clue_name: str, _user: CurrentUser):
 
             with project_change_source("webui"):
                 manager.update_project(project_name, _mutate)
-            return {"success": True, "message": f"线索 '{clue_name}' 已删除"}
+            return {"success": True, "message": f"線索 '{clue_name}' 已刪除"}
 
         return await asyncio.to_thread(_sync)
     except KeyError:
-        raise HTTPException(status_code=404, detail=f"线索 '{clue_name}' 不存在")
+        raise HTTPException(status_code=404, detail=f"線索 '{clue_name}' 不存在")
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"项目 '{project_name}' 不存在")
+        raise HTTPException(status_code=404, detail=f"專案 '{project_name}' 不存在")
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception("请求处理失败")
+        logger.exception("請求處理失敗")
         raise HTTPException(status_code=500, detail=str(e))
