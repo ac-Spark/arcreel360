@@ -117,7 +117,9 @@ class TestAssistantServiceMore:
         assert service._normalize_provider_id("gemini_full") == "gemini-full"
         assert service._normalize_provider_id("gemini_lite") == "gemini-lite"
         assert service._normalize_provider_id("openai_lite") == "openai-lite"
+        assert service._normalize_provider_id("openai_full") == "openai-full"
         assert service._normalize_provider_id("gemini-full") == "gemini-full"
+        assert service._normalize_provider_id("openai-full") == "openai-full"
         assert service._normalize_provider_id("") == "gemini-lite"
         assert service._normalize_provider_id("garbage") == "gemini-lite"
 

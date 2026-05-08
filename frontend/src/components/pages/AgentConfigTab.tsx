@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Bot, ChevronDown, Eye, EyeOff, Loader2, SlidersHorizontal, Terminal, X } from "lucide-react";
 import { useWarnUnsaved } from "@/hooks/useWarnUnsaved";
 import { API } from "@/api";
@@ -153,6 +153,12 @@ const ASSISTANT_PROVIDER_META: Record<
     description: "OpenAI 相容文字後端，純對話模式。",
     requirement: "需要設定可用的 OpenAI 文字供應商。",
   },
+  "openai-full": {
+    label: "OpenAI · 工作流模式",
+    tier: "full",
+    description: "OpenAI Agents SDK 工具循環：可呼叫 7 個 ArcReel skill 與專案檔案工具。",
+    requirement: "需要設定 OpenAI API Key，並在系統配置中設好 OpenAI 文字後端。",
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -177,7 +183,7 @@ const RUNTIME_MODES: Array<{ id: "lite" | "full"; label: string; hint: string }>
 // brand × mode → provider id；null 代表不可用組合
 const RUNTIME_MATRIX: Record<string, Record<string, string | null>> = {
   gemini: { lite: "gemini-lite", full: "gemini-full" },
-  openai: { lite: "openai-lite", full: null },
+  openai: { lite: "openai-lite", full: "openai-full" },
   claude: { lite: null, full: "claude" },
 };
 
@@ -200,64 +206,61 @@ function AssistantRuntimeGrid({
         橫向：供應商；縱向：能力等級。不可用的組合以禁用態顯示。
       </p>
       <div className="mt-3 overflow-x-auto rounded-xl border border-white/6">
-        <table className="min-w-[520px] w-full table-fixed text-sm">
-          <colgroup>
-            <col className="w-32" />
-            <col />
-            <col />
-            <col />
-          </colgroup>
-          <thead>
-            <tr className="bg-black/16 text-left text-xs uppercase tracking-wide text-[color:var(--wb-text-muted)]">
-              <th className="px-3 py-2"></th>
-              {PROVIDER_BRANDS.map((b) => (
-                <th key={b.id} className="px-3 py-2 text-center font-medium">
-                  {b.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {RUNTIME_MODES.map((mode) => (
-              <tr key={mode.id} className="border-t border-white/6">
-                <td className="px-3 py-3">
-                  <div className="font-medium text-[color:var(--wb-text-primary)]">{mode.label}</div>
-                  <div className="text-xs text-[color:var(--wb-text-muted)]">{mode.hint}</div>
-                </td>
-                {PROVIDER_BRANDS.map((brand) => {
-                  const providerId = RUNTIME_MATRIX[brand.id]?.[mode.id] ?? null;
-                  const isAvailable = providerId !== null && availableSet.has(providerId);
-                  const isSelected = providerId !== null && providerId === value;
-                  return (
-                    <td key={brand.id} className="px-3 py-3 align-middle text-center">
-                      <button
-                        type="button"
-                        disabled={disabled || !isAvailable}
-                        onClick={() => providerId && onChange(providerId)}
-                        title={
-                          providerId === null
-                            ? `${brand.label} ${mode.label} 暫未實現`
-                            : !isAvailable
-                              ? "此組合在後端不在合法清單"
-                              : ""
-                        }
-                        className={`inline-flex h-9 w-full items-center justify-center whitespace-nowrap rounded-lg border px-3 text-xs transition-colors ${
-                          isSelected
-                            ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-100"
-                            : isAvailable
-                              ? "border-white/8 bg-black/12 text-[color:var(--wb-text-secondary)] hover:bg-black/20 hover:text-[color:var(--wb-text-primary)]"
-                              : "cursor-not-allowed border-white/4 bg-black/8 text-[color:var(--wb-text-dim)]"
-                        }`}
-                      >
-                        {providerId === null ? "未實現" : isSelected ? "✓ 使用中" : "選擇"}
-                      </button>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div
+          data-testid="assistant-runtime-grid"
+          className="grid min-w-[560px] grid-cols-[8rem_repeat(3,minmax(7.5rem,1fr))] text-sm"
+        >
+          <div className="h-10 bg-black/16" />
+          {PROVIDER_BRANDS.map((brand) => (
+            <div
+              key={brand.id}
+              className="flex h-10 items-center justify-center bg-black/16 px-3 text-center text-xs font-medium uppercase tracking-wide text-[color:var(--wb-text-muted)]"
+            >
+              {brand.label}
+            </div>
+          ))}
+          {RUNTIME_MODES.map((mode) => (
+            <Fragment key={mode.id}>
+              <div key={`${mode.id}-label`} className="border-t border-white/6 px-3 py-3">
+                <div className="font-medium text-[color:var(--wb-text-primary)]">{mode.label}</div>
+                <div className="text-xs text-[color:var(--wb-text-muted)]">{mode.hint}</div>
+              </div>
+              {PROVIDER_BRANDS.map((brand) => {
+                const providerId = RUNTIME_MATRIX[brand.id]?.[mode.id] ?? null;
+                const isAvailable = providerId !== null && availableSet.has(providerId);
+                const isSelected = providerId !== null && providerId === value;
+                const buttonLabel = providerId === null ? "未實現" : isSelected ? "✓ 使用中" : "選擇";
+                const accessibleState = providerId === null ? "未實現" : isSelected ? "使用中" : "選擇";
+                return (
+                  <div key={`${mode.id}-${brand.id}`} className="border-t border-white/6 px-3 py-3">
+                    <button
+                      type="button"
+                      disabled={disabled || !isAvailable}
+                      onClick={() => providerId && onChange(providerId)}
+                      aria-label={`${brand.label} ${mode.label} ${accessibleState}`}
+                      title={
+                        providerId === null
+                          ? `${brand.label} ${mode.label} 暫未實現`
+                          : !isAvailable
+                            ? "此組合在後端不在合法清單"
+                            : ""
+                      }
+                      className={`inline-flex h-10 w-full items-center justify-center whitespace-nowrap rounded-lg border px-3 text-xs transition-colors ${
+                        isSelected
+                          ? "border-emerald-400/60 bg-emerald-500/10 text-emerald-100"
+                          : isAvailable
+                            ? "border-white/8 bg-black/12 text-[color:var(--wb-text-secondary)] hover:bg-black/20 hover:text-[color:var(--wb-text-primary)]"
+                            : "cursor-not-allowed border-white/4 bg-black/8 text-[color:var(--wb-text-dim)]"
+                      }`}
+                    >
+                      {buttonLabel}
+                    </button>
+                  </div>
+                );
+              })}
+            </Fragment>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -450,7 +453,15 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
 
           <div className={`${cardClassName} space-y-4`}>
             <AssistantRuntimeGrid
-              available={remoteData?.options.assistant_providers ?? ["claude", "gemini-lite", "gemini-full", "openai-lite"]}
+              available={
+                remoteData?.options.assistant_providers ?? [
+                  "claude",
+                  "gemini-lite",
+                  "gemini-full",
+                  "openai-lite",
+                  "openai-full",
+                ]
+              }
               value={draft.assistantProvider}
               onChange={(providerId) => updateDraft("assistantProvider", providerId)}
               disabled={saving}

@@ -39,6 +39,7 @@ function makeConfigResponse(
       video_backends: ["gemini/veo-3"],
       image_backends: ["gemini/imagen-4"],
       text_backends: [],
+      assistant_providers: ["claude", "gemini-lite", "gemini-full", "openai-lite", "openai-full"],
     },
   };
 }
@@ -122,10 +123,24 @@ describe("SystemConfigPage", () => {
 
     expect(await screen.findByText("執行時供應商與模式")).toBeInTheDocument();
 
-    expect(screen.getByRole("table")).toHaveClass("table-fixed");
+    const grid = screen.getByTestId("assistant-runtime-grid");
+    expect(grid).toHaveClass("grid");
+    expect(grid.className).toContain("grid-cols-[8rem_repeat(3,minmax(7.5rem,1fr))]");
     for (const provider of ["Gemini", "OpenAI", "Claude"]) {
-      expect(screen.getByRole("columnheader", { name: provider })).toHaveClass("text-center");
+      expect(screen.getByText(provider)).toHaveClass("justify-center");
     }
+  });
+
+  it("allows selecting OpenAI workflow mode", async () => {
+    renderPage();
+
+    const openaiWorkflow = await screen.findByRole("button", { name: "OpenAI 工作流模式 選擇" });
+    expect(openaiWorkflow).toBeEnabled();
+
+    fireEvent.click(openaiWorkflow);
+
+    expect(await screen.findByText("OpenAI · 工作流模式")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "OpenAI 工作流模式 使用中" })).toHaveTextContent("✓ 使用中");
   });
 
   it("clicking 供應商 makes it the active section", async () => {

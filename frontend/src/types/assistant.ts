@@ -28,6 +28,7 @@ export const ASSISTANT_PROVIDER_LABELS: Record<string, string> = {
   "gemini-lite": "Gemini · 對話模式",
   "gemini-full": "Gemini · 工作流模式",
   "openai-lite": "OpenAI · 對話模式",
+  "openai-full": "OpenAI · 工作流模式",
 };
 
 // Capabilities 由後端權威下發（包含在 session list / get / SSE event 的 capabilities 欄位中）。
@@ -50,6 +51,7 @@ export function inferAssistantProvider(sessionId?: string | null): string {
   // gemini-full 前綴必須先匹配，否則會被 "gemini:" 吃掉
   if (sessionId.startsWith("gemini-full:")) return "gemini-full";
   if (sessionId.startsWith("gemini:")) return "gemini-lite";
+  if (sessionId.startsWith("openai-full:")) return "openai-full";
   if (sessionId.startsWith("openai:")) return "openai-lite";
   return "claude";
 }

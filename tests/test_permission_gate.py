@@ -97,3 +97,81 @@ def test_protocol_compliance() -> None:
     for gate in instances:
         decision = gate.check("any_tool", {"k": "v"}, "session-x")
         assert isinstance(decision, (Allow, Deny, AskUser))
+
+
+@pytest.mark.asyncio
+async def test_openai_wrapper_allows_and_calls_handler() -> None:
+    from server.agent_runtime.permission_gate import as_openai_wrapper
+
+    calls: list[tuple[Any, dict[str, Any]]] = []
+
+    class _Ctx:
+        session_id = "openai-full:test"
+
+    async def handler(ctx: _Ctx, args: dict[str, Any]) -> dict[str, Any]:
+        calls.append((ctx, args))
+        return {"ok": True, "args": args}
+
+    ctx = _Ctx()
+    wrapped = as_openai_wrapper(AlwaysAllowGate(), "fs_read")(handler)
+
+    result = await wrapped(ctx, {"path": "source/a.txt"})
+
+    assert result == {"ok": True, "args": {"path": "source/a.txt"}}
+    assert calls == [(ctx, {"path": "source/a.txt"})]
+
+
+@pytest.mark.asyncio
+async def test_openai_wrapper_denies_without_calling_handler() -> None:
+    from server.agent_runtime.permission_gate import as_openai_wrapper
+
+    called = False
+
+    async def handler(_ctx: Any, _args: dict[str, Any]) -> dict[str, Any]:
+        nonlocal called
+        called = True
+        return {"ok": True}
+
+    wrapped = as_openai_wrapper(CallableGate(lambda *_args: Deny("user rejected")), "fs_write")(handler)
+
+    result = await wrapped(type("Ctx", (), {"session_id": "openai-full:test"})(), {"path": "scripts/x.json"})
+
+    assert result == {
+        "permission_denied": True,
+        "reason": "user rejected",
+        "tool": "fs_write",
+    }
+    assert called is False
+
+
+@pytest.mark.asyncio
+async def test_openai_and_adk_deny_payloads_share_canonical_shape() -> None:
+    from server.agent_runtime.permission_gate import as_adk_callback, as_openai_wrapper
+
+    gate = CallableGate(lambda *_args: Deny("user rejected"))
+
+    async def handler(_ctx: Any, _args: dict[str, Any]) -> dict[str, Any]:
+        return {"ok": True}
+
+    class _OpenAICtx:
+        session_id = "openai-full:test"
+
+    class _AdkTool:
+        name = "fs_write"
+
+    class _AdkContext:
+        class session:
+            id = "gemini-full:test"
+
+    openai_payload = await as_openai_wrapper(gate, "fs_write")(handler)(_OpenAICtx(), {"path": "scripts/x.json"})
+    adk_payload = await as_adk_callback(gate)(_AdkTool(), {"path": "scripts/x.json"}, _AdkContext())
+
+    assert (
+        openai_payload
+        == adk_payload
+        == {
+            "permission_denied": True,
+            "reason": "user rejected",
+            "tool": "fs_write",
+        }
+    )

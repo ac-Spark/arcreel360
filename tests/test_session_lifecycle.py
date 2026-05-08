@@ -367,7 +367,7 @@ class TestEnsureCapacity:
         mgr.sessions["s_stuck"] = stuck
 
         with patch.object(mgr, "_get_max_concurrent", new_callable=AsyncMock, return_value=1):
-            with pytest.raises(SessionCapacityError, match="未能關閉"):
+            with pytest.raises(SessionCapacityError, match="尚未關閉"):
                 await mgr._ensure_capacity()
 
         assert "s_stuck" in mgr.sessions
@@ -389,7 +389,7 @@ class TestEnsureCapacity:
             mgr.sessions[f"s{i}"] = _make_managed(f"s{i}", status="running")
 
         with patch.object(mgr, "_get_max_concurrent", new_callable=AsyncMock, return_value=3):
-            with pytest.raises(SessionCapacityError, match="3個"):
+            with pytest.raises(SessionCapacityError, match=r"3\s*個"):
                 await mgr._ensure_capacity()
 
 

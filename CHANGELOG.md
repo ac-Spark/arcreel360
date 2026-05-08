@@ -2,9 +2,17 @@
 
 本檔記錄 ArcReel 360 相對原始 ArcReel 專案的重要差異與維護脈絡。
 
-## 2026-05-08
+### Gemini Full ADK 遷移與架構收尾
 
-### Gemini Full Assistant Runtime 與相關穩定性修復
+將 `gemini-full` runtime 從原生 `google-genai` function calling 遷移至 Google ADK (`google-adk`) 框架，提升工具循環的穩定性與擴展性。
+
+- **ADK 遷移**：新增 `adk_gemini_full_runtime_provider.py`，使用 `google.adk.Runner` 作為核心引擎，替換手動維護的 `_run_generation` 工具循環。
+- **架構優化**：
+  - **安全性**：`permission_gate` 透過 `as_adk_callback` 整合至 ADK tool loop，支援 PreToolUse 風格的攔截與錯誤回傳。
+  - **持久化**：使用 `AgentMessagesSessionService` (ADK 版) 進行資料庫備份的 session 訊息持久化，與專案既有的 `agent_messages` 模式完美對齊。
+  - **一致性**：通過一致性測試 (`test_consistency.py`) 驗證 ADK 版本輸出的 SSE 事件流與舊版完全一致，確保前端無感遷移。
+- **清理**：刪除舊版 `gemini_full_runtime_provider.py` 及相關遺留測試，將單元測試遷移至 `test_gemini_full_runtime.py`。
+- **Smoketest**：更新 `scripts/gemini_full_smoketest.py` 支援 `--mock` 模式，便於在無 API key 環境下驗證工具鏈完整性。
 
 新增 `gemini-full` 執行階段供應商作為 Claude 之外的第二個 full-tier runtime，並補齊周邊基礎設施與已知缺陷。
 
@@ -18,6 +26,14 @@
 - **助理面板**：`AgentCopilot` / `AgentConfigTab` 新增 provider × tier 二維選擇器與能力提示；移除 Claude 專屬 icon 改用中性 `Bot`，「API 憑證 / 模型設定」兩段僅在實際選擇 Claude 時才顯示，使用 Gemini／OpenAI 不再被 Anthropic 設定洗版。`useAssistantSession` 重寫流式狀態收斂以支援 capability 矩陣。
 - **對話 UX**：新增 `ToolCallGroup`，同一 turn 內連續 ≥2 個非 TodoWrite 的 `tool_use` 自動摺成可展開群組，header 顯示「工具呼叫 N 次／完成數／狀態」，避免 generate 類工作流多步呼叫洗版。
 - **測試**：新增 80+ 案例覆蓋上述新模組（`test_gemini_full_runtime.py`、`test_tool_sandbox.py`、`test_permission_gate.py`、`test_skill_function_declarations.py`、`test_turn_grouper_gemini_full.py`）。
+
+### OpenAI Full Assistant Runtime
+
+- **新 runtime**：新增 `openai-full`，基於 OpenAI Agents SDK (`openai-agents`) 實作 full-tier 工具循環，與 `openai-lite` 純對話路徑並存。`AssistantService` registry、`openai-full:` session routing、capabilities 與 system config 允許清單已補齊。
+- **工具介面卡**：新增 `openai_tool_adapters.py`，將 7 個 ArcReel skill 與 `fs_read` / `fs_write` / `fs_list` / `run_subagent` 包成 11 個 OpenAI `FunctionTool`，直接複用既有手調 schema 並轉成 strict JSON Schema。
+- **權限一致性**：`permission_gate.as_openai_wrapper()` 將 deny 包成 canonical tool_result payload（`permission_denied: true`、`reason`、`tool`），並與 `gemini-full`(ADK) 形狀對齊。
+- **設定頁**：OpenAI × 工作流模式在 provider grid 解鎖，新增「OpenAI · 工作流模式」標籤與 capability 說明；grid 改用固定欄寬 CSS grid，修正三家 provider 欄位視覺對齊。
+- **測試**：新增 `test_openai_full_runtime.py`、`test_openai_tool_adapters.py` 與 `frontend/src/types/assistant.test.ts`，覆蓋工具 schema、Runner stream 投影、歷史重放、中斷、heartbeat timeout、OpenAI/Gemini deny payload 一致性與前端 provider inference。
 
 ### 部署
 

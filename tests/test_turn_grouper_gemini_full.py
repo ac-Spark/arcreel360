@@ -55,7 +55,10 @@ def test_tool_use_attaches_to_preceding_assistant() -> None:
     tool_use_block = next(b for b in blocks if b.get("type") == "tool_use")
     assert tool_use_block["id"] == "tu-1"
     assert tool_use_block["name"] == "manga_workflow_status"
-    assert tool_use_block.get("result") == {"stage": 1}
+    # turn_schema.normalize_block 會把 dict result 序列化為 JSON 字串(避免前端
+    # 把物件直接當 React child 渲染、觸發 React error #31)。tool_result.content
+    # 在進入 turn_grouper 時若是 dict,出口會變成字串。
+    assert tool_use_block.get("result") == '{"stage": 1}'
     assert tool_use_block.get("is_error") is False
 
 
@@ -82,7 +85,7 @@ def test_tool_use_without_preceding_assistant_starts_new_turn() -> None:
     blocks = turns[1]["content"]
     assert blocks[0]["type"] == "tool_use"
     assert blocks[0]["id"] == "tu-x"
-    assert blocks[0]["result"] == {"content": "{}"}
+    assert blocks[0]["result"] == '{"content": "{}"}'
 
 
 def test_orphan_tool_result_is_dropped() -> None:
@@ -122,5 +125,5 @@ def test_multiple_tool_uses_in_one_round() -> None:
     assert ids == {"a", "b"}
     # 两个 result 都应回写到对应 tool_use
     by_id = {b["id"]: b for b in tool_uses}
-    assert by_id["a"]["result"] == {"entries": []}
-    assert by_id["b"]["result"] == {"content": "{}"}
+    assert by_id["a"]["result"] == '{"entries": []}'
+    assert by_id["b"]["result"] == '{"content": "{}"}'

@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -31,6 +31,7 @@ class AskUser:
 
 PermissionDecision = Allow | Deny | AskUser
 GateCallable = Callable[[str, dict[str, Any], str], PermissionDecision | bool | str | None]
+OpenAIToolHandler = Callable[[Any, dict[str, Any]], Awaitable[dict[str, Any]]]
 
 
 class PermissionGate(Protocol):
@@ -103,3 +104,75 @@ def get_default_gate() -> PermissionGate:
 def set_default_gate(gate: PermissionGate) -> None:
     global _default_gate
     _default_gate = gate
+
+
+def _session_id_from_openai_context(ctx: Any) -> str:
+    handler_context = getattr(ctx, "context", ctx)
+    session_id = getattr(handler_context, "session_id", None) or getattr(ctx, "session_id", None)
+    return str(session_id or "")
+
+
+def _handler_context_from_openai_context(ctx: Any) -> Any:
+    return getattr(ctx, "context", ctx)
+
+
+def _decision_to_denied_payload(decision: PermissionDecision, tool_name: str) -> dict[str, Any] | None:
+    """把 PermissionGate 的 decision 轉成 canonical denied dict;Allow 回 None。
+
+    所有 SDK adapter 都呼叫這個 helper,確保 deny payload 跨 provider 1:1 對齊。
+    """
+    if isinstance(decision, Allow):
+        return None
+    if isinstance(decision, Deny):
+        return {
+            "permission_denied": True,
+            "reason": decision.reason,
+            "tool": tool_name,
+        }
+    if isinstance(decision, AskUser):
+        return {
+            "permission_denied": True,
+            "reason": "approval_required",
+            "question": decision.question,
+            "tool": tool_name,
+        }
+    return {
+        "permission_denied": True,
+        "reason": "unknown_permission_decision",
+        "tool": tool_name,
+    }
+
+
+def as_openai_wrapper(
+    gate: PermissionGate,
+    tool_name: str,
+) -> Callable[[OpenAIToolHandler], OpenAIToolHandler]:
+    """把 OpenAI ``FunctionTool`` handler 包上 ArcReel 權限閘門。
+
+    OpenAI Agents SDK 0.1.x 的 per-tool 攔截點是 ``on_invoke_tool``;deny 時直接
+    回傳可序列化 dict,讓 SDK 當作正常 tool output 餵回模型。
+    """
+
+    def decorate(handler: OpenAIToolHandler) -> OpenAIToolHandler:
+        async def wrapped(ctx: Any, args: dict[str, Any]) -> dict[str, Any]:
+            decision = gate.check(tool_name, args, _session_id_from_openai_context(ctx))
+            denied = _decision_to_denied_payload(decision, tool_name)
+            if denied is None:
+                return await handler(_handler_context_from_openai_context(ctx), args)
+            return denied
+
+        return wrapped
+
+    return decorate
+
+
+def as_adk_callback(gate: PermissionGate) -> Callable:
+    """把 ArcReel 權限閘門包裝為 ADK before_tool_callback。"""
+
+    async def before_tool_callback(tool: Any, args: dict[str, Any], tool_context: Any) -> dict[str, Any] | None:
+        session = getattr(tool_context, "session", None)
+        session_id = session.id if session else "unknown"
+        decision = gate.check(tool.name, args, session_id)
+        return _decision_to_denied_payload(decision, tool.name)
+
+    return before_tool_callback

@@ -30,11 +30,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-_ASSISTANT_PROVIDERS = ("claude", "gemini-lite", "gemini-full", "openai-lite")
+_ASSISTANT_PROVIDERS = ("claude", "gemini-lite", "gemini-full", "openai-lite", "openai-full")
 
 
 def _normalize_assistant_provider(value: str) -> str:
     return value.strip().replace("_", "-")
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -203,7 +204,9 @@ async def patch_system_config(
     if "assistant_provider" in patch:
         value = _normalize_assistant_provider(str(patch["assistant_provider"] or "")) or "claude"
         if value not in _ASSISTANT_PROVIDERS:
-            raise HTTPException(status_code=422, detail=f"assistant_provider 必須是 {', '.join(_ASSISTANT_PROVIDERS)} 之一")
+            raise HTTPException(
+                status_code=422, detail=f"assistant_provider 必須是 {', '.join(_ASSISTANT_PROVIDERS)} 之一"
+            )
         await svc.set_setting("assistant_provider", value)
 
     # Boolean settings

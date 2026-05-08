@@ -243,3 +243,86 @@ def fs_list(sandbox: ToolSandbox, path: str) -> dict[str, Any]:
         return {"error": "io_error", "reason": str(exc)}
 
     return {"entries": entries}
+
+
+# ---------------------------------------------------------------------------
+# fs_* 工具的 FunctionDeclaration（plain dict 形式，給 ADK BaseTool 包裝層使用）
+#
+# 這三個常量原本定義於 server/agent_runtime/gemini_full_runtime_provider.py，
+# 隨 legacy provider 移除後搬到此處作為中性位置；ADK 適配層
+# (adk_tool_adapters.py) 會將其轉換為 google.genai.types.FunctionDeclaration。
+# ---------------------------------------------------------------------------
+
+FS_READ_DECLARATION: dict[str, Any] = {
+    "name": "fs_read",
+    "description": "讀取專案內文字檔案。路徑相對於專案根目錄,且必須落在白名單子目錄(source/scripts/characters/clues/storyboards/videos/drafts/output/)或 project.json。",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "專案內相對路徑"},
+            "max_bytes": {
+                "type": "integer",
+                "description": "最大讀取位元組數,預設 1 MiB",
+            },
+        },
+        "required": ["path"],
+    },
+}
+
+FS_WRITE_DECLARATION: dict[str, Any] = {
+    "name": "fs_write",
+    "description": "寫入專案內文字檔案。僅允許白名單路徑,單檔上限 10 MiB。",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "專案內相對路徑"},
+            "content": {"type": "string", "description": "要寫入的 UTF-8 文字內容"},
+            "mode": {
+                "type": "string",
+                "enum": ["overwrite", "create"],
+                "description": "overwrite 會覆寫;create 在檔案已存在時拒絕",
+            },
+        },
+        "required": ["path", "content"],
+    },
+}
+
+FS_LIST_DECLARATION: dict[str, Any] = {
+    "name": "fs_list",
+    "description": "列出白名單目錄下的直接子項,不遞迴,並過濾隱藏檔案。",
+    "parameters": {
+        "type": "object",
+        "properties": {"path": {"type": "string", "description": "白名單目錄的相對路徑"}},
+        "required": ["path"],
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# 共用 async FS handlers（簽名與 SkillHandler 對齊：(ctx, args) -> dict）
+#
+# `ctx` 須具備 `.sandbox` 屬性（型別為 ToolSandbox），即 `SkillCallContext`,
+# 但此處用 `Any` 標註以避免與 `skill_function_declarations` 形成 import 循環。
+# ADK / OpenAI adapter 都直接複用,避免 11 個工具的 handler 各寫一份。
+# ---------------------------------------------------------------------------
+
+
+async def fs_read_handler(ctx: Any, args: dict[str, Any]) -> dict[str, Any]:
+    return fs_read(
+        ctx.sandbox,
+        str(args.get("path") or ""),
+        max_bytes=int(args.get("max_bytes") or 1024 * 1024),
+    )
+
+
+async def fs_write_handler(ctx: Any, args: dict[str, Any]) -> dict[str, Any]:
+    return fs_write(
+        ctx.sandbox,
+        str(args.get("path") or ""),
+        str(args.get("content") or ""),
+        mode=str(args.get("mode") or "overwrite"),
+    )
+
+
+async def fs_list_handler(ctx: Any, args: dict[str, Any]) -> dict[str, Any]:
+    return fs_list(ctx.sandbox, str(args.get("path") or ""))

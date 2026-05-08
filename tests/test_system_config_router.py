@@ -154,6 +154,7 @@ class TestGetSystemConfig:
             "text_backend_script",
             "text_backend_overview",
             "text_backend_style",
+            "assistant_provider",
         }
         assert set(settings.keys()) == expected_keys
 
@@ -321,6 +322,17 @@ class TestPatchSystemConfig:
         assert res.status_code == 200
         assert res.json()["settings"]["assistant_provider"] == "gemini-full"
         mock_svc.set_setting.assert_any_await("assistant_provider", "gemini-full")
+
+    def test_patch_accepts_openai_full_assistant_provider(self):
+        mock_svc = _make_mock_svc()
+        with TestClient(self._make_patch_app(mock_svc)) as client:
+            res = client.patch(
+                "/api/v1/system/config",
+                json={"assistant_provider": "openai_full"},
+            )
+        assert res.status_code == 200
+        assert res.json()["settings"]["assistant_provider"] == "openai-full"
+        mock_svc.set_setting.assert_any_await("assistant_provider", "openai-full")
 
     def test_patch_sets_model_fields(self):
         mock_svc = _make_mock_svc()

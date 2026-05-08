@@ -32,9 +32,10 @@ from fastapi.sse import ServerSentEvent
 from lib.config.service import ConfigService
 from lib.db import async_session_factory
 from lib.project_manager import ProjectManager
-from server.agent_runtime.gemini_full_runtime_provider import GeminiFullRuntimeProvider
+from server.agent_runtime.adk_gemini_full_runtime_provider import AdkGeminiFullRuntimeProvider
 from server.agent_runtime.message_utils import extract_plain_user_content
 from server.agent_runtime.models import SessionMeta, SessionStatus
+from server.agent_runtime.openai_full_runtime_provider import OpenAIFullRuntimeProvider
 from server.agent_runtime.runtime_provider import (
     AssistantRuntimeProvider,
     ClaudeRuntimeProvider,
@@ -44,6 +45,7 @@ from server.agent_runtime.session_identity import (
     CLAUDE_PROVIDER_ID,
     GEMINI_FULL_PROVIDER_ID,
     GEMINI_LITE_PROVIDER_ID,
+    OPENAI_FULL_PROVIDER_ID,
     OPENAI_LITE_PROVIDER_ID,
     infer_provider_id,
     runtime_session_id,
@@ -73,6 +75,18 @@ class AssistantService:
             data_dir=self.data_dir,
             meta_store=self.meta_store,
         )
+
+        gemini_full_provider = AdkGeminiFullRuntimeProvider(
+            project_root=self.project_root,
+            data_dir=self.data_dir,
+            meta_store=self.meta_store,
+        )
+        openai_full_provider = OpenAIFullRuntimeProvider(
+            project_root=self.project_root,
+            data_dir=self.data_dir,
+            meta_store=self.meta_store,
+        )
+
         self.runtime_provider_registry: dict[str, AssistantRuntimeProvider] = {
             CLAUDE_PROVIDER_ID: ClaudeRuntimeProvider(runtime_session_manager),
             GEMINI_LITE_PROVIDER_ID: GeminiLiteProvider(
@@ -85,11 +99,8 @@ class AssistantService:
                 data_dir=self.data_dir,
                 meta_store=self.meta_store,
             ),
-            GEMINI_FULL_PROVIDER_ID: GeminiFullRuntimeProvider(
-                project_root=self.project_root,
-                data_dir=self.data_dir,
-                meta_store=self.meta_store,
-            ),
+            GEMINI_FULL_PROVIDER_ID: gemini_full_provider,
+            OPENAI_FULL_PROVIDER_ID: openai_full_provider,
         }
         self.runtime_provider = RoutingRuntimeProvider(self.runtime_provider_registry, self._resolve_active_provider_id)
         self.session_manager = self.runtime_provider

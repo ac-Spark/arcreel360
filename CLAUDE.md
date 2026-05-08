@@ -96,21 +96,24 @@ ConfigService（`service.py`）→ Repository（持久化 + 金鑰脫敏）→ R
 | provider id | 模式 | tier | 說明 |
 |---|---|---|---|
 | `gemini-lite`（預設） | 對話 | lite | 純文字流式對話，走 `lib/text_backends/gemini.py` |
-| `gemini-full` | 工作流 | full | Gemini function calling 工具循環，可呼叫 fs_*/skill 自動化生成 |
+| `gemini-full` | 工作流 | full | Google ADK 工具循環，可呼叫 fs_*/skill 自動化生成 |
 | `openai-lite` | 對話 | lite | 對應 OpenAI 文字後端 |
+| `openai-full` | 工作流 | full | OpenAI Agents SDK 工具循環，可呼叫 fs_*/skill 自動化生成 |
 | `claude` | 工作流 | full | Claude Agent SDK，bundled CLI + OAuth 登入態 |
 
 核心模組：
 - `service.py` `AssistantService` — 編排 + provider registry + capabilities 注入
 - `text_backend_runtime_provider.py` — lite providers（純對話）+ session lifecycle 基類
-- `gemini_full_runtime_provider.py` — Gemini function calling 工具循環
+- `adk_gemini_full_runtime_provider.py` — Google ADK 版 `gemini-full` 工具循環
+- `openai_full_runtime_provider.py` — OpenAI Agents SDK 版 `openai-full` 工具循環
+- `openai_tool_adapters.py` — 既有 7 個 skill + 4 個 fs 工具轉成 OpenAI `FunctionTool`
 - `tool_sandbox.py` — 白名單沙盒（fs_read/fs_write/fs_list）
-- `permission_gate.py` — PreToolUse 風格權限閘門
+- `permission_gate.py` — PreToolUse 風格權限閘門（ADK / OpenAI wrapper 共用 canonical deny payload）
 - `skill_function_declarations.py` — 7 個 skill → Gemini FunctionDeclaration 翻譯與 dispatch
 - `session_manager.py` — Claude SDK session 管理（僅 claude provider 用）
 - `stream_projector.py` — 從流式事件構建實時助手回覆
 
-session 訊息持久化：`agent_messages` 表（`lib/db/models/agent_message.py`），所有 provider 共用。tool_use / tool_result message 由 `gemini-full` provider 寫入。
+session 訊息持久化：`agent_messages` 表（`lib/db/models/agent_message.py`），所有 provider 共用。tool_use / tool_result message 由 full-tier providers 寫入。
 
 切換 provider 後，新建會話走新 provider（session id 前綴決定路由），舊 session 仍走原 provider 讀歷史。
 
