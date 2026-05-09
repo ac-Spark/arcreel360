@@ -17,6 +17,7 @@ import tempfile
 from pathlib import Path
 
 from lib.project_manager import ProjectManager
+from lib.storyboard_sequence import get_storyboard_items
 
 
 def check_ffmpeg():
@@ -201,6 +202,20 @@ def add_background_music(video_path: Path, music_path: Path, output_path: Path, 
         raise RuntimeError(f"新增背景音樂失敗: {result.stderr}")
 
 
+def resolve_output_path(project_dir: Path, output_filename: str | None, script: dict) -> Path:
+    if output_filename is None:
+        novel = script.get("novel") if isinstance(script.get("novel"), dict) else {}
+        chapter = str(novel.get("chapter") or "output").replace(" ", "_")
+        output_filename = f"{chapter}_final.mp4"
+
+    output_arg = Path(output_filename)
+    if output_arg.is_absolute():
+        return output_arg
+    if output_arg.parts and output_arg.parts[0] == "output":
+        return project_dir / output_arg
+    return project_dir / "output" / output_arg
+
+
 def compose_video(
     script_filename: str, output_filename: str = None, music_path: str = None, use_transitions: bool = True
 ) -> Path:
@@ -226,29 +241,26 @@ def compose_video(
     video_paths = []
     transitions = []
 
-    for scene in script["scenes"]:
-        video_clip = scene.get("generated_assets", {}).get("video_clip")
+    items, id_field, _, _ = get_storyboard_items(script)
+    for item in items:
+        item_id = item.get(id_field) or "<unknown>"
+        video_clip = item.get("generated_assets", {}).get("video_clip")
         if not video_clip:
-            raise ValueError(f"場景 {scene['scene_id']} 缺少影片片段")
+            raise ValueError(f"場景 {item_id} 缺少影片片段")
 
         video_path = project_dir / video_clip
         if not video_path.exists():
             raise FileNotFoundError(f"影片檔案不存在: {video_path}")
 
         video_paths.append(video_path)
-        transitions.append(scene.get("transition_to_next", "cut"))
+        transitions.append(item.get("transition_to_next", "cut"))
 
     if not video_paths:
         raise ValueError("沒有可用的影片片段")
 
     print(f"📹 共 {len(video_paths)} 個影片片段")
 
-    # 確定輸出路徑
-    if output_filename is None:
-        chapter = script["novel"].get("chapter", "output").replace(" ", "_")
-        output_filename = f"{chapter}_final.mp4"
-
-    output_path = project_dir / "output" / output_filename
+    output_path = resolve_output_path(project_dir, output_filename, script)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     # 合成影片

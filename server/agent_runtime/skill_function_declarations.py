@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -71,6 +72,48 @@ def _get_positive_episode(args: dict[str, Any]) -> int | None:
     if isinstance(episode, int) and episode >= 1:
         return episode
     return None
+
+
+def _safe_project_file_exists(project_path: Path, rel_path: Any) -> bool:
+    if not isinstance(rel_path, str) or not rel_path.strip():
+        return False
+    try:
+        base = project_path.resolve()
+        full_path = (project_path / rel_path).resolve()
+        return full_path.is_relative_to(base) and full_path.exists()
+    except (OSError, ValueError):
+        return False
+
+
+def _missing_script_assets(
+    project_path: Path,
+    script_data: dict[str, Any],
+    *,
+    asset_key: str,
+    output_dir: str,
+    suffix: str,
+) -> list[str]:
+    try:
+        from lib.storyboard_sequence import get_storyboard_items
+    except Exception:
+        logger.warning("failed to import storyboard sequence helper", exc_info=True)
+        return []
+
+    items, id_field, _, _ = get_storyboard_items(script_data)
+    missing: list[str] = []
+    for item in items:
+        resource_id = str(item.get(id_field) or "").strip()
+        if not resource_id:
+            continue
+        assets = item.get("generated_assets") if isinstance(item.get("generated_assets"), dict) else {}
+        configured_path = assets.get(asset_key)
+        fallback_path = f"{output_dir}/scene_{resource_id}.{suffix}"
+        if not (
+            _safe_project_file_exists(project_path, configured_path)
+            or _safe_project_file_exists(project_path, fallback_path)
+        ):
+            missing.append(resource_id)
+    return missing
 
 
 # ---------------------------------------------------------------------------
@@ -416,25 +459,46 @@ async def _handle_manga_workflow_status(ctx: SkillCallContext, args: dict[str, A
             },
         }
 
-    # 阶段 7/8：分镜 / 视频
-    storyboards_dir = project_path / "storyboards" / f"episode_{target_ep}"
-    videos_dir = project_path / "videos" / f"episode_{target_ep}"
-    has_storyboards = storyboards_dir.exists() and any(storyboards_dir.iterdir())
-    has_videos = videos_dir.exists() and any(videos_dir.iterdir())
+    try:
+        script_data = json.loads(script_file.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {
+            "stage": 4,
+            "stage_name": "JSON 剧本不可读",
+            "next_action": f"修复 scripts/episode_{target_ep}.json 后再继续",
+            "context": {"episode": target_ep, "reason": str(exc)},
+        }
 
-    if not has_storyboards:
+    # 阶段 7/8：分镜 / 视频。当前资产路径为扁平结构：
+    # storyboards/scene_E1S1.png、videos/scene_E1S1.mp4。
+    missing_storyboards = _missing_script_assets(
+        project_path,
+        script_data,
+        asset_key="storyboard_image",
+        output_dir="storyboards",
+        suffix="png",
+    )
+    missing_videos = _missing_script_assets(
+        project_path,
+        script_data,
+        asset_key="video_clip",
+        output_dir="videos",
+        suffix="mp4",
+    )
+
+    if missing_storyboards:
         return {
             "stage": 7,
             "stage_name": "分镜图生成",
-            "next_action": "通过前端或 generation_storyboard 任务触发（gemini-full provider 暂未实现）",
-            "context": {"episode": target_ep},
+            "next_action": f"调用 generate_storyboard(episode={target_ep})",
+            "context": {"episode": target_ep, "missing_storyboards": missing_storyboards},
         }
-    if not has_videos:
+    if missing_videos:
         return {
             "stage": 8,
             "stage_name": "视频生成",
-            "next_action": "通过前端或 generate_video 任务触发（gemini-full provider 暂未实现）",
-            "context": {"episode": target_ep},
+            "next_action": f"调用 generate_video(episode={target_ep})",
+            "context": {"episode": target_ep, "missing_videos": missing_videos},
         }
 
     return {
@@ -548,6 +612,24 @@ async def _handle_compose_video(ctx: SkillCallContext, args: dict[str, Any]) -> 
     script_path = project_path / "scripts" / script_file
     if not script_path.exists():
         return {"error": "missing_prerequisite", "reason": f"scripts/{script_file} 不存在"}
+    try:
+        script_data = json.loads(script_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"error": "invalid_script", "reason": str(exc)}
+    missing_videos = _missing_script_assets(
+        project_path,
+        script_data,
+        asset_key="video_clip",
+        output_dir="videos",
+        suffix="mp4",
+    )
+    if missing_videos:
+        return {
+            "error": "missing_prerequisite",
+            "reason": "合成前需要先有影片片段",
+            "missing_videos": missing_videos,
+            "next_action": "询问使用者是否要生成缺失影片；不要在 compose_video 请求中自动调用 generate_video",
+        }
 
     script_module = (
         Path(__file__).resolve().parents[2]
@@ -561,13 +643,14 @@ async def _handle_compose_video(ctx: SkillCallContext, args: dict[str, Any]) -> 
     if not script_module.exists():
         return {"error": "compose_script_missing", "reason": str(script_module)}
 
-    output_rel = f"output/episode_{episode}_final.mp4"
+    output_filename = f"episode_{episode}_final.mp4"
+    output_rel = f"output/{output_filename}"
     cmd: list[str] = [
-        "python",
+        sys.executable,
         str(script_module),
         str(script_path),
         "--output",
-        output_rel,
+        output_filename,
     ]
     music = args.get("music")
     if music:
@@ -587,9 +670,7 @@ async def _handle_compose_video(ctx: SkillCallContext, args: dict[str, Any]) -> 
     repo_root = Path(__file__).resolve().parents[2]
     sub_env = _os.environ.copy()
     existing_pp = sub_env.get("PYTHONPATH", "")
-    sub_env["PYTHONPATH"] = (
-        f"{repo_root}{_os.pathsep}{existing_pp}" if existing_pp else str(repo_root)
-    )
+    sub_env["PYTHONPATH"] = f"{repo_root}{_os.pathsep}{existing_pp}" if existing_pp else str(repo_root)
 
     def _run() -> tuple[int, str, str]:
         proc = subprocess.run(

@@ -32,19 +32,25 @@ export const ASSISTANT_PROVIDER_LABELS: Record<string, string> = {
 };
 
 // Capabilities 由後端權威下發（包含在 session list / get / SSE event 的 capabilities 欄位中）。
-// 此處僅保留一組保守的 fallback，用於後端尚未返回 capabilities 時的首屏渲染，
-// 一旦後端 payload 到達就會被覆蓋。
-const FALLBACK_CAPABILITIES: AssistantProviderCapabilities = {
-  provider: "unknown",
-  tier: "lite",
-  supports_streaming: true,
-  supports_images: true,
-  supports_tool_calls: false,
-  supports_interrupt: true,
-  supports_resume: true,
-  supports_subagents: false,
-  supports_permission_hooks: false,
-};
+// fallback 用於後端 capabilities 還沒到達(首屏 / 切 provider 後新建會話的瞬間)。
+// 根據 provider id 推 tier:`*-full` 與 `claude` 是工作流 full,其餘 lite。
+// 一旦後端 SSE event 攜帶 capabilities,本 fallback 會被覆蓋。
+const FULL_TIER_PROVIDERS = new Set(["claude", "gemini-full", "openai-full"]);
+
+function fallbackCapabilitiesForProvider(provider: string): AssistantProviderCapabilities {
+  const isFull = FULL_TIER_PROVIDERS.has(provider);
+  return {
+    provider,
+    tier: isFull ? "full" : "lite",
+    supports_streaming: true,
+    supports_images: true,
+    supports_tool_calls: isFull,
+    supports_interrupt: true,
+    supports_resume: true,
+    supports_subagents: isFull,
+    supports_permission_hooks: isFull,
+  };
+}
 
 export function inferAssistantProvider(sessionId?: string | null): string {
   if (!sessionId) return "gemini-lite";
@@ -62,7 +68,7 @@ export function resolveAssistantCapabilities(
 ): AssistantProviderCapabilities {
   if (sessionLike?.capabilities) return sessionLike.capabilities;
   const provider = sessionLike?.provider || fallbackProvider || inferAssistantProvider(sessionLike?.id);
-  return { ...FALLBACK_CAPABILITIES, provider };
+  return fallbackCapabilitiesForProvider(provider);
 }
 
 export interface SessionMeta {

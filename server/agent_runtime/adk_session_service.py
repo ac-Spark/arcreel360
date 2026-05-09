@@ -1,17 +1,16 @@
 """ADK Session Service bridging to agent_messages table."""
 
-import json
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 from google.adk.events.event import Event
 from google.adk.sessions.base_session_service import BaseSessionService, GetSessionConfig, ListSessionsResponse
 from google.adk.sessions.session import Session
 
-from lib.db.repositories.agent_message_repo import AgentMessageRepository
 from lib.db import safe_session_factory
-from server.agent_runtime.session_store import SessionMetaStore
+from lib.db.repositories.agent_message_repo import AgentMessageRepository
 from server.agent_runtime.session_identity import GEMINI_FULL_PROVIDER_ID, build_external_session_id
+from server.agent_runtime.session_store import SessionMetaStore
 
 
 class AgentMessagesSessionService(BaseSessionService):
@@ -25,8 +24,8 @@ class AgentMessagesSessionService(BaseSessionService):
         *,
         app_name: str,
         user_id: str,
-        state: Optional[dict[str, Any]] = None,
-        session_id: Optional[str] = None,
+        state: dict[str, Any] | None = None,
+        session_id: str | None = None,
     ) -> Session:
         sid = session_id or build_external_session_id(GEMINI_FULL_PROVIDER_ID, uuid4().hex)
         await self._meta_store.create(self.project_name, sid)
@@ -50,8 +49,8 @@ class AgentMessagesSessionService(BaseSessionService):
         app_name: str,
         user_id: str,
         session_id: str,
-        config: Optional[GetSessionConfig] = None,
-    ) -> Optional[Session]:
+        config: GetSessionConfig | None = None,
+    ) -> Session | None:
         session = Session(id=session_id, app_name=app_name, user_id=user_id)
         events = await self.list_events(session_id)
         for e in events:
@@ -69,7 +68,7 @@ class AgentMessagesSessionService(BaseSessionService):
             events.append(self._dict_to_event(msg))
         return events
 
-    async def list_sessions(self, *, app_name: str, user_id: Optional[str] = None) -> ListSessionsResponse:
+    async def list_sessions(self, *, app_name: str, user_id: str | None = None) -> ListSessionsResponse:
         return ListSessionsResponse(sessions=[])
 
     async def delete_session(self, *, app_name: str, user_id: str, session_id: str) -> None:
@@ -79,7 +78,14 @@ class AgentMessagesSessionService(BaseSessionService):
 
     def _event_to_dict(self, event: Event) -> dict[str, Any]:
         """Convert ADK event to legacy agent_messages dict format."""
-        raw_dump = event.model_dump(mode="json", exclude_none=True)
+        # ADK stores per-invocation runtime objects (SkillCallContext, ProjectManager,
+        # ToolSandbox, ...) in actions.state_delta. Those objects are only needed while
+        # the current Runner invocation is alive and cannot be serialized into DB.
+        raw_dump = event.model_dump(
+            mode="json",
+            exclude_none=True,
+            exclude={"actions": {"state_delta"}},
+        )
 
         content = []
         if event.content and event.content.parts:

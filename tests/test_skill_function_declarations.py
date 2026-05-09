@@ -12,7 +12,9 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -311,6 +313,54 @@ async def test_manga_workflow_status_stage_5_6_missing_sheets(
     assert "y" in result["context"]["missing_clue_sheets"]
 
 
+@pytest.mark.asyncio
+async def test_manga_workflow_status_complete_with_flat_generated_assets(
+    context: SkillCallContext,
+    project_manager: ProjectManager,
+    project_name: str,
+    project_root: Path,
+) -> None:
+    project_manager.save_project(
+        project_name,
+        {
+            "title": "Demo",
+            "content_mode": "narration",
+            "style": "anime",
+            "characters": {"x": {"description": "desc", "character_sheet": "characters/x.png"}},
+            "clues": {},
+            "episodes": [{"episode": 1}],
+        },
+    )
+    pdir = project_root / project_name
+    (pdir / "source" / "episode_1.txt").write_text("text", "utf-8")
+    (pdir / "drafts" / "episode_1").mkdir(parents=True)
+    (pdir / "drafts" / "episode_1" / "step1_segments.md").write_text("md", "utf-8")
+    (pdir / "storyboards" / "scene_E1S1.png").write_bytes(b"png")
+    (pdir / "videos" / "scene_E1S1.mp4").write_bytes(b"mp4")
+    (pdir / "scripts" / "episode_1.json").write_text(
+        json.dumps(
+            {
+                "content_mode": "narration",
+                "segments": [
+                    {
+                        "segment_id": "E1S1",
+                        "generated_assets": {
+                            "storyboard_image": "storyboards/scene_E1S1.png",
+                            "video_clip": "videos/scene_E1S1.mp4",
+                        },
+                    }
+                ],
+            }
+        ),
+        "utf-8",
+    )
+
+    result = await run_subagent(context, "manga_workflow_status", {"episode": 1})
+
+    assert result["stage"] == "complete"
+    assert "generate_video" not in result["next_action"]
+
+
 # ---------------------------------------------------------------------------
 # placeholder skills
 # ---------------------------------------------------------------------------
@@ -329,6 +379,47 @@ async def test_asset_skills_require_script_file(context: SkillCallContext, skill
 async def test_asset_skills_reject_invalid_episode(context: SkillCallContext, skill: str) -> None:
     result = await run_subagent(context, skill, {"episode": 0})
     assert result["error"] == "invalid_argument"
+
+
+@pytest.mark.asyncio
+async def test_compose_video_uses_current_python_executable(
+    context: SkillCallContext,
+    project_root: Path,
+    project_name: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pdir = project_root / project_name
+    (pdir / "scripts").mkdir(parents=True, exist_ok=True)
+    (pdir / "scripts" / "episode_1.json").write_text(
+        json.dumps(
+            {
+                "content_mode": "narration",
+                "segments": [
+                    {
+                        "segment_id": "E1S1",
+                        "generated_assets": {"video_clip": "videos/scene_E1S1.mp4"},
+                    }
+                ],
+            }
+        ),
+        "utf-8",
+    )
+    (pdir / "videos" / "scene_E1S1.mp4").write_bytes(b"mp4")
+
+    captured: dict[str, Any] = {}
+
+    def fake_run(cmd: list[str], **kwargs: Any) -> SimpleNamespace:
+        captured["cmd"] = cmd
+        captured["kwargs"] = kwargs
+        return SimpleNamespace(returncode=0, stdout="ok", stderr="")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    result = await run_subagent(context, "compose_video", {"episode": 1})
+
+    assert result["ok"] is True
+    assert captured["cmd"][0] == sys.executable
+    assert captured["cmd"][4] == "episode_1_final.mp4"
 
 
 @pytest.mark.asyncio

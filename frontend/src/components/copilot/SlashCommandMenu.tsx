@@ -88,7 +88,8 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandM
           case "ArrowUp":
             setActiveIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
             return true;
-          case "Enter": {
+          case "Enter":
+          case "Tab": {
             const skill = filtered[activeIndex];
             if (skill) onSelect(`/${skill.name}`);
             return true;

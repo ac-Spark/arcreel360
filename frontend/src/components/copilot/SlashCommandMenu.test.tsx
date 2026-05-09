@@ -84,6 +84,19 @@ describe("SlashCommandMenu", () => {
       expect(onSelect).toHaveBeenCalledWith("/generate-script");
     });
 
+    it("selects the active command with Tab", () => {
+      const ref = createRef<SlashCommandMenuHandle>();
+      render(<SlashCommandMenu ref={ref} filter="" onSelect={onSelect} />);
+
+      let consumed = false;
+      act(() => {
+        consumed = ref.current!.handleKeyDown("Tab");
+      });
+
+      expect(consumed).toBe(true);
+      expect(onSelect).toHaveBeenCalledWith("/manga-workflow");
+    });
+
     it("wraps around when navigating past boundaries", () => {
       const ref = createRef<SlashCommandMenuHandle>();
       render(<SlashCommandMenu ref={ref} filter="" onSelect={onSelect} />);

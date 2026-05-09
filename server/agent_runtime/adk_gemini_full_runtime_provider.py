@@ -6,14 +6,16 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
+from typing import Any
 from uuid import uuid4
 
 from google.adk.agents.llm_agent import LlmAgent
 from google.adk.events.event import Event
 from google.adk.models import Gemini
 from google.adk.runners import Runner
+from google.genai import types as genai_types
 
+from lib.db import async_session_factory
 from lib.project_manager import ProjectManager
 from server.agent_runtime.adk_session_service import AgentMessagesSessionService
 from server.agent_runtime.adk_tool_adapters import ALL_TOOLS
@@ -30,7 +32,6 @@ from server.agent_runtime.text_backend_runtime_provider import (
     LiteManagedSession,
 )
 from server.agent_runtime.tool_sandbox import ToolSandbox
-from lib.db import async_session_factory
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +129,7 @@ class AdkGeminiFullRuntimeProvider(BaseTextBackendRuntimeProvider):
 
         if provider_id == "gemini-vertex":
             from google.oauth2 import service_account
+
             from lib.system_config import resolve_vertex_credentials_path
 
             cred_file = resolve_vertex_credentials_path(self._project_root)
@@ -279,10 +281,29 @@ class AdkGeminiFullRuntimeProvider(BaseTextBackendRuntimeProvider):
             project_name=managed.project_name, session_factory=async_session_factory
         )
 
+        # Runner 需要 app_name 在建構時注入(非 run_async 引數);ADK 內部會用此 app_name
+        # 在 session_service 上做 lookup,所以與 session_service.create_session 時的
+        # app_name 必須一致。
         runner = Runner(
             agent=agent,
+            app_name="arcreel",
             session_service=session_service,
         )
+
+        # Ensure ADK Session 存在(沿用既有 session_id;若已建過 get_session 會回傳)。
+        # state 用來傳 skill_ctx 給 SkillBaseTool.run_async() 透過 tool_context.state 取用。
+        existing = await session_service.get_session(
+            app_name="arcreel",
+            user_id="default_user",
+            session_id=managed.session_id,
+        )
+        if existing is None:
+            await session_service.create_session(
+                app_name="arcreel",
+                user_id="default_user",
+                session_id=managed.session_id,
+                state={"skill_ctx": skill_ctx},
+            )
 
         import os
 
@@ -290,12 +311,15 @@ class AdkGeminiFullRuntimeProvider(BaseTextBackendRuntimeProvider):
 
         try:
             full_text = ""
+            new_message = genai_types.Content(
+                role="user",
+                parts=[genai_types.Part(text=prompt_text)],
+            )
             gen = runner.run_async(
-                session_id=managed.session_id,
-                user_message=prompt_text,
-                state={"skill_ctx": skill_ctx},
-                app_name="arcreel",
                 user_id="default_user",
+                session_id=managed.session_id,
+                new_message=new_message,
+                state_delta={"skill_ctx": skill_ctx},
             )
 
             while True:
@@ -303,7 +327,7 @@ class AdkGeminiFullRuntimeProvider(BaseTextBackendRuntimeProvider):
                     event = await asyncio.wait_for(gen.__anext__(), timeout=heartbeat)
                 except StopAsyncIteration:
                     break
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     raise TimeoutError(f"No response from ADK stream within {heartbeat}s")
 
                 text_chunk = self._project_to_sse(managed, event, model_name)

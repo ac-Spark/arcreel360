@@ -1,13 +1,14 @@
 import pytest
-import json
-from uuid import uuid4
 from google.adk.events.event import Event
-from google.adk.sessions.session import Session
-from server.agent_runtime.adk_session_service import AgentMessagesSessionService
-from lib.db.repositories.agent_message_repo import AgentMessageRepository
-
+from google.adk.events.event_actions import EventActions
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
 from lib.db.base import Base
+from lib.db.repositories.agent_message_repo import AgentMessageRepository
+from lib.project_manager import ProjectManager
+from server.agent_runtime.adk_session_service import AgentMessagesSessionService
+from server.agent_runtime.skill_function_declarations import SkillCallContext
+from server.agent_runtime.tool_sandbox import ToolSandbox
 
 
 @pytest.fixture
@@ -38,6 +39,35 @@ async def test_append_and_list_event(session_service):
     events = await session_service.list_events(session.id)
     assert len(events) == 1
     assert events[0].id == event.id
+    assert events[0].content.parts[0].text == "hello"
+
+
+@pytest.mark.asyncio
+async def test_append_event_omits_non_serializable_skill_context(session_service, tmp_path):
+    project_root = tmp_path / "projects"
+    project_name = "demo"
+    (project_root / project_name).mkdir(parents=True)
+    skill_ctx = SkillCallContext(
+        project_name=project_name,
+        sandbox=ToolSandbox(project_root=project_root, project_name=project_name),
+        project_manager=ProjectManager(projects_root=str(project_root)),
+        session_id="gemini-full:test",
+    )
+    session = await session_service.create_session(app_name="test_app", user_id="test_user")
+    event = Event(
+        author="user",
+        content={"parts": [{"text": "hello"}]},
+        actions=EventActions(state_delta={"skill_ctx": skill_ctx}),
+    )
+
+    await session_service.append_event(session, event)
+
+    async with session_service._session_factory() as db_session:
+        stored = await AgentMessageRepository(db_session).list(session.id)
+    assert stored[0]["adk_event"]["content"]["parts"][0]["text"] == "hello"
+    assert "skill_ctx" not in stored[0]["adk_event"].get("actions", {}).get("state_delta", {})
+
+    events = await session_service.list_events(session.id)
     assert events[0].content.parts[0].text == "hello"
 
 
