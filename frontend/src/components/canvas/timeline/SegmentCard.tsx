@@ -265,23 +265,46 @@ function TextColumn({
   segment,
   contentMode,
   onUpdateNote,
+  onUpdateSourceText,
 }: {
   segment: Segment;
   contentMode: "narration" | "drama";
   onUpdateNote?: (value: string) => void;
+  onUpdateSourceText?: (value: string) => void;
 }) {
   const [noteDraft, setNoteDraft] = useState(segment.note ?? "");
   const committedRef = useRef(segment.note ?? "");
+
+  const initialSource = contentMode === "narration"
+    ? ((segment as NarrationSegment).novel_text ?? "")
+    : "";
+  const [sourceDraft, setSourceDraft] = useState(initialSource);
+  const sourceCommittedRef = useRef(initialSource);
 
   useEffect(() => {
     setNoteDraft(segment.note ?? "");
     committedRef.current = segment.note ?? "";
   }, [segment.note]);
 
+  const sourceFromSegment = contentMode === "narration"
+    ? ((segment as NarrationSegment).novel_text ?? "")
+    : "";
+  useEffect(() => {
+    setSourceDraft(sourceFromSegment);
+    sourceCommittedRef.current = sourceFromSegment;
+  }, [sourceFromSegment]);
+
   const handleNoteBlur = () => {
     if (noteDraft !== committedRef.current) {
       committedRef.current = noteDraft;
       onUpdateNote?.(noteDraft);
+    }
+  };
+
+  const handleSourceBlur = () => {
+    if (sourceDraft !== sourceCommittedRef.current) {
+      sourceCommittedRef.current = sourceDraft;
+      onUpdateSourceText?.(sourceDraft);
     }
   };
 
@@ -303,15 +326,19 @@ function TextColumn({
   );
 
   if (contentMode === "narration") {
-    const s = segment as NarrationSegment;
     return (
       <div className="flex h-full flex-col gap-1.5 p-3">
         <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
           原文
         </span>
-        <pre className="whitespace-pre-wrap text-sm leading-relaxed text-gray-300 font-sans">
-          {s.novel_text || "（暫無原文）"}
-        </pre>
+        <textarea
+          className="min-h-[8rem] w-full resize-y whitespace-pre-wrap rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm leading-relaxed text-gray-300 placeholder-gray-600 focus:border-indigo-500 focus:bg-gray-800/50 focus:outline-none"
+          value={sourceDraft}
+          placeholder="（暫無原文）"
+          aria-label="原文"
+          onChange={(e) => setSourceDraft(e.target.value)}
+          onBlur={handleSourceBlur}
+        />
         {noteSection}
       </div>
     );
@@ -355,11 +382,13 @@ function PromptColumn({
   contentMode,
   segmentId,
   onUpdatePrompt,
+  speakerOptions,
 }: {
   segment: Segment;
   contentMode: "narration" | "drama";
   segmentId: string;
   onUpdatePrompt?: (segmentId: string, field: string, value: unknown) => void;
+  speakerOptions?: string[];
 }) {
   const { image_prompt, video_prompt } = segment;
 
@@ -498,6 +527,7 @@ function PromptColumn({
           <VideoPromptEditor
             prompt={vidDraft}
             onUpdate={fireStructuredVideo}
+            speakerOptions={speakerOptions}
           />
         ) : (
           <AutoTextarea
@@ -745,6 +775,13 @@ export function SegmentCard({
             segment={segment}
             contentMode={contentMode}
             onUpdateNote={(value) => onUpdatePrompt?.(segmentId, "note", value)}
+            onUpdateSourceText={(value) =>
+              onUpdatePrompt?.(
+                segmentId,
+                contentMode === "narration" ? "novel_text" : "scene_description",
+                value,
+              )
+            }
           />
 
           {/* Column 2 — Prompts */}
@@ -753,6 +790,7 @@ export function SegmentCard({
             contentMode={contentMode}
             segmentId={segmentId}
             onUpdatePrompt={onUpdatePrompt}
+            speakerOptions={charNames}
           />
 
           {/* Column 3 — Media */}

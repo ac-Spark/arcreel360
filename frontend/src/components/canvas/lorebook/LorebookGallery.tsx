@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { User, Puzzle, Plus } from "lucide-react";
+import { User, Puzzle, Plus, Sparkles } from "lucide-react";
+import { API } from "@/api";
 import { CharacterCard } from "./CharacterCard";
 import { ClueCard } from "./ClueCard";
 import { useScrollTarget } from "@/hooks/useScrollTarget";
@@ -27,6 +28,10 @@ interface LorebookGalleryProps {
   onUpdateClue: (name: string, updates: Partial<Clue>) => void;
   onGenerateCharacter: (name: string) => void;
   onGenerateClue: (name: string) => void;
+  onDeleteCharacter?: (name: string) => Promise<void> | void;
+  onDeleteClue?: (name: string) => Promise<void> | void;
+  onRenameCharacter?: (oldName: string, newName: string) => Promise<void> | void;
+  onRenameClue?: (oldName: string, newName: string) => Promise<void> | void;
   onRestoreCharacterVersion?: () => Promise<void> | void;
   onRestoreClueVersion?: () => Promise<void> | void;
   generatingCharacterNames?: Set<string>;
@@ -56,6 +61,10 @@ export function LorebookGallery({
   onUpdateClue,
   onGenerateCharacter,
   onGenerateClue,
+  onDeleteCharacter,
+  onDeleteClue,
+  onRenameCharacter,
+  onRenameClue,
   onRestoreCharacterVersion,
   onRestoreClueVersion,
   generatingCharacterNames,
@@ -90,6 +99,29 @@ export function LorebookGallery({
   const clueEntries = Object.entries(clues);
   const charCount = charEntries.length;
   const clueCount = clueEntries.length;
+
+  const [batchBusy, setBatchBusy] = useState<"characters" | "clues" | null>(null);
+
+  const runBatch = async (kind: "characters" | "clues", force: boolean) => {
+    if (batchBusy) return;
+    const label = kind === "characters" ? "角色" : "道具";
+    const fn = kind === "characters" ? API.batchGenerateCharacters : API.batchGenerateClues;
+    setBatchBusy(kind);
+    try {
+      const res = await fn(projectName, { force });
+      useAppStore.getState().pushToast(
+        `已入隊 ${res.enqueued.length} 個${label}，略過 ${res.skipped.length}`,
+        "success",
+      );
+    } catch (err) {
+      useAppStore.getState().pushToast(
+        `批次生成${label}失敗：${(err as Error).message}`,
+        "error",
+      );
+    } finally {
+      setBatchBusy(null);
+    }
+  };
 
   const isGeneratingCharacter = (name: string) =>
     generatingCharacterNames?.has(name) ?? false;
@@ -134,6 +166,8 @@ export function LorebookGallery({
                     projectName={projectName}
                     onSave={onSaveCharacter}
                     onGenerate={onGenerateCharacter}
+                    onDelete={onDeleteCharacter}
+                    onRename={onRenameCharacter}
                     onRestoreVersion={onRestoreCharacterVersion}
                     generating={isGeneratingCharacter(charName)}
                   />
@@ -142,9 +176,33 @@ export function LorebookGallery({
             </div>
           )}
 
-          {onAddCharacter && (
-            <AddButton onClick={onAddCharacter}>新增角色</AddButton>
-          )}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {onAddCharacter && (
+              <AddButton onClick={onAddCharacter}>新增角色</AddButton>
+            )}
+            {charCount > 0 && (
+              <>
+                <BatchButton
+                  loading={batchBusy === "characters"}
+                  disabled={batchBusy !== null}
+                  onClick={() => void runBatch("characters", false)}
+                >
+                  批次生成（缺圖）
+                </BatchButton>
+                <BatchButton
+                  variant="warning"
+                  loading={batchBusy === "characters"}
+                  disabled={batchBusy !== null}
+                  onClick={() => {
+                    if (confirm("會覆寫所有角色設計圖。確定？"))
+                      void runBatch("characters", true);
+                  }}
+                >
+                  全部重生
+                </BatchButton>
+              </>
+            )}
+          </div>
         </>
       )}
 
@@ -166,6 +224,8 @@ export function LorebookGallery({
                     projectName={projectName}
                     onUpdate={onUpdateClue}
                     onGenerate={onGenerateClue}
+                    onDelete={onDeleteClue}
+                    onRename={onRenameClue}
                     onRestoreVersion={onRestoreClueVersion}
                     generating={isGeneratingClue(clueName)}
                   />
@@ -174,10 +234,68 @@ export function LorebookGallery({
             </div>
           )}
 
-          {onAddClue && <AddButton onClick={onAddClue}>新增道具</AddButton>}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {onAddClue && <AddButton onClick={onAddClue}>新增道具</AddButton>}
+            {clueCount > 0 && (
+              <>
+                <BatchButton
+                  loading={batchBusy === "clues"}
+                  disabled={batchBusy !== null}
+                  onClick={() => void runBatch("clues", false)}
+                >
+                  批次生成（缺圖）
+                </BatchButton>
+                <BatchButton
+                  variant="warning"
+                  loading={batchBusy === "clues"}
+                  disabled={batchBusy !== null}
+                  onClick={() => {
+                    if (confirm("會覆寫所有道具設計圖。確定？"))
+                      void runBatch("clues", true);
+                  }}
+                >
+                  全部重生
+                </BatchButton>
+              </>
+            )}
+          </div>
         </>
       )}
     </div>
+  );
+}
+
+function BatchButton({
+  onClick,
+  children,
+  loading,
+  disabled,
+  variant = "primary",
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+  loading?: boolean;
+  disabled?: boolean;
+  variant?: "primary" | "warning";
+}) {
+  const cls =
+    variant === "warning"
+      ? "border-amber-600/40 text-amber-400 hover:border-amber-500 hover:bg-amber-500/10"
+      : "border-indigo-500/40 text-indigo-300 hover:border-indigo-400 hover:bg-indigo-500/10";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${cls}`}
+    >
+      {loading ? (
+        <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border border-current border-t-transparent" />
+      ) : (
+        <Sparkles className="h-4 w-4" />
+      )}
+      {children}
+    </button>
   );
 }
 

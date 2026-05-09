@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Puzzle } from "lucide-react";
+import { Pencil, Puzzle, Trash2 } from "lucide-react";
 import { API } from "@/api";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
 import { AspectFrame } from "@/components/ui/AspectFrame";
@@ -18,6 +18,8 @@ interface ClueCardProps {
   projectName: string;
   onUpdate: (name: string, updates: Partial<Clue>) => void;
   onGenerate: (name: string) => void;
+  onDelete?: (name: string) => Promise<void> | void;
+  onRename?: (oldName: string, newName: string) => Promise<void> | void;
   onRestoreVersion?: () => Promise<void> | void;
   generating?: boolean;
 }
@@ -41,9 +43,27 @@ export function ClueCard({
   projectName,
   onUpdate,
   onGenerate,
+  onDelete,
+  onRename,
   onRestoreVersion,
   generating = false,
 }: ClueCardProps) {
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState(name);
+
+  useEffect(() => {
+    setNameDraft(name);
+  }, [name]);
+
+  const commitRename = async () => {
+    const trimmed = nameDraft.trim();
+    setRenaming(false);
+    if (!trimmed || trimmed === name || !onRename) {
+      setNameDraft(name);
+      return;
+    }
+    await onRename(name, trimmed);
+  };
   const sheetFp = useProjectsStore(
     (s) => clue.clue_sheet ? s.getAssetFingerprint(clue.clue_sheet) : null,
   );
@@ -99,7 +119,39 @@ export function ClueCard({
     >
       {/* ---- Header: name + badges ---- */}
       <div className="mb-4 flex items-center gap-2">
-        <h3 className="text-lg font-bold text-white truncate">{name}</h3>
+        {renaming ? (
+          <input
+            type="text"
+            autoFocus
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onBlur={() => void commitRename()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void commitRename();
+              } else if (e.key === "Escape") {
+                setNameDraft(name);
+                setRenaming(false);
+              }
+            }}
+            className="min-w-0 flex-1 rounded border border-indigo-500 bg-gray-800 px-2 py-0.5 text-lg font-bold text-white focus:outline-none"
+            aria-label="道具名稱"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => onRename && setRenaming(true)}
+            disabled={!onRename}
+            className="group flex min-w-0 items-center gap-1.5 text-left disabled:cursor-default"
+            title={onRename ? "點擊改名" : undefined}
+          >
+            <h3 className="text-lg font-bold text-white truncate">{name}</h3>
+            {onRename && (
+              <Pencil className="h-3 w-3 shrink-0 text-gray-600 opacity-0 transition-opacity group-hover:opacity-100" />
+            )}
+          </button>
+        )}
 
         <span className="shrink-0 rounded-full bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-300">
           {TYPE_LABELS[clue.type] ?? clue.type}
@@ -113,6 +165,22 @@ export function ClueCard({
           <span className="shrink-0 rounded-full bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-400">
             次要
           </span>
+        )}
+
+        {onDelete && (
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm(`確定要刪除道具/場景「${name}」？此操作無法復原。`)) {
+                void onDelete(name);
+              }
+            }}
+            className="ml-auto shrink-0 rounded p-1.5 text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60"
+            title="刪除"
+            aria-label={`刪除 ${name}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         )}
       </div>
 

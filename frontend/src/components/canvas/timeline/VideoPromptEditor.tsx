@@ -10,12 +10,14 @@ import type { VideoPrompt, CameraMotion, Dialogue } from "@/types";
 interface VideoPromptEditorProps {
   prompt: VideoPrompt;
   onUpdate: (patch: Partial<VideoPrompt>) => void;
+  speakerOptions?: string[];
 }
 
 /** Structured editor for VideoPrompt fields with collapsible metadata section. */
 export function VideoPromptEditor({
   prompt,
   onUpdate,
+  speakerOptions,
 }: VideoPromptEditorProps) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -56,6 +58,7 @@ export function VideoPromptEditor({
           <DialogueListEditor
             dialogue={prompt.dialogue ?? []}
             onChange={(d: Dialogue[]) => onUpdate({ dialogue: d })}
+            speakerOptions={speakerOptions}
           />
         </div>
       )}

@@ -262,6 +262,56 @@ export function StudioCanvasRouter() {
     }
   }, [currentProjectName, currentProjectData]);
 
+  const handleDeleteCharacter = useCallback(async (name: string) => {
+    if (!currentProjectName) return;
+    try {
+      await API.deleteCharacter(currentProjectName, name);
+      await refreshProject();
+      useAppStore.getState().pushToast(`角色「${name}」已刪除`, "success");
+    } catch (err) {
+      useAppStore.getState().pushToast(`刪除角色失敗: ${(err as Error).message}`, "error");
+    }
+  }, [currentProjectName, refreshProject]);
+
+  const handleDeleteClue = useCallback(async (name: string) => {
+    if (!currentProjectName) return;
+    try {
+      await API.deleteClue(currentProjectName, name);
+      await refreshProject();
+      useAppStore.getState().pushToast(`道具「${name}」已刪除`, "success");
+    } catch (err) {
+      useAppStore.getState().pushToast(`刪除失敗: ${(err as Error).message}`, "error");
+    }
+  }, [currentProjectName, refreshProject]);
+
+  const handleRenameCharacter = useCallback(async (oldName: string, newName: string) => {
+    if (!currentProjectName) return;
+    try {
+      const res = await API.renameCharacter(currentProjectName, oldName, newName);
+      await refreshProject([buildEntityRevisionKey("character", newName)]);
+      useAppStore.getState().pushToast(
+        `角色「${oldName}」→「${newName}」（更新 ${res.scripts_updated} 份劇本）`,
+        "success",
+      );
+    } catch (err) {
+      useAppStore.getState().pushToast(`改名失敗: ${(err as Error).message}`, "error");
+    }
+  }, [currentProjectName, refreshProject]);
+
+  const handleRenameClue = useCallback(async (oldName: string, newName: string) => {
+    if (!currentProjectName) return;
+    try {
+      const res = await API.renameClue(currentProjectName, oldName, newName);
+      await refreshProject([buildEntityRevisionKey("clue", newName)]);
+      useAppStore.getState().pushToast(
+        `道具「${oldName}」→「${newName}」（更新 ${res.scripts_updated} 份劇本）`,
+        "success",
+      );
+    } catch (err) {
+      useAppStore.getState().pushToast(`改名失敗: ${(err as Error).message}`, "error");
+    }
+  }, [currentProjectName, refreshProject]);
+
   const handleAddClueSubmit = useCallback(async (name: string, clueType: string, description: string, importance: string) => {
     if (!currentProjectName) return;
     try {
@@ -313,6 +363,10 @@ export function StudioCanvasRouter() {
             onUpdateClue={handleUpdateClue}
             onGenerateCharacter={handleGenerateCharacter}
             onGenerateClue={handleGenerateClue}
+            onDeleteCharacter={handleDeleteCharacter}
+            onDeleteClue={handleDeleteClue}
+            onRenameCharacter={handleRenameCharacter}
+            onRenameClue={handleRenameClue}
             onRestoreCharacterVersion={handleRestoreAsset}
             onRestoreClueVersion={handleRestoreAsset}
             generatingCharacterNames={generatingCharacterNames}

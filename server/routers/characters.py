@@ -104,6 +104,60 @@ async def update_character(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class RenameCharacterRequest(BaseModel):
+    new_name: str
+
+
+@router.post("/projects/{project_name}/characters/{char_name}/rename")
+async def rename_character(
+    project_name: str,
+    char_name: str,
+    req: RenameCharacterRequest,
+    _user: CurrentUser,
+):
+    """改名角色：搬移檔案、更新版本記錄、替換劇本引用、寫回 project.json。"""
+    from lib.resource_rename import rename_resource
+
+    try:
+
+        def _sync():
+            manager = get_project_manager()
+            project_path = manager.get_project_path(project_name)
+            project = manager.load_project(project_name)
+
+            with project_change_source("webui"):
+                result = rename_resource(
+                    project_path=project_path,
+                    project=project,
+                    kind="character",
+                    old_name=char_name,
+                    new_name=req.new_name,
+                )
+                manager.save_project(project_name, project)
+
+            return {
+                "success": True,
+                "old_name": char_name,
+                "new_name": req.new_name,
+                "files_moved": result.files_moved,
+                "scripts_updated": result.scripts_updated,
+                "versions_updated": result.versions_updated,
+            }
+
+        return await asyncio.to_thread(_sync)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"專案 '{project_name}' 不存在")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete("/projects/{project_name}/characters/{char_name}")
 async def delete_character(project_name: str, char_name: str, _user: CurrentUser):
     """刪除角色"""

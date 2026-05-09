@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ImagePlus, Upload, User } from "lucide-react";
+import { ImagePlus, Pencil, Trash2, Upload, User } from "lucide-react";
 import { API } from "@/api";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
 import { AspectFrame } from "@/components/ui/AspectFrame";
@@ -21,6 +21,8 @@ interface CharacterCardProps {
   projectName: string;
   onSave: (name: string, payload: CharacterSavePayload) => Promise<void>;
   onGenerate: (name: string) => void;
+  onDelete?: (name: string) => Promise<void> | void;
+  onRename?: (oldName: string, newName: string) => Promise<void> | void;
   onRestoreVersion?: () => Promise<void> | void;
   generating?: boolean;
 }
@@ -31,9 +33,27 @@ export function CharacterCard({
   projectName,
   onSave,
   onGenerate,
+  onDelete,
+  onRename,
   onRestoreVersion,
   generating = false,
 }: CharacterCardProps) {
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState(name);
+
+  useEffect(() => {
+    setNameDraft(name);
+  }, [name]);
+
+  const commitRename = async () => {
+    const trimmed = nameDraft.trim();
+    setRenaming(false);
+    if (!trimmed || trimmed === name || !onRename) {
+      setNameDraft(name);
+      return;
+    }
+    await onRename(name, trimmed);
+  };
   const sheetFp = useProjectsStore(
     (s) => character.character_sheet ? s.getAssetFingerprint(character.character_sheet) : null,
   );
@@ -152,7 +172,56 @@ export function CharacterCard({
         setIsEditing(false);
       }}
     >
-      <h3 className="mb-4 truncate text-lg font-bold text-white">{name}</h3>
+      <div className="mb-4 flex items-center justify-between gap-2">
+        {renaming ? (
+          <input
+            type="text"
+            autoFocus
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onBlur={() => void commitRename()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void commitRename();
+              } else if (e.key === "Escape") {
+                setNameDraft(name);
+                setRenaming(false);
+              }
+            }}
+            className="flex-1 rounded border border-indigo-500 bg-gray-800 px-2 py-0.5 text-lg font-bold text-white focus:outline-none"
+            aria-label="角色名稱"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => onRename && setRenaming(true)}
+            disabled={!onRename}
+            className="group flex flex-1 min-w-0 items-center gap-1.5 text-left disabled:cursor-default"
+            title={onRename ? "點擊改名" : undefined}
+          >
+            <h3 className="truncate text-lg font-bold text-white">{name}</h3>
+            {onRename && (
+              <Pencil className="h-3 w-3 shrink-0 text-gray-600 opacity-0 transition-opacity group-hover:opacity-100" />
+            )}
+          </button>
+        )}
+        {onDelete && (
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm(`確定要刪除角色「${name}」？此操作無法復原。`)) {
+                void onDelete(name);
+              }
+            }}
+            className="shrink-0 rounded p-1.5 text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60"
+            title="刪除角色"
+            aria-label={`刪除角色 ${name}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </div>
 
       <div className="mb-4 space-y-3">
         <div>
