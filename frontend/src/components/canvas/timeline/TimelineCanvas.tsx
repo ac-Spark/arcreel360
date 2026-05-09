@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { Pencil } from "lucide-react";
+import { API } from "@/api";
+import { useAppStore } from "@/stores/app-store";
+import { useProjectsStore } from "@/stores/projects-store";
 import { SegmentCard } from "./SegmentCard";
 import { PreprocessingView } from "./PreprocessingView";
+import { FinalVideoCard } from "./FinalVideoCard";
+import { EpisodeActionsBar } from "./EpisodeActionsBar";
 import { useScrollTarget } from "@/hooks/useScrollTarget";
 import { useCostStore } from "@/stores/cost-store";
 import { formatCost, totalBreakdown } from "@/utils/cost-format";
@@ -164,11 +170,11 @@ export function TimelineCanvas({
       <div className="p-4">
         {/* ---- Episode header ---- */}
         <div className="mb-4">
-          <h2 className="text-lg font-semibold text-gray-100">
-            {episodeScript
-              ? `E${episodeScript.episode}: ${episodeScript.title}`
-              : `E${episode}${episodeTitle ? `: ${episodeTitle}` : ""}`}
-          </h2>
+          <EpisodeTitleEditor
+            projectName={projectName}
+            episode={episodeScript?.episode ?? episode}
+            title={episodeScript?.title ?? episodeTitle ?? ""}
+          />
           {episodeScript && (
             <p className="text-xs text-gray-500">
               {segments.length} {segmentLabel} · 約 {totalDuration}s
@@ -187,6 +193,12 @@ export function TimelineCanvas({
               <span className="text-gray-500">總計 <span className="font-medium text-emerald-400">{formatCost(totalBreakdown(episodeCost.totals.actual))}</span></span>
             </div>
           )}
+          <EpisodeActionsBar
+            projectName={projectName}
+            episode={episodeScript?.episode ?? episode}
+            scriptFile={scriptFile}
+            hasScript={hasScript}
+          />
         </div>
 
         {/* ---- Tab bar (only when draft exists) ---- */}
@@ -267,9 +279,108 @@ export function TimelineCanvas({
           </div>
         ) : null}
 
+        {/* Final composed video */}
+        {activeTab === "timeline" && episodeScript && (
+          <FinalVideoCard projectName={projectName} episode={episodeScript.episode} />
+        )}
+
         {/* Bottom spacer for scroll comfort */}
         <div className="h-16" />
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// EpisodeTitleEditor — inline-editable episode title with hover pencil icon
+// ---------------------------------------------------------------------------
+
+function EpisodeTitleEditor({
+  projectName,
+  episode,
+  title,
+}: {
+  projectName: string;
+  episode: number;
+  title: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(title);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft(title);
+  }, [title]);
+
+  const commit = async () => {
+    const trimmed = draft.trim();
+    if (!trimmed) {
+      setDraft(title);
+      setEditing(false);
+      return;
+    }
+    if (trimmed === title) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      await API.updateEpisode(projectName, episode, { title: trimmed });
+      const res = await API.getProject(projectName);
+      useProjectsStore.getState().setCurrentProject(
+        projectName,
+        res.project,
+        res.scripts ?? {},
+        res.asset_fingerprints,
+      );
+      useAppStore.getState().pushToast(`E${episode} 標題已更新`, "success");
+    } catch (err) {
+      useAppStore.getState().pushToast(`更新失敗：${(err as Error).message}`, "error");
+      setDraft(title);
+    } finally {
+      setSaving(false);
+      setEditing(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-lg font-semibold text-gray-400">E{episode}:</span>
+        <input
+          type="text"
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => void commit()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void commit();
+            } else if (e.key === "Escape") {
+              setDraft(title);
+              setEditing(false);
+            }
+          }}
+          disabled={saving}
+          className="flex-1 rounded border border-indigo-500 bg-gray-800 px-2 py-0.5 text-lg font-semibold text-gray-100 focus:outline-none disabled:opacity-50"
+          aria-label="集數標題"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      className="group flex items-center gap-2 text-left"
+      title="點擊編輯標題"
+    >
+      <h2 className="text-lg font-semibold text-gray-100">
+        E{episode}{title ? `: ${title}` : ""}
+      </h2>
+      <Pencil className="h-3.5 w-3.5 text-gray-600 opacity-0 transition-opacity group-hover:opacity-100" />
+    </button>
   );
 }

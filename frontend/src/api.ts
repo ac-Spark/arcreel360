@@ -302,6 +302,130 @@ class API {
     });
   }
 
+  static async updateEpisode(
+    name: string,
+    episode: number,
+    updates: { title?: string }
+  ): Promise<{ success: boolean }> {
+    return this.request(
+      `/projects/${encodeURIComponent(name)}/episodes/${episode}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(updates),
+      }
+    );
+  }
+
+  // ==================== 批次生成 ====================
+
+  static async batchGenerateStoryboards(
+    name: string,
+    body: { script_file: string; ids?: string[] | null; force?: boolean }
+  ): Promise<{ enqueued: string[]; skipped: { id: string; reason: string }[] }> {
+    return this.request(
+      `/projects/${encodeURIComponent(name)}/generate/storyboards/batch`,
+      { method: "POST", body: JSON.stringify(body) }
+    );
+  }
+
+  static async batchGenerateVideos(
+    name: string,
+    body: { script_file: string; ids?: string[] | null; force?: boolean }
+  ): Promise<{ enqueued: string[]; skipped: { id: string; reason: string }[] }> {
+    return this.request(
+      `/projects/${encodeURIComponent(name)}/generate/videos/batch`,
+      { method: "POST", body: JSON.stringify(body) }
+    );
+  }
+
+  static async batchGenerateCharacters(
+    name: string,
+    body: { names?: string[] | null; force?: boolean } = {}
+  ): Promise<{ enqueued: string[]; skipped: { id: string; reason: string }[] }> {
+    return this.request(
+      `/projects/${encodeURIComponent(name)}/generate/characters/batch`,
+      { method: "POST", body: JSON.stringify(body) }
+    );
+  }
+
+  static async batchGenerateClues(
+    name: string,
+    body: { names?: string[] | null; force?: boolean } = {}
+  ): Promise<{ enqueued: string[]; skipped: { id: string; reason: string }[] }> {
+    return this.request(
+      `/projects/${encodeURIComponent(name)}/generate/clues/batch`,
+      { method: "POST", body: JSON.stringify(body) }
+    );
+  }
+
+  // ==================== 集數工作流 ====================
+
+  static async composeEpisode(
+    name: string,
+    episode: number
+  ): Promise<{ output_path: string; stdout_tail: string; duration_seconds: number }> {
+    return this.request(
+      `/projects/${encodeURIComponent(name)}/episodes/${episode}/compose`,
+      { method: "POST", body: JSON.stringify({}) }
+    );
+  }
+
+  static async generateEpisodeScript(
+    name: string,
+    episode: number
+  ): Promise<{ script_file: string; segments_count: number }> {
+    return this.request(
+      `/projects/${encodeURIComponent(name)}/episodes/${episode}/script`,
+      { method: "POST", body: JSON.stringify({}) }
+    );
+  }
+
+  static async preprocessEpisode(
+    name: string,
+    episode: number
+  ): Promise<{ step1_path: string; content_mode: string }> {
+    return this.request(
+      `/projects/${encodeURIComponent(name)}/episodes/${episode}/preprocess`,
+      { method: "POST", body: JSON.stringify({}) }
+    );
+  }
+
+  static async renameCharacter(
+    projectName: string,
+    oldName: string,
+    newName: string
+  ): Promise<{
+    success: boolean;
+    old_name: string;
+    new_name: string;
+    files_moved: number;
+    scripts_updated: number;
+    versions_updated: number;
+  }> {
+    return this.request(
+      `/projects/${encodeURIComponent(projectName)}/characters/${encodeURIComponent(oldName)}/rename`,
+      { method: "POST", body: JSON.stringify({ new_name: newName }) }
+    );
+  }
+
+  static async renameClue(
+    projectName: string,
+    oldName: string,
+    newName: string
+  ): Promise<{
+    success: boolean;
+    old_name: string;
+    new_name: string;
+    files_moved: number;
+    scripts_updated: number;
+    versions_updated: number;
+  }> {
+    return this.request(
+      `/projects/${encodeURIComponent(projectName)}/clues/${encodeURIComponent(oldName)}/rename`,
+      { method: "POST", body: JSON.stringify({ new_name: newName }) }
+    );
+  }
+
   static async deleteProject(name: string): Promise<SuccessResponse> {
     return this.request(`/projects/${encodeURIComponent(name)}`, {
       method: "DELETE",

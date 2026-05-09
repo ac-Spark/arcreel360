@@ -598,6 +598,7 @@ class UpdateSegmentRequest(BaseModel):
     video_prompt: dict | str | None = None
     transition_to_next: str | None = None
     note: str | None = None
+    novel_text: str | None = None
 
 
 class UpdateOverviewRequest(BaseModel):
@@ -637,6 +638,8 @@ async def update_segment(name: str, segment_id: str, req: UpdateSegmentRequest, 
                         segment["transition_to_next"] = req.transition_to_next
                     if "note" in req.model_fields_set:
                         segment["note"] = req.note
+                    if req.novel_text is not None:
+                        segment["novel_text"] = req.novel_text
                     break
 
             if not segment_found:
@@ -651,6 +654,61 @@ async def update_segment(name: str, segment_id: str, req: UpdateSegmentRequest, 
         raise HTTPException(status_code=404, detail="劇本不存在")
     except HTTPException:
         raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== 劇集元資料 ====================
+
+
+class UpdateEpisodeRequest(BaseModel):
+    title: str | None = None
+
+
+@router.patch("/projects/{name}/episodes/{episode}")
+async def update_episode(
+    name: str,
+    episode: int,
+    req: UpdateEpisodeRequest,
+    _user: CurrentUser,
+):
+    """更新劇集元資料（title 同步寫入 project.json 與 scripts/episode_N.json）。"""
+    try:
+
+        def _sync():
+            manager = get_project_manager()
+            project = manager.load_project(name)
+            episodes = project.get("episodes", [])
+            target = next((e for e in episodes if e.get("episode") == episode), None)
+            if target is None:
+                raise HTTPException(status_code=404, detail=f"劇集 E{episode} 不存在")
+
+            new_title: str | None = None
+            if req.title is not None:
+                new_title = req.title.strip()
+                if not new_title:
+                    raise HTTPException(status_code=400, detail="title 不可為空")
+                target["title"] = new_title
+
+            with project_change_source("webui"):
+                manager.save_project(name, project)
+                if new_title is not None:
+                    script_file = target.get("script_file") or f"scripts/episode_{episode}.json"
+                    script_filename = script_file.replace("scripts/", "")
+                    try:
+                        script = manager.load_script(name, script_filename)
+                        script["title"] = new_title
+                        manager.save_script(name, script, script_filename)
+                    except FileNotFoundError:
+                        pass  # 劇本檔尚未生成時略過
+            return {"success": True, "episode": target}
+
+        return await asyncio.to_thread(_sync)
+    except HTTPException:
+        raise
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
     except Exception as e:
         logger.exception("請求處理失敗")
         raise HTTPException(status_code=500, detail=str(e))
@@ -764,6 +822,217 @@ async def generate_overview(name: str, _user: CurrentUser):
         raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== 劇集流程：合成 / 劇本生成 / 預處理 ====================
+
+
+def _find_episode_script_file(project: dict, episode: int) -> str | None:
+    """從 project.json 找到指定集對應的 script_file（相對路徑，不含 scripts/ 前綴）。"""
+    for ep in project.get("episodes", []):
+        if int(ep.get("episode", -1)) == int(episode):
+            sf = ep.get("script_file")
+            if sf:
+                return sf.replace("scripts/", "", 1) if sf.startswith("scripts/") else sf
+    return None
+
+
+@router.post("/projects/{name}/episodes/{episode}/compose")
+async def compose_episode_video(name: str, episode: int, _user: CurrentUser):
+    """呼叫 compose-video skill 腳本拼接最終影片。阻塞執行，最長 30 分鐘。"""
+    import subprocess
+    import sys
+    import time
+
+    try:
+        manager = get_project_manager()
+
+        def _prep():
+            if not manager.project_exists(name):
+                raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+            project = manager.load_project(name)
+            script_file = _find_episode_script_file(project, episode)
+            if not script_file:
+                raise HTTPException(status_code=404, detail=f"第 {episode} 集不存在")
+            project_path = manager.get_project_path(name)
+            script_path = project_path / "scripts" / script_file
+            if not script_path.exists():
+                raise HTTPException(status_code=404, detail=f"劇本檔案不存在: {script_file}")
+            return project_path, script_file
+
+        project_path, script_file = await asyncio.to_thread(_prep)
+
+        compose_script = (
+            PROJECT_ROOT
+            / "agent_runtime_profile"
+            / ".claude"
+            / "skills"
+            / "compose-video"
+            / "scripts"
+            / "compose_video.py"
+        )
+        if not compose_script.exists():
+            raise HTTPException(status_code=500, detail=f"找不到 compose 腳本: {compose_script}")
+
+        def _run():
+            start = time.monotonic()
+            proc = subprocess.run(
+                [sys.executable, str(compose_script), script_file],
+                cwd=str(project_path),
+                capture_output=True,
+                text=True,
+                timeout=1800,
+            )
+            return proc, time.monotonic() - start
+
+        proc, elapsed = await asyncio.to_thread(_run)
+        if proc.returncode != 0:
+            raise HTTPException(
+                status_code=500,
+                detail=f"compose_video 執行失敗 (rc={proc.returncode}): {proc.stderr[-2000:]}",
+            )
+
+        output_path = ""
+        for line in reversed(proc.stdout.splitlines()):
+            if "最終影片" in line or "影片合成完成" in line:
+                parts = line.split(":")
+                if len(parts) >= 2:
+                    output_path = parts[-1].strip()
+                    break
+        if not output_path:
+            out_dir = project_path / "output"
+            if out_dir.exists():
+                mp4s = sorted(out_dir.glob("*.mp4"), key=lambda p: p.stat().st_mtime, reverse=True)
+                if mp4s:
+                    output_path = str(mp4s[0].relative_to(project_path))
+
+        return {
+            "output_path": output_path,
+            "stdout_tail": proc.stdout[-500:],
+            "duration_seconds": round(elapsed, 2),
+        }
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=500, detail="compose_video 執行逾時（>30 分鐘）")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/projects/{name}/episodes/{episode}/script")
+async def generate_episode_script(name: str, episode: int, _user: CurrentUser):
+    """生成指定集的 JSON 劇本，寫入 scripts/episode_{N}.json。"""
+    from lib.script_generator import ScriptGenerator
+
+    try:
+        manager = get_project_manager()
+        if not manager.project_exists(name):
+            raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+
+        project_path = manager.get_project_path(name)
+        with project_change_source("webui"):
+            generator = await ScriptGenerator.create(project_path)
+            output_path = await generator.generate(episode=episode)
+
+        def _sync_meta():
+            project = manager.load_project(name)
+            episodes = project.setdefault("episodes", [])
+            script_file_rel = f"scripts/{output_path.name}"
+            updated = False
+            for ep in episodes:
+                if int(ep.get("episode", -1)) == int(episode):
+                    ep["script_file"] = script_file_rel
+                    updated = True
+                    break
+            if not updated:
+                episodes.append({"episode": int(episode), "script_file": script_file_rel})
+            manager.save_project(name, project)
+            try:
+                script = manager.load_script(name, output_path.name)
+            except FileNotFoundError:
+                return 0
+            return len(script.get("segments") or script.get("scenes") or [])
+
+        with project_change_source("webui"):
+            segments_count = await asyncio.to_thread(_sync_meta)
+
+        return {
+            "script_file": output_path.name,
+            "segments_count": segments_count,
+        }
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/projects/{name}/episodes/{episode}/preprocess")
+async def preprocess_episode(name: str, episode: int, _user: CurrentUser):
+    """Step 1 預處理：根據 content_mode 呼叫對應 skill 腳本。"""
+    import subprocess
+    import sys
+
+    try:
+        manager = get_project_manager()
+        if not manager.project_exists(name):
+            raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+
+        project = await asyncio.to_thread(manager.load_project, name)
+        content_mode = project.get("content_mode", "narration")
+
+        if content_mode == "narration":
+            script_filename = "split_narration_segments.py"
+            output_filename = "step1_segments.md"
+        elif content_mode == "drama":
+            script_filename = "normalize_drama_script.py"
+            output_filename = "step1_normalized_script.md"
+        else:
+            raise HTTPException(status_code=400, detail=f"未知的 content_mode: {content_mode}")
+
+        project_path = manager.get_project_path(name)
+        skill_script = (
+            PROJECT_ROOT
+            / "agent_runtime_profile"
+            / ".claude"
+            / "skills"
+            / "generate-script"
+            / "scripts"
+            / script_filename
+        )
+        if not skill_script.exists():
+            raise HTTPException(status_code=500, detail=f"找不到預處理腳本: {skill_script}")
+
+        def _run():
+            return subprocess.run(
+                [sys.executable, str(skill_script), "--episode", str(episode)],
+                cwd=str(project_path),
+                capture_output=True,
+                text=True,
+                timeout=1800,
+            )
+
+        proc = await asyncio.to_thread(_run)
+        if proc.returncode != 0:
+            raise HTTPException(
+                status_code=500,
+                detail=f"{script_filename} 失敗 (rc={proc.returncode}): {proc.stderr[-2000:]}",
+            )
+
+        step1_path = project_path / "drafts" / f"episode_{episode}" / output_filename
+        rel = f"drafts/episode_{episode}/{output_filename}" if step1_path.exists() else ""
+        return {"step1_path": rel, "content_mode": content_mode}
+
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=500, detail="預處理執行逾時（>30 分鐘）")
     except HTTPException:
         raise
     except Exception as e:

@@ -287,6 +287,306 @@ async def generate_character(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ==================== 批次生成請求模型 ====================
+
+
+class BatchStoryboardRequest(BaseModel):
+    script_file: str
+    ids: list[str] | None = None
+    force: bool = False
+
+
+class BatchVideoRequest(BaseModel):
+    script_file: str
+    ids: list[str] | None = None
+    force: bool = False
+
+
+class BatchCharacterRequest(BaseModel):
+    names: list[str] | None = None
+    force: bool = False
+
+
+class BatchClueRequest(BaseModel):
+    names: list[str] | None = None
+    force: bool = False
+
+
+# ==================== 批次：分鏡圖 ====================
+
+
+@router.post("/projects/{project_name}/generate/storyboards/batch")
+async def generate_storyboards_batch(
+    project_name: str,
+    req: BatchStoryboardRequest,
+    _user: CurrentUser,
+):
+    """批次提交分鏡圖生成任務。
+
+    - `ids=null` 時取整集所有 segment/scene
+    - `force=false` 時跳過已存在 storyboards/scene_{id}.png 的項目
+    """
+    try:
+
+        def _sync():
+            get_project_manager().load_project(project_name)
+            script = get_project_manager().load_script(project_name, req.script_file)
+            items, id_field, _, _ = get_storyboard_items(script)
+            project_path = get_project_manager().get_project_path(project_name)
+            image_snapshot = _snapshot_image_backend(project_name)
+
+            requested_ids: list[str]
+            if req.ids is None:
+                requested_ids = [str(item.get(id_field)) for item in items if item.get(id_field)]
+            else:
+                requested_ids = [str(i) for i in req.ids]
+
+            valid_ids: set[str] = {str(item.get(id_field)) for item in items if item.get(id_field)}
+
+            to_enqueue: list[str] = []
+            skipped: list[dict] = []
+            for sid in requested_ids:
+                if sid not in valid_ids:
+                    skipped.append({"id": sid, "reason": "not_found"})
+                    continue
+                if not req.force and (project_path / "storyboards" / f"scene_{sid}.png").exists():
+                    skipped.append({"id": sid, "reason": "already_exists"})
+                    continue
+                to_enqueue.append(sid)
+            return to_enqueue, skipped, image_snapshot
+
+        to_enqueue, skipped, image_snapshot = await asyncio.to_thread(_sync)
+
+        queue = get_generation_queue()
+        enqueued: list[str] = []
+        for sid in to_enqueue:
+            await queue.enqueue_task(
+                project_name=project_name,
+                task_type="storyboard",
+                media_type="image",
+                resource_id=sid,
+                script_file=req.script_file,
+                payload={
+                    "prompt": "",  # worker 會從劇本讀取 prompt
+                    "script_file": req.script_file,
+                    "from_batch": True,
+                    **image_snapshot,
+                },
+                source="webui",
+                user_id=_user.id,
+            )
+            enqueued.append(sid)
+
+        return {"enqueued": enqueued, "skipped": skipped}
+
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== 批次：影片 ====================
+
+
+@router.post("/projects/{project_name}/generate/videos/batch")
+async def generate_videos_batch(
+    project_name: str,
+    req: BatchVideoRequest,
+    _user: CurrentUser,
+):
+    """批次提交影片生成任務。force=false 時跳過已存在 videos/scene_{id}.mp4。"""
+    try:
+
+        def _sync():
+            get_project_manager().load_project(project_name)
+            script = get_project_manager().load_script(project_name, req.script_file)
+            items, id_field, _, _ = get_storyboard_items(script)
+            project_path = get_project_manager().get_project_path(project_name)
+
+            requested_ids: list[str]
+            if req.ids is None:
+                requested_ids = [str(item.get(id_field)) for item in items if item.get(id_field)]
+            else:
+                requested_ids = [str(i) for i in req.ids]
+
+            valid_ids: set[str] = {str(item.get(id_field)) for item in items if item.get(id_field)}
+
+            to_enqueue: list[str] = []
+            skipped: list[dict] = []
+            for sid in requested_ids:
+                if sid not in valid_ids:
+                    skipped.append({"id": sid, "reason": "not_found"})
+                    continue
+                if not (project_path / "storyboards" / f"scene_{sid}.png").exists():
+                    skipped.append({"id": sid, "reason": "missing_storyboard"})
+                    continue
+                if not req.force and (project_path / "videos" / f"scene_{sid}.mp4").exists():
+                    skipped.append({"id": sid, "reason": "already_exists"})
+                    continue
+                to_enqueue.append(sid)
+            return to_enqueue, skipped
+
+        to_enqueue, skipped = await asyncio.to_thread(_sync)
+
+        queue = get_generation_queue()
+        enqueued: list[str] = []
+        for sid in to_enqueue:
+            await queue.enqueue_task(
+                project_name=project_name,
+                task_type="video",
+                media_type="video",
+                resource_id=sid,
+                script_file=req.script_file,
+                payload={
+                    "prompt": "",
+                    "script_file": req.script_file,
+                    "from_batch": True,
+                },
+                source="webui",
+                user_id=_user.id,
+            )
+            enqueued.append(sid)
+
+        return {"enqueued": enqueued, "skipped": skipped}
+
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== 批次：角色 ====================
+
+
+@router.post("/projects/{project_name}/generate/characters/batch")
+async def generate_characters_batch(
+    project_name: str,
+    req: BatchCharacterRequest,
+    _user: CurrentUser,
+):
+    """批次提交角色設計圖生成任務。force=false 時跳過已有 character_sheet 的角色。"""
+    try:
+
+        def _sync():
+            project = get_project_manager().load_project(project_name)
+            characters: dict = project.get("characters", {})
+            image_snapshot = _snapshot_image_backend(project_name)
+
+            requested = [str(n) for n in (req.names if req.names is not None else list(characters.keys()))]
+
+            to_enqueue: list[str] = []
+            skipped: list[dict] = []
+            for name in requested:
+                if name not in characters:
+                    skipped.append({"id": name, "reason": "not_found"})
+                    continue
+                if not req.force and characters[name].get("character_sheet"):
+                    skipped.append({"id": name, "reason": "already_exists"})
+                    continue
+                to_enqueue.append(name)
+            return to_enqueue, skipped, image_snapshot, characters
+
+        to_enqueue, skipped, image_snapshot, characters = await asyncio.to_thread(_sync)
+
+        queue = get_generation_queue()
+        enqueued: list[str] = []
+        for name in to_enqueue:
+            prompt = characters[name].get("description", "")
+            await queue.enqueue_task(
+                project_name=project_name,
+                task_type="character",
+                media_type="image",
+                resource_id=name,
+                payload={
+                    "prompt": prompt,
+                    "from_batch": True,
+                    **image_snapshot,
+                },
+                source="webui",
+                user_id=_user.id,
+            )
+            enqueued.append(name)
+
+        return {"enqueued": enqueued, "skipped": skipped}
+
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== 批次：線索 ====================
+
+
+@router.post("/projects/{project_name}/generate/clues/batch")
+async def generate_clues_batch(
+    project_name: str,
+    req: BatchClueRequest,
+    _user: CurrentUser,
+):
+    """批次提交線索設計圖生成任務。force=false 時跳過已有 clue_sheet 的線索。"""
+    try:
+
+        def _sync():
+            project = get_project_manager().load_project(project_name)
+            clues: dict = project.get("clues", {})
+            image_snapshot = _snapshot_image_backend(project_name)
+
+            requested = [str(n) for n in (req.names if req.names is not None else list(clues.keys()))]
+
+            to_enqueue: list[str] = []
+            skipped: list[dict] = []
+            for name in requested:
+                if name not in clues:
+                    skipped.append({"id": name, "reason": "not_found"})
+                    continue
+                if not req.force and clues[name].get("clue_sheet"):
+                    skipped.append({"id": name, "reason": "already_exists"})
+                    continue
+                to_enqueue.append(name)
+            return to_enqueue, skipped, image_snapshot, clues
+
+        to_enqueue, skipped, image_snapshot, clues = await asyncio.to_thread(_sync)
+
+        queue = get_generation_queue()
+        enqueued: list[str] = []
+        for name in to_enqueue:
+            prompt = clues[name].get("description", "")
+            await queue.enqueue_task(
+                project_name=project_name,
+                task_type="clue",
+                media_type="image",
+                resource_id=name,
+                payload={
+                    "prompt": prompt,
+                    "from_batch": True,
+                    **image_snapshot,
+                },
+                source="webui",
+                user_id=_user.id,
+            )
+            enqueued.append(name)
+
+        return {"enqueued": enqueued, "skipped": skipped}
+
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ==================== 線索設計圖生成 ====================
 
 
