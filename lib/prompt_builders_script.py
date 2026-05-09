@@ -8,18 +8,34 @@ prompt_builders_script.py - 劇本生成 Prompt 構建器
 
 
 def _format_character_names(characters: dict) -> str:
-    """格式化角色列表"""
+    """格式化角色列表（含描述，協助 LLM 正確識別）"""
     lines = []
-    for name in characters.keys():
-        lines.append(f"- {name}")
+    for name, data in characters.items():
+        desc = (data.get("description") or "").strip() if isinstance(data, dict) else ""
+        if desc:
+            lines.append(f"- **{name}**：{desc}")
+        else:
+            lines.append(f"- **{name}**")
     return "\n".join(lines)
 
 
 def _format_clue_names(clues: dict) -> str:
-    """格式化線索列表"""
+    """格式化線索列表（含類型與描述，協助 LLM 正確識別）"""
+    type_label = {"prop": "道具", "location": "場景"}
     lines = []
-    for name in clues.keys():
-        lines.append(f"- {name}")
+    for name, data in clues.items():
+        if not isinstance(data, dict):
+            lines.append(f"- **{name}**")
+            continue
+        desc = (data.get("description") or "").strip()
+        ctype = data.get("clue_type")
+        head = f"- **{name}**"
+        if ctype in type_label:
+            head += f"（{type_label[ctype]}）"
+        if desc:
+            lines.append(f"{head}：{desc}")
+        else:
+            lines.append(head)
     return "\n".join(lines)
 
 
@@ -114,13 +130,18 @@ segments 為片段拆分表，每行是一個片段，包含：
 
 a. **novel_text**：原樣複製小說原文，不做任何修改。
 
-b. **characters_in_segment**：列出本片段中出場的角色名稱。
+b. **characters_in_segment**：列出本片段中實際出場的角色名稱。
    - 可選值：[{", ".join(character_names)}]
-   - 僅包含明確提及或明顯暗示的角色
+   - 必須**忠實對照** characters 區塊的描述，根據小說正文判斷實際出場者；不要因為列表第一項就盲目選用。
+   - 若小說正文使用代稱、別名或第三人稱，仍應對照描述歸位到對應角色。
+   - 若片段無任何已定義角色出場（如純風景描述），填空陣列 []。
 
-c. **clues_in_segment**：列出本片段中涉及的線索名稱。
+c. **clues_in_segment**：列出本片段中可見或被提及的線索名稱（道具與場景）。
    - 可選值：[{", ".join(clue_names)}]
-   - 僅包含明確提及或明顯暗示的線索
+   - 必須**忠實標註**：只要小說正文的描寫匹配 clues 區塊中某個線索的描述（包含別稱、外觀特徵、所在地點），就要列入。
+   - 「道具」類線索若在畫面中可見，務必填入，後續會作為視覺參考圖；遺漏會導致影像生成時道具走樣。
+   - 「場景」類線索若是該片段發生地，也要填入。
+   - 若片段確實未涉及任何已定義線索，填空陣列 []。
 
 d. **image_prompt**：生成包含以下欄位的物件：
    - scene：用中文描述此刻畫面中的具體場景——角色位置、姿態、表情、服裝細節，以及可見的環境元素和物品。
@@ -226,13 +247,18 @@ scenes 為場景拆分表，每行是一個場景，包含：
 
 3. 為每個場景生成時，遵循以下規則：
 
-a. **characters_in_scene**：列出本場景中出場的角色名稱。
+a. **characters_in_scene**：列出本場景中實際出場的角色名稱。
    - 可選值：[{", ".join(character_names)}]
-   - 僅包含明確提及或明顯暗示的角色
+   - 必須**忠實對照** characters 區塊的描述，根據場景內容判斷實際出場者；不要因為列表第一項就盲目選用。
+   - 若場景使用代稱、別名或第三人稱，仍應對照描述歸位到對應角色。
+   - 若場景無任何已定義角色出場，填空陣列 []。
 
-b. **clues_in_scene**：列出本場景中涉及的線索名稱。
+b. **clues_in_scene**：列出本場景中可見或被提及的線索名稱（道具與場景）。
    - 可選值：[{", ".join(clue_names)}]
-   - 僅包含明確提及或明顯暗示的線索
+   - 必須**忠實標註**：只要場景描寫匹配 clues 區塊中某個線索的描述（包含別稱、外觀特徵、所在地點），就要列入。
+   - 「道具」類線索若在畫面中可見，務必填入，後續會作為視覺參考圖；遺漏會導致影像生成時道具走樣。
+   - 「場景」類線索若是該場景發生地，也要填入。
+   - 若場景確實未涉及任何已定義線索，填空陣列 []。
 
 c. **image_prompt**：生成包含以下欄位的物件：
    - scene：用中文描述此刻畫面中的具體場景——角色位置、姿態、表情、服裝細節，以及可見的環境元素和物品。{_format_aspect_ratio_desc(aspect_ratio)}。
