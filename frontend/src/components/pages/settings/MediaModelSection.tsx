@@ -8,6 +8,7 @@ import { useAppStore } from "@/stores/app-store";
 import { useConfigStatusStore } from "@/stores/config-status-store";
 
 const TEXT_MODEL_FIELDS = [
+  ["default_text_backend", "助手對話"],
   ["text_backend_script", "劇本生成"],
   ["text_backend_overview", "總覽生成"],
   ["text_backend_style", "風格分析"],
