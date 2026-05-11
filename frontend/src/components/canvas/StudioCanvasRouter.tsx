@@ -12,12 +12,59 @@ import { AddClueForm } from "./lorebook/AddClueForm";
 import { API } from "@/api";
 import { buildEntityRevisionKey } from "@/utils/project-changes";
 import { getProviderModels, getCustomProviderModels, lookupSupportedDurations } from "@/utils/provider-models";
-import type { Clue, CustomProviderInfo, ProviderInfo } from "@/types";
+import type { Clue, CustomProviderInfo, ProviderInfo, TaskItem } from "@/types";
 
 // ---------------------------------------------------------------------------
 // StudioCanvasRouter — reads Zustand store data and renders the correct
 // canvas view based on the nested route within /app/projects/:projectName.
 // ---------------------------------------------------------------------------
+
+const ACTIVE_TASK_STATUSES = new Set<TaskItem["status"]>(["queued", "running"]);
+
+interface GeneratingResources {
+  characterNames: Set<string>;
+  clueNames: Set<string>;
+  storyboardIds: Set<string>;
+  videoIds: Set<string>;
+}
+
+function collectGeneratingResources(
+  tasks: TaskItem[],
+  projectName: string | null | undefined,
+): GeneratingResources {
+  const resources: GeneratingResources = {
+    characterNames: new Set<string>(),
+    clueNames: new Set<string>(),
+    storyboardIds: new Set<string>(),
+    videoIds: new Set<string>(),
+  };
+
+  for (const task of tasks) {
+    if (
+      task.project_name !== projectName ||
+      !ACTIVE_TASK_STATUSES.has(task.status)
+    ) {
+      continue;
+    }
+
+    switch (task.task_type) {
+      case "character":
+        resources.characterNames.add(task.resource_id);
+        break;
+      case "clue":
+        resources.clueNames.add(task.resource_id);
+        break;
+      case "storyboard":
+        resources.storyboardIds.add(task.resource_id);
+        break;
+      case "video":
+        resources.videoIds.add(task.resource_id);
+        break;
+    }
+  }
+
+  return resources;
+}
 
 export function StudioCanvasRouter() {
   const { currentProjectData, currentProjectName, currentScripts } =
@@ -51,32 +98,10 @@ export function StudioCanvasRouter() {
 
   // 從任務佇列派生 loading 狀態（替代本地 state）
   const tasks = useTasksStore((s) => s.tasks);
-  const generatingCharacterNames = useMemo(() => {
-    const names = new Set<string>();
-    for (const t of tasks) {
-      if (
-        t.task_type === "character" &&
-        t.project_name === currentProjectName &&
-        (t.status === "queued" || t.status === "running")
-      ) {
-        names.add(t.resource_id);
-      }
-    }
-    return names;
-  }, [tasks, currentProjectName]);
-  const generatingClueNames = useMemo(() => {
-    const names = new Set<string>();
-    for (const t of tasks) {
-      if (
-        t.task_type === "clue" &&
-        t.project_name === currentProjectName &&
-        (t.status === "queued" || t.status === "running")
-      ) {
-        names.add(t.resource_id);
-      }
-    }
-    return names;
-  }, [tasks, currentProjectName]);
+  const generatingResources = useMemo(
+    () => collectGeneratingResources(tasks, currentProjectName),
+    [tasks, currentProjectName],
+  );
 
   // 重新整理專案資料
   const refreshProject = useCallback(async (invalidateKeys: string[] = []) => {
@@ -369,8 +394,8 @@ export function StudioCanvasRouter() {
             onRenameClue={handleRenameClue}
             onRestoreCharacterVersion={handleRestoreAsset}
             onRestoreClueVersion={handleRestoreAsset}
-            generatingCharacterNames={generatingCharacterNames}
-            generatingClueNames={generatingClueNames}
+            generatingCharacterNames={generatingResources.characterNames}
+            generatingClueNames={generatingResources.clueNames}
             onAddCharacter={() => setAddingCharacter(true)}
             onAddClue={() => setAddingClue(true)}
           />
@@ -427,6 +452,8 @@ export function StudioCanvasRouter() {
               onGenerateVideo={handleGenerateVideo}
               onRestoreStoryboard={handleRestoreAsset}
               onRestoreVideo={handleRestoreAsset}
+              generatingStoryboardIds={generatingResources.storyboardIds}
+              generatingVideoIds={generatingResources.videoIds}
             />
           );
         }}

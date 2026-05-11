@@ -50,6 +50,8 @@ interface TimelineCanvasProps {
   durationOptions?: number[];
   onRestoreStoryboard?: () => Promise<void> | void;
   onRestoreVideo?: () => Promise<void> | void;
+  generatingStoryboardIds?: Set<string>;
+  generatingVideoIds?: Set<string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -77,6 +79,8 @@ export function TimelineCanvas({
   onGenerateVideo,
   onRestoreStoryboard,
   onRestoreVideo,
+  generatingStoryboardIds,
+  generatingVideoIds,
 }: TimelineCanvasProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentMode = projectData?.content_mode ?? "narration";
@@ -146,6 +150,29 @@ export function TimelineCanvas({
 
   // Respond to agent-triggered scroll targets for segments
   useScrollTarget("segment", { prepareTarget: prepareScrollTarget });
+
+  const updatePromptForScript = useMemo(
+    () =>
+      onUpdatePrompt
+        ? (id: string, field: string, value: unknown) =>
+            onUpdatePrompt(id, field, value, scriptFile)
+        : undefined,
+    [onUpdatePrompt, scriptFile],
+  );
+  const generateStoryboardForScript = useMemo(
+    () =>
+      onGenerateStoryboard
+        ? (id: string) => onGenerateStoryboard(id, scriptFile)
+        : undefined,
+    [onGenerateStoryboard, scriptFile],
+  );
+  const generateVideoForScript = useMemo(
+    () =>
+      onGenerateVideo
+        ? (id: string) => onGenerateVideo(id, scriptFile)
+        : undefined,
+    [onGenerateVideo, scriptFile],
+  );
 
   // Empty state — no episode selected or no content at all
   if (!projectData || (!episodeScript && !hasDraft)) {
@@ -267,11 +294,13 @@ export function TimelineCanvas({
                     clues={projectData.clues}
                     projectName={projectName}
                     durationOptions={durationOptions}
-                    onUpdatePrompt={onUpdatePrompt && ((id, field, value) => onUpdatePrompt(id, field, value, scriptFile))}
-                    onGenerateStoryboard={onGenerateStoryboard && ((id) => onGenerateStoryboard(id, scriptFile))}
-                    onGenerateVideo={onGenerateVideo && ((id) => onGenerateVideo(id, scriptFile))}
+                    onUpdatePrompt={updatePromptForScript}
+                    onGenerateStoryboard={generateStoryboardForScript}
+                    onGenerateVideo={generateVideoForScript}
                     onRestoreStoryboard={onRestoreStoryboard}
                     onRestoreVideo={onRestoreVideo}
+                    generatingStoryboard={generatingStoryboardIds?.has(segId) ?? false}
+                    generatingVideo={generatingVideoIds?.has(segId) ?? false}
                   />
                 </div>
               );

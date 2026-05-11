@@ -468,6 +468,29 @@ def _resolve_script_episode(project_name: str, script_file: str | None) -> int |
     return None
 
 
+def _require_item_prompt(
+    payload_prompt: Any,
+    target_item: dict[str, Any],
+    prompt_key: str,
+    resource_id: str,
+) -> Any:
+    """Return payload prompt, falling back to the script item for batch queued tasks."""
+    effective_prompt = payload_prompt or target_item.get(prompt_key)
+    if not effective_prompt:
+        raise ValueError(f"{prompt_key} missing for {resource_id}")
+    return effective_prompt
+
+
+def _resolve_storyboard_item(script: dict[str, Any], resource_id: str) -> tuple[dict, list[dict], str, str, str]:
+    """Resolve a narration segment or drama scene from a storyboard-compatible script."""
+    items, id_field, char_field, clue_field = get_storyboard_items(script)
+    resolved = find_storyboard_item(items, id_field, resource_id)
+    if resolved is None:
+        raise ValueError(f"scene/segment not found: {resource_id}")
+    target_item, _ = resolved
+    return target_item, items, id_field, char_field, clue_field
+
+
 def _compute_affected_fingerprints(project_name: str, task_type: str, resource_id: str) -> dict[str, int]:
     """計算受影響檔案的 mtime 指紋"""
     try:
@@ -576,22 +599,17 @@ async def execute_storyboard_task(
         raise ValueError("script_file is required for storyboard task")
 
     prompt = payload.get("prompt")
-    if prompt is None:
-        raise ValueError("prompt is required for storyboard task")
 
     def _prepare():
-        _project = get_project_manager().load_project(project_name)
-        _project_path = get_project_manager().get_project_path(project_name)
-        _script = get_project_manager().load_script(project_name, script_file)
-        _items, _id_field, _char_field, _clue_field = get_storyboard_items(_script)
+        _manager = get_project_manager()
+        _project = _manager.load_project(project_name)
+        _project_path = _manager.get_project_path(project_name)
+        _script = _manager.load_script(project_name, script_file)
+        _target_item, _items, _id_field, _char_field, _clue_field = _resolve_storyboard_item(_script, resource_id)
 
-        _resolved = find_storyboard_item(_items, _id_field, resource_id)
-        if _resolved is None:
-            raise ValueError(f"scene/segment not found: {resource_id}")
-        _target_item, _ = _resolved
-
+        _effective_prompt = _require_item_prompt(prompt, _target_item, "image_prompt", resource_id)
         _prev_path = resolve_previous_storyboard_path(_project_path, _items, _id_field, resource_id)
-        _prompt_text = _normalize_storyboard_prompt(prompt, _project.get("style", ""))
+        _prompt_text = _normalize_storyboard_prompt(_effective_prompt, _project.get("style", ""))
         _ref_images = _collect_reference_images(
             _project,
             _project_path,
@@ -650,20 +668,26 @@ async def execute_video_task(
         raise ValueError("script_file is required for video task")
 
     prompt = payload.get("prompt")
-    if prompt is None:
-        raise ValueError("prompt is required for video task")
 
     def _load():
-        return get_project_manager().load_project(project_name), get_project_manager().get_project_path(project_name)
+        _manager = get_project_manager()
+        _project = _manager.load_project(project_name)
+        _project_path = _manager.get_project_path(project_name)
+        _effective_prompt = prompt
+        if not _effective_prompt:
+            _script = _manager.load_script(project_name, script_file)
+            _target_item, _, _, _, _ = _resolve_storyboard_item(_script, resource_id)
+            _effective_prompt = _require_item_prompt(prompt, _target_item, "video_prompt", resource_id)
+        return _project, _project_path, _effective_prompt
 
-    project, project_path = await asyncio.to_thread(_load)
+    project, project_path, effective_prompt = await asyncio.to_thread(_load)
     generator = await get_media_generator(project_name, payload=payload, user_id=user_id)
 
     storyboard_file = project_path / "storyboards" / f"scene_{resource_id}.png"
     if not storyboard_file.exists():
         raise ValueError(f"storyboard not found: scene_{resource_id}.png")
 
-    prompt_text = _normalize_video_prompt(prompt)
+    prompt_text = _normalize_video_prompt(effective_prompt)
     aspect_ratio = get_aspect_ratio(project, "videos")
     seed = payload.get("seed")
     service_tier = payload.get("video_provider_settings", {}).get("service_tier", "default")

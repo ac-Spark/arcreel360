@@ -8,11 +8,12 @@
 
 export type TaskStatus = "queued" | "running" | "succeeded" | "failed";
 export type TaskMediaType = "image" | "video";
+export type TaskType = "storyboard" | "video" | "character" | "clue";
 
 export interface TaskItem {
   task_id: string;
   project_name: string;
-  task_type: string;
+  task_type: TaskType;
   media_type: TaskMediaType;
   resource_id: string;
   script_file: string | null;
