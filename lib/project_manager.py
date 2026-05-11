@@ -20,6 +20,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from lib import agent_profile
 from lib.project_change_hints import emit_project_change_hint
 
 logger = logging.getLogger(__name__)
@@ -151,20 +152,11 @@ class ProjectManager:
         Returns:
             {"created": int, "repaired": int, "skipped": int, "errors": int}
         """
-        project_root = self.projects_root.parent
-        profile_dir = project_root / "agent_runtime_profile"
-
-        SYMLINKS = {
-            ".claude": profile_dir / ".claude",
-            "CLAUDE.md": profile_dir / "CLAUDE.md",
-        }
-        REL_TARGETS = {
-            ".claude": Path("../../agent_runtime_profile/.claude"),
-            "CLAUDE.md": Path("../../agent_runtime_profile/CLAUDE.md"),
-        }
+        symlink_targets = agent_profile.project_symlink_targets(self.projects_root.parent)
+        relative_targets = agent_profile.project_symlink_relative_targets()
 
         stats = {"created": 0, "repaired": 0, "skipped": 0, "errors": 0}
-        for name, target_source in SYMLINKS.items():
+        for name, target_source in symlink_targets.items():
             if not target_source.exists():
                 continue
             symlink_path = project_dir / name
@@ -172,7 +164,7 @@ class ProjectManager:
                 # 損壞的軟連線
                 try:
                     symlink_path.unlink()
-                    symlink_path.symlink_to(REL_TARGETS[name])
+                    symlink_path.symlink_to(relative_targets[name])
                     stats["repaired"] += 1
                 except OSError as e:
                     logger.warning("無法修復專案 %s 的 %s 符號連結: %s", project_dir.name, name, e)
@@ -180,7 +172,7 @@ class ProjectManager:
             elif not symlink_path.exists() and not symlink_path.is_symlink():
                 # 缺失
                 try:
-                    symlink_path.symlink_to(REL_TARGETS[name])
+                    symlink_path.symlink_to(relative_targets[name])
                     stats["created"] += 1
                 except OSError as e:
                     logger.warning("無法為專案 %s 建立 %s 符號連結: %s", project_dir.name, name, e)

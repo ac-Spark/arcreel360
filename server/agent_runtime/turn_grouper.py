@@ -7,6 +7,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from lib import agent_profile
 from server.agent_runtime.turn_schema import (
     infer_block_type,
     normalize_turn,
@@ -18,7 +19,7 @@ from server.agent_runtime.turn_schema import (
 # Constants for skill content detection
 _SKILL_BASE_DIR_PREFIX = "Base directory for this skill:"
 _SKILL_CONTENT_PREFIX = "Skill content:"
-_SKILL_PATH_MARKER = ".claude/skills/"
+_SKILL_PATH_MARKER = f"{agent_profile.RELATIVE_SKILLS_PREFIX}/"
 _SKILL_FILE_MARKER = "SKILL.md"
 
 # Metadata keys that indicate a user payload is system/subagent injected.

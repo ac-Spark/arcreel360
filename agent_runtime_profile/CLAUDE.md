@@ -30,7 +30,9 @@
 - **BGM 自動禁止**：透過 `negative_prompt` API 引數自動排除背景音樂
 
 ### 指令碼呼叫
-- **Skill 內部指令碼**：各 skill 的可執行指令碼位於 `agent_runtime_profile/.claude/skills/{skill-name}/scripts/` 目錄下
+- **Skill 內部指令碼**：各 skill 的可執行指令碼位於 profile 目錄的 `skills/{skill-name}/scripts/` 下。
+  你在執行時的 cwd 是專案目錄，該目錄下有一個指向 profile 的 symlink（名稱見 `lib/agent_profile.py` 的 `PROJECT_PROFILE_LINK_NAME`，目前為 `.claude`），
+  因此可用相對路徑 `python .claude/skills/{skill-name}/scripts/{script}.py` 呼叫。
 - **虛擬環境**：預設已啟用，指令碼無需手動啟用 .venv
 
 ---
@@ -39,15 +41,15 @@
 
 系統支援兩種內容模式（說書+畫面 / 劇集動畫），透過 `project.json` 的 `content_mode` 欄位切換。
 
-> 詳細規格（畫面比例、時長、資料結構、預處理 Agent 等）見 `.claude/references/content-modes.md`。
+> 詳細規格（畫面比例、時長、資料結構、預處理 Agent 等）見 profile 目錄的 `references/content-modes.md`（相對路徑：`.claude/references/content-modes.md`）。
 
 ---
 
 ## 專案結構
 
-- `projects/{專案名}` - 影片專案的工作空間
+- `projects/{專案名}` - 影片專案的工作空間（執行時的 cwd）
 - `lib/` - 共享 Python 庫（Gemini API 封裝、專案管理）
-- `agent_runtime_profile/.claude/skills/` - 可用的 skills
+- profile 目錄的 `skills/` - 可用的 skills（從專案 cwd 透過 symlink 存取，相對路徑 `.claude/skills/`）
 
 ## 架構：編排 Skill + 聚焦 Subagent
 

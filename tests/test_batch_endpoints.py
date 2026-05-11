@@ -286,12 +286,15 @@ class TestEpisodeFlow:
         body = resp.json()
         assert body["script_file"] == "episode_2.json"
 
-    def test_preprocess_narration_returns_503(self, tmp_path, monkeypatch):
+    def test_preprocess_narration_runs_skill_script(self, tmp_path, monkeypatch):
+        # narration 模式應嘗試呼叫 split_narration_segments.py；
+        # 此處 tmp 專案缺少 source 檔案，腳本會以非零碼結束 → endpoint 回 500 並帶腳本名
         pm = _FakePMProj(tmp_path, content_mode="narration")
         client = _client_proj(monkeypatch, pm)
         with client:
             resp = client.post("/api/v1/projects/demo/episodes/1/preprocess")
-        assert resp.status_code == 503
+        assert resp.status_code == 500
+        assert "split_narration_segments.py" in resp.json()["detail"]
 
     def test_preprocess_drama_invokes_subprocess(self, tmp_path, monkeypatch):
         pm = _FakePMProj(tmp_path, content_mode="drama")

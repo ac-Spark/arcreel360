@@ -50,6 +50,8 @@ except ImportError:
     async_session_factory = None  # type: ignore[assignment]
     ConfigService = None  # type: ignore[assignment]
 
+from lib import agent_profile
+
 
 class SessionCapacityError(Exception):
     """所有併發槽位已被 running 會話佔滿，無法建立新連線。"""
@@ -387,7 +389,7 @@ class SessionManager:
             "- Read/Edit/Write 等工具的 file_path 引數必須使用絕對路徑，不要使用相對路徑，也不要把專案標題當成目錄名。"
         )
         parts.append(
-            "- Bash 呼叫 skill 指令碼時必須使用相對路徑（如 `python .claude/skills/.../script.py`），不要轉成絕對路徑。"
+            f"- Bash 呼叫 skill 指令碼時必須使用相對路徑（如 `python {agent_profile.RELATIVE_SKILLS_PREFIX}/.../script.py`），不要轉成絕對路徑。"
         )
         parts.append("- Bash 命令必須寫在單行，禁止使用 `\\` 換行，JSON 引數請使用緊湊格式。")
 
@@ -1691,7 +1693,7 @@ class SessionManager:
                     f"未授權的工具呼叫：{tool_name}"
                     f"({json.dumps(input_data, ensure_ascii=False)[:200]})\n"
                     "目前 Bash 白名單僅允許以下命令：\n"
-                    "  - python .claude/skills/<skill>/scripts/<script>.py <args>（必須使用相對路徑）\n"
+                    f"  - python {agent_profile.RELATIVE_SKILLS_PREFIX}/<skill>/scripts/<script>.py <args>（必須使用相對路徑）\n"
                     "  - ffmpeg / ffprobe\n"
                     "其他 Bash 命令都不可用。"
                     "請檢查命令格式是否符合白名單規則。"

@@ -25,7 +25,7 @@ from starlette.background import BackgroundTask
 
 logger = logging.getLogger(__name__)
 
-from lib import PROJECT_ROOT
+from lib import PROJECT_ROOT, agent_profile
 from lib.asset_fingerprints import compute_asset_fingerprints
 from lib.project_change_hints import project_change_source
 from lib.project_manager import ProjectManager
@@ -868,10 +868,7 @@ async def compose_episode_video(name: str, episode: int, _user: CurrentUser):
         project_path, script_file = await asyncio.to_thread(_prep)
 
         compose_script = (
-            PROJECT_ROOT
-            / "agent_runtime_profile"
-            / ".claude"
-            / "skills"
+            agent_profile.skills_root(PROJECT_ROOT)
             / "compose-video"
             / "scripts"
             / "compose_video.py"
@@ -1000,10 +997,7 @@ async def preprocess_episode(name: str, episode: int, _user: CurrentUser):
 
         project_path = manager.get_project_path(name)
         skill_script = (
-            PROJECT_ROOT
-            / "agent_runtime_profile"
-            / ".claude"
-            / "skills"
+            agent_profile.skills_root(PROJECT_ROOT)
             / "generate-script"
             / "scripts"
             / script_filename

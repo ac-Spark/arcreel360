@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 from fastapi.sse import ServerSentEvent
 
+from lib import agent_profile
 from lib.config.service import ConfigService
 from lib.db import async_session_factory
 from lib.project_manager import ProjectManager
@@ -917,7 +918,7 @@ class AssistantService:
             self.pm.get_project_path(project_name)
 
         source_roots = {
-            "agent": self.project_root / "agent_runtime_profile" / ".claude" / "skills",
+            "agent": agent_profile.skills_root(self.project_root),
         }
 
         skills: list[dict[str, str]] = []

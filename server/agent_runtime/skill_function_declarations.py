@@ -30,6 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from lib import agent_profile
 from lib.project_manager import ProjectManager
 from server.agent_runtime.tool_sandbox import ToolSandbox
 
@@ -632,10 +633,7 @@ async def _handle_compose_video(ctx: SkillCallContext, args: dict[str, Any]) -> 
         }
 
     script_module = (
-        Path(__file__).resolve().parents[2]
-        / "agent_runtime_profile"
-        / ".claude"
-        / "skills"
+        agent_profile.skills_root(Path(__file__).resolve().parents[2])
         / "compose-video"
         / "scripts"
         / "compose_video.py"
