@@ -8,8 +8,16 @@ from lib.prompt_builders_script import (
 
 class TestPromptBuildersScript:
     def test_formatters_emit_bullet_lists(self):
-        assert _format_character_names({"A": {}, "B": {}}) == "- A\n- B"
-        assert _format_clue_names({"玉佩": {}, "祠堂": {}}) == "- 玉佩\n- 祠堂"
+        # 角色/線索名以 **name** 粗體標註，協助 LLM 識別為 token
+        assert _format_character_names({"A": {}, "B": {}}) == "- **A**\n- **B**"
+        assert _format_clue_names({"玉佩": {}, "祠堂": {}}) == "- **玉佩**\n- **祠堂**"
+
+    def test_formatters_include_descriptions(self):
+        assert _format_character_names({"比比拉布": {"description": "香蕉裡的貓"}}) == "- **比比拉布**：香蕉裡的貓"
+        assert (
+            _format_clue_names({"玉佩": {"clue_type": "prop", "description": "綠色玉佩"}})
+            == "- **玉佩**（道具）：綠色玉佩"
+        )
 
     def test_build_narration_prompt_contains_dynamic_durations(self):
         prompt = build_narration_prompt(
