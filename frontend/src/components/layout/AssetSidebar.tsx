@@ -10,6 +10,7 @@ import {
   Circle,
   User,
   LayoutDashboard,
+  Plus,
   Upload,
   X,
 } from "lucide-react";
@@ -160,6 +161,10 @@ function EmptyState({ text }: { text: string }) {
   );
 }
 
+function getNextEpisodeNumber(episodes: Array<{ episode: unknown }>): number {
+  return episodes.reduce((max, ep) => Math.max(max, Number(ep.episode) || 0), 0) + 1;
+}
+
 // ---------------------------------------------------------------------------
 // AssetSidebar
 // ---------------------------------------------------------------------------
@@ -169,7 +174,7 @@ interface AssetSidebarProps {
 }
 
 export function AssetSidebar({ className }: AssetSidebarProps) {
-  const { currentProjectData, currentProjectName } = useProjectsStore();
+  const { currentProjectData, currentProjectName, currentScripts } = useProjectsStore();
   const sourceFilesVersion = useAppStore((s) => s.sourceFilesVersion);
   const [location, setLocation] = useLocation();
 
@@ -181,6 +186,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
   // 原始檔列表
   const [sourceFiles, setSourceFiles] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [creatingEpisode, setCreatingEpisode] = useState(false);
 
   const loadSourceFiles = useCallback(() => {
     if (!projectName) {
@@ -237,6 +243,24 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
       // 靜默失敗
     }
   }, [projectName, loadSourceFiles, location, setLocation]);
+
+  const handleCreateEpisode = useCallback(async () => {
+    if (!projectName || creatingEpisode) return;
+    const nextEpisode = getNextEpisodeNumber(episodes);
+    setCreatingEpisode(true);
+    try {
+      const res = await API.createEpisode(projectName, { episode: nextEpisode });
+      useProjectsStore
+        .getState()
+        .setCurrentProject(projectName, res.project, currentScripts);
+      setLocation(`/episodes/${res.episode.episode}`);
+      useAppStore.getState().pushToast(`E${res.episode.episode} 已新增`, "success");
+    } catch (err) {
+      useAppStore.getState().pushToast(`新增劇本失敗: ${(err as Error).message}`, "error");
+    } finally {
+      setCreatingEpisode(false);
+    }
+  }, [projectName, creatingEpisode, episodes, currentScripts, setLocation]);
 
   const characterEntries = Object.entries(characters);
   const clueEntries = Object.entries(clues);
@@ -429,9 +453,30 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
       <div className="mx-3 border-t border-[color:var(--wb-border-soft)]" />
 
       {/* ---- Section 3: Episodes ---- */}
-      <CollapsibleSection title="劇本" icon={Film}>
+      <CollapsibleSection
+        title="劇本"
+        icon={Film}
+        action={
+          <button
+            type="button"
+            onClick={handleCreateEpisode}
+            disabled={!projectName || creatingEpisode}
+            className="focus-ring rounded-lg p-1 text-[color:var(--wb-text-dim)] transition-colors hover:bg-black/16 hover:text-[color:var(--wb-text-secondary)] disabled:cursor-not-allowed disabled:opacity-50"
+            title="新增劇本"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        }
+      >
         {episodes.length === 0 ? (
-          <EmptyState text="暫無劇本" />
+          <button
+            type="button"
+            onClick={handleCreateEpisode}
+            disabled={!projectName || creatingEpisode}
+            className="focus-ring w-full px-3 py-1.5 text-left text-xs text-[color:var(--wb-text-dim)] italic hover:text-[color:var(--wb-text-secondary)] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            暫無劇本，點選新增
+          </button>
         ) : (
           <ul>
             {episodes.map((ep) => {

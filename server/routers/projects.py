@@ -79,6 +79,11 @@ class UpdateProjectRequest(BaseModel):
     text_backend_style: str | None = None
 
 
+class CreateEpisodeRequest(BaseModel):
+    episode: int | None = None
+    title: str | None = None
+
+
 def _cleanup_temp_file(path: str) -> None:
     try:
         os.unlink(path)
@@ -664,6 +669,49 @@ async def update_segment(name: str, segment_id: str, req: UpdateSegmentRequest, 
 
 class UpdateEpisodeRequest(BaseModel):
     title: str | None = None
+
+
+@router.post("/projects/{name}/episodes")
+async def create_episode(name: str, req: CreateEpisodeRequest, _user: CurrentUser):
+    """新增劇集工作區；不直接生成劇本內容。"""
+    try:
+
+        def _sync():
+            manager = get_project_manager()
+            if not manager.project_exists(name):
+                raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+
+            project = manager.load_project(name)
+            episodes = project.get("episodes", [])
+            existing_numbers: list[int] = []
+            for ep in episodes:
+                try:
+                    existing_numbers.append(int(ep.get("episode")))
+                except (TypeError, ValueError):
+                    continue
+
+            episode_num = int(req.episode) if req.episode is not None else (max(existing_numbers, default=0) + 1)
+            if episode_num < 1:
+                raise HTTPException(status_code=400, detail="episode 必須大於 0")
+            if episode_num in existing_numbers:
+                raise HTTPException(status_code=400, detail=f"第 {episode_num} 集已存在")
+
+            title = (req.title or "").strip() or f"第 {episode_num} 集"
+            script_file = f"scripts/episode_{episode_num}.json"
+            with project_change_source("webui"):
+                project = manager.add_episode(name, episode_num, title, script_file)
+
+            episode_entry = next(ep for ep in project.get("episodes", []) if int(ep.get("episode", -1)) == episode_num)
+            return {"success": True, "episode": episode_entry, "project": project}
+
+        return await asyncio.to_thread(_sync)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.patch("/projects/{name}/episodes/{episode}")

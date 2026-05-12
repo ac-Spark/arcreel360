@@ -1117,7 +1117,7 @@ class ProjectManager:
         """
         project = self.load_project(project_name)
 
-        project["characters"][name] = {
+        project.setdefault("characters", {})[name] = {
             "description": description,
             "voice_style": voice_style or "",
             "character_sheet": character_sheet or "",

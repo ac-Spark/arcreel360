@@ -123,6 +123,22 @@ class TestAssistantServiceMore:
         assert service._normalize_provider_id("") == "gemini-lite"
         assert service._normalize_provider_id("garbage") == "gemini-lite"
 
+    def test_claude_append_prompt_requires_traditional_chinese(self, tmp_path):
+        service = AssistantService(project_root=tmp_path)
+        claude_provider = service.runtime_provider_registry["claude"]
+        prompt = claude_provider._session_manager._build_append_prompt("missing")  # type: ignore[attr-defined]
+
+        assert "繁體中文" in prompt
+
+    def test_lite_provider_system_prompts_require_traditional_chinese(self, tmp_path):
+        service = AssistantService(project_root=tmp_path)
+
+        for provider_id in ("gemini-lite", "openai-lite"):
+            provider = service.runtime_provider_registry[provider_id]
+            prompt = provider._build_system_prompt("missing")  # type: ignore[attr-defined]
+
+            assert "繁體中文" in prompt
+
     @pytest.mark.asyncio
     async def test_service_init_interrupts_stale_running_sessions(self, tmp_path):
         # Create an in-memory async store and seed data

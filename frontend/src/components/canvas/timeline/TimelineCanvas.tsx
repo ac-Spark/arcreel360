@@ -10,6 +10,7 @@ import { FinalVideoCard } from "./FinalVideoCard";
 import { EpisodeActionsBar } from "./EpisodeActionsBar";
 import { useScrollTarget } from "@/hooks/useScrollTarget";
 import { useCostStore } from "@/stores/cost-store";
+import { resolveEpisodeContentMode } from "@/utils/content-mode";
 import { formatCost, totalBreakdown } from "@/utils/cost-format";
 import type {
   EpisodeScript,
@@ -83,7 +84,7 @@ export function TimelineCanvas({
   generatingVideoIds,
 }: TimelineCanvasProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const contentMode = projectData?.content_mode ?? "narration";
+  const contentMode = resolveEpisodeContentMode(episodeScript, projectData?.content_mode);
 
   const hasScript = Boolean(episodeScript);
   const showTabs = Boolean(hasDraft);

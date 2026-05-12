@@ -10,6 +10,7 @@ import { SourceFileViewer } from "./SourceFileViewer";
 import { AddCharacterForm } from "./lorebook/AddCharacterForm";
 import { AddClueForm } from "./lorebook/AddClueForm";
 import { API } from "@/api";
+import { resolveEpisodeContentMode } from "@/utils/content-mode";
 import { buildEntityRevisionKey } from "@/utils/project-changes";
 import { getProviderModels, getCustomProviderModels, lookupSupportedDurations } from "@/utils/provider-models";
 import type { Clue, CustomProviderInfo, ProviderInfo, TaskItem } from "@/types";
@@ -126,7 +127,8 @@ export function StudioCanvasRouter() {
   // These receive scriptFile from TimelineCanvas so they always use the active episode's script.
   const handleUpdatePrompt = useCallback(async (segmentId: string, field: string, value: unknown, scriptFile?: string) => {
     if (!currentProjectName) return;
-    const mode = currentProjectData?.content_mode ?? "narration";
+    const activeScript = scriptFile ? currentScripts?.[scriptFile] : undefined;
+    const mode = resolveEpisodeContentMode(activeScript, currentProjectData?.content_mode);
     try {
       if (mode === "drama") {
         await API.updateScene(currentProjectName, segmentId, scriptFile ?? "", { [field]: value });
@@ -137,7 +139,7 @@ export function StudioCanvasRouter() {
     } catch (err) {
       useAppStore.getState().pushToast(`更新 Prompt 失敗: ${(err as Error).message}`, "error");
     }
-  }, [currentProjectName, currentProjectData, refreshProject]);
+  }, [currentProjectName, currentProjectData, currentScripts, refreshProject]);
 
   const handleGenerateStoryboard = useCallback(async (segmentId: string, scriptFile?: string) => {
     if (!currentProjectName || !currentScripts) return;
@@ -434,7 +436,7 @@ export function StudioCanvasRouter() {
             ? (currentScripts[scriptFile] ?? null)
             : null;
 
-          const hasDraft = episode?.script_status === "segmented" || episode?.script_status === "generated";
+          const hasDraft = Boolean(episode);
 
           return (
             <TimelineCanvas

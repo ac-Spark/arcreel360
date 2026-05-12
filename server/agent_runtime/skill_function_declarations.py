@@ -75,6 +75,25 @@ def _get_positive_episode(args: dict[str, Any]) -> int | None:
     return None
 
 
+def _build_persist_failure(
+    *,
+    entity_label: str,
+    persisted: dict[str, Any],
+    added: list[str],
+    skipped: list[dict[str, str]],
+) -> dict[str, Any] | None:
+    not_persisted = [name for name in added if name not in persisted]
+    if not not_persisted:
+        return None
+    return {
+        "ok": False,
+        "error": "persist_failed",
+        "reason": f"{entity_label}寫入後未出現在 project.json：{not_persisted}",
+        "added": [name for name in added if name in persisted],
+        "skipped": skipped,
+    }
+
+
 def _safe_project_file_exists(project_path: Path, rel_path: Any) -> bool:
     if not isinstance(rel_path, str) or not rel_path.strip():
         return False
@@ -276,6 +295,22 @@ async def _handle_generate_characters(ctx: SkillCallContext, args: dict[str, Any
         except Exception as exc:
             skipped.append({"name": name, "reason": str(exc)})
 
+    persisted = ctx.project_manager.load_project(ctx.project_name).get("characters", {})
+    persist_failure = _build_persist_failure(
+        entity_label="角色",
+        persisted=persisted,
+        added=added,
+        skipped=skipped,
+    )
+    if persist_failure:
+        return persist_failure
+    if not added:
+        return {
+            "ok": False,
+            "error": "nothing_added",
+            "reason": "沒有任何角色被寫入（全部 skipped）",
+            "skipped": skipped,
+        }
     return {"ok": True, "added": added, "skipped": skipped}
 
 
@@ -351,6 +386,15 @@ async def _handle_generate_clues(ctx: SkillCallContext, args: dict[str, Any]) ->
         except Exception as exc:
             skipped.append({"name": name, "reason": str(exc)})
 
+    persisted = ctx.project_manager.load_project(ctx.project_name).get("clues", {})
+    persist_failure = _build_persist_failure(
+        entity_label="線索",
+        persisted=persisted,
+        added=added,
+        skipped=skipped,
+    )
+    if persist_failure:
+        return persist_failure
     return {"ok": True, "added": added, "skipped": skipped}
 
 

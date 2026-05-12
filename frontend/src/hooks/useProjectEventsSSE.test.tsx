@@ -113,6 +113,50 @@ describe("useProjectEventsSSE", () => {
     expect(useAppStore.getState().assistantToolActivitySuppressed).toBe(true);
   });
 
+  it("navigates to a newly created episode when the backend includes episode focus", async () => {
+    let capturedOptions: ProjectEventStreamOptions | undefined;
+    vi.spyOn(API, "openProjectEventStream").mockImplementation((options) => {
+      capturedOptions = options;
+      return { close: vi.fn() } as unknown as EventSource;
+    });
+
+    renderHarness("/");
+
+    act(() => {
+      capturedOptions?.onChanges?.(
+        {
+          project_name: "demo",
+          batch_id: "batch-episode",
+          fingerprint: "fp-episode",
+          generated_at: "2026-03-01T00:00:00Z",
+          source: "filesystem",
+          changes: [
+            {
+              entity_type: "episode",
+              action: "created",
+              entity_id: "1",
+              label: "第 1 集",
+              episode: 1,
+              focus: {
+                pane: "episode",
+                episode: 1,
+                anchor_type: "episode",
+                anchor_id: "1",
+              },
+              important: true,
+            },
+          ],
+        },
+        new MessageEvent("changes"),
+      );
+    });
+
+    await waitFor(() => {
+      expect(API.getProject).toHaveBeenCalledWith("demo");
+      expect(screen.getByTestId("location")).toHaveTextContent("/episodes/1");
+    });
+  });
+
   it("defers focus when the user is editing", async () => {
     let capturedOptions: ProjectEventStreamOptions | undefined;
     vi.spyOn(API, "openProjectEventStream").mockImplementation((options) => {

@@ -90,6 +90,14 @@ class _FakePM:
     def save_project(self, name, payload):
         self.project_data[name] = payload
 
+    def add_episode(self, project_name, episode, title, script_file):
+        project = self.load_project(project_name)
+        episodes = project.setdefault("episodes", [])
+        episodes.append({"episode": episode, "title": title, "script_file": script_file})
+        episodes.sort(key=lambda ep: ep["episode"])
+        self.save_project(project_name, project)
+        return project
+
     def load_script(self, name, script_file):
         if script_file.startswith("scripts/"):
             script_file = script_file[len("scripts/") :]
@@ -233,6 +241,18 @@ class TestProjectsRouter:
 
             get_script_missing = client.get("/api/v1/projects/ready/scripts/missing.json")
             assert get_script_missing.status_code == 404
+
+            create_episode = client.post("/api/v1/projects/ready/episodes", json={})
+            assert create_episode.status_code == 200
+            assert create_episode.json()["episode"] == {
+                "episode": 2,
+                "title": "第 2 集",
+                "script_file": "scripts/episode_2.json",
+            }
+            assert fake_pm.project_data["ready"]["episodes"][-1]["episode"] == 2
+
+            duplicate_episode = client.post("/api/v1/projects/ready/episodes", json={"episode": 1})
+            assert duplicate_episode.status_code == 400
 
     def test_scene_segment_and_overview_endpoints(self, tmp_path, monkeypatch):
         fake_pm = _FakePM(tmp_path)

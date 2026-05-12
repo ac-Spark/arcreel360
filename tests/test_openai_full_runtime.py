@@ -193,6 +193,12 @@ def test_provider_capabilities_and_agent_tools(provider: OpenAIFullRuntimeProvid
     assert agent.tools is provider._tools
 
 
+def test_openai_full_instructions_require_traditional_chinese(provider: OpenAIFullRuntimeProvider) -> None:
+    instructions = provider._build_openai_instructions("demo")
+
+    assert "繁體中文" in instructions
+
+
 @pytest.mark.asyncio
 async def test_resolve_model_name_uses_openai_config_model(provider: OpenAIFullRuntimeProvider) -> None:
     provider._resolver = _Resolver("openai", "gpt-4.1")  # type: ignore[assignment]

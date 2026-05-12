@@ -109,6 +109,12 @@ def _patch_runner(provider: AdkGeminiFullRuntimeProvider, monkeypatch: pytest.Mo
 # ---------------------------------------------------------------------------
 
 
+def test_system_prompt_requires_traditional_chinese(provider: AdkGeminiFullRuntimeProvider) -> None:
+    prompt = provider._build_system_prompt("demo")
+
+    assert "繁體中文" in prompt
+
+
 @pytest.mark.asyncio
 async def test_single_turn_text_only(provider: AdkGeminiFullRuntimeProvider, monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_runner(provider, monkeypatch, [_make_text_event("你好")])

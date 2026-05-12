@@ -159,6 +159,7 @@ describe("API", () => {
       await API.createProject("Untitled");
       await API.getProject("a b");
       await API.updateProject("demo", { style: "Anime" });
+      await API.createEpisode("demo", { episode: 2 });
       await API.deleteProject("demo");
 
       await API.addCharacter("demo", "Hero", "brave");
@@ -211,6 +212,10 @@ describe("API", () => {
       expect(requestSpy).toHaveBeenCalledWith("/projects/demo", {
         method: "PATCH",
         body: JSON.stringify({ style: "Anime" }),
+      });
+      expect(requestSpy).toHaveBeenCalledWith("/projects/demo/episodes", {
+        method: "POST",
+        body: JSON.stringify({ episode: 2 }),
       });
       expect(requestSpy).toHaveBeenCalledWith("/projects/demo", {
         method: "DELETE",

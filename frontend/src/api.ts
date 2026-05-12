@@ -8,6 +8,7 @@
 import type {
   ProjectData,
   ProjectSummary,
+  EpisodeMeta,
   ImportConflictPolicy,
   ImportProjectResponse,
   ExportDiagnostics,
@@ -314,6 +315,16 @@ class API {
         body: JSON.stringify(updates),
       }
     );
+  }
+
+  static async createEpisode(
+    name: string,
+    body: { episode?: number; title?: string } = {}
+  ): Promise<{ success: boolean; episode: EpisodeMeta; project: ProjectData }> {
+    return this.request(`/projects/${encodeURIComponent(name)}/episodes`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
   }
 
   // ==================== 批次生成 ====================

@@ -21,18 +21,20 @@ vi.mock("./SourceFileViewer", () => ({
 vi.mock("./timeline/TimelineCanvas", () => ({
   TimelineCanvas: ({
     episodeScript,
+    scriptFile,
     onUpdatePrompt,
     onGenerateStoryboard,
     onGenerateVideo,
   }: {
     episodeScript: unknown;
-    onUpdatePrompt?: (segmentId: string, field: string, value: unknown) => void;
+    scriptFile?: string;
+    onUpdatePrompt?: (segmentId: string, field: string, value: unknown, scriptFile?: string) => void;
     onGenerateStoryboard?: (segmentId: string) => void;
     onGenerateVideo?: (segmentId: string) => void;
   }) => (
     <div data-testid="timeline-canvas">
       <div data-testid="timeline-has-script">{episodeScript ? "yes" : "no"}</div>
-      <button onClick={() => onUpdatePrompt?.("SEG-1", "image_prompt", "new prompt")}>
+      <button onClick={() => onUpdatePrompt?.("SEG-1", "image_prompt", "new prompt", scriptFile)}>
         update-prompt
       </button>
       <button onClick={() => onGenerateStoryboard?.("SEG-1")}>generate-storyboard</button>
@@ -175,6 +177,30 @@ function makeScript(): EpisodeScript {
         novel_text: "text",
         characters_in_segment: ["Hero"],
         clues_in_segment: ["Key"],
+        image_prompt: "image prompt",
+        video_prompt: "video prompt",
+        transition_to_next: "cut",
+      },
+    ],
+  };
+}
+
+function makeDramaScript(): EpisodeScript {
+  return {
+    episode: 1,
+    title: "EP1",
+    content_mode: "drama",
+    duration_seconds: 8,
+    summary: "summary",
+    novel: { title: "n", chapter: "1" },
+    scenes: [
+      {
+        scene_id: "SEG-1",
+        duration_seconds: 8,
+        segment_break: false,
+        scene_type: "dialogue",
+        characters_in_scene: ["Hero"],
+        clues_in_scene: ["Key"],
         image_prompt: "image prompt",
         video_prompt: "video prompt",
         transition_to_next: "cut",
@@ -356,6 +382,7 @@ describe("StudioCanvasRouter", () => {
     fireEvent.click(screen.getByText("update-prompt"));
     await waitFor(() => {
       expect(API.updateSegment).toHaveBeenCalledWith("demo", "SEG-1", {
+        script_file: "episode_1.json",
         image_prompt: "new prompt",
       });
       expect(useAppStore.getState().toast?.text).toContain("更新 Prompt 失敗");
@@ -383,5 +410,33 @@ describe("StudioCanvasRouter", () => {
       );
       expect(useAppStore.getState().toast?.text).toContain("生成影片失敗");
     });
+  });
+
+  it("updates scene prompts through scene API when the active script is drama", async () => {
+    const projectData = makeProjectData({ content_mode: "narration" });
+    const dramaScript = makeDramaScript();
+    useProjectsStore.setState({
+      currentProjectName: "demo",
+      currentProjectData: projectData,
+      currentScripts: { "episode_1.json": dramaScript },
+    });
+
+    vi.spyOn(API, "getProject").mockResolvedValue({
+      project: projectData,
+      scripts: { "episode_1.json": dramaScript },
+    });
+    vi.spyOn(API, "updateScene").mockResolvedValue({ success: true });
+    vi.spyOn(API, "updateSegment").mockResolvedValue({ success: true });
+
+    renderAt("/episodes/1");
+
+    fireEvent.click(screen.getByText("update-prompt"));
+
+    await waitFor(() => {
+      expect(API.updateScene).toHaveBeenCalledWith("demo", "SEG-1", "episode_1.json", {
+        image_prompt: "new prompt",
+      });
+    });
+    expect(API.updateSegment).not.toHaveBeenCalled();
   });
 });

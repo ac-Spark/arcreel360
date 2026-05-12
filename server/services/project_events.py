@@ -629,7 +629,7 @@ class ProjectEventService:
                     label=f"第 {episode['episode']} 集",
                     script_file=episode.get("script_file"),
                     episode=episode["episode"],
-                    focus=None,
+                    focus=self._build_episode_focus(episode["episode"], episode_key),
                     important=True,
                 )
             )
@@ -645,11 +645,20 @@ class ProjectEventService:
                     label=f"第 {episode['episode']} 集",
                     script_file=episode.get("script_file"),
                     episode=episode["episode"],
-                    focus=None,
+                    focus=self._build_episode_focus(episode["episode"], episode_key),
                     important=True,
                 )
             )
         return changes
+
+    @staticmethod
+    def _build_episode_focus(episode: int, episode_key: str) -> dict[str, Any]:
+        return {
+            "pane": "episode",
+            "episode": episode,
+            "anchor_type": "episode",
+            "anchor_id": episode_key,
+        }
 
     def _diff_script_items(
         self,

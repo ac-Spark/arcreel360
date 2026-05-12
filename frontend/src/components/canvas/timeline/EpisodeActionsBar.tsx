@@ -32,6 +32,8 @@ export function EpisodeActionsBar({
 
   const toast = (msg: string, kind: "success" | "error" | "info" = "info") =>
     useAppStore.getState().pushToast(msg, kind);
+  const preprocessLabel = hasScript ? "重新拆段" : "拆段";
+  const scriptLabel = hasScript ? "重新生成劇本" : "生成劇本";
 
   const run = async (
     label: Busy,
@@ -51,13 +53,14 @@ export function EpisodeActionsBar({
   };
 
   const handlePreprocess = () =>
-    run("preprocess", "重新拆段", async () => {
+    run("preprocess", preprocessLabel, async () => {
       const res = await API.preprocessEpisode(projectName, episode);
+      useAppStore.getState().invalidateEntities([`draft:episode_${episode}_step1`]);
       return res.step1_path;
     });
 
   const handleScript = () =>
-    run("script", "重新生成劇本", async () => {
+    run("script", scriptLabel, async () => {
       const res = await API.generateEpisodeScript(projectName, episode);
       return `${res.script_file}（${res.segments_count} 段）`;
     });
@@ -92,21 +95,27 @@ export function EpisodeActionsBar({
     <div className="mt-3 flex flex-wrap items-center gap-2">
       <ActionButton
         icon={<Scissors className="h-3.5 w-3.5" />}
-        label="重新拆段"
+        label={preprocessLabel}
         loading={busy === "preprocess"}
         disabled={busy !== null}
         onClick={() => {
-          if (confirm("重新拆段會覆寫 Step 1 中介檔。確定？")) void handlePreprocess();
+          const message = hasScript
+            ? "重新拆段會覆寫 Step 1 中介檔。確定？"
+            : "拆段會產生 Step 1 中介檔。確定？";
+          if (confirm(message)) void handlePreprocess();
         }}
         tone="neutral"
       />
       <ActionButton
         icon={<Wand2 className="h-3.5 w-3.5" />}
-        label="重新生成劇本"
+        label={scriptLabel}
         loading={busy === "script"}
         disabled={busy !== null}
         onClick={() => {
-          if (confirm("重新生成劇本會覆寫現有 segments。確定？")) void handleScript();
+          const message = hasScript
+            ? "重新生成劇本會覆寫現有劇本。確定？"
+            : "生成劇本會根據 Step 1 中介檔產生 JSON 劇本。確定？";
+          if (confirm(message)) void handleScript();
         }}
         tone="neutral"
       />

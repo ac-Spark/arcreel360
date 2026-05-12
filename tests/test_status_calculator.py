@@ -263,6 +263,29 @@ class TestStatusCalculator:
         assert enriched_script["characters_in_episode"] == ["A", "B"]
         assert enriched_script["clues_in_episode"] == ["C"]
 
+    def test_enrich_script_infers_drama_content_mode_from_scenes(self, tmp_path):
+        script = {
+            "episode": 1,
+            "title": "第一集",
+            "scenes": [
+                {
+                    "scene_id": "scene_1",
+                    "duration_seconds": 8,
+                    "characters_in_scene": ["A"],
+                    "clues_in_scene": ["C"],
+                    "generated_assets": {"storyboard_image": "storyboards/scene_scene_1.png"},
+                }
+            ],
+        }
+        calc = StatusCalculator(_FakePM(tmp_path, {}, {}))
+
+        enriched_script = calc.enrich_script(script)
+
+        assert enriched_script["content_mode"] == "drama"
+        assert enriched_script["metadata"]["total_scenes"] == 1
+        assert enriched_script["characters_in_episode"] == ["A"]
+        assert enriched_script["clues_in_episode"] == ["C"]
+
     def test_load_episode_script_corrupted_json(self, tmp_path):
         """JSON 損壞時應降級返回 ('generated', None)，而不是上拋異常。"""
         import json

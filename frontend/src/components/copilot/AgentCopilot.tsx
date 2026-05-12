@@ -169,6 +169,7 @@ export function AgentCopilot() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageGenRef = useRef(0);
   const slashMenuRef = useRef<SlashCommandMenuHandle>(null);
+  const shouldRefocusAfterSendRef = useRef(false);
   const [localInput, setLocalInput] = useState("");
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([]);
@@ -273,6 +274,7 @@ export function AgentCopilot() {
 
   const handleSend = useCallback(() => {
     if (inputDisabled || (!localInput.trim() && attachedImages.length === 0)) return;
+    shouldRefocusAfterSendRef.current = true;
     imageGenRef.current += 1; // invalidate pending FileReader callbacks
     sendMessage(localInput.trim(), attachedImages.length > 0 ? attachedImages : undefined);
     setLocalInput("");
@@ -284,6 +286,12 @@ export function AgentCopilot() {
       textareaRef.current.style.height = "auto";
     }
   }, [inputDisabled, localInput, attachedImages, sendMessage]);
+
+  useEffect(() => {
+    if (inputDisabled || !shouldRefocusAfterSendRef.current) return;
+    shouldRefocusAfterSendRef.current = false;
+    textareaRef.current?.focus();
+  }, [inputDisabled]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     // Delegate to slash menu when open

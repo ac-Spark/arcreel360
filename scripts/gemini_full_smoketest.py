@@ -43,16 +43,12 @@ async def main() -> int:
     if not project_dir.exists():
         log.info("creating temp project %s", project_name)
         pm.create_project(project_name)
-        pm.save_project(
+        # 走與 WebUI 相同的建立路徑，確保 project.json 必填欄位齊全
+        pm.create_project_metadata(
             project_name,
-            {
-                "title": "smoketest",
-                "content_mode": "narration",
-                "style": "anime",
-                "characters": {},
-                "clues": {},
-                "episodes": [],
-            },
+            title="smoketest",
+            style="anime",
+            content_mode="narration",
         )
 
     provider = GeminiFullRuntimeProvider(

@@ -29,6 +29,27 @@ from lib.version_manager import VersionManager
 
 logger = logging.getLogger(__name__)
 
+# 所有圖片生成都會在 prompt 後自動附加此指示，避免生成的畫面出現文字/字幕/浮水印。
+# 不顯示於前端、不寫入呼叫方傳入的 prompt，由後端統一強制注入。
+IMAGE_NO_TEXT_DIRECTIVE = (
+    "Important: do not render any text, letters, words, captions, subtitles, "
+    "watermarks, logos, signage, or written characters anywhere in the image."
+)
+
+# 影片生成的負面提示詞預設值（在既有的「無背景音樂」基礎上補上「無文字」）。
+DEFAULT_VIDEO_NEGATIVE_PROMPT = (
+    "background music, BGM, soundtrack, musical accompaniment, "
+    "text, letters, words, captions, subtitles, watermark, logo, signage"
+)
+
+
+def _with_no_text_directive(prompt: str) -> str:
+    """為圖片 prompt 附加「不要文字」指示。"""
+    base = (prompt or "").rstrip()
+    if not base:
+        return IMAGE_NO_TEXT_DIRECTIVE
+    return f"{base}\n\n{IMAGE_NO_TEXT_DIRECTIVE}"
+
 
 class MediaGenerator:
     """
@@ -184,6 +205,9 @@ class MediaGenerator:
         """
         from lib.image_backends.base import ImageGenerationRequest, ReferenceImage
 
+        # 後端統一注入「不要文字」指示——不論呼叫方傳入什麼 prompt 都會附加。
+        effective_prompt = _with_no_text_directive(prompt)
+
         output_path = self._get_output_path(resource_type, resource_id)
         self._ensure_parent_dir(output_path)
 
@@ -193,7 +217,7 @@ class MediaGenerator:
                 resource_type=resource_type,
                 resource_id=resource_id,
                 current_file=output_path,
-                prompt=prompt,
+                prompt=effective_prompt,
                 aspect_ratio=aspect_ratio,
                 **version_metadata,
             )
@@ -206,7 +230,7 @@ class MediaGenerator:
             project_name=self.project_name,
             call_type="image",
             model=self._image_backend.model,
-            prompt=prompt,
+            prompt=effective_prompt,
             resolution=image_size,
             aspect_ratio=aspect_ratio,
             provider=self._image_backend.name,
@@ -232,7 +256,7 @@ class MediaGenerator:
                     # PIL Image 等不支援的型別忽略
 
             request = ImageGenerationRequest(
-                prompt=prompt,
+                prompt=effective_prompt,
                 output_path=output_path,
                 reference_images=ref_images,
                 aspect_ratio=aspect_ratio,
@@ -262,7 +286,7 @@ class MediaGenerator:
         new_version = self.versions.add_version(
             resource_type=resource_type,
             resource_id=resource_id,
-            prompt=prompt,
+            prompt=effective_prompt,
             source_file=output_path,
             aspect_ratio=aspect_ratio,
             **version_metadata,
@@ -279,7 +303,7 @@ class MediaGenerator:
         aspect_ratio: str = "9:16",
         duration_seconds: str = "8",
         resolution: str = "1080p",
-        negative_prompt: str = "background music, BGM, soundtrack, musical accompaniment",
+        negative_prompt: str = DEFAULT_VIDEO_NEGATIVE_PROMPT,
         **version_metadata,
     ) -> tuple[Path, int, any, str | None]:
         """
@@ -322,7 +346,7 @@ class MediaGenerator:
         aspect_ratio: str = "9:16",
         duration_seconds: str = "8",
         resolution: str = "1080p",
-        negative_prompt: str = "background music, BGM, soundtrack, musical accompaniment",
+        negative_prompt: str = DEFAULT_VIDEO_NEGATIVE_PROMPT,
         **version_metadata,
     ) -> tuple[Path, int, any, str | None]:
         """

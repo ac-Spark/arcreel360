@@ -5,7 +5,7 @@
 This file provides guidance to coding agents (Claude Code, Codex, etc.) when working with code in this repository.
 
 ## 語言規範
-- **回答使用者必須使用中文**：所有回覆、任務清單及計劃檔案，均須使用中文
+- **回答使用者必須使用繁體中文**：所有回覆、任務清單及計劃檔案，均須使用繁體中文；除非使用者明確要求翻譯或輸出其他語言，否則不要使用簡體中文或英文作為主要回覆語言
 
 ## 專案概述
 

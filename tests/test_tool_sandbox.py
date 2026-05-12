@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+from lib.project_manager import ProjectManager
 from server.agent_runtime.tool_sandbox import (
     ALLOWED_SUBDIRS,
     MAX_WRITE_BYTES,
@@ -20,6 +22,7 @@ from server.agent_runtime.tool_sandbox import (
     fs_list,
     fs_read,
     fs_write,
+    fs_write_handler,
 )
 
 
@@ -193,6 +196,37 @@ def test_fs_write_creates_missing_parent(sandbox: ToolSandbox) -> None:
     result = fs_write(sandbox, "drafts/episode_2/scene_1.txt", "hi")
     assert result["bytes_written"] == 2
     assert (sandbox.allowed_root / "drafts" / "episode_2" / "scene_1.txt").exists()
+
+
+@pytest.mark.asyncio
+async def test_fs_write_handler_syncs_episode_index_for_script_json(tmp_path: Path) -> None:
+    pm = ProjectManager(tmp_path / "projects")
+    pm.create_project("demo")
+    pm.create_project_metadata("demo", "Demo", "Anime", "narration")
+    sandbox = ToolSandbox(project_root=tmp_path / "projects", project_name="demo")
+    script = """
+{
+  "episode": 1,
+  "title": "鏽鐵下的微光",
+  "content_mode": "narration",
+  "segments": []
+}
+""".strip()
+
+    result = await fs_write_handler(
+        SimpleNamespace(sandbox=sandbox, project_manager=pm, project_name="demo"),
+        {"path": "scripts/episode_1.json", "content": script},
+    )
+
+    assert result["bytes_written"] == len(script.encode("utf-8"))
+    project = pm.load_project("demo")
+    assert project["episodes"] == [
+        {
+            "episode": 1,
+            "title": "鏽鐵下的微光",
+            "script_file": "scripts/episode_1.json",
+        }
+    ]
 
 
 # ---------------------------------------------------------------------------

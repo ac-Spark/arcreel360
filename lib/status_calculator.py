@@ -261,6 +261,7 @@ class StatusCalculator:
             注入計算欄位後的劇本資料
         """
         content_mode, items = self._select_content_mode_and_items(script)
+        script["content_mode"] = content_mode
         default_duration = 4 if content_mode == "narration" else 8
 
         total_duration = sum(i.get("duration_seconds", default_duration) for i in items)

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { API } from "@/api";
 import { useAssistantSession } from "@/hooks/useAssistantSession";
@@ -144,5 +144,31 @@ describe("AgentCopilot", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "前往設定" })).toBeInTheDocument();
+  });
+
+  it("refocuses the assistant input after a sent message finishes", async () => {
+    render(<AgentCopilot />);
+
+    const input = screen.getByLabelText("助理輸入");
+    fireEvent.change(input, { target: { value: "繼續討論分鏡" } });
+    fireEvent.click(screen.getByLabelText("傳送訊息"));
+
+    expect(sendMessage).toHaveBeenCalledWith("繼續討論分鏡", undefined);
+
+    input.blur();
+    expect(input).not.toHaveFocus();
+
+    await act(async () => {
+      useAssistantStore.setState({ sending: true, sessionStatus: "running" });
+    });
+    expect(screen.getByLabelText("助理輸入")).toBeDisabled();
+
+    await act(async () => {
+      useAssistantStore.setState({ sending: false, sessionStatus: "completed" });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("助理輸入")).toHaveFocus();
+    });
   });
 });

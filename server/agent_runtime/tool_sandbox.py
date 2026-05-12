@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -316,12 +317,46 @@ async def fs_read_handler(ctx: Any, args: dict[str, Any]) -> dict[str, Any]:
 
 
 async def fs_write_handler(ctx: Any, args: dict[str, Any]) -> dict[str, Any]:
-    return fs_write(
+    path = str(args.get("path") or "")
+    result = fs_write(
         ctx.sandbox,
-        str(args.get("path") or ""),
+        path,
         str(args.get("content") or ""),
         mode=str(args.get("mode") or "overwrite"),
     )
+    if "error" not in result:
+        _sync_script_index_after_write(ctx, path, result)
+    return result
+
+
+def _sync_script_index_after_write(ctx: Any, path: str, result: dict[str, Any]) -> None:
+    project_manager = getattr(ctx, "project_manager", None)
+    project_name = getattr(ctx, "project_name", None)
+    sandbox = getattr(ctx, "sandbox", None)
+    if project_manager is None or not project_name or sandbox is None:
+        return
+
+    try:
+        target = sandbox.validate_path(path)
+        rel = target.relative_to(sandbox.allowed_root)
+    except Exception:
+        return
+
+    if len(rel.parts) != 2 or rel.parts[0] != "scripts" or target.suffix.lower() != ".json":
+        return
+
+    try:
+        script = json.loads(target.read_text(encoding="utf-8"))
+    except Exception:
+        return
+    if not isinstance(script, dict) or not isinstance(script.get("episode"), int):
+        return
+
+    try:
+        project_manager.sync_episode_from_script(project_name, rel.name)
+        result["episode_synced"] = True
+    except Exception as exc:
+        result["episode_sync_error"] = str(exc)
 
 
 async def fs_list_handler(ctx: Any, args: dict[str, Any]) -> dict[str, Any]:
