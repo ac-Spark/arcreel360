@@ -144,3 +144,64 @@ class DramaEpisodeScript(BaseModel):
     summary: str = Field(description="劇集摘要")
     novel: NovelInfo = Field(description="小說來源資訊")
     scenes: list[DramaScene] = Field(description="場景列表")
+
+
+# ============ 空骨架工廠（供「手動建立空劇集」使用） ============
+
+
+def _empty_image_prompt() -> ImagePrompt:
+    return ImagePrompt(scene="", composition=Composition(shot_type="Medium Shot", lighting="", ambiance=""))
+
+
+def _empty_video_prompt() -> VideoPrompt:
+    return VideoPrompt(action="", camera_motion="Static", ambiance_audio="", dialogue=[])
+
+
+def empty_narration_script(episode: int, title: str) -> dict:
+    """產生說書模式的空骨架劇本 dict（segments 為空），所有必填欄位填合理空值。"""
+    return NarrationEpisodeScript(
+        episode=episode,
+        title=title,
+        summary="",
+        novel=NovelInfo(title=title, chapter=""),
+        segments=[],
+    ).model_dump()
+
+
+def empty_drama_script(episode: int, title: str) -> dict:
+    """產生劇集動畫模式的空骨架劇本 dict（scenes 為空），所有必填欄位填合理空值。"""
+    return DramaEpisodeScript(
+        episode=episode,
+        title=title,
+        summary="",
+        novel=NovelInfo(title=title, chapter=""),
+        scenes=[],
+    ).model_dump()
+
+
+def empty_narration_segment(episode: int, segment_id: str) -> dict:
+    """產生一個空的說書片段 dict，所有必填欄位填合理空值（duration 預設 4 秒）。"""
+    return NarrationSegment(
+        segment_id=segment_id,
+        episode=episode,
+        duration_seconds=4,
+        novel_text="",
+        characters_in_segment=[],
+        image_prompt=_empty_image_prompt(),
+        video_prompt=_empty_video_prompt(),
+    ).model_dump()
+
+
+def empty_drama_scene(episode: int, scene_id: str) -> dict:
+    """產生一個空的劇集動畫場景 dict，所有必填欄位填合理空值（duration 預設 8 秒）。
+
+    episode 參數僅為與 empty_narration_segment 一致；DramaScene 本身不帶 episode 欄位。
+    """
+    _ = episode
+    return DramaScene(
+        scene_id=scene_id,
+        duration_seconds=8,
+        characters_in_scene=[],
+        image_prompt=_empty_image_prompt(),
+        video_prompt=_empty_video_prompt(),
+    ).model_dump()

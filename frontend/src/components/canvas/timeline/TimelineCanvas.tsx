@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Pencil } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
 import { useProjectsStore } from "@/stores/projects-store";
@@ -318,11 +318,23 @@ export function TimelineCanvas({
             contentMode={contentMode}
           />
         ) : episodeScript ? (
-          <div
-            className="relative"
-            style={{ height: `${virtualizer.getTotalSize()}px` }}
-          >
-            {virtualItems.map((virtualItem) => {
+          <>
+            <AddSegmentButton
+              projectName={projectName}
+              episode={episodeScript.episode}
+              contentMode={contentMode}
+              onAdded={refreshProjectAfterSplit}
+            />
+            {segments.length === 0 && (
+              <p className="mb-4 text-sm text-gray-600">
+                這一集還沒有{contentMode === "narration" ? "片段" : "場景"}，點上方按鈕新增。
+              </p>
+            )}
+            <div
+              className="relative"
+              style={{ height: `${virtualizer.getTotalSize()}px` }}
+            >
+              {virtualItems.map((virtualItem) => {
               const segment = segments[virtualItem.index];
               const segId = getSegmentId(segment, contentMode);
               return (
@@ -356,7 +368,8 @@ export function TimelineCanvas({
                 </div>
               );
             })}
-          </div>
+            </div>
+          </>
         ) : null}
 
         {/* Final composed video */}
@@ -368,6 +381,55 @@ export function TimelineCanvas({
         <div className="h-16" />
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AddSegmentButton — 在劇本末尾新增一個空片段/場景
+// ---------------------------------------------------------------------------
+
+function AddSegmentButton({
+  projectName,
+  episode,
+  contentMode,
+  onAdded,
+}: {
+  projectName: string;
+  episode: number;
+  contentMode: "narration" | "drama";
+  onAdded: () => void | Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const label = contentMode === "narration" ? "新增片段" : "新增場景";
+
+  const handleAdd = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (contentMode === "narration") {
+        await API.addEpisodeSegment(projectName, episode);
+      } else {
+        await API.addEpisodeScene(projectName, episode);
+      }
+      await onAdded();
+      useAppStore.getState().pushToast(`已${label}`, "success");
+    } catch (err) {
+      useAppStore.getState().pushToast(`${label}失敗：${(err as Error).message}`, "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={() => void handleAdd()}
+      disabled={busy}
+      className="mb-4 inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/40 px-3 py-1.5 text-sm text-indigo-300 transition-colors hover:border-indigo-400 hover:bg-indigo-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <Plus className="h-4 w-4" />
+      {label}
+    </button>
   );
 }
 

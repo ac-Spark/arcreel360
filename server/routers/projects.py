@@ -699,7 +699,9 @@ def _resolve_source_file_for_split(manager: ProjectManager, project_name: str, s
 
 @router.post("/projects/{name}/episodes")
 async def create_episode(name: str, req: CreateEpisodeRequest, _user: CurrentUser):
-    """新增劇集工作區；不直接生成劇本內容。"""
+    """新增劇集工作區，含一份空骨架劇本（segments/scenes 為空），不生成劇本內容。"""
+    from lib.script_models import empty_drama_script, empty_narration_script
+
     try:
 
         def _sync():
@@ -724,8 +726,15 @@ async def create_episode(name: str, req: CreateEpisodeRequest, _user: CurrentUse
 
             title = (req.title or "").strip() or f"第 {episode_num} 集"
             script_file = f"scripts/episode_{episode_num}.json"
+            content_mode = project.get("content_mode", "narration")
+            empty_script = (
+                empty_drama_script(episode_num, title)
+                if content_mode == "drama"
+                else empty_narration_script(episode_num, title)
+            )
             with project_change_source("webui"):
                 project = manager.add_episode(name, episode_num, title, script_file)
+                manager.save_script(name, empty_script, f"episode_{episode_num}.json")
 
             episode_entry = next(ep for ep in project.get("episodes", []) if int(ep.get("episode", -1)) == episode_num)
             return {"success": True, "episode": episode_entry, "project": project}
@@ -844,6 +853,59 @@ async def update_episode(
         raise
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _append_empty_episode_item(name: str, episode: int, expected_mode: str, list_key: str, alt_route: str) -> dict:
+    """在劇集劇本末尾 append 一個空片段/場景，回 {<list_key 單數>: <new item>, "<list_key>_count": N}。"""
+    from lib.script_models import empty_drama_scene, empty_narration_segment
+
+    manager = get_project_manager()
+    if not manager.project_exists(name):
+        raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+    content_mode = manager.load_project(name).get("content_mode", "narration")
+    if content_mode != expected_mode:
+        raise HTTPException(status_code=400, detail=f"此劇集是 {content_mode} 模式，請改用 {alt_route}")
+    filename = f"episode_{episode}.json"
+    try:
+        script = manager.load_script(name, filename)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"劇集 E{episode} 的劇本不存在")
+    items = script.setdefault(list_key, [])
+    item_id = f"E{episode}S{len(items) + 1}"
+    new_item = (
+        empty_narration_segment(episode, item_id)
+        if expected_mode == "narration"
+        else empty_drama_scene(episode, item_id)
+    )
+    items.append(new_item)
+    with project_change_source("webui"):
+        manager.save_script(name, script, filename)
+    singular = "segment" if list_key == "segments" else "scene"
+    return {singular: new_item, f"{list_key}_count": len(items)}
+
+
+@router.post("/projects/{name}/episodes/{episode}/segments")
+async def add_episode_segment(name: str, episode: int, _user: CurrentUser):
+    """在指定劇集（說書模式）的劇本末尾新增一個空片段。"""
+    try:
+        return await asyncio.to_thread(_append_empty_episode_item, name, episode, "narration", "segments", "/scenes")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/projects/{name}/episodes/{episode}/scenes")
+async def add_episode_scene(name: str, episode: int, _user: CurrentUser):
+    """在指定劇集（劇集動畫模式）的劇本末尾新增一個空場景。"""
+    try:
+        return await asyncio.to_thread(_append_empty_episode_item, name, episode, "drama", "scenes", "/segments")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("請求處理失敗")
         raise HTTPException(status_code=500, detail=str(e))

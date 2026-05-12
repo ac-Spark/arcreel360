@@ -427,6 +427,26 @@ class API {
     );
   }
 
+  static async addEpisodeSegment(
+    name: string,
+    episode: number
+  ): Promise<{ segment: unknown; segments_count: number }> {
+    return this.request(
+      `/projects/${encodeURIComponent(name)}/episodes/${episode}/segments`,
+      { method: "POST", body: JSON.stringify({}) }
+    );
+  }
+
+  static async addEpisodeScene(
+    name: string,
+    episode: number
+  ): Promise<{ scene: unknown; scenes_count: number }> {
+    return this.request(
+      `/projects/${encodeURIComponent(name)}/episodes/${episode}/scenes`,
+      { method: "POST", body: JSON.stringify({}) }
+    );
+  }
+
   static async peekEpisodeSplit(
     name: string,
     body: { source: string; target_chars: number; context?: number },

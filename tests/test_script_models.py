@@ -10,6 +10,10 @@ from lib.script_models import (
     NarrationEpisodeScript,
     NarrationSegment,
     VideoPrompt,
+    empty_drama_scene,
+    empty_drama_script,
+    empty_narration_script,
+    empty_narration_segment,
 )
 
 
@@ -136,3 +140,39 @@ class TestScriptModels:
         assert narration.content_mode == "narration"
         assert drama.content_mode == "drama"
         assert drama.scenes[0].duration_seconds == 8
+
+
+class TestEmptyFactories:
+    def test_empty_narration_script_valid_and_empty(self):
+        d = empty_narration_script(3, "我的刀盾")
+        # 能通過 Pydantic 驗證
+        NarrationEpisodeScript(**d)
+        assert d["content_mode"] == "narration"
+        assert d["episode"] == 3
+        assert d["title"] == "我的刀盾"
+        assert d["segments"] == []
+        assert d["novel"]["title"] == "我的刀盾"
+
+    def test_empty_drama_script_valid_and_empty(self):
+        d = empty_drama_script(2, "另一集")
+        DramaEpisodeScript(**d)
+        assert d["content_mode"] == "drama"
+        assert d["scenes"] == []
+
+    def test_empty_narration_segment_valid(self):
+        d = empty_narration_segment(1, "E1S1")
+        NarrationSegment(**d)
+        assert d["segment_id"] == "E1S1"
+        assert d["episode"] == 1
+        assert d["duration_seconds"] == 4
+        assert d["novel_text"] == ""
+        assert d["characters_in_segment"] == []
+        assert d["image_prompt"]["composition"]["shot_type"] == "Medium Shot"
+
+    def test_empty_drama_scene_valid(self):
+        d = empty_drama_scene(2, "E2S1")
+        DramaScene(**d)
+        assert d["scene_id"] == "E2S1"
+        assert d["duration_seconds"] == 8
+        assert d["scene_type"] == "劇情"
+        assert d["characters_in_scene"] == []

@@ -324,3 +324,77 @@ class TestProjectsRouter:
             assert "asset_fingerprints" in data
             assert "storyboards/scene_E1S01.png" in data["asset_fingerprints"]
             assert isinstance(data["asset_fingerprints"]["storyboards/scene_E1S01.png"], int)
+
+    def test_create_episode_writes_empty_skeleton(self, tmp_path, monkeypatch):
+        fake_pm = _FakePM(tmp_path)
+        client = _client(monkeypatch, fake_pm, _FakeCalc())
+        with client:
+            # ready 沒有 content_mode → 預設 narration
+            resp = client.post("/api/v1/projects/ready/episodes", json={})
+            assert resp.status_code == 200
+            assert resp.json()["episode"]["episode"] == 2
+            script = fake_pm.scripts[("ready", "episode_2.json")]
+            assert script["content_mode"] == "narration"
+            assert script["segments"] == []
+            assert script["episode"] == 2
+
+    def test_create_episode_drama_skeleton(self, tmp_path, monkeypatch):
+        fake_pm = _FakePM(tmp_path)
+        fake_pm.project_data["ready"]["content_mode"] = "drama"
+        client = _client(monkeypatch, fake_pm, _FakeCalc())
+        with client:
+            resp = client.post("/api/v1/projects/ready/episodes", json={})
+            assert resp.status_code == 200
+            script = fake_pm.scripts[("ready", "episode_2.json")]
+            assert script["content_mode"] == "drama"
+            assert script["scenes"] == []
+
+    def test_add_segment_and_scene_endpoints(self, tmp_path, monkeypatch):
+        fake_pm = _FakePM(tmp_path)
+        # ready/episode_1.json 預設是 drama；另設一個 narration 的劇集 2
+        fake_pm.project_data["ready"]["episodes"].append({"episode": 2, "script_file": "scripts/episode_2.json"})
+        fake_pm.scripts[("ready", "episode_2.json")] = {
+            "episode": 2,
+            "title": "第 2 集",
+            "content_mode": "narration",
+            "segments": [],
+        }
+        client = _client(monkeypatch, fake_pm, _FakeCalc())
+        with client:
+            # narration 劇集：新增片段
+            r1 = client.post("/api/v1/projects/ready/episodes/2/segments")
+            assert r1.status_code == 200
+            assert r1.json()["segment"]["segment_id"] == "E2S1"
+            assert r1.json()["segments_count"] == 1
+            # 再加一個 → E2S2
+            r2 = client.post("/api/v1/projects/ready/episodes/2/segments")
+            assert r2.status_code == 200
+            assert r2.json()["segment"]["segment_id"] == "E2S2"
+            assert r2.json()["segments_count"] == 2
+
+            # narration 模式呼叫 /scenes → 400（端點看 project 的 content_mode；ready 無設定 → 預設 narration）
+            assert client.post("/api/v1/projects/ready/episodes/2/scenes").status_code == 400
+            assert client.post("/api/v1/projects/ready/episodes/1/scenes").status_code == 400
+            # 劇本不存在 → 404
+            assert client.post("/api/v1/projects/ready/episodes/99/segments").status_code == 404
+            # 專案不存在 → 404
+            assert client.post("/api/v1/projects/nope/episodes/1/segments").status_code == 404
+
+    def test_add_scene_drama_project(self, tmp_path, monkeypatch):
+        fake_pm = _FakePM(tmp_path)
+        fake_pm.project_data["ready"]["content_mode"] = "drama"
+        fake_pm.scripts[("ready", "episode_1.json")] = {
+            "episode": 1,
+            "title": "第 1 集",
+            "content_mode": "drama",
+            "scenes": [],
+        }
+        client = _client(monkeypatch, fake_pm, _FakeCalc())
+        with client:
+            r = client.post("/api/v1/projects/ready/episodes/1/scenes")
+            assert r.status_code == 200
+            assert r.json()["scene"]["scene_id"] == "E1S1"
+            assert r.json()["scenes_count"] == 1
+            # drama 劇集呼叫 /segments → 400
+            bad = client.post("/api/v1/projects/ready/episodes/1/segments")
+            assert bad.status_code == 400
