@@ -97,3 +97,79 @@ def find_natural_breakpoints(text: str, center_offset: int, window: int = 200) -
 
     breakpoints.sort(key=lambda bp: bp["distance"])
     return breakpoints
+
+
+def find_anchor_near_target(text: str, anchor: str, target_offset: int, window: int = 500) -> list[int]:
+    """在 target_offset 附近視窗內查 anchor，回匹配「末尾」偏移列表（按距 target_offset 排序）。"""
+    search_start = max(0, target_offset - window)
+    search_end = min(len(text), target_offset + window)
+    region = text[search_start:search_end]
+    positions: list[int] = []
+    start = 0
+    while True:
+        idx = region.find(anchor, start)
+        if idx == -1:
+            break
+        positions.append(search_start + idx + len(anchor))  # 錨點末尾的絕對偏移
+        start = idx + 1
+    positions.sort(key=lambda p: abs(p - target_offset))
+    return positions
+
+
+def peek_split(source_text: str, target_chars: int, context: int = 200) -> dict:
+    """預覽分集切分點（read-only）。
+
+    Args:
+        source_text: 小說原文。
+        target_chars: 目標有效字數（含標點、不含空行）。
+        context: 前後文與斷點搜尋視窗（字元數）。
+
+    Returns:
+        {total_chars, target_chars, target_offset, context_before, context_after, nearby_breakpoints}。
+        （key 名與既有 peek_split_point.py 的 JSON 輸出一致，但不含 'source'。）
+
+    Raises:
+        ValueError: target_chars 大於等於總有效字數。
+    """
+    total_chars = count_chars(source_text)
+    if target_chars >= total_chars:
+        raise ValueError(f"目標字數 ({target_chars}) 超過或等於總有效字數 ({total_chars})")
+    target_offset = find_char_offset(source_text, target_chars)
+    breakpoints = find_natural_breakpoints(source_text, target_offset, window=context)
+    ctx_start = max(0, target_offset - context)
+    ctx_end = min(len(source_text), target_offset + context)
+    return {
+        "total_chars": total_chars,
+        "target_chars": target_chars,
+        "target_offset": target_offset,
+        "context_before": source_text[ctx_start:target_offset],
+        "context_after": source_text[target_offset:ctx_end],
+        "nearby_breakpoints": breakpoints[:10],
+    }
+
+
+def split_episode_text(source_text: str, target_chars: int, anchor: str, context: int = 500) -> dict:
+    """用 anchor 在 target_chars 附近精確定位切點，回兩半文字。
+
+    anchor 找不到 → ValueError。anchor 多個 → 選距 target 最近的（不報錯，回傳 anchor_match_count 供呼叫方提示）。
+
+    Returns:
+        {split_pos, part_before, part_after, before_preview, after_preview, anchor_match_count, target_offset}。
+    """
+    target_offset = find_char_offset(source_text, target_chars)
+    positions = find_anchor_near_target(source_text, anchor, target_offset, window=context)
+    if not positions:
+        raise ValueError(f'在目標字數 {target_chars} 附近（±{context} 字元視窗）未找到錨點文字: "{anchor}"')
+    split_pos = positions[0]
+    part_before = source_text[:split_pos]
+    part_after = source_text[split_pos:]
+    preview_len = 50
+    return {
+        "split_pos": split_pos,
+        "part_before": part_before,
+        "part_after": part_after,
+        "before_preview": part_before[-preview_len:] if len(part_before) > preview_len else part_before,
+        "after_preview": part_after[:preview_len] if len(part_after) > preview_len else part_after,
+        "anchor_match_count": len(positions),
+        "target_offset": target_offset,
+    }
