@@ -1,7 +1,7 @@
 """``server.agent_runtime.skill_function_declarations`` 单元测试。
 
 覆盖：
-- 注册表完整性（7 个 skill 都有 declaration + handler）
+- 注册表完整性（workflow skill 都有 declaration + handler）
 - 输入校验：缺字段 / 错类型 / 空数组拒绝
 - generate_characters / generate_clues 正常写入 project.json
 - manga_workflow_status 各阶段判断
@@ -80,8 +80,11 @@ def context(project_root: Path, project_manager: ProjectManager, project_name: s
 # ---------------------------------------------------------------------------
 
 
-def test_seven_skills_registered() -> None:
+def test_workflow_skills_registered() -> None:
     assert set(SKILL_HANDLERS.keys()) == {
+        "peek_split_point",
+        "split_episode",
+        "preprocess_episode",
         "generate_script",
         "generate_characters",
         "generate_clues",

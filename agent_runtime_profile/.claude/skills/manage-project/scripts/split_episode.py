@@ -18,28 +18,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _text_utils import find_char_offset
-
-
-def find_anchor_near_target(text: str, anchor: str, target_offset: int, window: int = 500) -> list[int]:
-    """在目標偏移附近的視窗內查詢錨點文字，返回匹配末尾偏移列表（按距離排序）。"""
-    search_start = max(0, target_offset - window)
-    search_end = min(len(text), target_offset + window)
-    search_region = text[search_start:search_end]
-
-    positions = []
-    start = 0
-    while True:
-        idx = search_region.find(anchor, start)
-        if idx == -1:
-            break
-        abs_pos = search_start + idx + len(anchor)  # 錨點末尾的絕對偏移
-        positions.append(abs_pos)
-        start = idx + 1
-
-    # 按距離 target_offset 排序
-    positions.sort(key=lambda p: abs(p - target_offset))
-    return positions
+from _text_utils import find_anchor_near_target, find_char_offset
 
 
 def main():

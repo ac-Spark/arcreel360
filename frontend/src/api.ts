@@ -122,6 +122,32 @@ export interface DraftInfo {
   modified_at: string;
 }
 
+export interface EpisodeSplitBreakpoint {
+  offset: number;
+  char: string;
+  type: "sentence" | "paragraph";
+  distance: number;
+}
+
+export interface EpisodeSplitPeekResponse {
+  total_chars: number;
+  target_chars: number;
+  target_offset: number;
+  context_before: string;
+  context_after: string;
+  nearby_breakpoints: EpisodeSplitBreakpoint[];
+}
+
+export interface EpisodeSplitResponse {
+  episode: number;
+  episode_file: string;
+  remaining_file: string;
+  part_before_chars: number;
+  part_after_chars: number;
+  split_pos: number;
+  anchor_match_count: number;
+}
+
 function normalizeDiagnosticsBucket(value: unknown): { code: string; message: string; location?: string }[] {
   if (!Array.isArray(value)) {
     return [];
@@ -398,6 +424,33 @@ class API {
     return this.request(
       `/projects/${encodeURIComponent(name)}/episodes/${episode}/preprocess`,
       { method: "POST", body: JSON.stringify({}) }
+    );
+  }
+
+  static async peekEpisodeSplit(
+    name: string,
+    body: { source: string; target_chars: number; context?: number },
+  ): Promise<EpisodeSplitPeekResponse> {
+    return this.request(
+      `/projects/${encodeURIComponent(name)}/episodes/peek`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  }
+
+  static async splitEpisode(
+    name: string,
+    body: {
+      source: string;
+      episode: number;
+      target_chars: number;
+      anchor: string;
+      context?: number;
+      title?: string;
+    },
+  ): Promise<EpisodeSplitResponse> {
+    return this.request(
+      `/projects/${encodeURIComponent(name)}/episodes/split`,
+      { method: "POST", body: JSON.stringify(body) },
     );
   }
 

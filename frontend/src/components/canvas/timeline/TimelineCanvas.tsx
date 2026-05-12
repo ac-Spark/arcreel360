@@ -8,6 +8,7 @@ import { SegmentCard } from "./SegmentCard";
 import { PreprocessingView } from "./PreprocessingView";
 import { FinalVideoCard } from "./FinalVideoCard";
 import { EpisodeActionsBar } from "./EpisodeActionsBar";
+import { EpisodeSplitPanel } from "./EpisodeSplitPanel";
 import { useScrollTarget } from "@/hooks/useScrollTarget";
 import { useCostStore } from "@/stores/cost-store";
 import { resolveEpisodeContentMode } from "@/utils/content-mode";
@@ -85,6 +86,8 @@ export function TimelineCanvas({
 }: TimelineCanvasProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentMode = resolveEpisodeContentMode(episodeScript, projectData?.content_mode);
+  const sourceFilesVersion = useAppStore((s) => s.sourceFilesVersion);
+  const [sourceFiles, setSourceFiles] = useState<string[]>([]);
 
   const hasScript = Boolean(episodeScript);
   const showTabs = Boolean(hasDraft);
@@ -95,6 +98,41 @@ export function TimelineCanvas({
   useEffect(() => {
     if (hasScript) setActiveTab("timeline");
   }, [hasScript]);
+
+  useEffect(() => {
+    if (!projectName || (projectData?.episodes?.length ?? 0) > 0) {
+      setSourceFiles([]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await API.listFiles(projectName);
+        const files = (result.files?.source ?? [])
+          .map((file) => `source/${file.name}`)
+          .filter((name) => name.endsWith(".txt"));
+        if (!cancelled) setSourceFiles(files);
+      } catch {
+        if (!cancelled) setSourceFiles([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectName, projectData?.episodes?.length, sourceFilesVersion]);
+
+  const refreshProjectAfterSplit = useCallback(async () => {
+    const result = await API.getProject(projectName);
+    useProjectsStore.getState().setCurrentProject(
+      projectName,
+      result.project,
+      result.scripts ?? {},
+      result.asset_fingerprints,
+    );
+    useAppStore.getState().invalidateSourceFiles();
+  }, [projectName]);
 
   const episodeCost = useCostStore((s) =>
     episodeScript ? s.getEpisodeCost(episodeScript.episode) : undefined,
@@ -177,6 +215,18 @@ export function TimelineCanvas({
 
   // Empty state — no episode selected or no content at all
   if (!projectData || (!episodeScript && !hasDraft)) {
+    if (projectData && (projectData.episodes?.length ?? 0) === 0) {
+      return (
+        <div className="h-full overflow-y-auto p-4">
+          <EpisodeSplitPanel
+            projectName={projectName}
+            sourceFiles={sourceFiles.length > 0 ? sourceFiles : ["source/novel.txt"]}
+            onSplitDone={refreshProjectAfterSplit}
+          />
+        </div>
+      );
+    }
+
     return (
       <div className="flex h-full items-center justify-center text-gray-500">
         請在左側選擇劇集

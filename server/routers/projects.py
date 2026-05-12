@@ -671,6 +671,32 @@ class UpdateEpisodeRequest(BaseModel):
     title: str | None = None
 
 
+class PeekSplitRequest(BaseModel):
+    source: str
+    target_chars: int
+    context: int = 200
+
+
+class SplitEpisodeRequest(BaseModel):
+    source: str
+    episode: int
+    target_chars: int
+    anchor: str
+    context: int = 500
+    title: str | None = None
+
+
+def _resolve_source_file_for_split(manager: ProjectManager, project_name: str, source: str) -> Path:
+    from lib.episode_splitter import SourceFileError, resolve_source_under
+
+    if not manager.project_exists(project_name):
+        raise HTTPException(status_code=404, detail=f"專案 '{project_name}' 不存在")
+    try:
+        return resolve_source_under(manager.get_project_path(project_name), source)
+    except SourceFileError as exc:
+        raise HTTPException(status_code=422 if exc.kind == "path_escape" else 404, detail=str(exc)) from exc
+
+
 @router.post("/projects/{name}/episodes")
 async def create_episode(name: str, req: CreateEpisodeRequest, _user: CurrentUser):
     """新增劇集工作區；不直接生成劇本內容。"""
@@ -707,6 +733,67 @@ async def create_episode(name: str, req: CreateEpisodeRequest, _user: CurrentUse
         return await asyncio.to_thread(_sync)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/projects/{name}/episodes/peek")
+async def peek_episode_split(name: str, req: PeekSplitRequest, _user: CurrentUser):
+    """預覽分集切分點（唯讀）。"""
+    from lib import episode_splitter
+
+    try:
+        manager = get_project_manager()
+        src_abs = _resolve_source_file_for_split(manager, name, req.source)
+
+        def _sync():
+            text = src_abs.read_text(encoding="utf-8")
+            return episode_splitter.peek_split(text, req.target_chars, req.context)
+
+        return await asyncio.to_thread(_sync)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/projects/{name}/episodes/split")
+async def split_episode_route(name: str, req: SplitEpisodeRequest, _user: CurrentUser):
+    """執行分集切分：寫 source/episode_{N}.txt + source/_remaining.txt，更新 project.json。"""
+    from lib import episode_splitter
+
+    try:
+        manager = get_project_manager()
+        src_abs = _resolve_source_file_for_split(manager, name, req.source)
+
+        def _sync():
+            text = src_abs.read_text(encoding="utf-8")
+            split = episode_splitter.split_episode_text(text, req.target_chars, req.anchor, req.context)
+            manager.commit_episode_split(
+                name,
+                source_rel=req.source,
+                episode=req.episode,
+                part_before=split["part_before"],
+                part_after=split["part_after"],
+                title=req.title,
+            )
+            persisted = manager.load_project(name).get("episodes", [])
+            if not any(int(ep.get("episode", -1)) == req.episode for ep in persisted):
+                raise RuntimeError(f"episode {req.episode} 未出現在 project.json")
+            return episode_splitter.split_result_dict(req.episode, split)
+
+        with project_change_source("webui"):
+            return await asyncio.to_thread(_sync)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:
@@ -1018,8 +1105,7 @@ async def generate_episode_script(name: str, episode: int, _user: CurrentUser):
 @router.post("/projects/{name}/episodes/{episode}/preprocess")
 async def preprocess_episode(name: str, episode: int, _user: CurrentUser):
     """Step 1 預處理：根據 content_mode 呼叫對應 skill 腳本。"""
-    import subprocess
-    import sys
+    from lib.episode_preprocess import run_preprocess
 
     try:
         manager = get_project_manager()
@@ -1027,44 +1113,20 @@ async def preprocess_episode(name: str, episode: int, _user: CurrentUser):
             raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
 
         project = await asyncio.to_thread(manager.load_project, name)
-        content_mode = project.get("content_mode", "narration")
-
-        if content_mode == "narration":
-            script_filename = "split_narration_segments.py"
-            output_filename = "step1_segments.md"
-        elif content_mode == "drama":
-            script_filename = "normalize_drama_script.py"
-            output_filename = "step1_normalized_script.md"
-        else:
-            raise HTTPException(status_code=400, detail=f"未知的 content_mode: {content_mode}")
-
         project_path = manager.get_project_path(name)
-        skill_script = agent_profile.skills_root(PROJECT_ROOT) / "generate-script" / "scripts" / script_filename
-        if not skill_script.exists():
-            raise HTTPException(status_code=500, detail=f"找不到預處理腳本: {skill_script}")
-
-        def _run():
-            return subprocess.run(
-                [sys.executable, str(skill_script), "--episode", str(episode)],
-                cwd=str(project_path),
-                capture_output=True,
-                text=True,
-                timeout=1800,
+        with project_change_source("webui"):
+            return await asyncio.to_thread(
+                run_preprocess,
+                project_path,
+                episode,
+                content_mode=project.get("content_mode", "narration"),
+                repo_root=PROJECT_ROOT,
             )
 
-        proc = await asyncio.to_thread(_run)
-        if proc.returncode != 0:
-            raise HTTPException(
-                status_code=500,
-                detail=f"{script_filename} 失敗 (rc={proc.returncode}): {proc.stderr[-2000:]}",
-            )
-
-        step1_path = project_path / "drafts" / f"episode_{episode}" / output_filename
-        rel = f"drafts/episode_{episode}/{output_filename}" if step1_path.exists() else ""
-        return {"step1_path": rel, "content_mode": content_mode}
-
-    except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=500, detail="預處理執行逾時（>30 分鐘）")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except (FileNotFoundError, RuntimeError) as e:
+        raise HTTPException(status_code=500, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:

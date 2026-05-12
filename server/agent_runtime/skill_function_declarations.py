@@ -1,4 +1,4 @@
-"""把 ArcReel 的 7 个 skill 翻译成 Gemini ``FunctionDeclaration``。
+"""把 ArcReel 的 workflow skill 翻译成 Gemini ``FunctionDeclaration``。
 
 每条 skill 由两部分组成：
 - 一个 ``FunctionDeclaration``，描述参数 schema（喂给 ``google-genai`` 的 ``Tool``）。
@@ -8,7 +8,10 @@
 handler 拿到的是结构化参数 + 当前 session 的 ``SkillCallContext``，绝不再二次解析 LLM 输出。
 所有路径相关参数都会走 ``ToolSandbox`` 校验，越界拒绝。
 
-7 个 skill 全部接入：
+Workflow skills 全部接入：
+- ``peek_split_point``       ✅ 預覽分集切分點
+- ``split_episode``          ✅ 執行分集切分並更新 project.json
+- ``preprocess_episode``     ✅ Step 1 拆段/規範化
 - ``generate_script``         ✅ 调用 ScriptGenerator 生成 episode 剧本
 - ``generate_characters``     ✅ 写入 project.json 角色定义
 - ``generate_clues``          ✅ 写入 project.json 线索定义
@@ -22,6 +25,7 @@ handler 注册表 ``SKILL_HANDLERS`` 是单一真相源，``run_subagent`` 工�
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import sys
@@ -105,6 +109,18 @@ def _safe_project_file_exists(project_path: Path, rel_path: Any) -> bool:
         return False
 
 
+def _resolve_source_file(ctx: SkillCallContext, source: str) -> tuple[Path | None, dict[str, Any] | None]:
+    from lib.episode_splitter import SourceFileError, resolve_source_under
+
+    if not source:
+        return None, {"ok": False, "error": "invalid_argument", "reason": "需要 source(str)"}
+    try:
+        src_abs = resolve_source_under(ctx.project_manager.get_project_path(ctx.project_name), source)
+    except SourceFileError as exc:
+        return None, {"ok": False, "error": exc.kind, "reason": str(exc)}
+    return src_abs, None
+
+
 def _missing_script_assets(
     project_path: Path,
     script_data: dict[str, Any],
@@ -159,6 +175,161 @@ class FunctionDeclaration:
             "description": self.description,
             "parameters": self.parameters,
         }
+
+
+# ---------------------------------------------------------------------------
+# Skill: peek_split_point / split_episode / preprocess_episode
+# ---------------------------------------------------------------------------
+
+PEEK_SPLIT_POINT_DECL = FunctionDeclaration(
+    name="peek_split_point",
+    description=(
+        "預覽分集切分點（唯讀）。給定 source/ 下的小說檔與目標字數，回該位置前後文與附近自然斷點，"
+        "供你決定要在哪個句末/段落切。切完一集後可對 source/_remaining.txt 再 peek 下一集。"
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "source": {
+                "type": "string",
+                "description": "source/ 下的相對路徑，如 source/novel.txt 或 source/_remaining.txt",
+            },
+            "target_chars": {
+                "type": "integer",
+                "description": "目標有效字數（含標點不含空行）",
+            },
+            "context": {
+                "type": "integer",
+                "description": "前後文與斷點搜尋視窗，預設 200",
+            },
+        },
+        "required": ["source", "target_chars"],
+    },
+)
+
+
+async def _handle_peek_split_point(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
+    from lib import episode_splitter
+
+    source = str(args.get("source") or "").strip()
+    target_chars = args.get("target_chars")
+    context = args.get("context") or 200
+    if not isinstance(target_chars, int):
+        return {"ok": False, "error": "invalid_argument", "reason": "需要 target_chars(int)"}
+    src_abs, error = _resolve_source_file(ctx, source)
+    if error is not None:
+        return error
+
+    try:
+        text = src_abs.read_text(encoding="utf-8")
+        return episode_splitter.peek_split(text, target_chars, context)
+    except ValueError as exc:
+        return {"ok": False, "error": "invalid_argument", "reason": str(exc)}
+    except Exception as exc:
+        return {"ok": False, "error": "peek_failed", "reason": str(exc)}
+
+
+SPLIT_EPISODE_DECL = FunctionDeclaration(
+    name="split_episode",
+    description=(
+        "執行分集切分：用目標字數縮小範圍、用 anchor（切點前 10~20 字的原文片段）精確定位，"
+        "把 source/<檔> 切成 source/episode_{N}.txt（前半）與 source/_remaining.txt（後半），"
+        "並在 project.json 加 episodes 條目。原始檔不會被修改。"
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "source": {"type": "string", "description": "source/ 下的相對路徑"},
+            "episode": {"type": "integer", "description": "集數編號（1, 2, ...）"},
+            "target_chars": {"type": "integer", "description": "與 peek 用的目標字數一致"},
+            "anchor": {"type": "string", "description": "切點前的原文片段（10~20 字），用來精確定位切點"},
+            "context": {"type": "integer", "description": "anchor 搜尋視窗，預設 500"},
+            "title": {"type": "string", "description": "（可選）這一集的標題"},
+        },
+        "required": ["source", "episode", "target_chars", "anchor"],
+    },
+)
+
+
+async def _handle_split_episode(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
+    from lib import episode_splitter
+
+    source = str(args.get("source") or "").strip()
+    episode = args.get("episode")
+    target_chars = args.get("target_chars")
+    anchor = str(args.get("anchor") or "")
+    context = args.get("context") or 500
+    title = args.get("title")
+    if not isinstance(episode, int) or episode < 1 or not isinstance(target_chars, int) or not anchor:
+        return {
+            "ok": False,
+            "error": "invalid_argument",
+            "reason": "需要 episode(int>=1), target_chars(int), anchor(str)",
+        }
+    src_abs, error = _resolve_source_file(ctx, source)
+    if error is not None:
+        return error
+
+    try:
+        text = src_abs.read_text(encoding="utf-8")
+        split = episode_splitter.split_episode_text(text, target_chars, anchor, context)
+    except Exception as exc:
+        return {"ok": False, "error": "split_failed", "reason": str(exc)}
+
+    try:
+        ctx.project_manager.commit_episode_split(
+            ctx.project_name,
+            source_rel=source,
+            episode=episode,
+            part_before=split["part_before"],
+            part_after=split["part_after"],
+            title=title if isinstance(title, str) else None,
+        )
+    except Exception as exc:
+        return {"ok": False, "error": "persist_failed", "reason": str(exc)}
+
+    persisted = ctx.project_manager.load_project(ctx.project_name).get("episodes", [])
+    if not any(int(ep.get("episode", -1)) == episode for ep in persisted):
+        return {"ok": False, "error": "persist_failed", "reason": f"episode {episode} 未出現在 project.json"}
+
+    return {"ok": True, **episode_splitter.split_result_dict(episode, split)}
+
+
+PREPROCESS_EPISODE_DECL = FunctionDeclaration(
+    name="preprocess_episode",
+    description=(
+        "對某一集做 Step 1 預處理（依 content_mode：narration→拆段 / drama→規範化劇本），"
+        "產出 drafts/episode_{N}/step1_*.md。生成 JSON 劇本（generate_script）前必須先做這步。"
+    ),
+    parameters={
+        "type": "object",
+        "properties": {"episode": {"type": "integer", "description": "集數編號"}},
+        "required": ["episode"],
+    },
+)
+
+
+async def _handle_preprocess_episode(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
+    from lib.episode_preprocess import run_preprocess
+
+    episode = args.get("episode")
+    if not isinstance(episode, int) or episode < 1:
+        return {"ok": False, "error": "invalid_argument", "reason": "需要 episode(int>=1)"}
+    project_path = ctx.project_manager.get_project_path(ctx.project_name)
+    try:
+        result = await asyncio.to_thread(
+            run_preprocess,
+            project_path,
+            episode,
+            repo_root=ctx.project_manager.projects_root.parent,
+        )
+        return {"ok": True, **result}
+    except ValueError as exc:
+        return {"ok": False, "error": "invalid_content_mode", "reason": str(exc)}
+    except FileNotFoundError as exc:
+        return {"ok": False, "error": "script_missing", "reason": str(exc)}
+    except Exception as exc:
+        return {"ok": False, "error": "preprocess_failed", "reason": str(exc)}
 
 
 # ---------------------------------------------------------------------------
@@ -849,6 +1020,9 @@ async def _enqueue_episode_assets(
 
 
 SKILL_DECLARATIONS: list[FunctionDeclaration] = [
+    PEEK_SPLIT_POINT_DECL,
+    SPLIT_EPISODE_DECL,
+    PREPROCESS_EPISODE_DECL,
     GENERATE_SCRIPT_DECL,
     GENERATE_CHARACTERS_DECL,
     GENERATE_CLUES_DECL,
@@ -860,6 +1034,9 @@ SKILL_DECLARATIONS: list[FunctionDeclaration] = [
 
 
 SKILL_HANDLERS: dict[str, SkillHandler] = {
+    "peek_split_point": _handle_peek_split_point,
+    "split_episode": _handle_split_episode,
+    "preprocess_episode": _handle_preprocess_episode,
     "generate_script": _handle_generate_script,
     "generate_characters": _handle_generate_characters,
     "generate_clues": _handle_generate_clues,

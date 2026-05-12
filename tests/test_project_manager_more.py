@@ -396,3 +396,53 @@ class TestPathTraversalProtection:
         # 正常檔名不應被攔截
         real = pm._safe_subpath(scripts_dir, "episode_1.json")
         assert real.endswith("episode_1.json")
+
+
+class TestCommitEpisodeSplit:
+    def test_writes_files_and_updates_project(self, tmp_path):
+        pm = ProjectManager(tmp_path / "projects")
+        pm.create_project("demo")
+        pm.create_project_metadata("demo", "Demo")
+        proj_dir = pm.get_project_path("demo")
+        (proj_dir / "source").mkdir(exist_ok=True)
+        (proj_dir / "source" / "novel.txt").write_text("前半。後半。", encoding="utf-8")
+
+        result = pm.commit_episode_split(
+            "demo",
+            source_rel="source/novel.txt",
+            episode=1,
+            part_before="前半。",
+            part_after="後半。",
+            title="第一集",
+        )
+
+        assert (proj_dir / "source" / "episode_1.txt").read_text(encoding="utf-8") == "前半。"
+        assert (proj_dir / "source" / "_remaining.txt").read_text(encoding="utf-8") == "後半。"
+        # 原始檔未被修改
+        assert (proj_dir / "source" / "novel.txt").read_text(encoding="utf-8") == "前半。後半。"
+        # project.json episodes 多一筆
+        assert any(ep["episode"] == 1 and ep.get("title") == "第一集" for ep in result["episodes"])
+        # 重新載入確認持久化
+        reloaded = pm.load_project("demo")
+        assert any(ep["episode"] == 1 for ep in reloaded.get("episodes", []))
+
+    def test_existing_episode_updates_in_place(self, tmp_path):
+        pm = ProjectManager(tmp_path / "projects")
+        pm.create_project("demo")
+        pm.create_project_metadata("demo", "Demo")
+        proj_dir = pm.get_project_path("demo")
+        (proj_dir / "source").mkdir(exist_ok=True)
+        (proj_dir / "source" / "n.txt").write_text("ab", encoding="utf-8")
+        pm.commit_episode_split("demo", "source/n.txt", 1, "a", "b", title="舊標題")
+        pm.commit_episode_split("demo", "source/n.txt", 1, "a", "b", title="新標題")
+        episodes = pm.load_project("demo").get("episodes", [])
+        matching = [ep for ep in episodes if ep["episode"] == 1]
+        assert len(matching) == 1
+        assert matching[0]["title"] == "新標題"
+
+    def test_rejects_source_outside_source_dir(self, tmp_path):
+        pm = ProjectManager(tmp_path / "projects")
+        pm.create_project("demo")
+        pm.create_project_metadata("demo", "Demo")
+        with pytest.raises(ValueError, match="source 路徑超出"):
+            pm.commit_episode_split("demo", "../../etc/passwd", 1, "a", "b")

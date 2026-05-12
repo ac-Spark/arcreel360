@@ -10,6 +10,45 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+
+class SourceFileError(ValueError):
+    """source 檔案路徑越界或不存在。"""
+
+    def __init__(self, kind: str, source: str) -> None:
+        self.kind = kind  # "path_escape" | "not_found"
+        self.source = source
+        msg = f"source 必須在 source/ 下: {source}" if kind == "path_escape" else f"檔案不存在: {source}"
+        super().__init__(msg)
+
+
+def resolve_source_under(project_dir: Path, source: str) -> Path:
+    """把 source（相對路徑）解析為 project_dir/source/ 內的絕對路徑。
+
+    Raises SourceFileError("path_escape" | "not_found")。
+    """
+    source_dir = (project_dir / "source").resolve()
+    src_abs = (project_dir / source).resolve()
+    if not src_abs.is_relative_to(source_dir):
+        raise SourceFileError("path_escape", source)
+    if not src_abs.exists():
+        raise SourceFileError("not_found", source)
+    return src_abs
+
+
+def split_result_dict(episode: int, split: dict) -> dict:
+    """把 split_episode_text 的結果整理成對外回傳的固定欄位 dict。"""
+    return {
+        "episode": episode,
+        "episode_file": f"source/episode_{episode}.txt",
+        "remaining_file": "source/_remaining.txt",
+        "part_before_chars": len(split["part_before"]),
+        "part_after_chars": len(split["part_after"]),
+        "split_pos": split["split_pos"],
+        "anchor_match_count": split["anchor_match_count"],
+    }
+
 
 def count_chars(text: str) -> int:
     """計算有效字數：所有非空行中的字元總數（含標點，不含空行）。"""
@@ -126,7 +165,6 @@ def peek_split(source_text: str, target_chars: int, context: int = 200) -> dict:
 
     Returns:
         {total_chars, target_chars, target_offset, context_before, context_after, nearby_breakpoints}。
-        （key 名與既有 peek_split_point.py 的 JSON 輸出一致，但不含 'source'。）
 
     Raises:
         ValueError: target_chars 大於等於總有效字數。

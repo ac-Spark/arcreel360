@@ -150,7 +150,7 @@ def test_openai_tool_declarations_cover_skills_and_fs_tools() -> None:
         "fs_list",
         "run_subagent",
     }
-    assert len(OPENAI_TOOL_DECLARATIONS) == 11
+    assert len(OPENAI_TOOL_DECLARATIONS) == 14
 
 
 def test_each_openai_tool_schema_is_strict_object_schema() -> None:

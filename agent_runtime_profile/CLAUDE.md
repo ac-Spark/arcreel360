@@ -123,6 +123,14 @@
 - **分鏡連貫性**：使用 segment_break 標記場景切換點，後期可新增轉場效果
 - **質量控制**：每個場景生成後檢查質量，可單獨重新生成不滿意的場景
 
+### 角色/線索提取
+
+提取角色與線索時：
+1. 先用 `fs_read` 讀 `source/` 下的小說原文；檔案較大時可分段讀取
+2. 自行分析 `characters`（`name` / `description` / `voice_style`）與 `clues`（`name` / `clue_type` / `description` / `importance`）
+3. 呼叫 `generate_characters` / `generate_clues` 寫入 `project.json`
+4. 檢查回傳的 `ok` 欄位；`false` 代表未成功寫入，不可回報「已定義完畢」，必須依 `reason` 修正後重試
+
 ## 專案目錄結構
 
 ```

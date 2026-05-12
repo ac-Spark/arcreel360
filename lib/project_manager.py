@@ -1067,6 +1067,58 @@ class ProjectManager:
         self.save_project(project_name, project)
         return project
 
+    def commit_episode_split(
+        self,
+        project_name: str,
+        source_rel: str,
+        episode: int,
+        part_before: str,
+        part_after: str,
+        title: str | None = None,
+    ) -> dict:
+        """落地一次分集切分。
+
+        - 寫 source/episode_{episode}.txt（= part_before）
+        - 寫 source/_remaining.txt（= part_after）—— 下一集的新起點
+        - 原始 source 檔不修改
+        - 在 project.json 的 episodes 加/更新 {episode, title?}（已存在則只更新 title）
+
+        Args:
+            source_rel: 來源檔相對路徑（須在 source/ 下），僅用於路徑安全檢查。
+        Returns:
+            更新後的 project dict。
+        Raises:
+            ValueError: source_rel 不在 source/ 目錄內。
+        """
+        project_dir = self.get_project_path(project_name)
+        # 路徑安全：source_rel 必須落在 project_dir/source/ 內
+        src_abs = (project_dir / source_rel).resolve()
+        source_dir = (project_dir / "source").resolve()
+        if not src_abs.is_relative_to(source_dir):
+            raise ValueError(f"source 路徑超出 source/ 目錄: {source_rel}")
+        source_dir.mkdir(parents=True, exist_ok=True)
+
+        (source_dir / f"episode_{episode}.txt").write_text(part_before, encoding="utf-8")
+        (source_dir / "_remaining.txt").write_text(part_after, encoding="utf-8")
+
+        project = self.load_project(project_name)
+        episodes = project.setdefault("episodes", [])
+        existing: dict | None = next((ep for ep in episodes if int(ep.get("episode", -1)) == int(episode)), None)
+        if existing is None:
+            existing = {"episode": int(episode)}
+            episodes.append(existing)
+        if title is not None:
+            existing["title"] = title
+        episodes.sort(key=lambda ep: int(ep.get("episode", 0)))
+        self.save_project(project_name, project)
+        logger.info(
+            "分集切分落地: episode %d，前半 %d 字元，後半 %d 字元",
+            episode,
+            len(part_before),
+            len(part_after),
+        )
+        return project
+
     def sync_project_status(self, project_name: str) -> dict:
         """
         [已廢棄] 同步專案狀態
