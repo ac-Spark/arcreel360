@@ -20,6 +20,4 @@ class AgentMessage(TimestampMixin, Base):
     seq: Mapped[int] = mapped_column(Integer, nullable=False)
     payload: Mapped[str] = mapped_column(Text, nullable=False)
 
-    __table_args__ = (
-        Index("idx_agent_messages_session_seq", "sdk_session_id", "seq"),
-    )
+    __table_args__ = (Index("idx_agent_messages_session_seq", "sdk_session_id", "seq"),)

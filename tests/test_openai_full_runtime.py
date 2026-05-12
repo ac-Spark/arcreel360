@@ -187,9 +187,7 @@ def test_provider_capabilities_and_agent_tools(provider: OpenAIFullRuntimeProvid
 
     # tools 在 __init__ 預先建好並 cache 在 self._tools(避免每次 _build_agent 重建);
     # _build_agent 會把 model + project_name 注入並重用 self._tools。
-    assert {tool.name for tool in provider._tools} == {
-        declaration.name for declaration in OPENAI_TOOL_DECLARATIONS
-    }
+    assert {tool.name for tool in provider._tools} == {declaration.name for declaration in OPENAI_TOOL_DECLARATIONS}
     agent = provider._build_agent(DEFAULT_OPENAI_FULL_MODEL)
     assert agent.model == DEFAULT_OPENAI_FULL_MODEL
     assert agent.tools is provider._tools

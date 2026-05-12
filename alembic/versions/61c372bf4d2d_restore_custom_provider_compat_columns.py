@@ -31,7 +31,9 @@ def upgrade() -> None:
             "ELSE NULL END"
         )
     )
-    unmapped_provider = bind.execute(sa.text("SELECT COUNT(*) FROM custom_provider WHERE api_format IS NULL")).scalar() or 0
+    unmapped_provider = (
+        bind.execute(sa.text("SELECT COUNT(*) FROM custom_provider WHERE api_format IS NULL")).scalar() or 0
+    )
     if unmapped_provider:
         raise RuntimeError(f"custom_provider: {unmapped_provider} 條記錄的 discovery_format 無法對映回 api_format")
 
@@ -53,7 +55,9 @@ def upgrade() -> None:
             "ELSE NULL END"
         )
     )
-    unmapped_model = bind.execute(sa.text("SELECT COUNT(*) FROM custom_provider_model WHERE media_type IS NULL")).scalar() or 0
+    unmapped_model = (
+        bind.execute(sa.text("SELECT COUNT(*) FROM custom_provider_model WHERE media_type IS NULL")).scalar() or 0
+    )
     if unmapped_model:
         raise RuntimeError(f"custom_provider_model: {unmapped_model} 條記錄的 endpoint 無法對映回 media_type")
 

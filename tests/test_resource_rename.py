@@ -116,16 +116,12 @@ def test_rename_character_full_flow(tmp_path: Path):
     assert (project_path / "versions" / "characters" / "拉布_v2_20260101T010000.png").exists()
 
     # versions.json
-    versions = json.loads(
-        (project_path / "versions" / "versions.json").read_text(encoding="utf-8")
-    )
+    versions = json.loads((project_path / "versions" / "versions.json").read_text(encoding="utf-8"))
     assert versions["characters"] == ["拉布", "其他人"]
     assert versions["clues"] == ["玉佩"]
 
     # script 引用
-    script = json.loads(
-        (project_path / "scripts" / "episode_1.json").read_text(encoding="utf-8")
-    )
+    script = json.loads((project_path / "scripts" / "episode_1.json").read_text(encoding="utf-8"))
     seg1 = script["segments"][0]
     assert seg1["characters_in_segment"] == ["拉布", "其他人"]
     assert seg1["clues_in_segment"] == ["玉佩"]  # 不應動到
@@ -149,9 +145,7 @@ def test_rename_clue_full_flow(tmp_path: Path):
     assert (project_path / "clues" / "青玉碎片.png").exists()
     assert not (project_path / "clues" / "玉佩.png").exists()
 
-    script = json.loads(
-        (project_path / "scripts" / "episode_1.json").read_text(encoding="utf-8")
-    )
+    script = json.loads((project_path / "scripts" / "episode_1.json").read_text(encoding="utf-8"))
     assert script["segments"][0]["clues_in_segment"] == ["青玉碎片"]
     # 角色和對話不該被影響
     assert script["segments"][0]["characters_in_segment"] == ["拉拉布", "其他人"]
@@ -171,7 +165,9 @@ def test_rename_to_existing_raises(tmp_path: Path):
         rename_resource(project_path, project, "character", "拉拉布", "其他人")
     # 沒搬東西
     assert (project_path / "characters" / "拉拉布.png").exists()
-    assert (project_path / "characters" / "其他人.png" if False else project_path / "characters" / "拉拉布.png").exists()
+    assert (
+        project_path / "characters" / "其他人.png" if False else project_path / "characters" / "拉拉布.png"
+    ).exists()
 
 
 def test_rename_unknown_old_raises(tmp_path: Path):
@@ -227,8 +223,6 @@ def test_rename_drama_mode_script(tmp_path: Path):
         encoding="utf-8",
     )
     rename_resource(project_path, project, "character", "拉拉布", "拉布")
-    script = json.loads(
-        (project_path / "scripts" / "episode_1.json").read_text(encoding="utf-8")
-    )
+    script = json.loads((project_path / "scripts" / "episode_1.json").read_text(encoding="utf-8"))
     assert script["scenes"][0]["characters_in_scene"] == ["拉布"]
     assert script["scenes"][0]["video_prompt"]["dialogue"][0]["speaker"] == "拉布"

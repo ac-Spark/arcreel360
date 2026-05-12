@@ -17,7 +17,9 @@ import sys
 from pathlib import Path
 
 # 允許從倉庫任意工作目錄直接執行該指令碼
-PROJECT_ROOT = Path(__file__).resolve().parents[5]  # agent_runtime_profile/.claude/skills/generate-script/scripts -> repo root
+PROJECT_ROOT = (
+    Path(__file__).resolve().parents[5]
+)  # agent_runtime_profile/.claude/skills/generate-script/scripts -> repo root
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 

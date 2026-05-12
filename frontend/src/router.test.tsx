@@ -56,7 +56,7 @@ describe("AppRoutes", () => {
   it("renders 404 for unknown routes", () => {
     renderAt("/not-found");
     expect(screen.getByText("404")).toBeInTheDocument();
-    expect(screen.getByText("頁面未找到")).toBeInTheDocument();
+    expect(screen.getByText("找不到頁面")).toBeInTheDocument();
   });
 
   it("loads project workspace and resets assistant state", async () => {

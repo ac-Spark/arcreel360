@@ -85,6 +85,18 @@ function findLatestUserTurn(turns: Turn[]): Turn | null {
   return null;
 }
 
+function isSameSnapshotTurn(left: Turn, right: Turn): boolean {
+  return left.type === right.type &&
+    left.uuid === right.uuid &&
+    extractTurnText(left) === extractTurnText(right);
+}
+
+function snapshotMatchesCurrentBeforeOptimistic(snapshotTurns: Turn[], currentTurns: Turn[]): boolean {
+  const previousTurns = currentTurns.slice(0, -1);
+  return snapshotTurns.length === previousTurns.length &&
+    snapshotTurns.every((turn, index) => isSameSnapshotTurn(turn, previousTurns[index]));
+}
+
 // ---------------------------------------------------------------------------
 // localStorage helpers — 記住每個專案最後使用的會話
 // ---------------------------------------------------------------------------
@@ -173,8 +185,13 @@ export function useAssistantSession(projectName: string | null) {
       const optText = extractTurnText(lastTurn);
       if (optText) {
         const latestUserTurn = findLatestUserTurn(snapshotTurns);
-        // 只有 snapshot 完全没有任何匹配文本的 user 时，才保留 optimistic
-        if (!latestUserTurn || extractTurnText(latestUserTurn) !== optText) {
+        const snapshotOnlyHasPreviousTurns = snapshotMatchesCurrentBeforeOptimistic(snapshotTurns, currentTurns);
+        // 同文字 user 可能是舊輪次；snapshot 若仍只是送出前的 turns，必須保留 optimistic。
+        if (
+          snapshotOnlyHasPreviousTurns ||
+          !latestUserTurn ||
+          extractTurnText(latestUserTurn) !== optText
+        ) {
           shouldPreserveOptimistic = true;
         }
       }

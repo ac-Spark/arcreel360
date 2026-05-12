@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-import asyncio
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import Any, AsyncGenerator
+from typing import Any
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
-from unittest.mock import MagicMock
 from google.adk.events.event import Event
-from google.genai.types import Content, Part, FunctionCall, FunctionResponse
+from google.genai.types import Content, FunctionCall, FunctionResponse, Part
 
 from lib.project_manager import ProjectManager
 from server.agent_runtime.adk_gemini_full_runtime_provider import AdkGeminiFullRuntimeProvider
-from server.agent_runtime.permission_gate import AlwaysAllowGate, Deny
+from server.agent_runtime.permission_gate import AlwaysAllowGate
 from server.agent_runtime.session_store import SessionMetaStore
 
 # ---------------------------------------------------------------------------

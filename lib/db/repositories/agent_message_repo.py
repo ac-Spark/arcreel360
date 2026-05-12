@@ -26,9 +26,7 @@ class AgentMessageRepository(BaseRepository):
 
     async def list(self, sdk_session_id: str) -> list[dict[str, Any]]:
         stmt = (
-            select(AgentMessage)
-            .where(AgentMessage.sdk_session_id == sdk_session_id)
-            .order_by(AgentMessage.seq.asc())
+            select(AgentMessage).where(AgentMessage.sdk_session_id == sdk_session_id).order_by(AgentMessage.seq.asc())
         )
         result = await self.session.execute(stmt)
         return [json.loads(row.payload) for row in result.scalars().all()]

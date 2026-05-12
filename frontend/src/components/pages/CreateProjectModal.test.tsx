@@ -43,7 +43,7 @@ describe("CreateProjectModal", () => {
     const submitButton = screen.getByRole("button", { name: "建立專案" });
     expect(submitButton).toBeDisabled();
 
-    fireEvent.change(screen.getByPlaceholderText("例如：重生之皇后威武"), {
+    fireEvent.change(screen.getByPlaceholderText("例如：重生之皇後威武"), {
       target: { value: "演示專案" },
     });
 

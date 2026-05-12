@@ -160,9 +160,7 @@ class ProjectArchiveService:
         "clues": ".png",
     }
     _ROOT_VISIBLE_ENTRIES = frozenset(DataValidator.ALLOWED_ROOT_ENTRIES)
-    _AGENT_RUNTIME_EXCLUDES = frozenset(
-        (agent_profile.PROJECT_PROFILE_LINK_NAME, agent_profile.PROJECT_AGENT_DOC_NAME)
-    )
+    _AGENT_RUNTIME_EXCLUDES = frozenset((agent_profile.PROJECT_PROFILE_LINK_NAME, agent_profile.PROJECT_AGENT_DOC_NAME))
     _PLACEHOLDER_CHARACTER_DESCRIPTION = "Imported placeholder character"
 
     def __init__(self, project_manager: ProjectManager):

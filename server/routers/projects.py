@@ -867,12 +867,7 @@ async def compose_episode_video(name: str, episode: int, _user: CurrentUser):
 
         project_path, script_file = await asyncio.to_thread(_prep)
 
-        compose_script = (
-            agent_profile.skills_root(PROJECT_ROOT)
-            / "compose-video"
-            / "scripts"
-            / "compose_video.py"
-        )
+        compose_script = agent_profile.skills_root(PROJECT_ROOT) / "compose-video" / "scripts" / "compose_video.py"
         if not compose_script.exists():
             raise HTTPException(status_code=500, detail=f"找不到 compose 腳本: {compose_script}")
 
@@ -996,12 +991,7 @@ async def preprocess_episode(name: str, episode: int, _user: CurrentUser):
             raise HTTPException(status_code=400, detail=f"未知的 content_mode: {content_mode}")
 
         project_path = manager.get_project_path(name)
-        skill_script = (
-            agent_profile.skills_root(PROJECT_ROOT)
-            / "generate-script"
-            / "scripts"
-            / script_filename
-        )
+        skill_script = agent_profile.skills_root(PROJECT_ROOT) / "generate-script" / "scripts" / script_filename
         if not skill_script.exists():
             raise HTTPException(status_code=500, detail=f"找不到預處理腳本: {skill_script}")
 

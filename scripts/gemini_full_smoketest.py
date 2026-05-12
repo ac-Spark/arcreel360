@@ -11,13 +11,14 @@
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import logging
 import sys
-import argparse
-from unittest.mock import MagicMock
-from google.genai.types import Content, Part, FunctionCall, FunctionResponse
 from pathlib import Path
+from unittest.mock import MagicMock
+
+from google.genai.types import Content, FunctionCall, FunctionResponse, Part
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
 log = logging.getLogger("gemini-full-smoketest")

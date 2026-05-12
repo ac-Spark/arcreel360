@@ -1,15 +1,16 @@
 """ADK Tool adapters for ArcReel skills."""
 
-from typing import Any, Awaitable, Callable, Optional, Union
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from google.adk.tools.base_tool import BaseTool
 from google.adk.tools.tool_context import ToolContext
 from google.genai import types
 
 from server.agent_runtime.skill_function_declarations import (
-    FunctionDeclaration,
     SKILL_DECLARATIONS,
     SKILL_HANDLERS,
+    FunctionDeclaration,
     SkillCallContext,
 )
 from server.agent_runtime.tool_sandbox import (
@@ -28,7 +29,7 @@ class SkillBaseTool(BaseTool):
     def __init__(
         self,
         name: str,
-        declaration: Union[dict[str, Any], FunctionDeclaration],
+        declaration: dict[str, Any] | FunctionDeclaration,
         handler: HandlerType,
         requires_permission: bool = False,
     ):
@@ -50,7 +51,7 @@ class SkillBaseTool(BaseTool):
             parameters=self._decl_dict.get("parameters"),
         )
 
-    def _get_declaration(self) -> Optional[types.FunctionDeclaration]:
+    def _get_declaration(self) -> types.FunctionDeclaration | None:
         return self._cached_declaration
 
     async def run_async(self, *, args: dict[str, Any], tool_context: ToolContext) -> Any:

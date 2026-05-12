@@ -46,9 +46,7 @@ async def add_clue(project_name: str, req: CreateClueRequest, _user: CurrentUser
         def _sync():
             manager = get_project_manager()
             with project_change_source("webui"):
-                created = manager.add_clue(
-                    project_name, req.name, req.clue_type, req.description, req.importance
-                )
+                created = manager.add_clue(project_name, req.name, req.clue_type, req.description, req.importance)
             if not created:
                 raise ValueError(f"線索 '{req.name}' 已存在")
             project = manager.load_project(project_name)

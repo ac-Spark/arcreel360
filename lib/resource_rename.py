@@ -29,7 +29,7 @@ def _validate_name(name: str) -> str:
     if not name:
         raise ValueError("名稱不可為空")
     if _INVALID_NAME_RE.search(name):
-        raise ValueError("名稱包含非法字元（不可有 / \\ : * ? \" < > | 或控制字元）")
+        raise ValueError('名稱包含非法字元（不可有 / \\ : * ? " < > | 或控制字元）')
     if name in (".", ".."):
         raise ValueError("名稱不可為 . 或 ..")
     if len(name) > 64:
@@ -113,17 +113,13 @@ def rename_resource(
     if entry.get(sheet_key):
         old_rel = entry[sheet_key]
         if old_rel.startswith(f"{folder}/{old_name}"):
-            entry[sheet_key] = old_rel.replace(
-                f"{folder}/{old_name}", f"{folder}/{new_name}", 1
-            )
+            entry[sheet_key] = old_rel.replace(f"{folder}/{old_name}", f"{folder}/{new_name}", 1)
 
     if kind == "character" and entry.get("reference_image"):
         old_rel = entry["reference_image"]
         ref_prefix = "characters/refs/"
         if old_rel.startswith(f"{ref_prefix}{old_name}"):
-            entry["reference_image"] = old_rel.replace(
-                f"{ref_prefix}{old_name}", f"{ref_prefix}{new_name}", 1
-            )
+            entry["reference_image"] = old_rel.replace(f"{ref_prefix}{old_name}", f"{ref_prefix}{new_name}", 1)
 
     bucket_dict[new_name] = entry
 
@@ -140,9 +136,7 @@ def rename_resource(
     )
 
 
-def _plan_moves(
-    project_path: Path, kind: ResourceKind, old_name: str, new_name: str
-) -> list[_Move]:
+def _plan_moves(project_path: Path, kind: ResourceKind, old_name: str, new_name: str) -> list[_Move]:
     moves: list[_Move] = []
     folder = "characters" if kind == "character" else "clues"
 
@@ -167,15 +161,13 @@ def _plan_moves(
         for f in versions_dir.glob(f"{old_name}_v*"):
             if f.is_file():
                 # 只替換開頭的 old_name，保留 _v123_timestamp.ext 部分
-                new_filename = new_name + f.name[len(old_name):]
+                new_filename = new_name + f.name[len(old_name) :]
                 moves.append(_Move(f, versions_dir / new_filename))
 
     return moves
 
 
-def _update_versions_json(
-    project_path: Path, kind: ResourceKind, old_name: str, new_name: str
-) -> int:
+def _update_versions_json(project_path: Path, kind: ResourceKind, old_name: str, new_name: str) -> int:
     versions_file = project_path / "versions" / "versions.json"
     if not versions_file.exists():
         return 0
@@ -198,15 +190,11 @@ def _update_versions_json(
             updated += 1
 
     if updated:
-        versions_file.write_text(
-            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        versions_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     return updated
 
 
-def _update_scripts(
-    project_path: Path, kind: ResourceKind, old_name: str, new_name: str
-) -> int:
+def _update_scripts(project_path: Path, kind: ResourceKind, old_name: str, new_name: str) -> int:
     scripts_dir = project_path / "scripts"
     if not scripts_dir.exists():
         return 0
@@ -249,9 +237,7 @@ def _update_scripts(
                                 changed = True
 
         if changed:
-            script_file.write_text(
-                json.dumps(script, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+            script_file.write_text(json.dumps(script, ensure_ascii=False, indent=2), encoding="utf-8")
             updated_files += 1
 
     return updated_files
