@@ -531,7 +531,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
                         className={`h-2.5 w-2.5 shrink-0 fill-current ${statusClass}`}
                       />
                       <span className="truncate">
-                        E{ep.episode}: {ep.title}
+                        {ep.title || "（未命名劇集）"}
                       </span>
                       {isSegmented && !ep.scenes_count && (
                         <span className="ml-auto shrink-0 rounded-full border border-[rgba(136,163,255,0.16)] bg-[rgba(109,140,255,0.12)] px-2 py-0.5 text-[10px] text-[color:var(--wb-accent)]">
@@ -547,7 +547,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
                       }}
                       className="focus-ring shrink-0 rounded p-0.5 text-[color:var(--wb-text-dim)] opacity-0 transition-opacity hover:text-[color:var(--wb-danger)] group-hover:opacity-100 focus-visible:opacity-100"
                       title="刪除整集"
-                      aria-label={`刪除 E${ep.episode}`}
+                      aria-label={`刪除「${ep.title || "未命名劇集"}」`}
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>

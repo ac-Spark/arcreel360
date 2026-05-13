@@ -539,28 +539,25 @@ function EpisodeTitleEditor({
 
   if (editing) {
     return (
-      <div className="flex items-center gap-2">
-        <span className="text-lg font-semibold text-gray-400">E{episode}:</span>
-        <input
-          type="text"
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={() => void commit()}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              void commit();
-            } else if (e.key === "Escape") {
-              setDraft(title);
-              setEditing(false);
-            }
-          }}
-          disabled={saving}
-          className="flex-1 rounded border border-indigo-500 bg-gray-800 px-2 py-0.5 text-lg font-semibold text-gray-100 focus:outline-none disabled:opacity-50"
-          aria-label="集數標題"
-        />
-      </div>
+      <input
+        type="text"
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => void commit()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            void commit();
+          } else if (e.key === "Escape") {
+            setDraft(title);
+            setEditing(false);
+          }
+        }}
+        disabled={saving}
+        className="w-full max-w-md rounded border border-indigo-500 bg-gray-800 px-2 py-0.5 text-lg font-semibold text-gray-100 focus:outline-none disabled:opacity-50"
+        aria-label="劇集標題"
+      />
     );
   }
 
@@ -572,7 +569,7 @@ function EpisodeTitleEditor({
       title="點擊編輯標題"
     >
       <h2 className="text-lg font-semibold text-gray-100">
-        E{episode}{title ? `: ${title}` : ""}
+        {title || "（未命名劇集）"}
       </h2>
       <Pencil className="h-3.5 w-3.5 text-gray-600 opacity-0 transition-opacity group-hover:opacity-100" />
     </button>

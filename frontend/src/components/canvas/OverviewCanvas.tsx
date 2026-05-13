@@ -435,10 +435,7 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
                       key={ep.episode}
                       className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-800 bg-gray-900 px-4 py-2.5 tabular-nums"
                     >
-                      <span className="font-mono text-xs text-gray-400">
-                        E{ep.episode}
-                      </span>
-                      <span className="text-sm text-gray-200">{ep.title}</span>
+                      <span className="text-sm text-gray-200">{ep.title || "（未命名劇集）"}</span>
                       <span className="text-xs text-gray-500">
                         {ep.scenes_count ?? "?"} 片段 · {ep.status ?? "draft"}
                       </span>
