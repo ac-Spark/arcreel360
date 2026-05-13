@@ -61,6 +61,8 @@ export interface EpisodeMeta {
   episode: number;
   title: string;
   script_file: string;
+  /** Display order (lower = earlier). Falls back to `episode` when absent. */
+  order?: number;
   /** Injected by StatusCalculator at read time */
   scenes_count?: number;
   /** Injected by StatusCalculator at read time */

@@ -109,6 +109,19 @@ class _FakePM:
         self.save_project(project_name, project)
         return project, removed
 
+    def reorder_episodes(self, project_name, ordered_episode_numbers):
+        project = self.load_project(project_name)
+        episodes = project.get("episodes", [])
+        existing = sorted(int(ep.get("episode", -1)) for ep in episodes)
+        requested = [int(n) for n in ordered_episode_numbers]
+        if existing != sorted(requested) or len(set(requested)) != len(requested):
+            raise ValueError(f"集數不一致：現存 {existing}，傳入 {requested}")
+        order_map = {ep_num: idx for idx, ep_num in enumerate(requested)}
+        for ep in episodes:
+            ep["order"] = order_map[int(ep["episode"])]
+        self.save_project(project_name, project)
+        return project
+
     def load_script(self, name, script_file):
         if script_file.startswith("scripts/"):
             script_file = script_file[len("scripts/") :]
@@ -467,3 +480,32 @@ class TestProjectsRouter:
             )
             # 缺 script_file → 422
             assert client.delete("/api/v1/projects/ready/segments/E1S02").status_code == 422
+
+    def test_reorder_episodes_endpoint(self, tmp_path, monkeypatch):
+        fake_pm = _FakePM(tmp_path)
+        # 多加一集，方便排序
+        fake_pm.project_data["ready"]["episodes"].append({"episode": 2, "script_file": "scripts/episode_2.json"})
+        client = _client(monkeypatch, fake_pm, _FakeCalc())
+        with client:
+            r = client.patch(
+                "/api/v1/projects/ready/episodes/order",
+                json={"episodes": [2, 1]},
+            )
+            assert r.status_code == 200
+            episodes = fake_pm.project_data["ready"]["episodes"]
+            order_by_ep = {ep["episode"]: ep["order"] for ep in episodes}
+            assert order_by_ep == {2: 0, 1: 1}
+            # 集數不一致 → 409
+            bad = client.patch(
+                "/api/v1/projects/ready/episodes/order",
+                json={"episodes": [1, 2, 99]},
+            )
+            assert bad.status_code == 409
+            # 專案不存在 → 404
+            assert (
+                client.patch(
+                    "/api/v1/projects/nope/episodes/order",
+                    json={"episodes": [1]},
+                ).status_code
+                == 404
+            )

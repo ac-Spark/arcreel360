@@ -451,6 +451,17 @@ class API {
     );
   }
 
+  /** 依傳入的集數順序重設顯示順序（後端寫到每個 episode 的 ``order`` 欄位）。 */
+  static async reorderEpisodes(
+    name: string,
+    episodeNumbers: number[]
+  ): Promise<{ success: boolean; project: ProjectData }> {
+    return this.request(
+      `/projects/${encodeURIComponent(name)}/episodes/order`,
+      { method: "PATCH", body: JSON.stringify({ episodes: episodeNumbers }) }
+    );
+  }
+
   /** 刪除一整集（劇本檔、預處理草稿、分鏡/影片/縮圖、版本檔、合成輸出），並從 project.json 移除。 */
   static async deleteEpisode(
     name: string,

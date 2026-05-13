@@ -29,6 +29,17 @@ logger = logging.getLogger(__name__)
 PROJECT_NAME_PATTERN = re.compile(r"^[A-Za-z0-9-]+$")
 PROJECT_SLUG_SANITIZER = re.compile(r"[^a-zA-Z0-9]+")
 
+
+def _next_display_order(episodes: list[dict]) -> int:
+    """回傳下一個顯示順序值（max(現有 order) + 1，無資料時為 0）。"""
+    max_order = -1
+    for ep in episodes:
+        value = ep.get("order")
+        if isinstance(value, int) and value > max_order:
+            max_order = value
+    return max_order + 1
+
+
 # ==================== 資料模型 ====================
 
 
@@ -411,7 +422,7 @@ class ProjectManager:
         episode_entry = next((ep for ep in episodes if ep["episode"] == episode_num), None)
 
         if episode_entry is None:
-            episode_entry = {"episode": episode_num}
+            episode_entry = {"episode": episode_num, "order": _next_display_order(episodes)}
             episodes.append(episode_entry)
 
         # 同步核心後設資料（不包含統計欄位，統計欄位由 StatusCalculator 讀時計算）
@@ -1060,10 +1071,43 @@ class ProjectManager:
                 return project
 
         # 新增新劇集（不包含統計欄位，由 StatusCalculator 讀時計算）
-        project["episodes"].append({"episode": episode, "title": title, "script_file": script_file})
+        next_order = _next_display_order(project["episodes"])
+        project["episodes"].append(
+            {"episode": episode, "title": title, "script_file": script_file, "order": next_order}
+        )
 
-        # 按集數排序
+        # 按集數排序（陣列物理順序仍以集數遞增，顯示順序由 order 欄位決定）
         project["episodes"].sort(key=lambda x: x["episode"])
+
+        self.save_project(project_name, project)
+        return project
+
+    def reorder_episodes(self, project_name: str, ordered_episode_numbers: list[int]) -> dict:
+        """依指定的集數順序重設每個 episode 的 ``order`` 欄位。
+
+        Args:
+            project_name: 專案名稱
+            ordered_episode_numbers: 期望的顯示順序（用集數編號表示）。
+                必須與專案現存集數恰好相同（同集合、同個數，不能多也不能少）。
+
+        Returns:
+            更新後的 project 字典。
+
+        Raises:
+            ValueError: 傳入集數與現存不匹配（缺漏、多餘或重複）。
+        """
+        project = self.load_project(project_name)
+        episodes = project.get("episodes", [])
+        existing = [int(ep.get("episode", -1)) for ep in episodes]
+        requested = [int(n) for n in ordered_episode_numbers]
+        if sorted(existing) != sorted(requested):
+            raise ValueError(f"傳入的集數與現存劇集不一致：現存 {sorted(existing)}，傳入 {sorted(requested)}")
+        if len(set(requested)) != len(requested):
+            raise ValueError(f"傳入的集數有重複：{requested}")
+
+        order_map = {ep_num: idx for idx, ep_num in enumerate(requested)}
+        for ep in episodes:
+            ep["order"] = order_map[int(ep.get("episode"))]
 
         self.save_project(project_name, project)
         return project
@@ -1234,7 +1278,7 @@ class ProjectManager:
         episodes = project.setdefault("episodes", [])
         existing: dict | None = next((ep for ep in episodes if int(ep.get("episode", -1)) == int(episode)), None)
         if existing is None:
-            existing = {"episode": int(episode)}
+            existing = {"episode": int(episode), "order": _next_display_order(episodes)}
             episodes.append(existing)
         if title is not None:
             existing["title"] = title

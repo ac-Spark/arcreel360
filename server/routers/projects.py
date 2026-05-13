@@ -671,6 +671,10 @@ class UpdateEpisodeRequest(BaseModel):
     title: str | None = None
 
 
+class ReorderEpisodesRequest(BaseModel):
+    episodes: list[int]
+
+
 class PeekSplitRequest(BaseModel):
     source: str
     target_chars: int
@@ -805,6 +809,35 @@ async def split_episode_route(name: str, req: SplitEpisodeRequest, _user: Curren
         raise HTTPException(status_code=500, detail=str(e))
     except HTTPException:
         raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/projects/{name}/episodes/order")
+async def reorder_episodes(name: str, req: ReorderEpisodesRequest, _user: CurrentUser):
+    """依傳入的集數順序重設每個劇集的 ``order`` 欄位（顯示順序）。
+
+    Body:
+        ``{"episodes": [3, 1, 4]}`` — 集數編號，依期望的顯示順序排列。
+        必須與專案現存的集數完全一致（同集合、不能多也不能少）。
+    """
+    try:
+        def _sync():
+            manager = get_project_manager()
+            if not manager.project_exists(name):
+                raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+            with project_change_source("webui"):
+                project = manager.reorder_episodes(name, req.episodes)
+            return {"success": True, "project": project}
+
+        return await asyncio.to_thread(_sync)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except HTTPException:
+        raise
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
     except Exception as e:
         logger.exception("請求處理失敗")
         raise HTTPException(status_code=500, detail=str(e))

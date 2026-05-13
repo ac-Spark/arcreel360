@@ -3,6 +3,7 @@ import { Package, History, Clapperboard, ArrowLeft, Loader2 } from "lucide-react
 import { Popover } from "@/components/ui/Popover";
 import type { RefObject } from "react";
 import type { EpisodeMeta } from "@/types/project";
+import { sortEpisodesForDisplay } from "@/utils/episodes";
 
 export type ExportScope = "current" | "full" | "jianying-draft";
 
@@ -151,9 +152,9 @@ export function ExportScopeDialog({
                   onChange={(e) => setSelectedEpisode(Number(e.target.value))}
                   className="w-full rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1.5 text-sm text-gray-200 outline-none focus:border-indigo-500"
                 >
-                  {episodes.map((ep) => (
+                  {sortEpisodesForDisplay(episodes).map((ep) => (
                     <option key={ep.episode} value={ep.episode}>
-                      第 {ep.episode} 集 — {ep.title}
+                      {ep.title || `第 ${ep.episode} 集`}
                     </option>
                   ))}
                 </select>

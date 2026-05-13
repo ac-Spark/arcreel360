@@ -7,6 +7,7 @@ import { useAppStore } from "@/stores/app-store";
 import { useCostStore } from "@/stores/cost-store";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { formatCost, totalBreakdown } from "@/utils/cost-format";
+import { sortEpisodesForDisplay } from "@/utils/episodes";
 
 import { WelcomeCanvas } from "./WelcomeCanvas";
 
@@ -428,7 +429,7 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
                   暫無劇本。可使用 AI 助理生成劇本。
                 </p>
               ) : (
-                (projectData.episodes ?? []).map((ep) => {
+                sortEpisodesForDisplay(projectData.episodes ?? []).map((ep) => {
                   const epCost = getEpisodeCost(ep.episode);
                   return (
                     <div

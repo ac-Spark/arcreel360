@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation } from "wouter";
 import {
   ChevronRight,
@@ -13,11 +13,29 @@ import {
   Plus,
   Upload,
   Trash2,
+  GripVertical,
   X,
 } from "lucide-react";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useAppStore } from "@/stores/app-store";
 import { API } from "@/api";
+import { sortEpisodesForDisplay } from "@/utils/episodes";
+import type { EpisodeMeta } from "@/types";
 
 // ---------------------------------------------------------------------------
 // CollapsibleSection — reusable accordion primitive
@@ -167,6 +185,87 @@ function getNextEpisodeNumber(episodes: Array<{ episode: unknown }>): number {
 }
 
 // ---------------------------------------------------------------------------
+// SortableEpisodeRow — single draggable row in the episode list
+// ---------------------------------------------------------------------------
+
+type SortableEpisodeRowProps = {
+  ep: EpisodeMeta;
+  active: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+};
+
+function SortableEpisodeRow({
+  ep,
+  active,
+  onSelect,
+  onDelete,
+}: SortableEpisodeRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: ep.episode,
+  });
+  const episodeTitle = ep.title || "（未命名劇集）";
+  const isSegmented = ep.script_status === "segmented";
+  const statusKey = isSegmented ? "draft" : (ep.status ?? "draft");
+  const statusClass = STATUS_DOT_CLASSES[statusKey] ?? STATUS_DOT_CLASSES.draft;
+  const toneClass = active
+    ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
+    : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]";
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+
+  return (
+    <li ref={setNodeRef} style={style}>
+      <div
+        className={`group flex w-full items-center gap-1 px-3 py-1.5 text-sm transition-colors ${toneClass}`}
+      >
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="focus-ring shrink-0 cursor-grab touch-none rounded p-0.5 text-[color:var(--wb-text-dim)] opacity-0 transition-opacity hover:text-[color:var(--wb-text-secondary)] group-hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing"
+          title="拖曳調整順序"
+          aria-label="拖曳調整順序"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onSelect}
+          className="flex min-w-0 flex-1 items-center gap-2 truncate text-left focus-ring rounded"
+        >
+          <Circle
+            className={`h-2.5 w-2.5 shrink-0 fill-current ${statusClass}`}
+          />
+          <span className="truncate">{episodeTitle}</span>
+          {isSegmented && !ep.scenes_count && (
+            <span className="ml-auto shrink-0 rounded-full border border-[rgba(136,163,255,0.16)] bg-[rgba(109,140,255,0.12)] px-2 py-0.5 text-[10px] text-[color:var(--wb-accent)]">
+              預處理
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="focus-ring shrink-0 rounded p-0.5 text-[color:var(--wb-text-dim)] opacity-0 transition-opacity hover:text-[color:var(--wb-danger)] group-hover:opacity-100 focus-visible:opacity-100"
+          title="刪除整集"
+          aria-label={`刪除「${episodeTitle}」`}
+        >
+          <Trash2 className="h-3 w-3" />
+        </button>
+      </div>
+    </li>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // AssetSidebar
 // ---------------------------------------------------------------------------
 
@@ -262,6 +361,70 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
       setCreatingEpisode(false);
     }
   }, [projectName, creatingEpisode, episodes, currentScripts, setLocation]);
+
+  const sortedEpisodes = useMemo(
+    () => sortEpisodesForDisplay(episodes),
+    [episodes],
+  );
+  const sortedEpisodeIds = useMemo(
+    () => sortedEpisodes.map((ep) => ep.episode),
+    [sortedEpisodes],
+  );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  );
+
+  const handleReorderEpisodes = useCallback(
+    async (orderedEpisodeNumbers: number[]) => {
+      if (!projectName) return;
+      const { currentProjectData: snapshot, assetFingerprints } = useProjectsStore.getState();
+      if (!snapshot) return;
+      // 樂觀更新：把新順序對映成 order 寫回，store 立刻 re-render
+      const orderMap = new Map(orderedEpisodeNumbers.map((ep, idx) => [ep, idx]));
+      const nextEpisodes = (snapshot.episodes ?? []).map((ep) => ({
+        ...ep,
+        order: orderMap.get(ep.episode) ?? ep.order,
+      }));
+      useProjectsStore.getState().setCurrentProject(
+        projectName,
+        { ...snapshot, episodes: nextEpisodes },
+        currentScripts,
+        assetFingerprints,
+      );
+      try {
+        await API.reorderEpisodes(projectName, orderedEpisodeNumbers);
+      } catch (err) {
+        useAppStore.getState().pushToast(`調整順序失敗：${(err as Error).message}`, "error");
+        // 失敗：重抓專案還原真實狀態
+        try {
+          const fresh = await API.getProject(projectName);
+          useProjectsStore.getState().setCurrentProject(
+            projectName,
+            fresh.project,
+            fresh.scripts ?? {},
+            fresh.asset_fingerprints,
+          );
+        } catch {
+          // 連 refetch 都失敗就放棄
+        }
+      }
+    },
+    [projectName, currentScripts],
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const oldIndex = sortedEpisodeIds.indexOf(Number(active.id));
+      const newIndex = sortedEpisodeIds.indexOf(Number(over.id));
+      if (oldIndex < 0 || newIndex < 0) return;
+      const next = arrayMove(sortedEpisodeIds, oldIndex, newIndex);
+      void handleReorderEpisodes(next);
+    },
+    [sortedEpisodeIds, handleReorderEpisodes],
+  );
 
   const handleDeleteEpisode = useCallback(
     async (episode: number, title: string) => {
@@ -505,57 +668,30 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
             暫無劇本，點選新增
           </button>
         ) : (
-          <ul>
-            {episodes.map((ep) => {
-              const episodePath = `/episodes/${ep.episode}`;
-              const active = isActive(episodePath);
-              const isSegmented = ep.script_status === "segmented";
-              const statusClass =
-                STATUS_DOT_CLASSES[isSegmented ? "draft" : (ep.status ?? "draft")] ??
-                STATUS_DOT_CLASSES.draft;
-
-              return (
-                <li key={ep.episode}>
-                  <div
-                    className={`group flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors ${active
-                      ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
-                      : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
-                      }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setLocation(episodePath)}
-                      className="flex min-w-0 flex-1 items-center gap-2 truncate text-left focus-ring rounded"
-                    >
-                      <Circle
-                        className={`h-2.5 w-2.5 shrink-0 fill-current ${statusClass}`}
-                      />
-                      <span className="truncate">
-                        {ep.title || "（未命名劇集）"}
-                      </span>
-                      {isSegmented && !ep.scenes_count && (
-                        <span className="ml-auto shrink-0 rounded-full border border-[rgba(136,163,255,0.16)] bg-[rgba(109,140,255,0.12)] px-2 py-0.5 text-[10px] text-[color:var(--wb-accent)]">
-                          預處理
-                        </span>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void handleDeleteEpisode(Number(ep.episode), String(ep.title ?? ""));
-                      }}
-                      className="focus-ring shrink-0 rounded p-0.5 text-[color:var(--wb-text-dim)] opacity-0 transition-opacity hover:text-[color:var(--wb-danger)] group-hover:opacity-100 focus-visible:opacity-100"
-                      title="刪除整集"
-                      aria-label={`刪除「${ep.title || "未命名劇集"}」`}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={sortedEpisodeIds}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul>
+                {sortedEpisodes.map((ep) => (
+                  <SortableEpisodeRow
+                    key={ep.episode}
+                    ep={ep}
+                    active={isActive(`/episodes/${ep.episode}`)}
+                    onSelect={() => setLocation(`/episodes/${ep.episode}`)}
+                    onDelete={() =>
+                      void handleDeleteEpisode(Number(ep.episode), String(ep.title ?? ""))
+                    }
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
         )}
       </CollapsibleSection>
     </aside>

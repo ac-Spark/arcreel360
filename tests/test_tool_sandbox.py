@@ -223,6 +223,7 @@ async def test_fs_write_handler_syncs_episode_index_for_script_json(tmp_path: Pa
     assert project["episodes"] == [
         {
             "episode": 1,
+            "order": 0,
             "title": "鏽鐵下的微光",
             "script_file": "scripts/episode_1.json",
         }
