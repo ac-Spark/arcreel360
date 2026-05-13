@@ -103,6 +103,7 @@ describe("TimelineCanvas", () => {
     // 空狀態提示 + 新增按鈕
     expect(screen.getByText("這一集還沒有片段，點上方按鈕新增。")).toBeInTheDocument();
     const addBtn = screen.getByRole("button", { name: "新增片段" });
+    expect(addBtn).not.toHaveClass("mb-4");
     fireEvent.click(addBtn);
     await waitFor(() => expect(API.addEpisodeSegment).toHaveBeenCalledWith("demo", 1));
     // 成功後會 refetch（getProject）

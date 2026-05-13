@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ImageIcon, Film, Clock } from "lucide-react";
+import { ImageIcon, Film, Clock, Trash2 } from "lucide-react";
 import { API } from "@/api";
 import { DEFAULT_DURATIONS } from "@/utils/provider-models";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
@@ -157,6 +157,7 @@ interface SegmentCardProps {
   onGenerateVideo?: (segmentId: string) => void;
   onRestoreStoryboard?: () => Promise<void> | void;
   onRestoreVideo?: () => Promise<void> | void;
+  onDelete?: () => void;
   generatingStoryboard?: boolean;
   generatingVideo?: boolean;
 }
@@ -708,6 +709,7 @@ export function SegmentCard({
   onGenerateVideo,
   onRestoreStoryboard,
   onRestoreVideo,
+  onDelete,
   generatingStoryboard = false,
   generatingVideo = false,
 }: SegmentCardProps) {
@@ -765,6 +767,17 @@ export function SegmentCard({
               clues={clues}
               projectName={projectName}
             />
+            {onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                title={`刪除${contentMode === "narration" ? "片段" : "場景"}`}
+                aria-label={`刪除${contentMode === "narration" ? "片段" : "場景"}`}
+                className="ml-1 rounded p-1 text-gray-600 transition-colors hover:bg-red-500/10 hover:text-red-400"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </div>
 

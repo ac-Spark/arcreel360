@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   Plus,
   Upload,
+  Trash2,
   X,
 } from "lucide-react";
 import { useProjectsStore } from "@/stores/projects-store";
@@ -262,6 +263,32 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
     }
   }, [projectName, creatingEpisode, episodes, currentScripts, setLocation]);
 
+  const handleDeleteEpisode = useCallback(
+    async (episode: number, title: string) => {
+      if (!projectName) return;
+      const confirmed = confirm(
+        `確定要刪除「E${episode}: ${title}」整集嗎？會一併刪掉這集的劇本、預處理草稿、分鏡與影片。此操作無法復原。`,
+      );
+      if (!confirmed) return;
+
+      try {
+        const res = await API.deleteEpisode(projectName, episode);
+        const nextScripts = { ...currentScripts };
+        delete nextScripts[`episode_${episode}.json`];
+        useProjectsStore
+          .getState()
+          .setCurrentProject(projectName, res.project, nextScripts);
+        if (location === `/episodes/${episode}`) setLocation("/");
+        useAppStore.getState().pushToast(`已刪除 E${episode}`, "success");
+      } catch (err) {
+        useAppStore
+          .getState()
+          .pushToast(`刪除劇集失敗: ${(err as Error).message}`, "error");
+      }
+    },
+    [projectName, currentScripts, location, setLocation],
+  );
+
   const characterEntries = Object.entries(characters);
   const clueEntries = Object.entries(clues);
 
@@ -489,26 +516,42 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
 
               return (
                 <li key={ep.episode}>
-                  <button
-                    type="button"
-                    onClick={() => setLocation(episodePath)}
-                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors focus-ring ${active
+                  <div
+                    className={`group flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors ${active
                       ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
                       : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
                       }`}
                   >
-                    <Circle
-                      className={`h-2.5 w-2.5 shrink-0 fill-current ${statusClass}`}
-                    />
-                    <span className="truncate">
-                      E{ep.episode}: {ep.title}
-                    </span>
-                    {isSegmented && !ep.scenes_count && (
-                      <span className="ml-auto shrink-0 rounded-full border border-[rgba(136,163,255,0.16)] bg-[rgba(109,140,255,0.12)] px-2 py-0.5 text-[10px] text-[color:var(--wb-accent)]">
-                        預處理
+                    <button
+                      type="button"
+                      onClick={() => setLocation(episodePath)}
+                      className="flex min-w-0 flex-1 items-center gap-2 truncate text-left focus-ring rounded"
+                    >
+                      <Circle
+                        className={`h-2.5 w-2.5 shrink-0 fill-current ${statusClass}`}
+                      />
+                      <span className="truncate">
+                        E{ep.episode}: {ep.title}
                       </span>
-                    )}
-                  </button>
+                      {isSegmented && !ep.scenes_count && (
+                        <span className="ml-auto shrink-0 rounded-full border border-[rgba(136,163,255,0.16)] bg-[rgba(109,140,255,0.12)] px-2 py-0.5 text-[10px] text-[color:var(--wb-accent)]">
+                          預處理
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleDeleteEpisode(Number(ep.episode), String(ep.title ?? ""));
+                      }}
+                      className="focus-ring shrink-0 rounded p-0.5 text-[color:var(--wb-text-dim)] opacity-0 transition-opacity hover:text-[color:var(--wb-danger)] group-hover:opacity-100 focus-visible:opacity-100"
+                      title="刪除整集"
+                      aria-label={`刪除 E${ep.episode}`}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                 </li>
               );
             })}

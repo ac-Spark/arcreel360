@@ -148,6 +148,10 @@ export interface EpisodeSplitResponse {
   anchor_match_count: number;
 }
 
+function withScriptFileQuery(path: string, scriptFile: string): string {
+  return `${path}?script_file=${encodeURIComponent(scriptFile)}`;
+}
+
 function normalizeDiagnosticsBucket(value: unknown): { code: string; message: string; location?: string }[] {
   if (!Array.isArray(value)) {
     return [];
@@ -444,6 +448,59 @@ class API {
     return this.request(
       `/projects/${encodeURIComponent(name)}/episodes/${episode}/scenes`,
       { method: "POST", body: JSON.stringify({}) }
+    );
+  }
+
+  /** 刪除一整集（劇本檔、預處理草稿、分鏡/影片/縮圖、版本檔、合成輸出），並從 project.json 移除。 */
+  static async deleteEpisode(
+    name: string,
+    episode: number
+  ): Promise<{
+    success: boolean;
+    episode: number;
+    removed: string[];
+    project: ProjectData;
+  }> {
+    return this.request(
+      `/projects/${encodeURIComponent(name)}/episodes/${episode}`,
+      { method: "DELETE" }
+    );
+  }
+
+  /** 清空指定劇集的劇本內容（重置為空骨架），保留劇集條目與預處理草稿。 */
+  static async resetEpisodeScript(
+    name: string,
+    episode: number
+  ): Promise<{ success: boolean; episode: number; content_mode: string }> {
+    return this.request(
+      `/projects/${encodeURIComponent(name)}/episodes/${episode}/script`,
+      { method: "DELETE" }
+    );
+  }
+
+  /** 刪除說書模式劇本中的一個片段。 */
+  static async deleteSegment(
+    name: string,
+    segmentId: string,
+    scriptFile: string
+  ): Promise<{ success: boolean; segments_count: number }> {
+    const path = `/projects/${encodeURIComponent(name)}/segments/${encodeURIComponent(segmentId)}`;
+    return this.request(
+      withScriptFileQuery(path, scriptFile),
+      { method: "DELETE" }
+    );
+  }
+
+  /** 刪除劇集動畫模式劇本中的一個場景。 */
+  static async deleteScene(
+    name: string,
+    sceneId: string,
+    scriptFile: string
+  ): Promise<{ success: boolean; scenes_count: number }> {
+    const path = `/projects/${encodeURIComponent(name)}/scenes/${encodeURIComponent(sceneId)}`;
+    return this.request(
+      withScriptFileQuery(path, scriptFile),
+      { method: "DELETE" }
     );
   }
 

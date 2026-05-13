@@ -858,6 +858,32 @@ async def update_episode(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.delete("/projects/{name}/episodes/{episode}")
+async def delete_episode(name: str, episode: int, _user: CurrentUser):
+    """刪除一整集：移除劇本檔、預處理草稿、該集分鏡/影片/縮圖與版本檔、合成輸出，
+    並從 project.json 移除該劇集條目。此操作無法復原。"""
+    try:
+
+        def _sync():
+            manager = get_project_manager()
+            if not manager.project_exists(name):
+                raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+            with project_change_source("webui"):
+                project, removed = manager.remove_episode(name, episode)
+            return {"success": True, "episode": episode, "removed": removed, "project": project}
+
+        return await asyncio.to_thread(_sync)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e).strip("'\""))
+    except HTTPException:
+        raise
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 def _append_empty_episode_item(name: str, episode: int, expected_mode: str, list_key: str, alt_route: str) -> dict:
     """在劇集劇本末尾 append 一個空片段/場景，回 {<list_key 單數>: <new item>, "<list_key>_count": N}。"""
     from lib.script_models import empty_drama_scene, empty_narration_segment
@@ -904,6 +930,89 @@ async def add_episode_scene(name: str, episode: int, _user: CurrentUser):
     """在指定劇集（劇集動畫模式）的劇本末尾新增一個空場景。"""
     try:
         return await asyncio.to_thread(_append_empty_episode_item, name, episode, "drama", "scenes", "/segments")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/projects/{name}/episodes/{episode}/script")
+async def reset_episode_script(name: str, episode: int, _user: CurrentUser):
+    """清空指定劇集的劇本內容（重置為空骨架），保留劇集條目、標題與預處理草稿。
+
+    生成過的分鏡圖／影片檔不會一併刪除，但因為新骨架沒有任何片段／場景，
+    重新生成劇本後它們會被當成孤兒檔案（不再被引用）。
+    """
+    from lib.script_models import empty_drama_script, empty_narration_script
+
+    def _sync():
+        manager = get_project_manager()
+        if not manager.project_exists(name):
+            raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+        project = manager.load_project(name)
+        ep_entry = next((e for e in project.get("episodes", []) if int(e.get("episode", -1)) == episode), None)
+        if ep_entry is None:
+            raise HTTPException(status_code=404, detail=f"劇集 E{episode} 不存在")
+        filename = f"episode_{episode}.json"
+        try:
+            current = manager.load_script(name, filename)
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail=f"劇集 E{episode} 的劇本不存在")
+        content_mode = current.get("content_mode") or project.get("content_mode", "narration")
+        title = current.get("title") or ep_entry.get("title") or f"第 {episode} 集"
+        empty_script = (
+            empty_drama_script(episode, title) if content_mode == "drama" else empty_narration_script(episode, title)
+        )
+        with project_change_source("webui"):
+            manager.save_script(name, empty_script, filename)
+        return {"success": True, "episode": episode, "content_mode": content_mode}
+
+    try:
+        return await asyncio.to_thread(_sync)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _delete_episode_item(name: str, item_id: str, script_file: str, list_key: str, id_key: str) -> dict:
+    """從劇本中移除指定的片段／場景，回 {"success": True, "<list_key>_count": N}。"""
+    manager = get_project_manager()
+    if not manager.project_exists(name):
+        raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+    try:
+        script = manager.load_script(name, script_file)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="劇本不存在")
+    items = script.get(list_key, [])
+    new_items = [it for it in items if it.get(id_key) != item_id]
+    if len(new_items) == len(items):
+        raise HTTPException(status_code=404, detail=f"'{item_id}' 不存在")
+    script[list_key] = new_items
+    with project_change_source("webui"):
+        manager.save_script(name, script, script_file)
+    return {"success": True, f"{list_key}_count": len(new_items)}
+
+
+@router.delete("/projects/{name}/segments/{segment_id}")
+async def delete_segment(name: str, segment_id: str, script_file: Annotated[str, Query()], _user: CurrentUser):
+    """刪除說書模式劇本中的一個片段。"""
+    try:
+        return await asyncio.to_thread(_delete_episode_item, name, segment_id, script_file, "segments", "segment_id")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/projects/{name}/scenes/{scene_id}")
+async def delete_scene(name: str, scene_id: str, script_file: Annotated[str, Query()], _user: CurrentUser):
+    """刪除劇集動畫模式劇本中的一個場景。"""
+    try:
+        return await asyncio.to_thread(_delete_episode_item, name, scene_id, script_file, "scenes", "scene_id")
     except HTTPException:
         raise
     except Exception as e:

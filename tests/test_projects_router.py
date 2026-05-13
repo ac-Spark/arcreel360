@@ -98,6 +98,17 @@ class _FakePM:
         self.save_project(project_name, project)
         return project
 
+    def remove_episode(self, project_name, episode):
+        project = self.load_project(project_name)
+        episodes = project.get("episodes", [])
+        if not any(int(ep.get("episode", -1)) == int(episode) for ep in episodes):
+            raise KeyError(f"劇集 E{episode} 不存在")
+        removed = [f"scripts/episode_{episode}.json"]
+        self.scripts.pop((project_name, f"episode_{episode}.json"), None)
+        project["episodes"] = [ep for ep in episodes if int(ep.get("episode", -1)) != int(episode)]
+        self.save_project(project_name, project)
+        return project, removed
+
     def load_script(self, name, script_file):
         if script_file.startswith("scripts/"):
             script_file = script_file[len("scripts/") :]
@@ -398,3 +409,61 @@ class TestProjectsRouter:
             # drama 劇集呼叫 /segments → 400
             bad = client.post("/api/v1/projects/ready/episodes/1/segments")
             assert bad.status_code == 400
+
+    def test_delete_episode_endpoint(self, tmp_path, monkeypatch):
+        fake_pm = _FakePM(tmp_path)
+        client = _client(monkeypatch, fake_pm, _FakeCalc())
+        with client:
+            r = client.delete("/api/v1/projects/ready/episodes/1")
+            assert r.status_code == 200
+            body = r.json()
+            assert body["episode"] == 1
+            assert "scripts/episode_1.json" in body["removed"]
+            assert fake_pm.project_data["ready"]["episodes"] == []
+            assert ("ready", "episode_1.json") not in fake_pm.scripts
+            # 不存在的集數 → 404
+            assert client.delete("/api/v1/projects/ready/episodes/99").status_code == 404
+            # 不存在的專案 → 404
+            assert client.delete("/api/v1/projects/nope/episodes/1").status_code == 404
+
+    def test_reset_episode_script_endpoint(self, tmp_path, monkeypatch):
+        fake_pm = _FakePM(tmp_path)
+        client = _client(monkeypatch, fake_pm, _FakeCalc())
+        with client:
+            r = client.delete("/api/v1/projects/ready/episodes/1/script")
+            assert r.status_code == 200
+            assert r.json()["content_mode"] == "drama"
+            reset = fake_pm.scripts[("ready", "episode_1.json")]
+            assert reset["scenes"] == []
+            assert reset["episode"] == 1
+            assert client.delete("/api/v1/projects/ready/episodes/99/script").status_code == 404
+
+    def test_delete_segment_and_scene_endpoints(self, tmp_path, monkeypatch):
+        fake_pm = _FakePM(tmp_path)
+        fake_pm.scripts[("ready", "narration.json")] = {
+            "content_mode": "narration",
+            "segments": [{"segment_id": "E1S01"}, {"segment_id": "E1S02"}],
+        }
+        client = _client(monkeypatch, fake_pm, _FakeCalc())
+        with client:
+            # 刪場景（drama，episode_1.json）
+            r = client.delete("/api/v1/projects/ready/scenes/001", params={"script_file": "scripts/episode_1.json"})
+            assert r.status_code == 200
+            assert r.json()["scenes_count"] == 0
+            assert fake_pm.scripts[("ready", "episode_1.json")]["scenes"] == []
+            # 刪片段（narration）
+            r2 = client.delete(
+                "/api/v1/projects/ready/segments/E1S01", params={"script_file": "scripts/narration.json"}
+            )
+            assert r2.status_code == 200
+            assert r2.json()["segments_count"] == 1
+            assert [s["segment_id"] for s in fake_pm.scripts[("ready", "narration.json")]["segments"]] == ["E1S02"]
+            # 找不到的 id → 404
+            assert (
+                client.delete(
+                    "/api/v1/projects/ready/segments/nope", params={"script_file": "scripts/narration.json"}
+                ).status_code
+                == 404
+            )
+            # 缺 script_file → 422
+            assert client.delete("/api/v1/projects/ready/segments/E1S02").status_code == 422

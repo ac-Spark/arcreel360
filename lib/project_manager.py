@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import secrets
+import shutil
 import tempfile
 import unicodedata
 from collections.abc import Callable
@@ -1066,6 +1067,134 @@ class ProjectManager:
 
         self.save_project(project_name, project)
         return project
+
+    def remove_episode(self, project_name: str, episode: int) -> tuple[dict, list[str]]:
+        """從專案移除一整集。
+
+        會刪除：劇本檔（scripts/episode_N.json）、預處理草稿（drafts/episode_N/）、
+        分集切分產生的 source/episode_N.txt、合成輸出（output/episode_N*.{mp4,webm}）、
+        該集所有片段/場景對應的分鏡/影片/縮圖與版本檔（versions/）及 versions.json 內的條目，
+        最後從 project.json 的 episodes 移除該條目。
+
+        Args:
+            project_name: 專案名稱
+            episode: 集數
+
+        Returns:
+            (更新後的 project dict, 已刪除的相對路徑清單)
+
+        Raises:
+            KeyError: 該集不存在於 project.json。
+        """
+        project = self.load_project(project_name)
+        episodes = project.get("episodes", [])
+        entry = next((ep for ep in episodes if int(ep.get("episode", -1)) == int(episode)), None)
+        if entry is None:
+            raise KeyError(f"劇集 E{episode} 不存在")
+
+        project_dir = self.get_project_path(project_name)
+        removed: list[str] = []
+        ep_prefix = f"E{int(episode)}S"
+
+        def _rm_file(rel: str) -> None:
+            p = project_dir / rel
+            if p.is_file():
+                p.unlink()
+                removed.append(rel)
+
+        def _rm_dir(rel: str) -> None:
+            p = project_dir / rel
+            if p.is_dir():
+                shutil.rmtree(p)
+                removed.append(rel.rstrip("/") + "/")
+
+        # 收集該集所有片段/場景 id（劇本可能損毀或不存在 → 退回前綴掃描）
+        script_rel = entry.get("script_file") or f"scripts/episode_{episode}.json"
+        script_name = script_rel[len("scripts/") :] if script_rel.startswith("scripts/") else script_rel
+        segment_ids: set[str] = set()
+        try:
+            script = self.load_script(project_name, script_name)
+            for key in ("segments", "scenes"):
+                for item in script.get(key, []) or []:
+                    sid = item.get("segment_id") or item.get("scene_id")
+                    if isinstance(sid, str) and sid:
+                        segment_ids.add(sid)
+        except (FileNotFoundError, json.JSONDecodeError, ValueError, AttributeError):
+            pass
+
+        def _id_hit(resource_id: str) -> bool:
+            return resource_id in segment_ids if segment_ids else resource_id.startswith(ep_prefix)
+
+        # 1) 劇本檔
+        _rm_file(f"scripts/{script_name}")
+        # 2) 預處理草稿目錄
+        _rm_dir(f"drafts/episode_{episode}")
+        # 3) 分集切分產生的 source/episode_N.txt
+        _rm_file(f"source/episode_{episode}.txt")
+        # 4) 合成輸出 output/episode_N*.{mp4,webm}
+        output_dir = project_dir / "output"
+        if output_dir.is_dir():
+            for f in sorted(output_dir.iterdir()):
+                if f.is_file() and f.name.startswith(f"episode_{episode}") and f.suffix.lower() in (".mp4", ".webm"):
+                    f.unlink()
+                    removed.append(f"output/{f.name}")
+        # 5) 各片段/場景的分鏡、影片、縮圖（檔名格式：scene_{id}.{ext}）
+        media_dirs = {
+            "storyboards": (".png", ".jpg", ".jpeg"),
+            "videos": (".mp4", ".webm"),
+            "thumbnails": (".png", ".jpg", ".jpeg"),
+        }
+        for sub, exts in media_dirs.items():
+            d = project_dir / sub
+            if not d.is_dir():
+                continue
+            for f in sorted(d.iterdir()):
+                if not f.is_file() or f.suffix.lower() not in exts:
+                    continue
+                stem = f.stem
+                resource_id = stem[len("scene_") :] if stem.startswith("scene_") else stem
+                if _id_hit(resource_id):
+                    f.unlink()
+                    removed.append(f"{sub}/{f.name}")
+        # 6) versions/ 目錄檔案與 versions.json 條目（檔名格式：{id}_v{n}_{timestamp}.{ext}）
+        versions_dir = project_dir / "versions"
+        if versions_dir.is_dir():
+            for rt in ("storyboards", "videos"):
+                rt_dir = versions_dir / rt
+                if not rt_dir.is_dir():
+                    continue
+                for f in sorted(rt_dir.iterdir()):
+                    if not f.is_file():
+                        continue
+                    resource_id = f.name.split("_v", 1)[0]
+                    if _id_hit(resource_id):
+                        f.unlink()
+                        removed.append(f"versions/{rt}/{f.name}")
+            versions_file = versions_dir / "versions.json"
+            if versions_file.is_file():
+                try:
+                    with open(versions_file, encoding="utf-8") as fh:  # noqa: PTH123
+                        vdata = json.load(fh)
+                    changed = False
+                    for rt in ("storyboards", "videos"):
+                        bucket = vdata.get(rt)
+                        if not isinstance(bucket, dict):
+                            continue
+                        for resource_id in list(bucket.keys()):
+                            if _id_hit(resource_id):
+                                del bucket[resource_id]
+                                changed = True
+                    if changed:
+                        with open(versions_file, "w", encoding="utf-8") as fh:  # noqa: PTH123
+                            json.dump(vdata, fh, ensure_ascii=False, indent=2)
+                        removed.append("versions/versions.json")
+                except (json.JSONDecodeError, OSError):
+                    pass
+
+        # 7) 從 project.json 移除該集
+        project["episodes"] = [ep for ep in episodes if int(ep.get("episode", -1)) != int(episode)]
+        self.save_project(project_name, project)
+        return project, removed
 
     def commit_episode_split(
         self,

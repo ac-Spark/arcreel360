@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
 import { useProjectsStore } from "@/stores/projects-store";
@@ -123,7 +123,7 @@ export function TimelineCanvas({
     };
   }, [projectName, projectData?.episodes?.length, sourceFilesVersion]);
 
-  const refreshProjectAfterSplit = useCallback(async () => {
+  const refreshProject = useCallback(async () => {
     const result = await API.getProject(projectName);
     useProjectsStore.getState().setCurrentProject(
       projectName,
@@ -133,6 +133,47 @@ export function TimelineCanvas({
     );
     useAppStore.getState().invalidateSourceFiles();
   }, [projectName]);
+
+  const handleDeleteSegment = useCallback(
+    async (segmentId: string) => {
+      if (!scriptFile) return;
+      const label = contentMode === "narration" ? "片段" : "場景";
+      if (!confirm(`確定要刪除${label}「${segmentId}」？此操作無法復原。`)) return;
+      try {
+        if (contentMode === "narration") {
+          await API.deleteSegment(projectName, segmentId, scriptFile);
+        } else {
+          await API.deleteScene(projectName, segmentId, scriptFile);
+        }
+        await refreshProject();
+        useAppStore.getState().pushToast(`已刪除${label}「${segmentId}」`, "success");
+      } catch (err) {
+        useAppStore
+          .getState()
+          .pushToast(`刪除失敗：${(err as Error).message}`, "error");
+      }
+    },
+    [projectName, scriptFile, contentMode, refreshProject],
+  );
+
+  const handleResetScript = useCallback(async () => {
+    if (!episodeScript) return;
+    const confirmed = confirm(
+      "確定要清空這一集的劇本內容嗎？會清掉所有片段／場景與其分鏡、影片提示詞，回到空骨架（預處理草稿保留）。此操作無法復原。",
+    );
+    if (!confirmed) return;
+
+    try {
+      await API.resetEpisodeScript(projectName, episodeScript.episode);
+      await refreshProject();
+      useAppStore.getState().pushToast("已清空這一集的劇本", "success");
+      setActiveTab("preprocessing");
+    } catch (err) {
+      useAppStore
+        .getState()
+        .pushToast(`清空失敗：${(err as Error).message}`, "error");
+    }
+  }, [projectName, episodeScript, refreshProject]);
 
   const episodeCost = useCostStore((s) =>
     episodeScript ? s.getEpisodeCost(episodeScript.episode) : undefined,
@@ -221,7 +262,7 @@ export function TimelineCanvas({
           <EpisodeSplitPanel
             projectName={projectName}
             sourceFiles={sourceFiles.length > 0 ? sourceFiles : ["source/novel.txt"]}
-            onSplitDone={refreshProjectAfterSplit}
+            onSplitDone={refreshProject}
           />
         </div>
       );
@@ -319,12 +360,22 @@ export function TimelineCanvas({
           />
         ) : episodeScript ? (
           <>
-            <AddSegmentButton
-              projectName={projectName}
-              episode={episodeScript.episode}
-              contentMode={contentMode}
-              onAdded={refreshProjectAfterSplit}
-            />
+            <div className="mb-4 flex items-center gap-2">
+              <AddSegmentButton
+                projectName={projectName}
+                episode={episodeScript.episode}
+                contentMode={contentMode}
+                onAdded={refreshProject}
+              />
+              <button
+                type="button"
+                onClick={() => void handleResetScript()}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 px-3 py-1.5 text-sm text-red-300/80 transition-colors hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-300"
+              >
+                <Trash2 className="h-4 w-4" />
+                清空劇本
+              </button>
+            </div>
             {segments.length === 0 && (
               <p className="mb-4 text-sm text-gray-600">
                 這一集還沒有{contentMode === "narration" ? "片段" : "場景"}，點上方按鈕新增。
@@ -335,39 +386,40 @@ export function TimelineCanvas({
               style={{ height: `${virtualizer.getTotalSize()}px` }}
             >
               {virtualItems.map((virtualItem) => {
-              const segment = segments[virtualItem.index];
-              const segId = getSegmentId(segment, contentMode);
-              return (
-                <div
-                  id={`segment-${segId}`}
-                  key={segId}
-                  data-index={virtualItem.index}
-                  ref={virtualizer.measureElement}
-                  className="absolute left-0 top-0 w-full"
-                  style={{
-                    transform: `translateY(${virtualItem.start}px)`,
-                    paddingBottom: virtualItem.index === segments.length - 1 ? 0 : 16,
-                  }}
-                >
-                  <SegmentCard
-                    segment={segment}
-                    contentMode={contentMode}
-                    aspectRatio={aspectRatio}
-                    characters={projectData.characters}
-                    clues={projectData.clues}
-                    projectName={projectName}
-                    durationOptions={durationOptions}
-                    onUpdatePrompt={updatePromptForScript}
-                    onGenerateStoryboard={generateStoryboardForScript}
-                    onGenerateVideo={generateVideoForScript}
-                    onRestoreStoryboard={onRestoreStoryboard}
-                    onRestoreVideo={onRestoreVideo}
-                    generatingStoryboard={generatingStoryboardIds?.has(segId) ?? false}
-                    generatingVideo={generatingVideoIds?.has(segId) ?? false}
-                  />
-                </div>
-              );
-            })}
+                const segment = segments[virtualItem.index];
+                const segId = getSegmentId(segment, contentMode);
+                return (
+                  <div
+                    id={`segment-${segId}`}
+                    key={segId}
+                    data-index={virtualItem.index}
+                    ref={virtualizer.measureElement}
+                    className="absolute left-0 top-0 w-full"
+                    style={{
+                      transform: `translateY(${virtualItem.start}px)`,
+                      paddingBottom: virtualItem.index === segments.length - 1 ? 0 : 16,
+                    }}
+                  >
+                    <SegmentCard
+                      segment={segment}
+                      contentMode={contentMode}
+                      aspectRatio={aspectRatio}
+                      characters={projectData.characters}
+                      clues={projectData.clues}
+                      projectName={projectName}
+                      durationOptions={durationOptions}
+                      onUpdatePrompt={updatePromptForScript}
+                      onGenerateStoryboard={generateStoryboardForScript}
+                      onGenerateVideo={generateVideoForScript}
+                      onRestoreStoryboard={onRestoreStoryboard}
+                      onRestoreVideo={onRestoreVideo}
+                      onDelete={() => void handleDeleteSegment(segId)}
+                      generatingStoryboard={generatingStoryboardIds?.has(segId) ?? false}
+                      generatingVideo={generatingVideoIds?.has(segId) ?? false}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </>
         ) : null}
@@ -425,7 +477,7 @@ function AddSegmentButton({
       type="button"
       onClick={() => void handleAdd()}
       disabled={busy}
-      className="mb-4 inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/40 px-3 py-1.5 text-sm text-indigo-300 transition-colors hover:border-indigo-400 hover:bg-indigo-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/40 px-3 py-1.5 text-sm text-indigo-300 transition-colors hover:border-indigo-400 hover:bg-indigo-500/10 disabled:cursor-not-allowed disabled:opacity-50"
     >
       <Plus className="h-4 w-4" />
       {label}
