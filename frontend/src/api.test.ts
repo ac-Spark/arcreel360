@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { API, type TaskStreamOptions } from "@/api";
+import { API, ApiError, type TaskStreamOptions } from "@/api";
 import type { TaskItem } from "@/types";
 
 type JsonResponseOptions = {
@@ -112,7 +112,11 @@ describe("API", () => {
       );
       vi.stubGlobal("fetch", fetchMock);
 
-      await expect(API.request("/projects")).rejects.toThrow("boom");
+      await expect(API.request("/projects")).rejects.toMatchObject({
+        code: "REQUEST_FAILED",
+        message: "boom",
+        status: 400,
+      });
     });
 
     it("falls back to statusText when error response is not JSON", async () => {
@@ -141,7 +145,13 @@ describe("API", () => {
       const location = { href: "/app" };
       vi.stubGlobal("location", location);
 
-      await expect(API.request("/projects")).rejects.toThrow("認證已過期，請重新登入");
+      const requestPromise = API.request("/projects");
+      await expect(requestPromise).rejects.toBeInstanceOf(ApiError);
+      await expect(requestPromise).rejects.toMatchObject({
+        code: "UNAUTHORIZED",
+        message: "認證已過期，請重新登入",
+        status: 401,
+      });
 
       expect(clearTokenMock).toHaveBeenCalledTimes(1);
       expect(location.href).toBe("/login");
@@ -149,6 +159,29 @@ describe("API", () => {
   });
 
   describe("request-based wrappers", () => {
+    it("logs in through the auth namespace without injecting auth headers", async () => {
+      const loginResponse = { access_token: "token-1", token_type: "bearer" };
+      const requestSpy = vi
+        .spyOn(API, "request")
+        .mockResolvedValue(loginResponse as never);
+
+      const result = await API.auth.login("alice", "secret");
+
+      expect(result).toEqual(loginResponse);
+      expect(requestSpy).toHaveBeenCalledTimes(1);
+      expect(requestSpy).toHaveBeenCalledWith("/auth/token", {
+        method: "POST",
+        body: expect.any(URLSearchParams),
+        skipAuth: true,
+        omitJsonContentType: true,
+      });
+      const [, requestOptions] = requestSpy.mock.calls[0];
+      const body = requestOptions?.body as URLSearchParams;
+      expect(body.get("username")).toBe("alice");
+      expect(body.get("password")).toBe("secret");
+      expect(body.get("grant_type")).toBe("password");
+    });
+
     it("covers project, character, clue, script and generation endpoints", async () => {
       const requestSpy = vi
         .spyOn(API, "request")
@@ -270,7 +303,10 @@ describe("API", () => {
 
       await expect(
         API.updateProject("demo", { content_mode: "drama" } as never),
-      ).rejects.toThrow("專案建立後不支援修改 content_mode");
+      ).rejects.toMatchObject({
+        code: "PROJECT_CONTENT_MODE_IMMUTABLE",
+        message: "專案建立後不支援修改 content_mode",
+      });
       expect(requestSpy).not.toHaveBeenCalled();
     });
 
@@ -587,6 +623,7 @@ describe("API", () => {
       await expect(
         API.importProject(new File(["zip"], "demo.zip", { type: "application/zip" }))
       ).rejects.toMatchObject({
+        code: "IMPORT_FAILED",
         message: "檢測到專案編號衝突",
         status: 409,
         conflict_project_name: "demo",
