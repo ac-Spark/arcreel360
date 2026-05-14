@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FileText, Film, Image as ImageIcon, RotateCcw, Scissors, Wand2 } from "lucide-react";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
+import { useConfirm } from "@/hooks/useConfirm";
 
 interface EpisodeActionsBarProps {
   projectName: string;
@@ -29,6 +30,7 @@ export function EpisodeActionsBar({
   hasScript,
 }: EpisodeActionsBarProps) {
   const [busy, setBusy] = useState<Busy>(null);
+  const confirm = useConfirm();
 
   const toast = (msg: string, kind: "success" | "error" | "info" = "info") =>
     useAppStore.getState().pushToast(msg, kind);
@@ -98,11 +100,11 @@ export function EpisodeActionsBar({
         label={preprocessLabel}
         loading={busy === "preprocess"}
         disabled={busy !== null}
-        onClick={() => {
+        onClick={async () => {
           const message = hasScript
             ? "重新拆段會覆寫 Step 1 中介檔。確定？"
             : "拆段會產生 Step 1 中介檔。確定？";
-          if (confirm(message)) void handlePreprocess();
+          if (await confirm({ message })) void handlePreprocess();
         }}
         tone="neutral"
       />
@@ -111,11 +113,11 @@ export function EpisodeActionsBar({
         label={scriptLabel}
         loading={busy === "script"}
         disabled={busy !== null}
-        onClick={() => {
+        onClick={async () => {
           const message = hasScript
             ? "重新生成劇本會覆寫現有劇本。確定？"
             : "生成劇本會根據 Step 1 中介檔產生 JSON 劇本。確定？";
-          if (confirm(message)) void handleScript();
+          if (await confirm({ message })) void handleScript();
         }}
         tone="neutral"
       />
@@ -136,8 +138,10 @@ export function EpisodeActionsBar({
         title="強制重生所有分鏡（含已生成）"
         loading={busy === "storyboards"}
         disabled={!hasScript || !scriptFile || busy !== null}
-        onClick={() => {
-          if (confirm("會覆寫所有已生成分鏡。確定？")) void handleBatchStoryboards(true);
+        onClick={async () => {
+          if (await confirm({ message: "會覆寫所有已生成分鏡。確定？", danger: true })) {
+            void handleBatchStoryboards(true);
+          }
         }}
         tone="warning"
       />
@@ -158,8 +162,10 @@ export function EpisodeActionsBar({
         title="強制重生所有影片（含已生成）"
         loading={busy === "videos"}
         disabled={!hasScript || !scriptFile || busy !== null}
-        onClick={() => {
-          if (confirm("會覆寫所有已生成影片。確定？")) void handleBatchVideos(true);
+        onClick={async () => {
+          if (await confirm({ message: "會覆寫所有已生成影片。確定？", danger: true })) {
+            void handleBatchVideos(true);
+          }
         }}
         tone="warning"
       />

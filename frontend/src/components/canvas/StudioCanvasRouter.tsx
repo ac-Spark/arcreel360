@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Route, Switch, Redirect, useLocation } from "wouter";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useAppStore } from "@/stores/app-store";
@@ -10,10 +10,10 @@ import { SourceFileViewer } from "./SourceFileViewer";
 import { AddCharacterForm } from "./lorebook/AddCharacterForm";
 import { AddClueForm } from "./lorebook/AddClueForm";
 import { API } from "@/api";
+import { useVideoDurationOptions } from "@/hooks/useVideoDurationOptions";
 import { resolveEpisodeContentMode } from "@/utils/content-mode";
 import { buildEntityRevisionKey } from "@/utils/project-changes";
-import { getProviderModels, getCustomProviderModels, lookupSupportedDurations } from "@/utils/provider-models";
-import type { Clue, CustomProviderInfo, ProviderInfo, TaskItem } from "@/types";
+import type { Clue, TaskItem } from "@/types";
 
 // ---------------------------------------------------------------------------
 // StudioCanvasRouter — reads Zustand store data and renders the correct
@@ -74,28 +74,7 @@ export function StudioCanvasRouter() {
   const [addingCharacter, setAddingCharacter] = useState(false);
   const [addingClue, setAddingClue] = useState(false);
 
-  const [providers, setProviders] = useState<ProviderInfo[]>([]);
-  const [customProviders, setCustomProviders] = useState<CustomProviderInfo[]>([]);
-  const [globalVideoBackend, setGlobalVideoBackend] = useState("");
-
-  useEffect(() => {
-    let disposed = false;
-    Promise.all([getProviderModels(), getCustomProviderModels(), API.getSystemConfig()]).then(
-      ([provList, customList, configRes]) => {
-        if (disposed) return;
-        setProviders(provList);
-        setCustomProviders(customList);
-        setGlobalVideoBackend(configRes.settings?.default_video_backend ?? "");
-      },
-    ).catch(() => { });
-    return () => { disposed = true; };
-  }, []);
-
-  const durationOptions = useMemo(() => {
-    const backend = currentProjectData?.video_backend || globalVideoBackend;
-    if (!backend) return undefined;
-    return lookupSupportedDurations(providers, backend, customProviders);
-  }, [providers, customProviders, globalVideoBackend, currentProjectData?.video_backend]);
+  const durationOptions = useVideoDurationOptions(currentProjectData?.video_backend);
 
   // 從任務佇列派生 loading 狀態（替代本地 state）
   const tasks = useTasksStore((s) => s.tasks);

@@ -29,6 +29,23 @@
 
     --font-sans: "Avenir Next", "SF Pro Display", "PingFang SC", "Noto Sans SC", sans-serif;
     --font-mono: "IBM Plex Mono", "Fira Code", "Noto Sans Mono", monospace;
+
+    /*
+     * 語意 text token：新元件請優先使用，避免散落的 text-xs / text-sm / text-base / text-lg。
+     *   text-caption  ≈ text-xs   — 次要說明、metadata、時間戳
+     *   text-body     ≈ text-sm   — 一般正文（預設）
+     *   text-body-lg  ≈ text-base — 強調正文、表單欄位
+     *   text-title    ≈ text-lg   — 區塊標題
+     * 既有代碼漸進遷移；不需一次替換。
+     */
+    --text-caption: 0.75rem;
+    --text-caption--line-height: 1rem;
+    --text-body: 0.875rem;
+    --text-body--line-height: 1.25rem;
+    --text-body-lg: 1rem;
+    --text-body-lg--line-height: 1.5rem;
+    --text-title: 1.125rem;
+    --text-title--line-height: 1.75rem;
 }
 
 :root {

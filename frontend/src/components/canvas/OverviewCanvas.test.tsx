@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { API } from "@/api";
+import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { OverviewCanvas } from "./OverviewCanvas";
 import { useAppStore } from "@/stores/app-store";
 import { useProjectsStore } from "@/stores/projects-store";
@@ -29,6 +31,10 @@ function makeProjectData(overrides: Partial<ProjectData> = {}): ProjectData {
   };
 }
 
+function renderOverviewCanvas(ui: ReactElement) {
+  return render(ui, { wrapper: ConfirmProvider });
+}
+
 describe("OverviewCanvas", () => {
   beforeEach(() => {
     useAppStore.setState(useAppStore.getInitialState(), true);
@@ -55,7 +61,7 @@ describe("OverviewCanvas", () => {
         scripts: {},
       });
 
-    const { container, rerender } = render(
+    const { container, rerender } = renderOverviewCanvas(
       <OverviewCanvas projectName="demo" projectData={makeProjectData()} />,
     );
 
@@ -78,6 +84,7 @@ describe("OverviewCanvas", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "刪除參考圖" }));
+    fireEvent.click(screen.getByRole("button", { name: "確定" }));
 
     await waitFor(() => {
       expect(API.deleteStyleImage).toHaveBeenCalledWith("demo");
@@ -92,7 +99,7 @@ describe("OverviewCanvas", () => {
       scripts: {},
     });
 
-    render(
+    renderOverviewCanvas(
       <OverviewCanvas projectName="demo" projectData={makeProjectData()} />,
     );
 

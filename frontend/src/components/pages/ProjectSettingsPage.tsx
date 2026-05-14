@@ -5,13 +5,16 @@ import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
 import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import { PROVIDER_NAMES } from "@/components/ui/ProviderIcon";
+import { useConfirm } from "@/hooks/useConfirm";
 import { getProviderModels, getCustomProviderModels, lookupSupportedDurations, DEFAULT_DURATIONS } from "@/utils/provider-models";
+import { UI_LAYERS } from "@/utils/ui-layers";
 import type { CustomProviderInfo, ProviderInfo } from "@/types";
 
 export function ProjectSettingsPage() {
   const params = useParams<{ projectName: string }>();
   const projectName = params.projectName || "";
   const [, navigate] = useLocation();
+  const confirm = useConfirm();
 
   const [options, setOptions] = useState<{
     video_backends: string[];
@@ -145,10 +148,16 @@ export function ProjectSettingsPage() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty]);
 
-  const guardedNavigate = useCallback((path: string) => {
-    if (isDirty && !window.confirm("有未儲存的修改，確定要離開嗎？")) return;
+  const guardedNavigate = useCallback(async (path: string) => {
+    if (isDirty) {
+      const ok = await confirm({
+        message: "有未儲存的修改，確定要離開嗎？",
+        danger: true,
+      });
+      if (!ok) return;
+    }
     navigate(path);
-  }, [isDirty, navigate]);
+  }, [isDirty, navigate, confirm]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -177,7 +186,7 @@ export function ProjectSettingsPage() {
   }, [videoBackend, imageBackend, audioOverride, textScript, textOverview, textStyle, aspectRatio, defaultDuration, projectName]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-gray-950 overflow-y-auto">
+    <div className={`fixed inset-0 ${UI_LAYERS.modal} bg-gray-950 overflow-y-auto`}>
       {/* Header */}
       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-800 bg-gray-950/95 px-6 py-4 backdrop-blur">
         <button

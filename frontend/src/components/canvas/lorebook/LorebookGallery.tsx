@@ -4,6 +4,7 @@ import { API } from "@/api";
 import { CharacterCard } from "./CharacterCard";
 import { ClueCard } from "./ClueCard";
 import { useScrollTarget } from "@/hooks/useScrollTarget";
+import { useConfirm } from "@/hooks/useConfirm";
 import { useAppStore } from "@/stores/app-store";
 import type { Character, Clue } from "@/types";
 
@@ -72,6 +73,7 @@ export function LorebookGallery({
   onAddCharacter,
   onAddClue,
 }: LorebookGalleryProps) {
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<Tab>(mode ?? "characters");
   const showTabs = !mode;
 
@@ -105,10 +107,11 @@ export function LorebookGallery({
   const runBatch = async (kind: "characters" | "clues", force: boolean) => {
     if (batchBusy) return;
     const label = kind === "characters" ? "角色" : "道具";
-    const fn = kind === "characters" ? API.batchGenerateCharacters : API.batchGenerateClues;
     setBatchBusy(kind);
     try {
-      const res = await fn(projectName, { force });
+      const res = kind === "characters"
+        ? await API.batchGenerateCharacters(projectName, { force })
+        : await API.batchGenerateClues(projectName, { force });
       useAppStore.getState().pushToast(
         `已入隊 ${res.enqueued.length} 個${label}，略過 ${res.skipped.length}`,
         "success",
@@ -193,9 +196,10 @@ export function LorebookGallery({
                   variant="warning"
                   loading={batchBusy === "characters"}
                   disabled={batchBusy !== null}
-                  onClick={() => {
-                    if (confirm("會覆寫所有角色設計圖。確定？"))
+                  onClick={async () => {
+                    if (await confirm({ message: "會覆寫所有角色設計圖。確定？", danger: true })) {
                       void runBatch("characters", true);
+                    }
                   }}
                 >
                   全部重生
@@ -249,9 +253,10 @@ export function LorebookGallery({
                   variant="warning"
                   loading={batchBusy === "clues"}
                   disabled={batchBusy !== null}
-                  onClick={() => {
-                    if (confirm("會覆寫所有道具設計圖。確定？"))
+                  onClick={async () => {
+                    if (await confirm({ message: "會覆寫所有道具設計圖。確定？", danger: true })) {
                       void runBatch("clues", true);
+                    }
                   }}
                 >
                   全部重生

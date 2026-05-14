@@ -1,4 +1,5 @@
 import { AlertTriangle } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
 import type { ArchiveDiagnostic } from "@/types";
 
 interface DiagnosticsSection {
@@ -26,7 +27,7 @@ export function ArchiveDiagnosticsDialog({
   if (visibleSections.length === 0) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-4">
+    <Modal>
       <div className="w-full max-w-2xl rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-2xl shadow-black/40">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
@@ -68,6 +69,6 @@ export function ArchiveDiagnosticsDialog({
           ))}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

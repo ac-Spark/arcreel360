@@ -1,11 +1,17 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { CharacterCard } from "./CharacterCard";
 import { useAppStore } from "@/stores/app-store";
 
 vi.mock("@/components/canvas/timeline/VersionTimeMachine", () => ({
   VersionTimeMachine: () => <div data-testid="version-time-machine">versions</div>,
 }));
+
+function renderCharacterCard(ui: ReactElement) {
+  return render(ui, { wrapper: ConfirmProvider });
+}
 
 describe("CharacterCard", () => {
   beforeEach(() => {
@@ -22,7 +28,7 @@ describe("CharacterCard", () => {
   });
 
   it("renders existing saved reference image", () => {
-    render(
+    renderCharacterCard(
       <CharacterCard
         name="Hero"
         character={{
@@ -44,7 +50,7 @@ describe("CharacterCard", () => {
 
   it("keeps selected reference file until save and submits it in the payload", async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
-    const { container } = render(
+    const { container } = renderCharacterCard(
       <CharacterCard
         name="Hero"
         character={{ description: "hero desc", voice_style: "warm" }}
@@ -74,7 +80,7 @@ describe("CharacterCard", () => {
   });
 
   it("auto-resizes the description textarea as content grows", async () => {
-    render(
+    renderCharacterCard(
       <CharacterCard
         name="Hero"
         character={{ description: "hero desc", voice_style: "warm" }}

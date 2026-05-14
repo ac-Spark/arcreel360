@@ -33,6 +33,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useAppStore } from "@/stores/app-store";
+import { useConfirm } from "@/hooks/useConfirm";
 import { API } from "@/api";
 import { sortEpisodesForDisplay } from "@/utils/episodes";
 import type { EpisodeMeta } from "@/types";
@@ -277,6 +278,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
   const { currentProjectData, currentProjectName, currentScripts } = useProjectsStore();
   const sourceFilesVersion = useAppStore((s) => s.sourceFilesVersion);
   const [location, setLocation] = useLocation();
+  const confirm = useConfirm();
 
   const characters = currentProjectData?.characters ?? {};
   const clues = currentProjectData?.clues ?? {};
@@ -330,7 +332,11 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
   // 刪除原始檔
   const handleDeleteFile = useCallback(async (filename: string) => {
     if (!projectName) return;
-    if (!confirm(`確定要刪除「${filename}」嗎？`)) return;
+    const ok = await confirm({
+      message: `確定要刪除「${filename}」嗎？`,
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await API.deleteSourceFile(projectName, filename);
       loadSourceFiles();
@@ -342,7 +348,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
     } catch {
       // 靜默失敗
     }
-  }, [projectName, loadSourceFiles, location, setLocation]);
+  }, [projectName, loadSourceFiles, location, setLocation, confirm]);
 
   const handleCreateEpisode = useCallback(async () => {
     if (!projectName || creatingEpisode) return;
@@ -429,9 +435,10 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
   const handleDeleteEpisode = useCallback(
     async (episode: number, title: string) => {
       if (!projectName) return;
-      const confirmed = confirm(
-        `確定要刪除「E${episode}: ${title}」整集嗎？會一併刪掉這集的劇本、預處理草稿、分鏡與影片。此操作無法復原。`,
-      );
+      const confirmed = await confirm({
+        message: `確定要刪除「E${episode}: ${title}」整集嗎？會一併刪掉這集的劇本、預處理草稿、分鏡與影片。此操作無法復原。`,
+        danger: true,
+      });
       if (!confirmed) return;
 
       try {
@@ -449,7 +456,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
           .pushToast(`刪除劇集失敗: ${(err as Error).message}`, "error");
       }
     },
-    [projectName, currentScripts, location, setLocation],
+    [projectName, currentScripts, location, setLocation, confirm],
   );
 
   const characterEntries = Object.entries(characters);

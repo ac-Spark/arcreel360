@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -8,31 +8,14 @@ export function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
-  const login = useAuthStore((s) => s.login);
+  const loginWithCredentials = useAuthStore((s) => s.login);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setError("");
     setLoading(true);
 
     try {
-      const body = new URLSearchParams({
-        username,
-        password,
-        grant_type: "password",
-      });
-      const resp = await fetch("/api/v1/auth/token", {
-        method: "POST",
-        body,
-      });
-
-      if (!resp.ok) {
-        const data = await resp.json().catch(() => ({}));
-        throw new Error(data.detail || "登入失敗");
-      }
-
-      const data = await resp.json();
-      login(data.access_token, username);
+      await loginWithCredentials(username, password);
       setLocation("/app/projects");
     } catch (err) {
       setError(err instanceof Error ? err.message : "登入失敗");
@@ -49,7 +32,7 @@ export function LoginPage() {
           <span>ArcReel</span>
         </h1>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form action={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-sm text-gray-400">使用者名稱</label>
             <input

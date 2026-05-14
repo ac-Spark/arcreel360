@@ -10,6 +10,7 @@ import { FinalVideoCard } from "./FinalVideoCard";
 import { EpisodeActionsBar } from "./EpisodeActionsBar";
 import { EpisodeSplitPanel } from "./EpisodeSplitPanel";
 import { useScrollTarget } from "@/hooks/useScrollTarget";
+import { useConfirm } from "@/hooks/useConfirm";
 import { useCostStore } from "@/stores/cost-store";
 import { resolveEpisodeContentMode } from "@/utils/content-mode";
 import { formatCost, totalBreakdown } from "@/utils/cost-format";
@@ -85,6 +86,7 @@ export function TimelineCanvas({
   generatingVideoIds,
 }: TimelineCanvasProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const confirm = useConfirm();
   const contentMode = resolveEpisodeContentMode(episodeScript, projectData?.content_mode);
   const sourceFilesVersion = useAppStore((s) => s.sourceFilesVersion);
   const [sourceFiles, setSourceFiles] = useState<string[]>([]);
@@ -138,7 +140,11 @@ export function TimelineCanvas({
     async (segmentId: string) => {
       if (!scriptFile) return;
       const label = contentMode === "narration" ? "片段" : "場景";
-      if (!confirm(`確定要刪除${label}「${segmentId}」？此操作無法復原。`)) return;
+      const ok = await confirm({
+        message: `確定要刪除${label}「${segmentId}」？此操作無法復原。`,
+        danger: true,
+      });
+      if (!ok) return;
       try {
         if (contentMode === "narration") {
           await API.deleteSegment(projectName, segmentId, scriptFile);
@@ -153,14 +159,16 @@ export function TimelineCanvas({
           .pushToast(`刪除失敗：${(err as Error).message}`, "error");
       }
     },
-    [projectName, scriptFile, contentMode, refreshProject],
+    [projectName, scriptFile, contentMode, refreshProject, confirm],
   );
 
   const handleResetScript = useCallback(async () => {
     if (!episodeScript) return;
-    const confirmed = confirm(
-      "確定要清空這一集的劇本內容嗎？會清掉所有片段／場景與其分鏡、影片提示詞，回到空骨架（預處理草稿保留）。此操作無法復原。",
-    );
+    const confirmed = await confirm({
+      message:
+        "確定要清空這一集的劇本內容嗎？會清掉所有片段／場景與其分鏡、影片提示詞，回到空骨架（預處理草稿保留）。此操作無法復原。",
+      danger: true,
+    });
     if (!confirmed) return;
 
     try {
@@ -173,7 +181,7 @@ export function TimelineCanvas({
         .getState()
         .pushToast(`清空失敗：${(err as Error).message}`, "error");
     }
-  }, [projectName, episodeScript, refreshProject]);
+  }, [projectName, episodeScript, refreshProject, confirm]);
 
   const episodeCost = useCostStore((s) =>
     episodeScript ? s.getEpisodeCost(episodeScript.episode) : undefined,

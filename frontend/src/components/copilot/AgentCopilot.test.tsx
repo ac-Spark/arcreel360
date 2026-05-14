@@ -5,6 +5,7 @@ import { useAssistantSession } from "@/hooks/useAssistantSession";
 import { useAppStore } from "@/stores/app-store";
 import { useAssistantStore } from "@/stores/assistant-store";
 import { useProjectsStore } from "@/stores/projects-store";
+import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { UI_LAYERS } from "@/utils/ui-layers";
 import { AgentCopilot } from "./AgentCopilot";
 
@@ -27,6 +28,14 @@ vi.mock("./chat/ChatMessage", () => ({
 }));
 
 const mockedUseAssistantSession = vi.mocked(useAssistantSession);
+
+function renderAgentCopilot() {
+  return render(
+    <ConfirmProvider>
+      <AgentCopilot />
+    </ConfirmProvider>,
+  );
+}
 
 function makePendingQuestion() {
   return {
@@ -82,7 +91,7 @@ describe("AgentCopilot", () => {
       skills: [{ name: "plan", description: "Plan", scope: "project", path: "/tmp/plan" }],
     });
 
-    render(<AgentCopilot />);
+    renderAgentCopilot();
 
     expect(screen.getByText("需要你的選擇")).toBeInTheDocument();
     expect(screen.getByLabelText("助理輸入")).toBeDisabled();
@@ -95,7 +104,7 @@ describe("AgentCopilot", () => {
       pendingQuestion: makePendingQuestion(),
     });
 
-    render(<AgentCopilot />);
+    renderAgentCopilot();
 
     fireEvent.click(screen.getByLabelText("摘要"));
     fireEvent.click(screen.getByRole("button", { name: "完成並提交" }));
@@ -120,7 +129,7 @@ describe("AgentCopilot", () => {
       currentSessionId: "session-1",
     });
 
-    const { container } = render(<AgentCopilot />);
+    const { container } = renderAgentCopilot();
 
     expect(container.firstElementChild).toHaveClass("isolate");
 
@@ -136,7 +145,7 @@ describe("AgentCopilot", () => {
       options: {},
     } as Awaited<ReturnType<typeof API.getSystemConfig>>);
 
-    render(<AgentCopilot />);
+    renderAgentCopilot();
 
     expect(
       await screen.findByText(
@@ -147,7 +156,7 @@ describe("AgentCopilot", () => {
   });
 
   it("refocuses the assistant input after a sent message finishes", async () => {
-    render(<AgentCopilot />);
+    renderAgentCopilot();
 
     const input = screen.getByLabelText("助理輸入");
     fireEvent.change(input, { target: { value: "繼續討論分鏡" } });

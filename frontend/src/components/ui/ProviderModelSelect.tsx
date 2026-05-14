@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { ProviderIcon } from "@/components/ui/ProviderIcon";
+import { UI_LAYERS } from "@/utils/ui-layers";
 
 interface ProviderModelSelectProps {
   value: string; // "gemini-aistudio/veo-3.1-generate-001"
@@ -197,7 +198,7 @@ export function ProviderModelSelect({
           id={LISTBOX_ID}
           role="listbox"
           aria-label="選擇模型"
-          className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-lg border border-gray-700 bg-gray-900 shadow-xl"
+          className={`absolute ${UI_LAYERS.workspacePopover} mt-1 w-full max-h-60 overflow-y-auto rounded-lg border border-gray-700 bg-gray-900 shadow-xl`}
         >
           {allowDefault && (
             <button

@@ -7,9 +7,10 @@ import { StudioCanvasRouter } from "@/components/canvas/StudioCanvasRouter";
 import { ProjectsPage } from "@/components/pages/ProjectsPage";
 import { SystemConfigPage } from "@/components/pages/SystemConfigPage";
 import { ProjectSettingsPage } from "@/components/pages/ProjectSettingsPage";
-import { LoginPage } from "@/pages/LoginPage";
-import { NotFoundPage } from "@/pages/NotFoundPage";
+import { LoginPage } from "@/components/pages/LoginPage";
+import { NotFoundPage } from "@/components/pages/NotFoundPage";
 import { ToastOverlay } from "@/components/layout/ToastOverlay";
+import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { API } from "@/api";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useAssistantStore } from "@/stores/assistant-store";
@@ -95,7 +96,7 @@ function StudioWorkspace() {
 
 export function AppRoutes() {
   return (
-    <>
+    <ConfirmProvider>
       <Switch>
         {/* Login page */}
         <Route path="/login" component={LoginPage} />
@@ -144,6 +145,6 @@ export function AppRoutes() {
         </Route>
       </Switch>
       <ToastOverlay />
-    </>
+    </ConfirmProvider>
   );
 }

@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, History } from "lucide-react";
 import { API, type VersionInfo } from "@/api";
 import { useAppStore } from "@/stores/app-store";
 import { useProjectsStore } from "@/stores/projects-store";
+import { UI_LAYERS } from "@/utils/ui-layers";
 
 interface VersionTimeMachineProps {
   projectName: string;
@@ -202,7 +203,7 @@ export function VersionTimeMachine({
               left: panelPos.left,
               transform: "translateX(-100%)",
             }}
-            className="z-[9999] w-64 rounded-xl border border-gray-700 bg-gray-900/95 p-3 shadow-2xl shadow-black/40 backdrop-blur"
+            className={`${UI_LAYERS.workspacePopover} w-64 rounded-xl border border-gray-700 bg-gray-900/95 p-3 shadow-2xl shadow-black/40 backdrop-blur`}
           >
             {loading ? (
               <span className="text-xs text-gray-500">載入中...</span>

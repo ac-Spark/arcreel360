@@ -6,6 +6,7 @@ import { useCallback, useMemo, useState } from "react";
 import { copyText } from "@/utils/clipboard";
 import { Check, Copy, ExternalLink, X } from "lucide-react";
 import { useLocation } from "wouter";
+import { Modal } from "@/components/ui/Modal";
 
 // 🦞 SVG lobster icon (inline, no external dep)
 function LobsterIcon({ className }: { className?: string }) {
@@ -66,13 +67,6 @@ export function OpenClawModal({ onClose }: OpenClawModalProps) {
     navigate("/app/settings?section=api-keys");
   }, [navigate, onClose]);
 
-  const handleBackdropClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (e.target === e.currentTarget) onClose();
-    },
-    [onClose],
-  );
-
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -81,11 +75,7 @@ export function OpenClawModal({ onClose }: OpenClawModalProps) {
   );
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8"
-      onClick={handleBackdropClick}
-      onKeyDown={handleKeyDown}
-    >
+    <Modal className="py-8" onBackdropClick={onClose} onKeyDown={handleKeyDown}>
       <div className="relative flex w-full max-w-lg flex-col rounded-2xl border border-gray-800 bg-gray-900 shadow-2xl shadow-black/60 max-h-[90vh] overflow-y-auto">
         {/* ——— 頂欄 ——— */}
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-800 bg-gray-900 px-5 py-4">
@@ -188,6 +178,6 @@ export function OpenClawModal({ onClose }: OpenClawModalProps) {
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

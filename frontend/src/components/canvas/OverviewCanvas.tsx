@@ -6,6 +6,7 @@ import { useProjectsStore } from "@/stores/projects-store";
 import { useAppStore } from "@/stores/app-store";
 import { useCostStore } from "@/stores/cost-store";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
+import { useConfirm } from "@/hooks/useConfirm";
 import { formatCost, totalBreakdown } from "@/utils/cost-format";
 import { sortEpisodesForDisplay } from "@/utils/episodes";
 
@@ -17,6 +18,7 @@ interface OverviewCanvasProps {
 }
 
 export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps) {
+  const confirm = useConfirm();
   const styleImageFp = useProjectsStore(
     (s) => projectData?.style_image ? s.getAssetFingerprint(projectData.style_image) : null,
   );
@@ -109,7 +111,11 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
 
   const handleDeleteStyleImage = useCallback(async () => {
     if (deletingStyleImage || !projectData?.style_image) return;
-    if (!confirm("確定要刪除目前的風格參考圖嗎？")) return;
+    const ok = await confirm({
+      message: "確定要刪除目前的風格參考圖嗎？",
+      danger: true,
+    });
+    if (!ok) return;
 
     setDeletingStyleImage(true);
     try {
@@ -123,7 +129,7 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
     } finally {
       setDeletingStyleImage(false);
     }
-  }, [deletingStyleImage, projectData?.style_image, projectName, refreshProject]);
+  }, [deletingStyleImage, projectData?.style_image, projectName, refreshProject, confirm]);
 
   const handleSaveStyleDescription = useCallback(async () => {
     if (savingStyleDescription) return;

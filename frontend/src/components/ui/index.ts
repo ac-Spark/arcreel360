@@ -3,4 +3,5 @@ export { AspectFrame } from "./AspectFrame";
 export { GenerateButton } from "./GenerateButton";
 export { DropdownPill } from "./DropdownPill";
 export { ImageFlipReveal } from "./ImageFlipReveal";
+export { Modal } from "./Modal";
 export { ProviderModelSelect } from "./ProviderModelSelect";

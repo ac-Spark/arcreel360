@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { TimelineCanvas } from "./TimelineCanvas";
 import { API } from "@/api";
 import type { ProjectData } from "@/types";
@@ -44,9 +46,13 @@ function makeProjectData(): ProjectData {
   };
 }
 
+function renderTimelineCanvas(ui: ReactElement) {
+  return render(ui, { wrapper: ConfirmProvider });
+}
+
 describe("TimelineCanvas", () => {
   it("uses scenes when a script is drama-shaped even if the project is narration mode", () => {
-    render(
+    renderTimelineCanvas(
       <TimelineCanvas
         projectName="demo"
         episode={1}
@@ -80,7 +86,7 @@ describe("TimelineCanvas", () => {
 
   it("renders the editor with an add-segment button when the script has no segments", async () => {
     vi.mocked(API.addEpisodeSegment).mockResolvedValue({ segment: {}, segments_count: 1 });
-    render(
+    renderTimelineCanvas(
       <TimelineCanvas
         projectName="demo"
         episode={1}

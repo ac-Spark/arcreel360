@@ -3,6 +3,7 @@ import { FileText, Edit3, Save, X, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
+import { useConfirm } from "@/hooks/useConfirm";
 
 // ---------------------------------------------------------------------------
 // SourceFileViewer — 原始檔預覽/編輯元件
@@ -15,6 +16,7 @@ interface SourceFileViewerProps {
 
 export function SourceFileViewer({ projectName, filename }: SourceFileViewerProps) {
   const [, setLocation] = useLocation();
+  const confirm = useConfirm();
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -60,7 +62,11 @@ export function SourceFileViewer({ projectName, filename }: SourceFileViewerProp
 
   // 刪除檔案
   const handleDelete = useCallback(async () => {
-    if (!confirm(`確定要刪除檔案「${filename}」嗎？此操作無法復原。`)) return;
+    const ok = await confirm({
+      message: `確定要刪除檔案「${filename}」嗎？此操作無法復原。`,
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await API.deleteSourceFile(projectName, filename);
       useAppStore.getState().invalidateSourceFiles();
@@ -68,7 +74,7 @@ export function SourceFileViewer({ projectName, filename }: SourceFileViewerProp
     } catch {
       // 可以新增 toast 提示
     }
-  }, [projectName, filename, setLocation]);
+  }, [projectName, filename, setLocation, confirm]);
 
   if (loading) {
     return (

@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { X, Loader2, Upload } from "lucide-react";
 import { API } from "@/api";
+import { Modal } from "@/components/ui/Modal";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useAppStore } from "@/stores/app-store";
 import { DEFAULT_DURATIONS } from "@/utils/provider-models";
@@ -84,7 +85,7 @@ export function CreateProjectModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+    <Modal>
       <div className="w-full max-w-md rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
@@ -322,6 +323,6 @@ export function CreateProjectModal() {
           </button>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }

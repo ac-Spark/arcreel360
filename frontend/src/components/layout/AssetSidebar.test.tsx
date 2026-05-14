@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router, useLocation } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { API } from "@/api";
+import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { AssetSidebar } from "@/components/layout/AssetSidebar";
 import { useAppStore } from "@/stores/app-store";
 import { useProjectsStore } from "@/stores/projects-store";
@@ -28,10 +29,12 @@ function LocationProbe() {
 function renderSidebar(path = "/") {
   const { hook } = memoryLocation({ path });
   return render(
-    <Router hook={hook}>
-      <LocationProbe />
-      <AssetSidebar />
-    </Router>,
+    <ConfirmProvider>
+      <Router hook={hook}>
+        <LocationProbe />
+        <AssetSidebar />
+      </Router>
+    </ConfirmProvider>,
   );
 }
 

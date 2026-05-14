@@ -7,6 +7,7 @@ import { GenerateButton } from "@/components/ui/GenerateButton";
 import { ImageFlipReveal } from "@/components/ui/ImageFlipReveal";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useProjectsStore } from "@/stores/projects-store";
+import { useConfirm } from "@/hooks/useConfirm";
 import type { Character } from "@/types";
 
 interface CharacterSavePayload {
@@ -38,6 +39,7 @@ export function CharacterCard({
   onRestoreVersion,
   generating = false,
 }: CharacterCardProps) {
+  const confirm = useConfirm();
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState(name);
 
@@ -209,10 +211,12 @@ export function CharacterCard({
         {onDelete && (
           <button
             type="button"
-            onClick={() => {
-              if (confirm(`確定要刪除角色「${name}」？此操作無法復原。`)) {
-                void onDelete(name);
-              }
+            onClick={async () => {
+              const ok = await confirm({
+                message: `確定要刪除角色「${name}」？此操作無法復原。`,
+                danger: true,
+              });
+              if (ok) void onDelete(name);
             }}
             className="shrink-0 rounded p-1.5 text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60"
             title="刪除角色"
