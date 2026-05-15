@@ -13,9 +13,19 @@ import { Popover } from "@/components/ui/Popover";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useCostStore } from "@/stores/cost-store";
+import { EntityMentionMenu } from "./EntityMentionMenu";
+import { useEntityMentionInput } from "./useEntityMentionInput";
 import { ImagePromptEditor } from "./ImagePromptEditor";
 import { VideoPromptEditor } from "./VideoPromptEditor";
 import { formatCost } from "@/utils/cost-format";
+import {
+  extractEntityMentionsFromValue,
+  hasEntityMentions,
+  mergeEntityMentionNames,
+  stripKnownEntityMentionMarkers,
+  type EntityMentionNames,
+  type EntityMentionSources,
+} from "@/utils/entity-mentions";
 import type {
   NarrationSegment,
   DramaScene,
@@ -41,6 +51,29 @@ const TRANSITION_LABELS: Record<TransitionType, string> = {
 // ---------------------------------------------------------------------------
 
 type Segment = NarrationSegment | DramaScene;
+type SegmentUpdateExtras = Record<string, unknown>;
+type SegmentUpdateHandler = (
+  segmentId: string,
+  field: string,
+  value: unknown,
+  extraUpdates?: SegmentUpdateExtras,
+) => void;
+interface SegmentMentionContext {
+  contentMode: "narration" | "drama";
+  currentNames: EntityMentionNames;
+  entities: EntityMentionSources;
+}
+
+const MENTION_UPDATE_FIELDS = {
+  narration: {
+    characters: "characters_in_segment",
+    clues: "clues_in_segment",
+  },
+  drama: {
+    characters: "characters_in_scene",
+    clues: "clues_in_scene",
+  },
+} as const;
 
 function getSegmentId(segment: Segment, mode: "narration" | "drama"): string {
   return mode === "narration"
@@ -65,6 +98,24 @@ function getCharacterNames(segment: Segment, mode: "narration" | "drama"): strin
 
 function getClueNames(segment: Segment, mode: "narration" | "drama"): string[] {
   return getSegmentField(segment, mode, "clues_in_segment", "clues_in_scene");
+}
+
+function buildMentionFieldUpdates(
+  value: unknown,
+  mentionContext: SegmentMentionContext,
+): SegmentUpdateExtras | undefined {
+  const { contentMode, currentNames, entities } = mentionContext;
+  const mentions = extractEntityMentionsFromValue(value, entities);
+  if (!hasEntityMentions(mentions)) {
+    return undefined;
+  }
+
+  const nextNames = mergeEntityMentionNames(currentNames, mentions);
+  const fields = MENTION_UPDATE_FIELDS[contentMode];
+  return {
+    [fields.characters]: nextNames.characterNames,
+    [fields.clues]: nextNames.clueNames,
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -148,11 +199,7 @@ interface SegmentCardProps {
   clues: Record<string, Clue>;
   projectName: string;
   durationOptions?: number[];
-  onUpdatePrompt?: (
-    segmentId: string,
-    field: string,
-    value: unknown
-  ) => void;
+  onUpdatePrompt?: SegmentUpdateHandler;
   onGenerateStoryboard?: (segmentId: string) => void;
   onGenerateVideo?: (segmentId: string) => void;
   onRestoreStoryboard?: () => Promise<void> | void;
@@ -175,7 +222,7 @@ function DurationSelector({
 }: {
   seconds: number;
   segmentId: string;
-  onUpdatePrompt?: (segmentId: string, field: string, value: unknown) => void;
+  onUpdatePrompt?: SegmentUpdateHandler;
   durationOptions?: number[];
 }) {
   const [open, setOpen] = useState(false);
@@ -265,13 +312,15 @@ function TransitionIndicator({ type }: { type: TransitionType }) {
 function TextColumn({
   segment,
   contentMode,
+  mentionContext,
   onUpdateNote,
   onUpdateSourceText,
 }: {
   segment: Segment;
   contentMode: "narration" | "drama";
+  mentionContext: SegmentMentionContext;
   onUpdateNote?: (value: string) => void;
-  onUpdateSourceText?: (value: string) => void;
+  onUpdateSourceText?: (value: string, extraUpdates?: SegmentUpdateExtras) => void;
 }) {
   const [noteDraft, setNoteDraft] = useState(segment.note ?? "");
   const committedRef = useRef(segment.note ?? "");
@@ -281,6 +330,21 @@ function TextColumn({
     : "";
   const [sourceDraft, setSourceDraft] = useState(initialSource);
   const sourceCommittedRef = useRef(initialSource);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const {
+    menuOpen,
+    filter,
+    items,
+    handleInputChange,
+    handleKeyDown,
+    selectItem,
+    menuRef,
+  } = useEntityMentionInput({
+    value: sourceDraft,
+    onChange: setSourceDraft,
+    entities: mentionContext.entities,
+    textareaRef,
+  });
 
   useEffect(() => {
     setNoteDraft(segment.note ?? "");
@@ -303,9 +367,16 @@ function TextColumn({
   };
 
   const handleSourceBlur = () => {
-    if (sourceDraft !== sourceCommittedRef.current) {
-      sourceCommittedRef.current = sourceDraft;
-      onUpdateSourceText?.(sourceDraft);
+    const cleanSource = stripKnownEntityMentionMarkers(sourceDraft, mentionContext.entities);
+    const extraUpdates = buildMentionFieldUpdates(sourceDraft, mentionContext);
+
+    if (cleanSource !== sourceDraft) {
+      setSourceDraft(cleanSource);
+    }
+
+    if (cleanSource !== sourceCommittedRef.current || extraUpdates) {
+      sourceCommittedRef.current = cleanSource;
+      onUpdateSourceText?.(cleanSource, extraUpdates);
     }
   };
 
@@ -332,14 +403,32 @@ function TextColumn({
         <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
           原文
         </span>
-        <textarea
-          className="min-h-[8rem] w-full resize-y whitespace-pre-wrap rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm leading-relaxed text-gray-300 placeholder-gray-600 focus:border-indigo-500 focus:bg-gray-800/50 focus:outline-none"
-          value={sourceDraft}
-          placeholder="（暫無原文）"
-          aria-label="原文"
-          onChange={(e) => setSourceDraft(e.target.value)}
-          onBlur={handleSourceBlur}
-        />
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            className="min-h-[8rem] w-full resize-y whitespace-pre-wrap rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm leading-relaxed text-gray-300 placeholder-gray-600 focus:border-indigo-500 focus:bg-gray-800/50 focus:outline-none"
+            value={sourceDraft}
+            placeholder="（暫無原文）"
+            aria-label="原文"
+            aria-autocomplete="list"
+            aria-controls="entity-mention-menu"
+            role="combobox"
+            aria-expanded={menuOpen}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onBlur={handleSourceBlur}
+          />
+          {menuOpen && (
+            <EntityMentionMenu
+              id="entity-mention-menu"
+              ref={menuRef}
+              filter={filter}
+              items={items}
+              onSelect={selectItem}
+              className="absolute left-0 top-full mt-1 w-64"
+            />
+          )}
+        </div>
         {noteSection}
       </div>
     );
@@ -380,18 +469,20 @@ function TextColumn({
 
 function PromptColumn({
   segment,
-  contentMode,
   segmentId,
   onUpdatePrompt,
   speakerOptions,
+  mentionContext,
 }: {
   segment: Segment;
-  contentMode: "narration" | "drama";
   segmentId: string;
-  onUpdatePrompt?: (segmentId: string, field: string, value: unknown) => void;
+  onUpdatePrompt?: SegmentUpdateHandler;
   speakerOptions?: string[];
+  mentionContext: SegmentMentionContext;
 }) {
   const { image_prompt, video_prompt } = segment;
+  const buildPromptMentionUpdates = (value: unknown) =>
+    buildMentionFieldUpdates(value, mentionContext);
 
   const isStructuredImage = isStructuredImagePromptValue(image_prompt);
   const isStructuredVideo = isStructuredVideoPromptValue(video_prompt);
@@ -459,7 +550,12 @@ function PromptColumn({
         base as unknown as Record<string, unknown>,
         patch as Record<string, unknown>
       ) as unknown as ImagePrompt;
-      onUpdatePrompt?.(segmentId, "image_prompt", merged);
+      onUpdatePrompt?.(
+        segmentId,
+        "image_prompt",
+        merged,
+        buildPromptMentionUpdates(merged),
+      );
       return merged;
     });
   };
@@ -474,13 +570,18 @@ function PromptColumn({
         base as unknown as Record<string, unknown>,
         patch as Record<string, unknown>
       ) as unknown as VideoPrompt;
-      onUpdatePrompt?.(segmentId, "video_prompt", merged);
+      onUpdatePrompt?.(
+        segmentId,
+        "video_prompt",
+        merged,
+        buildPromptMentionUpdates(merged),
+      );
       return merged;
     });
   };
 
   const fireString = (field: string, value: string) => {
-    onUpdatePrompt?.(segmentId, field, value);
+    onUpdatePrompt?.(segmentId, field, value, buildPromptMentionUpdates(value));
   };
 
   return (
@@ -502,6 +603,7 @@ function PromptColumn({
           <ImagePromptEditor
             prompt={imgDraft}
             onUpdate={fireStructuredImage}
+            entities={mentionContext.entities}
           />
         ) : (
           <AutoTextarea
@@ -511,6 +613,7 @@ function PromptColumn({
               fireString("image_prompt", v);
             }}
             placeholder="分鏡圖描述..."
+            entities={mentionContext.entities}
           />
         )}
       </div>
@@ -529,6 +632,7 @@ function PromptColumn({
             prompt={vidDraft}
             onUpdate={fireStructuredVideo}
             speakerOptions={speakerOptions}
+            entities={mentionContext.entities}
           />
         ) : (
           <AutoTextarea
@@ -538,6 +642,7 @@ function PromptColumn({
               fireString("video_prompt", v);
             }}
             placeholder="影片動作描述..."
+            entities={mentionContext.entities}
           />
         )}
       </div>
@@ -717,6 +822,17 @@ export function SegmentCard({
   const segCost = useCostStore((s) => s.getSegmentCost(segmentId));
   const charNames = getCharacterNames(segment, contentMode);
   const clueNames = getClueNames(segment, contentMode);
+  const mentionContext: SegmentMentionContext = {
+    contentMode,
+    currentNames: {
+      characterNames: charNames,
+      clueNames,
+    },
+    entities: {
+      characters,
+      clues,
+    },
+  };
 
   return (
     <div>
@@ -787,12 +903,14 @@ export function SegmentCard({
           <TextColumn
             segment={segment}
             contentMode={contentMode}
+            mentionContext={mentionContext}
             onUpdateNote={(value) => onUpdatePrompt?.(segmentId, "note", value)}
-            onUpdateSourceText={(value) =>
+            onUpdateSourceText={(value, extraUpdates) =>
               onUpdatePrompt?.(
                 segmentId,
                 contentMode === "narration" ? "novel_text" : "scene_description",
                 value,
+                extraUpdates,
               )
             }
           />
@@ -800,10 +918,10 @@ export function SegmentCard({
           {/* Column 2 — Prompts */}
           <PromptColumn
             segment={segment}
-            contentMode={contentMode}
             segmentId={segmentId}
             onUpdatePrompt={onUpdatePrompt}
             speakerOptions={charNames}
+            mentionContext={mentionContext}
           />
 
           {/* Column 3 — Media */}

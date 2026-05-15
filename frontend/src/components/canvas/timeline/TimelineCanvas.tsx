@@ -28,6 +28,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 type Segment = NarrationSegment | DramaScene;
+type SegmentUpdateExtras = Record<string, unknown>;
 
 function getSegmentId(segment: Segment, mode: "narration" | "drama"): string {
   return mode === "narration"
@@ -47,7 +48,13 @@ interface TimelineCanvasProps {
   episodeScript: EpisodeScript | null;
   scriptFile?: string;
   projectData: ProjectData | null;
-  onUpdatePrompt?: (segmentId: string, field: string, value: unknown, scriptFile?: string) => void;
+  onUpdatePrompt?: (
+    segmentId: string,
+    field: string,
+    value: unknown,
+    scriptFile?: string,
+    extraUpdates?: SegmentUpdateExtras,
+  ) => void;
   onGenerateStoryboard?: (segmentId: string, scriptFile?: string) => void;
   onGenerateVideo?: (segmentId: string, scriptFile?: string) => void;
   durationOptions?: number[];
@@ -242,8 +249,12 @@ export function TimelineCanvas({
   const updatePromptForScript = useMemo(
     () =>
       onUpdatePrompt
-        ? (id: string, field: string, value: unknown) =>
-            onUpdatePrompt(id, field, value, scriptFile)
+        ? (
+            id: string,
+            field: string,
+            value: unknown,
+            extraUpdates?: SegmentUpdateExtras,
+          ) => onUpdatePrompt(id, field, value, scriptFile, extraUpdates)
         : undefined,
     [onUpdatePrompt, scriptFile],
   );

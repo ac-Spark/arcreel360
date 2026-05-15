@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SegmentCard } from "./SegmentCard";
 import { useAppStore } from "@/stores/app-store";
@@ -78,4 +78,65 @@ describe("SegmentCard", () => {
     expect(video).toHaveAttribute("controls");
     expect(video).toHaveAttribute("preload", "metadata");
   }, 10_000);
+
+  it("uses @mentions in narration text to update segment entities without saving markers", () => {
+    const onUpdatePrompt = vi.fn();
+    render(
+      <SegmentCard
+        segment={makeSegment({ clues_in_segment: [] })}
+        contentMode="narration"
+        aspectRatio="16:9"
+        characters={{ Hero: { description: "hero" } }}
+        clues={{
+          Key: { type: "prop", description: "key", importance: "major" },
+        }}
+        projectName="demo"
+        onUpdatePrompt={onUpdatePrompt}
+      />,
+    );
+
+    const source = screen.getByLabelText("原文");
+    fireEvent.change(source, { target: { value: "@Hero 拿起 @Key。" } });
+    fireEvent.blur(source);
+
+    expect(onUpdatePrompt).toHaveBeenCalledWith(
+      "SEG-1",
+      "novel_text",
+      "Hero 拿起 Key。",
+      {
+        characters_in_segment: ["Hero"],
+        clues_in_segment: ["Key"],
+      },
+    );
+  });
+
+  it("uses @mentions in prompt text to update segment entities while keeping markers", () => {
+    const onUpdatePrompt = vi.fn();
+    render(
+      <SegmentCard
+        segment={makeSegment({ clues_in_segment: [] })}
+        contentMode="narration"
+        aspectRatio="16:9"
+        characters={{ Hero: { description: "hero" } }}
+        clues={{
+          Key: { type: "prop", description: "key", importance: "major" },
+        }}
+        projectName="demo"
+        onUpdatePrompt={onUpdatePrompt}
+      />,
+    );
+
+    const imagePrompt = screen.getByPlaceholderText("分鏡圖描述...");
+    fireEvent.change(imagePrompt, { target: { value: "看到 @Hero 拿著 @Key" } });
+
+    expect(onUpdatePrompt).toHaveBeenCalledWith(
+      "SEG-1",
+      "image_prompt",
+      "看到 @Hero 拿著 @Key",
+      {
+        characters_in_segment: ["Hero"],
+        clues_in_segment: ["Key"],
+      },
+    );
+  });
 });

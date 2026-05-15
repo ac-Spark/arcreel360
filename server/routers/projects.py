@@ -601,9 +601,23 @@ class UpdateSegmentRequest(BaseModel):
     segment_break: bool | None = None
     image_prompt: dict | str | None = None
     video_prompt: dict | str | None = None
+    characters_in_segment: list[str] | None = None
+    clues_in_segment: list[str] | None = None
     transition_to_next: str | None = None
     note: str | None = None
     novel_text: str | None = None
+
+
+UPDATE_SEGMENT_FIELDS = (
+    "duration_seconds",
+    "segment_break",
+    "image_prompt",
+    "video_prompt",
+    "characters_in_segment",
+    "clues_in_segment",
+    "transition_to_next",
+    "novel_text",
+)
 
 
 class UpdateOverviewRequest(BaseModel):
@@ -631,20 +645,12 @@ async def update_segment(name: str, segment_id: str, req: UpdateSegmentRequest, 
             for segment in script.get("segments", []):
                 if segment.get("segment_id") == segment_id:
                     segment_found = True
-                    if req.duration_seconds is not None:
-                        segment["duration_seconds"] = req.duration_seconds
-                    if req.segment_break is not None:
-                        segment["segment_break"] = req.segment_break
-                    if req.image_prompt is not None:
-                        segment["image_prompt"] = req.image_prompt
-                    if req.video_prompt is not None:
-                        segment["video_prompt"] = req.video_prompt
-                    if req.transition_to_next is not None:
-                        segment["transition_to_next"] = req.transition_to_next
+                    for field in UPDATE_SEGMENT_FIELDS:
+                        value = getattr(req, field)
+                        if value is not None:
+                            segment[field] = value
                     if "note" in req.model_fields_set:
                         segment["note"] = req.note
-                    if req.novel_text is not None:
-                        segment["novel_text"] = req.novel_text
                     break
 
             if not segment_found:

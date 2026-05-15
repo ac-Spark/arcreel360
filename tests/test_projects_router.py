@@ -307,9 +307,17 @@ class TestProjectsRouter:
 
             patch_segment = client.patch(
                 "/api/v1/projects/ready/segments/E1S01",
-                json={"script_file": "narration.json", "duration_seconds": 8, "segment_break": True},
+                json={
+                    "script_file": "narration.json",
+                    "duration_seconds": 8,
+                    "segment_break": True,
+                    "characters_in_segment": ["Hero"],
+                    "clues_in_segment": ["Key"],
+                },
             )
             assert patch_segment.status_code == 200
+            assert patch_segment.json()["segment"]["characters_in_segment"] == ["Hero"]
+            assert patch_segment.json()["segment"]["clues_in_segment"] == ["Key"]
 
             not_narration = client.patch(
                 "/api/v1/projects/ready/segments/001",

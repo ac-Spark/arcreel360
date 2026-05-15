@@ -29,6 +29,8 @@ interface GeneratingResources {
   videoIds: Set<string>;
 }
 
+type SegmentUpdateExtras = Record<string, unknown>;
+
 function collectGeneratingResources(
   tasks: TaskItem[],
   projectName: string | null | undefined,
@@ -104,15 +106,25 @@ export function StudioCanvasRouter() {
 
   // ---- Timeline action callbacks ----
   // These receive scriptFile from TimelineCanvas so they always use the active episode's script.
-  const handleUpdatePrompt = useCallback(async (segmentId: string, field: string, value: unknown, scriptFile?: string) => {
+  const handleUpdatePrompt = useCallback(async (
+    segmentId: string,
+    field: string,
+    value: unknown,
+    scriptFile?: string,
+    extraUpdates?: SegmentUpdateExtras,
+  ) => {
     if (!currentProjectName) return;
     const activeScript = scriptFile ? currentScripts?.[scriptFile] : undefined;
     const mode = resolveEpisodeContentMode(activeScript, currentProjectData?.content_mode);
+    const updates = { [field]: value, ...(extraUpdates ?? {}) };
     try {
       if (mode === "drama") {
-        await API.updateScene(currentProjectName, segmentId, scriptFile ?? "", { [field]: value });
+        await API.updateScene(currentProjectName, segmentId, scriptFile ?? "", updates);
       } else {
-        await API.updateSegment(currentProjectName, segmentId, { script_file: scriptFile, [field]: value });
+        await API.updateSegment(currentProjectName, segmentId, {
+          script_file: scriptFile,
+          ...updates,
+        });
       }
       await refreshProject();
     } catch (err) {

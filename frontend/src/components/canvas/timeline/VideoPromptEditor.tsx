@@ -4,6 +4,7 @@ import { AutoTextarea } from "@/components/ui/AutoTextarea";
 import { CompactInput } from "@/components/ui/CompactInput";
 import { DropdownPill } from "@/components/ui/DropdownPill";
 import { DialogueListEditor } from "./DialogueListEditor";
+import type { EntityMentionSources } from "@/utils/entity-mentions";
 import { CAMERA_MOTIONS } from "@/types";
 import type { VideoPrompt, CameraMotion, Dialogue } from "@/types";
 
@@ -11,6 +12,7 @@ interface VideoPromptEditorProps {
   prompt: VideoPrompt;
   onUpdate: (patch: Partial<VideoPrompt>) => void;
   speakerOptions?: string[];
+  entities?: EntityMentionSources;
 }
 
 /** Structured editor for VideoPrompt fields with collapsible metadata section. */
@@ -18,6 +20,7 @@ export function VideoPromptEditor({
   prompt,
   onUpdate,
   speakerOptions,
+  entities,
 }: VideoPromptEditorProps) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -27,6 +30,7 @@ export function VideoPromptEditor({
         value={prompt.action}
         onChange={(v) => onUpdate({ action: v })}
         placeholder="影片動作描述..."
+        entities={entities}
       />
 
       {/* Collapsible metadata fields */}
