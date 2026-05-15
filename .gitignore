@@ -32,8 +32,7 @@ env/
 Thumbs.db
 
 # Project specific
-projects
-projects/*
+/projects/*
 vertex_keys/*
 !vertex_keys/.gitkeep
 

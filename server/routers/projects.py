@@ -829,6 +829,7 @@ async def reorder_episodes(name: str, req: ReorderEpisodesRequest, _user: Curren
         必須與專案現存的集數完全一致（同集合、不能多也不能少）。
     """
     try:
+
         def _sync():
             manager = get_project_manager()
             if not manager.project_exists(name):
