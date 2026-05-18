@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import type { ComponentProps, ReactNode } from "react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SegmentCard } from "./SegmentCard";
 import { useAppStore } from "@/stores/app-store";
@@ -10,7 +10,9 @@ vi.mock("@/components/canvas/timeline/VersionTimeMachine", () => ({
 }));
 
 vi.mock("@/components/ui/AvatarStack", () => ({
-  AvatarStack: () => <div data-testid="avatar-stack">avatars</div>,
+  AvatarStack: ({ names }: { names: string[] }) => (
+    <div data-testid="avatar-stack">{names.join(",")}</div>
+  ),
 }));
 
 vi.mock("@/components/ui/ImageFlipReveal", () => ({
@@ -51,6 +53,22 @@ function makeSegment(overrides: Partial<NarrationSegment> = {}): NarrationSegmen
   };
 }
 
+type SegmentCardProps = ComponentProps<typeof SegmentCard>;
+
+function renderSegmentCard(overrides: Partial<SegmentCardProps> = {}) {
+  const props: SegmentCardProps = {
+    segment: makeSegment(),
+    contentMode: "narration",
+    aspectRatio: "16:9",
+    characters: {},
+    clues: {},
+    projectName: "demo",
+    ...overrides,
+  };
+
+  return render(<SegmentCard {...props} />);
+}
+
 describe("SegmentCard", () => {
   beforeEach(() => {
     useAppStore.setState(useAppStore.getInitialState(), true);
@@ -58,16 +76,7 @@ describe("SegmentCard", () => {
   });
 
   it("shows an image fullscreen trigger and uses native video controls", () => {
-    const { container } = render(
-      <SegmentCard
-        segment={makeSegment()}
-        contentMode="narration"
-        aspectRatio="16:9"
-        characters={{}}
-        clues={{}}
-        projectName="demo"
-      />,
-    );
+    const { container } = renderSegmentCard();
 
     expect(
       screen.getByRole("button", { name: "SEG-1 分鏡圖 全屏預覽" }),
@@ -81,19 +90,14 @@ describe("SegmentCard", () => {
 
   it("uses @mentions in narration text to update segment entities without saving markers", () => {
     const onUpdatePrompt = vi.fn();
-    render(
-      <SegmentCard
-        segment={makeSegment({ clues_in_segment: [] })}
-        contentMode="narration"
-        aspectRatio="16:9"
-        characters={{ Hero: { description: "hero" } }}
-        clues={{
-          Key: { type: "prop", description: "key", importance: "major" },
-        }}
-        projectName="demo"
-        onUpdatePrompt={onUpdatePrompt}
-      />,
-    );
+    renderSegmentCard({
+      segment: makeSegment({ clues_in_segment: [] }),
+      characters: { Hero: { description: "hero" } },
+      clues: {
+        Key: { type: "prop", description: "key", importance: "major" },
+      },
+      onUpdatePrompt,
+    });
 
     const source = screen.getByLabelText("原文");
     fireEvent.change(source, { target: { value: "@Hero 拿起 @Key。" } });
@@ -110,21 +114,43 @@ describe("SegmentCard", () => {
     );
   });
 
+  it("shows live character mentions in the header before the segment is committed", () => {
+    renderSegmentCard({
+      segment: makeSegment({ characters_in_segment: [] }),
+      characters: { "角色B": { description: "角色 B" } },
+      onUpdatePrompt: vi.fn(),
+    });
+
+    const source = screen.getByLabelText("原文");
+    fireEvent.change(source, { target: { value: "@角色B 進入畫面" } });
+
+    expect(within(screen.getByTestId("avatar-stack")).getByText("角色B")).toBeInTheDocument();
+  });
+
+  it("removes live character mentions from the header when the draft becomes incomplete", () => {
+    renderSegmentCard({
+      segment: makeSegment({ characters_in_segment: [] }),
+      characters: { "角色B": { description: "角色 B" } },
+      onUpdatePrompt: vi.fn(),
+    });
+
+    const source = screen.getByLabelText("原文");
+    fireEvent.change(source, { target: { value: "@角色B 進入畫面" } });
+    fireEvent.change(source, { target: { value: "@角色" } });
+
+    expect(within(screen.getByTestId("avatar-stack")).queryByText("角色B")).not.toBeInTheDocument();
+  });
+
   it("uses @mentions in prompt text to update segment entities while keeping markers", () => {
     const onUpdatePrompt = vi.fn();
-    render(
-      <SegmentCard
-        segment={makeSegment({ clues_in_segment: [] })}
-        contentMode="narration"
-        aspectRatio="16:9"
-        characters={{ Hero: { description: "hero" } }}
-        clues={{
-          Key: { type: "prop", description: "key", importance: "major" },
-        }}
-        projectName="demo"
-        onUpdatePrompt={onUpdatePrompt}
-      />,
-    );
+    renderSegmentCard({
+      segment: makeSegment({ clues_in_segment: [] }),
+      characters: { Hero: { description: "hero" } },
+      clues: {
+        Key: { type: "prop", description: "key", importance: "major" },
+      },
+      onUpdatePrompt,
+    });
 
     const imagePrompt = screen.getByPlaceholderText("分鏡圖描述...");
     fireEvent.change(imagePrompt, { target: { value: "看到 @Hero 拿著 @Key" } });

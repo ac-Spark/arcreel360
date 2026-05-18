@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ImageIcon, Film, Clock, Trash2 } from "lucide-react";
 import { API } from "@/api";
 import { DEFAULT_DURATIONS } from "@/utils/provider-models";
@@ -14,14 +14,13 @@ import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useCostStore } from "@/stores/cost-store";
 import { EntityMentionMenu } from "./EntityMentionMenu";
+import { MentionHighlightOverlay } from "./MentionHighlightOverlay";
 import { useEntityMentionInput } from "./useEntityMentionInput";
 import { ImagePromptEditor } from "./ImagePromptEditor";
 import { VideoPromptEditor } from "./VideoPromptEditor";
 import { formatCost } from "@/utils/cost-format";
 import {
   extractEntityMentionsFromValue,
-  hasEntityMentions,
-  mergeEntityMentionNames,
   stripKnownEntityMentionMarkers,
   type EntityMentionNames,
   type EntityMentionSources,
@@ -52,6 +51,13 @@ const TRANSITION_LABELS: Record<TransitionType, string> = {
 
 type Segment = NarrationSegment | DramaScene;
 type SegmentUpdateExtras = Record<string, unknown>;
+interface SegmentMentionDrafts {
+  source: unknown;
+  imagePrompt: unknown;
+  videoPrompt: unknown;
+}
+type SegmentMentionDraftKey = keyof SegmentMentionDrafts;
+type PromptMentionDraftKey = Exclude<SegmentMentionDraftKey, "source">;
 type SegmentUpdateHandler = (
   segmentId: string,
   field: string,
@@ -100,21 +106,52 @@ function getClueNames(segment: Segment, mode: "narration" | "drama"): string[] {
   return getSegmentField(segment, mode, "clues_in_segment", "clues_in_scene");
 }
 
+function getSourceMentionValue(segment: Segment, mode: "narration" | "drama"): string {
+  return mode === "narration" ? ((segment as NarrationSegment).novel_text ?? "") : "";
+}
+
+function getSegmentMentionDrafts(
+  segment: Segment,
+  mode: "narration" | "drama",
+): SegmentMentionDrafts {
+  return {
+    source: getSourceMentionValue(segment, mode),
+    imagePrompt: segment.image_prompt ?? "",
+    videoPrompt: segment.video_prompt ?? "",
+  };
+}
+
+function getMentionDraftValues(drafts: SegmentMentionDrafts): unknown[] {
+  return [drafts.source, drafts.imagePrompt, drafts.videoPrompt];
+}
+
+function sameNames(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const bSet = new Set(b);
+  return a.every((name) => bSet.has(name));
+}
+
+function sameMentionNames(a: EntityMentionNames, b: EntityMentionNames): boolean {
+  return (
+    sameNames(a.characterNames, b.characterNames) &&
+    sameNames(a.clueNames, b.clueNames)
+  );
+}
+
 function buildMentionFieldUpdates(
   value: unknown,
   mentionContext: SegmentMentionContext,
 ): SegmentUpdateExtras | undefined {
   const { contentMode, currentNames, entities } = mentionContext;
   const mentions = extractEntityMentionsFromValue(value, entities);
-  if (!hasEntityMentions(mentions)) {
+  if (sameMentionNames(mentions, currentNames)) {
     return undefined;
   }
 
-  const nextNames = mergeEntityMentionNames(currentNames, mentions);
   const fields = MENTION_UPDATE_FIELDS[contentMode];
   return {
-    [fields.characters]: nextNames.characterNames,
-    [fields.clues]: nextNames.clueNames,
+    [fields.characters]: mentions.characterNames,
+    [fields.clues]: mentions.clueNames,
   };
 }
 
@@ -313,47 +350,56 @@ function TextColumn({
   segment,
   contentMode,
   mentionContext,
+  onMentionDraftChange,
+  buildMentionUpdatesForDraft,
   onUpdateNote,
   onUpdateSourceText,
 }: {
   segment: Segment;
   contentMode: "narration" | "drama";
   mentionContext: SegmentMentionContext;
+  onMentionDraftChange: (key: SegmentMentionDraftKey, value: unknown) => void;
+  buildMentionUpdatesForDraft: (
+    patch: Partial<SegmentMentionDrafts>,
+  ) => SegmentUpdateExtras | undefined;
   onUpdateNote?: (value: string) => void;
   onUpdateSourceText?: (value: string, extraUpdates?: SegmentUpdateExtras) => void;
 }) {
-  const [noteDraft, setNoteDraft] = useState(segment.note ?? "");
-  const committedRef = useRef(segment.note ?? "");
-
-  const initialSource = contentMode === "narration"
-    ? ((segment as NarrationSegment).novel_text ?? "")
-    : "";
-  const [sourceDraft, setSourceDraft] = useState(initialSource);
-  const sourceCommittedRef = useRef(initialSource);
+  const noteValue = segment.note ?? "";
+  const sourceFromSegment = getSourceMentionValue(segment, contentMode);
+  const [noteDraft, setNoteDraft] = useState(noteValue);
+  const committedRef = useRef(noteValue);
+  const [sourceDraft, setSourceDraft] = useState(sourceFromSegment);
+  const sourceCommittedRef = useRef(sourceFromSegment);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const updateSourceDraft = useCallback(
+    (next: string) => {
+      setSourceDraft(next);
+      onMentionDraftChange("source", next);
+    },
+    [onMentionDraftChange],
+  );
   const {
     menuOpen,
     filter,
     items,
     handleInputChange,
     handleKeyDown,
+    handleBlur,
     selectItem,
     menuRef,
   } = useEntityMentionInput({
     value: sourceDraft,
-    onChange: setSourceDraft,
+    onChange: updateSourceDraft,
     entities: mentionContext.entities,
     textareaRef,
   });
 
   useEffect(() => {
-    setNoteDraft(segment.note ?? "");
-    committedRef.current = segment.note ?? "";
-  }, [segment.note]);
+    setNoteDraft(noteValue);
+    committedRef.current = noteValue;
+  }, [noteValue]);
 
-  const sourceFromSegment = contentMode === "narration"
-    ? ((segment as NarrationSegment).novel_text ?? "")
-    : "";
   useEffect(() => {
     setSourceDraft(sourceFromSegment);
     sourceCommittedRef.current = sourceFromSegment;
@@ -368,10 +414,11 @@ function TextColumn({
 
   const handleSourceBlur = () => {
     const cleanSource = stripKnownEntityMentionMarkers(sourceDraft, mentionContext.entities);
-    const extraUpdates = buildMentionFieldUpdates(sourceDraft, mentionContext);
+    const extraUpdates = buildMentionUpdatesForDraft({ source: sourceDraft });
 
     if (cleanSource !== sourceDraft) {
       setSourceDraft(cleanSource);
+      onMentionDraftChange("source", cleanSource);
     }
 
     if (cleanSource !== sourceCommittedRef.current || extraUpdates) {
@@ -404,9 +451,15 @@ function TextColumn({
           原文
         </span>
         <div className="relative">
+          <MentionHighlightOverlay
+            value={sourceDraft}
+            entities={mentionContext.entities}
+            className="min-h-[8rem] px-2 py-1.5 text-sm leading-relaxed whitespace-pre-wrap break-words border border-transparent"
+          />
           <textarea
             ref={textareaRef}
-            className="min-h-[8rem] w-full resize-y whitespace-pre-wrap rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm leading-relaxed text-gray-300 placeholder-gray-600 focus:border-indigo-500 focus:bg-gray-800/50 focus:outline-none"
+            className="relative min-h-[8rem] w-full resize-y whitespace-pre-wrap rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm leading-relaxed placeholder-gray-600 focus:border-indigo-500 focus:bg-gray-800/50 focus:outline-none"
+            style={{ color: "transparent", caretColor: "#d1d5db" }}
             value={sourceDraft}
             placeholder="（暫無原文）"
             aria-label="原文"
@@ -416,7 +469,10 @@ function TextColumn({
             aria-expanded={menuOpen}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            onBlur={handleSourceBlur}
+            onBlur={() => {
+              handleBlur();
+              handleSourceBlur();
+            }}
           />
           {menuOpen && (
             <EntityMentionMenu
@@ -473,16 +529,24 @@ function PromptColumn({
   onUpdatePrompt,
   speakerOptions,
   mentionContext,
+  onMentionDraftChange,
+  buildMentionUpdatesForDraft,
 }: {
   segment: Segment;
   segmentId: string;
   onUpdatePrompt?: SegmentUpdateHandler;
   speakerOptions?: string[];
   mentionContext: SegmentMentionContext;
+  onMentionDraftChange: (key: SegmentMentionDraftKey, value: unknown) => void;
+  buildMentionUpdatesForDraft: (
+    patch: Partial<SegmentMentionDrafts>,
+  ) => SegmentUpdateExtras | undefined;
 }) {
   const { image_prompt, video_prompt } = segment;
-  const buildPromptMentionUpdates = (value: unknown) =>
-    buildMentionFieldUpdates(value, mentionContext);
+  const buildPromptMentionUpdates = (
+    key: PromptMentionDraftKey,
+    value: unknown,
+  ) => buildMentionUpdatesForDraft({ [key]: value });
 
   const isStructuredImage = isStructuredImagePromptValue(image_prompt);
   const isStructuredVideo = isStructuredVideoPromptValue(video_prompt);
@@ -550,11 +614,12 @@ function PromptColumn({
         base as unknown as Record<string, unknown>,
         patch as Record<string, unknown>
       ) as unknown as ImagePrompt;
+      onMentionDraftChange("imagePrompt", merged);
       onUpdatePrompt?.(
         segmentId,
         "image_prompt",
         merged,
-        buildPromptMentionUpdates(merged),
+        buildPromptMentionUpdates("imagePrompt", merged),
       );
       return merged;
     });
@@ -570,18 +635,24 @@ function PromptColumn({
         base as unknown as Record<string, unknown>,
         patch as Record<string, unknown>
       ) as unknown as VideoPrompt;
+      onMentionDraftChange("videoPrompt", merged);
       onUpdatePrompt?.(
         segmentId,
         "video_prompt",
         merged,
-        buildPromptMentionUpdates(merged),
+        buildPromptMentionUpdates("videoPrompt", merged),
       );
       return merged;
     });
   };
 
-  const fireString = (field: string, value: string) => {
-    onUpdatePrompt?.(segmentId, field, value, buildPromptMentionUpdates(value));
+  const fireString = (
+    field: "image_prompt" | "video_prompt",
+    key: PromptMentionDraftKey,
+    value: string,
+  ) => {
+    onMentionDraftChange(key, value);
+    onUpdatePrompt?.(segmentId, field, value, buildPromptMentionUpdates(key, value));
   };
 
   return (
@@ -610,7 +681,7 @@ function PromptColumn({
             value={imgText}
             onChange={(v) => {
               setImgText(v);
-              fireString("image_prompt", v);
+              fireString("image_prompt", "imagePrompt", v);
             }}
             placeholder="分鏡圖描述..."
             entities={mentionContext.entities}
@@ -639,7 +710,7 @@ function PromptColumn({
             value={vidText}
             onChange={(v) => {
               setVidText(v);
-              fireString("video_prompt", v);
+              fireString("video_prompt", "videoPrompt", v);
             }}
             placeholder="影片動作描述..."
             entities={mentionContext.entities}
@@ -822,17 +893,59 @@ export function SegmentCard({
   const segCost = useCostStore((s) => s.getSegmentCost(segmentId));
   const charNames = getCharacterNames(segment, contentMode);
   const clueNames = getClueNames(segment, contentMode);
-  const mentionContext: SegmentMentionContext = {
-    contentMode,
-    currentNames: {
-      characterNames: charNames,
-      clueNames,
-    },
-    entities: {
+  const mentionEntities = useMemo<EntityMentionSources>(
+    () => ({
       characters,
       clues,
+    }),
+    [characters, clues],
+  );
+  const [mentionDrafts, setMentionDrafts] = useState<SegmentMentionDrafts>(() =>
+    getSegmentMentionDrafts(segment, contentMode)
+  );
+  const sourceMentionValue = getSourceMentionValue(segment, contentMode);
+
+  useEffect(() => {
+    setMentionDrafts(getSegmentMentionDrafts(segment, contentMode));
+  }, [
+    segmentId,
+    contentMode,
+    sourceMentionValue,
+    segment.image_prompt,
+    segment.video_prompt,
+  ]);
+
+  const onMentionDraftChange = useCallback((key: SegmentMentionDraftKey, value: unknown) => {
+    setMentionDrafts((prev) => {
+      if (Object.is(prev[key], value)) {
+        return prev;
+      }
+      return { ...prev, [key]: value };
+    });
+  }, []);
+
+  const mentionContext: SegmentMentionContext = useMemo(
+    () => ({
+      contentMode,
+      currentNames: {
+        characterNames: charNames,
+        clueNames,
+      },
+      entities: mentionEntities,
+    }),
+    [charNames, clueNames, contentMode, mentionEntities],
+  );
+  const buildMentionUpdatesForDraft = useCallback(
+    (patch: Partial<SegmentMentionDrafts>): SegmentUpdateExtras | undefined => {
+      const nextDrafts = { ...mentionDrafts, ...patch };
+      return buildMentionFieldUpdates(getMentionDraftValues(nextDrafts), mentionContext);
     },
-  };
+    [mentionContext, mentionDrafts],
+  );
+  const { characterNames: liveCharNames, clueNames: liveClueNames } = useMemo(
+    () => extractEntityMentionsFromValue(getMentionDraftValues(mentionDrafts), mentionEntities),
+    [mentionDrafts, mentionEntities],
+  );
 
   return (
     <div>
@@ -871,15 +984,15 @@ export function SegmentCard({
           {/* Right: AvatarStack + ClueStack */}
           <div className="flex items-center gap-2">
             <AvatarStack
-              names={charNames}
+              names={liveCharNames}
               characters={characters}
               projectName={projectName}
             />
-            {charNames.length > 0 && clueNames.length > 0 && (
+            {liveCharNames.length > 0 && liveClueNames.length > 0 && (
               <div className="border-l border-gray-700 self-stretch" />
             )}
             <ClueStack
-              names={clueNames}
+              names={liveClueNames}
               clues={clues}
               projectName={projectName}
             />
@@ -904,6 +1017,8 @@ export function SegmentCard({
             segment={segment}
             contentMode={contentMode}
             mentionContext={mentionContext}
+            onMentionDraftChange={onMentionDraftChange}
+            buildMentionUpdatesForDraft={buildMentionUpdatesForDraft}
             onUpdateNote={(value) => onUpdatePrompt?.(segmentId, "note", value)}
             onUpdateSourceText={(value, extraUpdates) =>
               onUpdatePrompt?.(
@@ -922,6 +1037,8 @@ export function SegmentCard({
             onUpdatePrompt={onUpdatePrompt}
             speakerOptions={charNames}
             mentionContext={mentionContext}
+            onMentionDraftChange={onMentionDraftChange}
+            buildMentionUpdatesForDraft={buildMentionUpdatesForDraft}
           />
 
           {/* Column 3 — Media */}

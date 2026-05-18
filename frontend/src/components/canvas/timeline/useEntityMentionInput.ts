@@ -16,6 +16,7 @@ export function useEntityMentionInput(opts: {
   items: EntityMentionItem[];
   handleInputChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
   handleKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void;
+  handleBlur: () => void;
   selectItem: (item: EntityMentionItem) => void;
   menuRef: RefObject<EntityMentionMenuHandle | null>;
 } {
@@ -119,12 +120,18 @@ export function useEntityMentionInput(opts: {
     }
   }, [closeMenu, onChange, textareaRef, value]);
 
+  const handleBlur = useCallback(() => {
+    // 失焦延遲關閉, 避免 mousedown 選項時就立刻關掉。
+    setTimeout(closeMenu, 0);
+  }, [closeMenu]);
+
   return {
     menuOpen,
     filter,
     items,
     handleInputChange,
     handleKeyDown,
+    handleBlur,
     selectItem,
     menuRef,
   };

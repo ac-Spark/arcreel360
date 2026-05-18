@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { ChangeEvent } from "react";
 import { EntityMentionMenu } from "@/components/canvas/timeline/EntityMentionMenu";
+import { MentionHighlightOverlay } from "@/components/canvas/timeline/MentionHighlightOverlay";
 import { useEntityMentionInput } from "@/components/canvas/timeline/useEntityMentionInput";
 import type { EntityMentionSources } from "@/utils/entity-mentions";
+import { UI_LAYERS } from "@/utils/ui-layers";
 
 interface AutoTextareaProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
-  /** 提供時啟用 @ 角色/道具自動補完選單。 */
+  /** 提供時啟用 @ 角色/道具自動補完選單與高亮。 */
   entities?: EntityMentionSources;
 }
 
@@ -17,6 +19,11 @@ const EMPTY_MENTION_ENTITIES: EntityMentionSources = {
   characters: {},
   clues: {},
 };
+
+// Overlay 與 textarea 必須共用 metrics, 否則高亮文字會對不齊。
+const SHARED_METRICS = "px-2.5 py-2 font-mono text-xs leading-4 tracking-normal whitespace-pre-wrap break-words";
+const TEXTAREA_BASE = `w-full resize-none overflow-hidden rounded-lg border ${SHARED_METRICS}`;
+const TEXTAREA_CHROME = "border-gray-700 bg-gray-800 placeholder-gray-500 focus:border-indigo-500 focus:outline-none";
 
 /** Auto-resizing textarea that grows with its content.
  *  Optionally supports `@` entity mention menu when `entities` is provided. */
@@ -41,52 +48,68 @@ export function AutoTextarea({
     resize();
   }, [value, resize]);
 
+  const mentionEntities = entities ?? EMPTY_MENTION_ENTITIES;
   const mentionEnabled = Boolean(entities);
   const mention = useEntityMentionInput({
     value,
     onChange,
-    entities: entities ?? EMPTY_MENTION_ENTITIES,
+    entities: mentionEntities,
     textareaRef: ref,
   });
+  const textareaClassName = `${TEXTAREA_BASE} ${TEXTAREA_CHROME}`;
 
   const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     if (mentionEnabled) {
       mention.handleInputChange(e);
       return;
     }
-
     onChange(e.target.value);
   };
 
-  const textarea = (
-    <textarea
-      ref={ref}
-      value={value}
-      onChange={handleChange}
-      onInput={resize}
-      onKeyDown={mentionEnabled ? mention.handleKeyDown : undefined}
-      placeholder={placeholder}
-      rows={2}
-      role={mentionEnabled ? "combobox" : undefined}
-      aria-autocomplete={mentionEnabled ? "list" : undefined}
-      aria-expanded={mentionEnabled ? mention.menuOpen : undefined}
-      aria-controls={mentionEnabled && mention.menuOpen ? "entity-mention-menu" : undefined}
-      className={`w-full resize-none overflow-hidden bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-2 font-mono text-xs text-gray-200 placeholder-gray-500 focus:border-indigo-500 focus:outline-none ${className ?? ""}`}
-    />
-  );
-
-  if (!mentionEnabled) return textarea;
+  if (!mentionEnabled) {
+    return (
+      <textarea
+        ref={ref}
+        value={value}
+        onChange={handleChange}
+        onInput={resize}
+        placeholder={placeholder}
+        rows={2}
+        className={`${textareaClassName} text-gray-200 ${className ?? ""}`}
+      />
+    );
+  }
 
   return (
     <div className="relative">
-      {textarea}
+      <MentionHighlightOverlay
+        value={value}
+        entities={mentionEntities}
+        className={`${SHARED_METRICS} border border-transparent text-gray-200`}
+      />
+      <textarea
+        ref={ref}
+        value={value}
+        onChange={handleChange}
+        onInput={resize}
+        onKeyDown={mention.handleKeyDown}
+        onBlur={mention.handleBlur}
+        placeholder={placeholder}
+        rows={2}
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={mention.menuOpen}
+        aria-controls={mention.menuOpen ? "entity-mention-menu" : undefined}
+        style={{ color: "transparent", caretColor: "#e5e7eb", background: "transparent" }}
+        className={`relative ${textareaClassName} ${className ?? ""}`}
+      />
       {mention.menuOpen && (
         <EntityMentionMenu
           ref={mention.menuRef}
           filter={mention.filter}
           items={mention.items}
           onSelect={mention.selectItem}
-          className="absolute left-0 top-full mt-1 w-full"
+          className={`absolute left-0 top-full mt-1 w-full ${UI_LAYERS.workspacePopover}`}
         />
       )}
     </div>
