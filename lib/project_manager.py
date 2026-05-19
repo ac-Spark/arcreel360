@@ -62,6 +62,7 @@ class ProjectManager:
         "drafts",
         "characters",
         "clues",
+        "scenes",
         "storyboards",
         "videos",
         "thumbnails",
@@ -110,6 +111,22 @@ class ProjectManager:
         if not (projects_root / project_name / cls.PROJECT_FILE).exists():
             raise FileNotFoundError(f"當前目錄不是有效的專案目錄: {cwd}")
         return pm, project_name
+
+    @staticmethod
+    def _scene_entry(description: str, scene_sheet: str = "") -> dict:
+        return {
+            "description": description,
+            "scene_sheet": scene_sheet,
+            "scene_ref": "",
+            "use_uploaded_as_final": False,
+        }
+
+    @staticmethod
+    def _needs_generated_sheet(project_dir: Path, entity: dict, sheet_key: str) -> bool:
+        if entity.get("use_uploaded_as_final"):
+            return False
+        sheet = entity.get(sheet_key)
+        return not sheet or not (project_dir / sheet).exists()
 
     def __init__(self, projects_root: str | None = None):
         """
@@ -1448,8 +1465,7 @@ class ProjectManager:
 
         pending = []
         for name, char in project.get("characters", {}).items():
-            sheet = char.get("character_sheet")
-            if not sheet or not (project_dir / sheet).exists():
+            if self._needs_generated_sheet(project_dir, char, "character_sheet"):
                 pending.append({"name": name, **char})
 
         return pending
@@ -1469,10 +1485,8 @@ class ProjectManager:
 
         pending = []
         for name, clue in project["clues"].items():
-            if clue.get("importance") == "major":
-                sheet = clue.get("clue_sheet")
-                if not sheet or not (project_dir / sheet).exists():
-                    pending.append({"name": name, **clue})
+            if clue.get("importance") == "major" and self._needs_generated_sheet(project_dir, clue, "clue_sheet"):
+                pending.append({"name": name, **clue})
 
         return pending
 
@@ -1645,25 +1659,170 @@ class ProjectManager:
         project_dir = self.get_project_path(project_name)
         refs = []
 
+        def append_existing(relative_path: str | None) -> None:
+            if not relative_path:
+                return
+            path = project_dir / relative_path
+            if path.exists():
+                refs.append(path)
+
         # 角色參考圖
         for char in scene.get("characters_in_scene", []):
             char_data = project["characters"].get(char, {})
-            sheet = char_data.get("character_sheet")
-            if sheet:
-                sheet_path = project_dir / sheet
-                if sheet_path.exists():
-                    refs.append(sheet_path)
+            append_existing(char_data.get("character_sheet"))
 
         # 線索參考圖
         for clue in scene.get("clues_in_scene", []):
             clue_data = project["clues"].get(clue, {})
-            sheet = clue_data.get("clue_sheet")
-            if sheet:
-                sheet_path = project_dir / sheet
-                if sheet_path.exists():
-                    refs.append(sheet_path)
+            append_existing(clue_data.get("clue_sheet"))
+
+        # 場景參考圖（單數欄位，narration 用 scene_in_segment / drama 用 scene_in_scene）
+        scene_name = scene.get("scene_in_scene") or scene.get("scene_in_segment")
+        if scene_name:
+            scene_data = project.get("scenes", {}).get(scene_name, {})
+            # use_uploaded_as_final 時優先用上傳圖；否則用 AI 生成的 scene_sheet
+            if scene_data.get("use_uploaded_as_final"):
+                candidate = scene_data.get("scene_ref") or scene_data.get("scene_sheet")
+            else:
+                candidate = scene_data.get("scene_sheet") or scene_data.get("scene_ref")
+            append_existing(candidate)
 
         return refs
+
+    # ==================== 場景管理 ====================
+
+    def add_project_scene(
+        self,
+        project_name: str,
+        name: str,
+        description: str,
+        scene_sheet: str | None = None,
+    ) -> dict:
+        """向專案新增場景（專案級）"""
+        project = self.load_project(project_name)
+
+        project.setdefault("scenes", {})[name] = self._scene_entry(description, scene_sheet or "")
+
+        self.save_project(project_name, project)
+        return project
+
+    def update_scene_sheet(self, project_name: str, name: str, sheet_path: str) -> dict:
+        """更新場景設計圖路徑"""
+        project = self.load_project(project_name)
+
+        if name not in project.get("scenes", {}):
+            raise KeyError(f"場景 '{name}' 不存在")
+
+        project["scenes"][name]["scene_sheet"] = sheet_path
+        self.save_project(project_name, project)
+        return project
+
+    def update_scene_reference_image(self, project_name: str, name: str, ref_path: str) -> dict:
+        """更新場景參考圖路徑"""
+        project = self.load_project(project_name)
+
+        if name not in project.get("scenes", {}):
+            raise KeyError(f"場景 '{name}' 不存在")
+
+        project["scenes"][name]["scene_ref"] = ref_path
+        self.save_project(project_name, project)
+        return project
+
+    def get_project_scene(self, project_name: str, name: str) -> dict:
+        """獲取專案級場景定義"""
+        project = self.load_project(project_name)
+
+        if name not in project.get("scenes", {}):
+            raise KeyError(f"場景 '{name}' 不存在")
+
+        return project["scenes"][name]
+
+    def get_scene_path(self, project_name: str, filename: str) -> Path:
+        """獲取場景設計圖路徑"""
+        return self.get_project_path(project_name) / "scenes" / filename
+
+    def get_pending_scene_sheets(self, project_name: str) -> list[dict]:
+        """
+        獲取待生成設計圖的場景列表
+
+        排除：已有實體 scene_sheet 檔案、或 use_uploaded_as_final 的場景。
+        （注意：與既有 get_pending_scenes(分鏡資產查詢) 為不同語義，刻意分名。）
+        """
+        project = self.load_project(project_name)
+        project_dir = self.get_project_path(project_name)
+
+        pending = []
+        for name, scene in project.get("scenes", {}).items():
+            if self._needs_generated_sheet(project_dir, scene, "scene_sheet"):
+                pending.append({"name": name, **scene})
+
+        return pending
+
+    def add_scenes_batch(self, project_name: str, scenes: dict[str, dict]) -> int:
+        """
+        批次新增場景到 project.json
+
+        Args:
+            scenes: 場景字典 {name: {description, scene_sheet?}}
+
+        Returns:
+            新增的場景數量
+        """
+        project = self.load_project(project_name)
+
+        project_scenes = project.setdefault("scenes", {})
+
+        added = 0
+        for name, data in scenes.items():
+            if name not in project_scenes:
+                project_scenes[name] = self._scene_entry(
+                    data.get("description", ""),
+                    data.get("scene_sheet", ""),
+                )
+                added += 1
+                logger.info("新增場景: %s", name)
+            else:
+                logger.debug("場景 '%s' 已存在，跳過", name)
+
+        if added > 0:
+            self.save_project(project_name, project)
+
+        return added
+
+    # ==================== 自備圖（use_uploaded_as_final）旗標 ====================
+
+    def _set_use_uploaded_as_final(self, project_name: str, collection: str, name: str, value: bool) -> dict:
+        project = self.load_project(project_name)
+
+        if name not in project.get(collection, {}):
+            raise KeyError(f"'{name}' 不存在於 {collection}")
+
+        project[collection][name]["use_uploaded_as_final"] = value
+        self.save_project(project_name, project)
+        return project
+
+    def set_character_use_uploaded_as_final(self, project_name: str, name: str, value: bool) -> dict:
+        """設定角色是否「直接以上傳圖為最終成品」"""
+        return self._set_use_uploaded_as_final(project_name, "characters", name, value)
+
+    def set_clue_use_uploaded_as_final(self, project_name: str, name: str, value: bool) -> dict:
+        """設定線索是否「直接以上傳圖為最終成品」"""
+        return self._set_use_uploaded_as_final(project_name, "clues", name, value)
+
+    def set_scene_use_uploaded_as_final(self, project_name: str, name: str, value: bool) -> dict:
+        """設定場景是否「直接以上傳圖為最終成品」"""
+        return self._set_use_uploaded_as_final(project_name, "scenes", name, value)
+
+    def update_clue_reference_image(self, project_name: str, name: str, ref_path: str) -> dict:
+        """更新線索的參考圖路徑（支援線索自備圖）"""
+        project = self.load_project(project_name)
+
+        if name not in project.get("clues", {}):
+            raise KeyError(f"線索 '{name}' 不存在")
+
+        project["clues"][name]["reference_image"] = ref_path
+        self.save_project(project_name, project)
+        return project
 
     # ==================== 專案概述生成 ====================
 

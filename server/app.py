@@ -35,6 +35,7 @@ from server.routers import (
     project_events,
     projects,
     providers,
+    scenes,
     system_config,
     tasks,
     usage,
@@ -194,6 +195,7 @@ app.include_router(auth_router.router, prefix="/api/v1", tags=["認證"])
 app.include_router(projects.router, prefix="/api/v1", tags=["專案管理"])
 app.include_router(characters.router, prefix="/api/v1", tags=["角色管理"])
 app.include_router(clues.router, prefix="/api/v1", tags=["線索管理"])
+app.include_router(scenes.router, prefix="/api/v1", tags=["場景管理"])
 app.include_router(files.router, prefix="/api/v1", tags=["檔案管理"])
 app.include_router(generate.router, prefix="/api/v1", tags=["生成"])
 app.include_router(versions.router, prefix="/api/v1", tags=["版本管理"])

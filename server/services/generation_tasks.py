@@ -20,7 +20,7 @@ from lib.gemini_shared import get_shared_rate_limiter
 from lib.media_generator import MediaGenerator
 from lib.project_change_hints import emit_project_change_batch, project_change_source
 from lib.project_manager import ProjectManager
-from lib.prompt_builders import build_character_prompt, build_clue_prompt
+from lib.prompt_builders import build_character_prompt, build_clue_prompt, build_scene_prompt
 from lib.prompt_utils import (
     image_prompt_to_yaml,
     is_structured_image_prompt,
@@ -786,6 +786,24 @@ async def execute_video_task(
     }
 
 
+async def _finalize_generated_sheet(
+    project_name: str,
+    resource_type: str,
+    resource_id: str,
+    sheet_field: str,
+    sheet_path: str,
+    generator: MediaGenerator,
+) -> str:
+    def _finalize():
+        def _set_sheet(project: dict) -> None:
+            project[resource_type][resource_id][sheet_field] = sheet_path
+
+        get_project_manager().update_project(project_name, _set_sheet)
+        return generator.versions.get_versions(resource_type, resource_id)["versions"][-1]["created_at"]
+
+    return await asyncio.to_thread(_finalize)
+
+
 async def execute_character_task(
     project_name: str, resource_id: str, payload: dict[str, Any], *, user_id: str = DEFAULT_USER_ID
 ) -> dict[str, Any]:
@@ -825,19 +843,13 @@ async def execute_character_task(
     )
 
     sheet_path = f"characters/{resource_id}.png"
-
-    def _finalize_char():
-        def _set_character_sheet(p: dict) -> None:
-            p["characters"][resource_id]["character_sheet"] = sheet_path
-
-        get_project_manager().update_project(project_name, _set_character_sheet)
-        return generator.versions.get_versions("characters", resource_id)["versions"][-1]["created_at"]
-
-    created_at = await asyncio.to_thread(_finalize_char)
+    created_at = await _finalize_generated_sheet(
+        project_name, "characters", resource_id, "character_sheet", sheet_path, generator
+    )
 
     return {
         "version": version,
-        "file_path": f"characters/{resource_id}.png",
+        "file_path": sheet_path,
         "created_at": created_at,
         "resource_type": "characters",
         "resource_id": resource_id,
@@ -876,21 +888,73 @@ async def execute_clue_task(
     )
 
     sheet_path = f"clues/{resource_id}.png"
-
-    def _finalize_clue():
-        def _set_clue_sheet(p: dict) -> None:
-            p["clues"][resource_id]["clue_sheet"] = sheet_path
-
-        get_project_manager().update_project(project_name, _set_clue_sheet)
-        return generator.versions.get_versions("clues", resource_id)["versions"][-1]["created_at"]
-
-    created_at = await asyncio.to_thread(_finalize_clue)
+    created_at = await _finalize_generated_sheet(
+        project_name, "clues", resource_id, "clue_sheet", sheet_path, generator
+    )
 
     return {
         "version": version,
-        "file_path": f"clues/{resource_id}.png",
+        "file_path": sheet_path,
         "created_at": created_at,
         "resource_type": "clues",
+        "resource_id": resource_id,
+    }
+
+
+async def execute_scene_task(
+    project_name: str, resource_id: str, payload: dict[str, Any], *, user_id: str = DEFAULT_USER_ID
+) -> dict[str, Any]:
+    prompt = str(payload.get("prompt", "") or "").strip()
+    if not prompt:
+        raise ValueError("prompt is required for scene task")
+
+    def _prepare_scene():
+        _project = get_project_manager().load_project(project_name)
+        if resource_id not in _project.get("scenes", {}):
+            raise ValueError(f"scene not found: {resource_id}")
+        _scene_data = _project["scenes"][resource_id]
+        _style = _project.get("style", "")
+        _style_desc = _project.get("style_description", "")
+        _full_prompt = build_scene_prompt(resource_id, prompt, _style, _style_desc)
+        return _project, _scene_data, _full_prompt
+
+    project, scene_data, full_prompt = await asyncio.to_thread(_prepare_scene)
+
+    # 自備圖當成品：已有 scene_sheet 則冪等跳過 AI 生成
+    if scene_data.get("use_uploaded_as_final"):
+        sheet_rel = scene_data.get("scene_sheet") or ""
+        sheet_abs = get_project_manager().get_project_path(project_name) / sheet_rel
+        if sheet_rel and sheet_abs.exists():
+            return {
+                "version": None,
+                "file_path": sheet_rel,
+                "created_at": None,
+                "resource_type": "scenes",
+                "resource_id": resource_id,
+                "skipped": "use_uploaded_as_final",
+            }
+
+    generator = await get_media_generator(project_name, payload=payload, user_id=user_id)
+    aspect_ratio = get_aspect_ratio(project, "scenes")
+
+    _, version = await generator.generate_image_async(
+        prompt=full_prompt,
+        resource_type="scenes",
+        resource_id=resource_id,
+        aspect_ratio=aspect_ratio,
+        image_size="1K",
+    )
+
+    sheet_path = f"scenes/{resource_id}.png"
+    created_at = await _finalize_generated_sheet(
+        project_name, "scenes", resource_id, "scene_sheet", sheet_path, generator
+    )
+
+    return {
+        "version": version,
+        "file_path": sheet_path,
+        "created_at": created_at,
+        "resource_type": "scenes",
         "resource_id": resource_id,
     }
 
@@ -900,6 +964,7 @@ _TASK_EXECUTORS = {
     "video": execute_video_task,
     "character": execute_character_task,
     "clue": execute_clue_task,
+    "scene": execute_scene_task,
 }
 
 

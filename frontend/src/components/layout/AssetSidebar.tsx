@@ -6,6 +6,7 @@ import {
   FileText,
   Users,
   Puzzle,
+  Mountain,
   Film,
   Circle,
   User,
@@ -282,6 +283,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
 
   const characters = currentProjectData?.characters ?? {};
   const clues = currentProjectData?.clues ?? {};
+  const scenes = currentProjectData?.scenes ?? {};
   const episodes = currentProjectData?.episodes ?? [];
   const projectName = currentProjectName ?? "";
 
@@ -461,6 +463,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
 
   const characterEntries = Object.entries(characters);
   const clueEntries = Object.entries(clues);
+  const sceneEntries = Object.entries(scenes);
 
   // Check if a path is active (matches current nested location)
   const isActive = (path: string) => location === path;
@@ -635,6 +638,52 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
                     <ClueThumbnail
                       name={name}
                       sheetPath={clue.clue_sheet}
+                      projectName={projectName}
+                    />
+                    <span className="truncate">{name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Scenes sub-section */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setLocation("/scenes")}
+            className={`focus-ring flex w-full items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${isActive("/scenes")
+              ? "text-[color:var(--wb-text-primary)]"
+              : "text-[color:var(--wb-text-dim)] hover:text-[color:var(--wb-text-secondary)]"
+              }`}
+          >
+            <Mountain className="h-3 w-3" />
+            <span>場景</span>
+          </button>
+          {sceneEntries.length === 0 ? (
+            <button
+              type="button"
+              onClick={() => setLocation("/scenes")}
+              className="focus-ring w-full px-3 py-1.5 text-left text-xs text-[color:var(--wb-text-dim)] italic hover:text-[color:var(--wb-text-secondary)]"
+            >
+              暫無場景，點選新增
+            </button>
+          ) : (
+            <ul>
+              {sceneEntries.map(([name, scene]) => (
+                <li key={name}>
+                  <button
+                    type="button"
+                    onClick={() => setLocation("/scenes")}
+                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors focus-ring ${isActive("/scenes")
+                      ? "workbench-panel-strong text-[color:var(--wb-text-primary)]"
+                      : "text-[color:var(--wb-text-secondary)] hover:bg-black/12 hover:text-[color:var(--wb-text-primary)]"
+                      }`}
+                  >
+                    <ClueThumbnail
+                      name={name}
+                      sheetPath={scene.scene_sheet}
                       projectName={projectName}
                     />
                     <span className="truncate">{name}</span>

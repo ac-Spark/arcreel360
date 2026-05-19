@@ -20,6 +20,8 @@ export interface Character {
   character_sheet?: string;
   voice_style?: string;
   reference_image?: string;
+  /** 開啟時：上傳的參考圖直接作為最終成品，不再經 AI 生成 */
+  use_uploaded_as_final?: boolean;
 }
 
 export interface Clue {
@@ -27,6 +29,21 @@ export interface Clue {
   description: string;
   importance: "major" | "minor";
   clue_sheet?: string;
+  reference_image?: string;
+  /** 開啟時：上傳的參考圖直接作為最終成品，不再經 AI 生成 */
+  use_uploaded_as_final?: boolean;
+}
+
+/**
+ * 場景（scene）實體。對應 project.json 的 `scenes` 欄位。
+ * 舊專案可能沒有此欄位（ProjectData.scenes 為 optional）。
+ */
+export interface Scene {
+  description: string;
+  scene_sheet?: string;
+  scene_ref?: string;
+  /** 開啟時：上傳的參考圖直接作為最終成品，不再經 AI 生成 */
+  use_uploaded_as_final?: boolean;
 }
 
 export interface AspectRatio {
@@ -89,6 +106,8 @@ export interface ProjectData {
   episodes: EpisodeMeta[];
   characters: Record<string, Character>;
   clues: Record<string, Clue>;
+  /** 舊專案沒有此欄位，讀取時可能為 undefined */
+  scenes?: Record<string, Scene>;
   /** Injected by StatusCalculator.enrich_project at read time */
   status?: ProjectStatus;
   video_backend?: string | null;

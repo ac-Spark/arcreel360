@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { User, Puzzle, Plus, Sparkles } from "lucide-react";
+import { User, Puzzle, Mountain, Plus, Sparkles } from "lucide-react";
 import { API } from "@/api";
 import { CharacterCard } from "./CharacterCard";
 import { ClueCard } from "./ClueCard";
+import { SceneCard } from "./SceneCard";
 import { useScrollTarget } from "@/hooks/useScrollTarget";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useAppStore } from "@/stores/app-store";
-import type { Character, Clue } from "@/types";
+import type { Character, Clue, Scene } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -16,8 +17,10 @@ interface LorebookGalleryProps {
   projectName: string;
   characters: Record<string, Character>;
   clues: Record<string, Clue>;
+  /** 舊專案可能沒有 scenes，預設視為空 */
+  scenes?: Record<string, Scene>;
   /** When specified, only show the given section without tab bar. */
-  mode?: "characters" | "clues";
+  mode?: "characters" | "clues" | "scenes";
   onSaveCharacter: (
     name: string,
     payload: {
@@ -29,6 +32,9 @@ interface LorebookGalleryProps {
   onUpdateClue: (name: string, updates: Partial<Clue>) => void;
   onGenerateCharacter: (name: string) => void;
   onGenerateClue: (name: string) => void;
+  onToggleCharacterUseUploaded?: (name: string, value: boolean) => Promise<void> | void;
+  onToggleClueUseUploaded?: (name: string, value: boolean) => Promise<void> | void;
+  onUploadClueReference?: (name: string, file: File) => Promise<void> | void;
   onDeleteCharacter?: (name: string) => Promise<void> | void;
   onDeleteClue?: (name: string) => Promise<void> | void;
   onRenameCharacter?: (oldName: string, newName: string) => Promise<void> | void;
@@ -37,17 +43,26 @@ interface LorebookGalleryProps {
   onRestoreClueVersion?: () => Promise<void> | void;
   generatingCharacterNames?: Set<string>;
   generatingClueNames?: Set<string>;
+  /** ---- Scene 相關 ---- */
+  onSaveScene: (
+    name: string,
+    payload: { description: string; referenceFile?: File | null },
+  ) => Promise<void>;
+  onToggleSceneUseUploaded: (name: string, value: boolean) => Promise<void> | void;
+  onDeleteScene?: (name: string) => Promise<void> | void;
   /** Called when the user clicks "新增角色". */
   onAddCharacter?: () => void;
   /** Called when the user clicks "新增線索". */
   onAddClue?: () => void;
+  /** Called when the user clicks "新增場景". */
+  onAddScene?: () => void;
 }
 
 // ---------------------------------------------------------------------------
 // Tab type
 // ---------------------------------------------------------------------------
 
-type Tab = "characters" | "clues";
+type Tab = "characters" | "clues" | "scenes";
 
 // ---------------------------------------------------------------------------
 // LorebookGallery
@@ -57,11 +72,15 @@ export function LorebookGallery({
   projectName,
   characters,
   clues,
+  scenes,
   mode,
   onSaveCharacter,
   onUpdateClue,
   onGenerateCharacter,
   onGenerateClue,
+  onToggleCharacterUseUploaded,
+  onToggleClueUseUploaded,
+  onUploadClueReference,
   onDeleteCharacter,
   onDeleteClue,
   onRenameCharacter,
@@ -70,8 +89,12 @@ export function LorebookGallery({
   onRestoreClueVersion,
   generatingCharacterNames,
   generatingClueNames,
+  onSaveScene,
+  onToggleSceneUseUploaded,
+  onDeleteScene,
   onAddCharacter,
   onAddClue,
+  onAddScene,
 }: LorebookGalleryProps) {
   const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<Tab>(mode ?? "characters");
@@ -99,8 +122,10 @@ export function LorebookGallery({
 
   const charEntries = Object.entries(characters);
   const clueEntries = Object.entries(clues);
+  const sceneEntries = Object.entries(scenes ?? {});
   const charCount = charEntries.length;
   const clueCount = clueEntries.length;
+  const sceneCount = sceneEntries.length;
 
   const [batchBusy, setBatchBusy] = useState<"characters" | "clues" | null>(null);
 
@@ -148,6 +173,12 @@ export function LorebookGallery({
           >
             道具 ({clueCount})
           </TabButton>
+          <TabButton
+            active={activeTab === "scenes"}
+            onClick={() => setActiveTab("scenes")}
+          >
+            場景 ({sceneCount})
+          </TabButton>
         </div>
       )}
 
@@ -168,6 +199,7 @@ export function LorebookGallery({
                     character={character}
                     projectName={projectName}
                     onSave={onSaveCharacter}
+                    onToggleUseUploaded={onToggleCharacterUseUploaded}
                     onGenerate={onGenerateCharacter}
                     onDelete={onDeleteCharacter}
                     onRename={onRenameCharacter}
@@ -228,6 +260,8 @@ export function LorebookGallery({
                     projectName={projectName}
                     onUpdate={onUpdateClue}
                     onGenerate={onGenerateClue}
+                    onUploadReference={onUploadClueReference}
+                    onToggleUseUploaded={onToggleClueUseUploaded}
                     onDelete={onDeleteClue}
                     onRename={onRenameClue}
                     onRestoreVersion={onRestoreClueVersion}
@@ -263,6 +297,37 @@ export function LorebookGallery({
                 </BatchButton>
               </>
             )}
+          </div>
+        </>
+      )}
+
+      {/* ---- Scenes tab ---- */}
+      {activeTab === "scenes" && (
+        <>
+          {sceneCount === 0 ? (
+            <EmptyState
+              icon={<Mountain className="h-12 w-12 text-gray-600" />}
+              message="暫無場景，點選下方按鈕新增"
+            />
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              {sceneEntries.map(([sceneName, scene]) => (
+                <div id={`scene-${sceneName}`} key={sceneName}>
+                  <SceneCard
+                    name={sceneName}
+                    scene={scene}
+                    projectName={projectName}
+                    onSave={onSaveScene}
+                    onToggleUseUploaded={onToggleSceneUseUploaded}
+                    onDelete={onDeleteScene}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {onAddScene && <AddButton onClick={onAddScene}>新增場景</AddButton>}
           </div>
         </>
       )}

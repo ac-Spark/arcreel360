@@ -73,6 +73,24 @@ def build_clue_prompt(
         return build_prop_prompt(name, description, style, style_description)
 
 
+def build_scene_prompt(name: str, description: str, style: str = "", style_description: str = "") -> str:
+    """
+    構建場景設計圖 Prompt
+
+    場景本質為環境/背景，沿用 location 模板。
+
+    Args:
+        name: 場景名稱
+        description: 場景描述
+        style: 專案風格
+        style_description: AI 分析的風格描述
+
+    Returns:
+        完整的 Prompt 字串
+    """
+    return build_location_prompt(name, description, style, style_description)
+
+
 def build_prop_prompt(name: str, description: str, style: str = "", style_description: str = "") -> str:
     """
     構建道具類線索 Prompt

@@ -56,6 +56,7 @@ class DataValidator:
         "drafts",
         "characters",
         "clues",
+        "scenes",
         "storyboards",
         "videos",
         "thumbnails",
@@ -571,6 +572,33 @@ class DataValidator:
                     errors,
                     f"clues[{clue_name}].clue_sheet",
                     default_dir="clues",
+                )
+                self._validate_local_reference(
+                    project_dir,
+                    clue_data.get("reference_image"),
+                    errors,
+                    f"clues[{clue_name}].reference_image",
+                    default_dir="clues/refs",
+                )
+
+        scenes = project.get("scenes", {})
+        if isinstance(scenes, dict):
+            for scene_name, scene_data in scenes.items():
+                if not isinstance(scene_data, dict):
+                    continue
+                self._validate_local_reference(
+                    project_dir,
+                    scene_data.get("scene_sheet"),
+                    errors,
+                    f"scenes[{scene_name}].scene_sheet",
+                    default_dir="scenes",
+                )
+                self._validate_local_reference(
+                    project_dir,
+                    scene_data.get("scene_ref"),
+                    errors,
+                    f"scenes[{scene_name}].scene_ref",
+                    default_dir="scenes/refs",
                 )
 
         episodes = project.get("episodes", [])

@@ -7,6 +7,7 @@
 import asyncio
 import json
 import logging
+import shutil
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -30,14 +31,146 @@ def get_project_manager() -> ProjectManager:
     return pm
 
 
+class _SkipPromotion(Exception):
+    """內部訊號：實體未開啟 use_uploaded_as_final，交易內中止以避免無謂寫回。"""
+
+
+def _apply_uploaded_as_final(
+    manager: ProjectManager,
+    project_name: str,
+    *,
+    kind: str,
+    name: str,
+    ref_abs: Path,
+    sheet_filename: str,
+) -> None:
+    """若該實體開啟 use_uploaded_as_final，將剛上傳的參考圖複製到正規 sheet 路徑。
+
+    這樣後續分鏡生圖／版本流程都能沿用既有 *_sheet 約定，無需特例。
+    kind: "character" | "clue" | "scene"
+    """
+    collection = {"character": "characters", "clue": "clues", "scene": "scenes"}[kind]
+    sheet_field = {"character": "character_sheet", "clue": "clue_sheet", "scene": "scene_sheet"}[kind]
+    sheet_rel = f"{collection}/{sheet_filename}"
+
+    def _promote(project: dict) -> None:
+        entry = project.get(collection, {}).get(name)
+        if not entry or not entry.get("use_uploaded_as_final"):
+            raise _SkipPromotion
+        sheet_dir = manager.get_project_path(project_name) / collection
+        sheet_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ref_abs, sheet_dir / sheet_filename)
+        entry[sheet_field] = sheet_rel
+
+    with project_change_source("webui"):
+        try:
+            manager.update_project(project_name, _promote)
+        except _SkipPromotion:
+            pass
+
+
+IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"]
+IMAGE_UPLOAD_TYPES = {"character", "character_ref", "clue", "clue_ref", "scene", "scene_ref", "storyboard"}
+UPLOAD_DIRS = {
+    "source": "source",
+    "character": "characters",
+    "character_ref": "characters/refs",
+    "clue": "clues",
+    "clue_ref": "clues/refs",
+    "scene": "scenes",
+    "scene_ref": "scenes/refs",
+    "storyboard": "storyboards",
+}
+REF_UPLOAD_KINDS = {
+    "character_ref": "character",
+    "clue_ref": "clue",
+    "scene_ref": "scene",
+}
+
 # 允許的檔案型別
 ALLOWED_EXTENSIONS = {
     "source": [".txt", ".md", ".doc", ".docx"],
-    "character": [".png", ".jpg", ".jpeg", ".webp"],
-    "character_ref": [".png", ".jpg", ".jpeg", ".webp"],
-    "clue": [".png", ".jpg", ".jpeg", ".webp"],
-    "storyboard": [".png", ".jpg", ".jpeg", ".webp"],
+    "character": IMAGE_EXTENSIONS,
+    "character_ref": IMAGE_EXTENSIONS,
+    "clue": IMAGE_EXTENSIONS,
+    "clue_ref": IMAGE_EXTENSIONS,
+    "scene": IMAGE_EXTENSIONS,
+    "scene_ref": IMAGE_EXTENSIONS,
+    "storyboard": IMAGE_EXTENSIONS,
 }
+
+
+def _build_upload_target(
+    project_dir: Path, upload_type: str, original_filename: str, name: str | None
+) -> tuple[Path, str]:
+    upload_dir = UPLOAD_DIRS.get(upload_type, upload_type)
+    target_dir = project_dir / upload_dir
+
+    if upload_type == "source":
+        return target_dir, original_filename
+
+    stem = name or Path(original_filename).stem
+    prefix = "scene_" if upload_type == "storyboard" and name else ""
+    return target_dir, f"{prefix}{stem}.png"
+
+
+def _update_upload_metadata(
+    manager: ProjectManager,
+    project_name: str,
+    upload_type: str,
+    name: str | None,
+    relative_path: str,
+    target_path: Path,
+    filename: str,
+) -> None:
+    if not name:
+        return
+
+    def _update_character_sheet() -> None:
+        manager.update_project_character_sheet(project_name, name, relative_path)
+
+    def _update_character_ref() -> None:
+        manager.update_character_reference_image(project_name, name, relative_path)
+
+    def _update_clue_sheet() -> None:
+        manager.update_clue_sheet(project_name, name, relative_path)
+
+    def _update_clue_ref() -> None:
+        manager.update_clue_reference_image(project_name, name, relative_path)
+
+    def _update_scene_sheet() -> None:
+        manager.update_scene_sheet(project_name, name, relative_path)
+
+    def _update_scene_ref() -> None:
+        manager.update_scene_reference_image(project_name, name, relative_path)
+
+    metadata_updates = {
+        "character": _update_character_sheet,
+        "character_ref": _update_character_ref,
+        "clue": _update_clue_sheet,
+        "clue_ref": _update_clue_ref,
+        "scene": _update_scene_sheet,
+        "scene_ref": _update_scene_ref,
+    }
+
+    update = metadata_updates.get(upload_type)
+    if update is None:
+        return
+
+    try:
+        with project_change_source("webui"):
+            update()
+        if kind := REF_UPLOAD_KINDS.get(upload_type):
+            _apply_uploaded_as_final(
+                manager,
+                project_name,
+                kind=kind,
+                name=name,
+                ref_abs=target_path,
+                sheet_filename=filename,
+            )
+    except KeyError:
+        pass  # 對應實體不存在，忽略
 
 
 @router.get("/files/{project_name}/{path:path}")
@@ -81,9 +214,9 @@ async def upload_file(
 
     Args:
         project_name: 專案名稱
-        upload_type: 上傳型別 (source/character/clue/storyboard)
+        upload_type: 上傳型別 (source/character/character_ref/clue/clue_ref/scene/scene_ref/storyboard)
         file: 上傳的檔案
-        name: 可選，用於角色/線索名稱，或分鏡 ID（自動更新後設資料）
+        name: 可選，用於角色/線索/場景名稱，或分鏡 ID（自動更新後設資料）
     """
     if upload_type not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail=f"無效的上傳型別：{upload_type}")
@@ -100,47 +233,15 @@ async def upload_file(
         content = await file.read()
 
         def _sync():
-            project_dir = get_project_manager().get_project_path(project_name)
-
-            # 確定目標目錄
-            if upload_type == "source":
-                target_dir = project_dir / "source"
-                filename = file.filename
-            elif upload_type == "character":
-                target_dir = project_dir / "characters"
-                # 統一儲存為 PNG，且使用穩定檔名（避免 jpg/png 不一致導致版本還原/引用異常）
-                if name:
-                    filename = f"{name}.png"
-                else:
-                    filename = f"{Path(file.filename).stem}.png"
-            elif upload_type == "character_ref":
-                target_dir = project_dir / "characters" / "refs"
-                if name:
-                    filename = f"{name}.png"
-                else:
-                    filename = f"{Path(file.filename).stem}.png"
-            elif upload_type == "clue":
-                target_dir = project_dir / "clues"
-                if name:
-                    filename = f"{name}.png"
-                else:
-                    filename = f"{Path(file.filename).stem}.png"
-            elif upload_type == "storyboard":
-                # 注意：目錄為 storyboards（複數），而不是 storyboard
-                target_dir = project_dir / "storyboards"
-                if name:
-                    filename = f"scene_{name}.png"
-                else:
-                    filename = f"{Path(file.filename).stem}.png"
-            else:
-                target_dir = project_dir / upload_type
-                filename = file.filename
+            manager = get_project_manager()
+            project_dir = manager.get_project_path(project_name)
+            target_dir, filename = _build_upload_target(project_dir, upload_type, file.filename, name)
 
             target_dir.mkdir(parents=True, exist_ok=True)
 
             # 儲存檔案（大於 2MB 時壓縮為 JPEG，否則校驗後原樣儲存）
             nonlocal content
-            if upload_type in ("character", "character_ref", "clue", "storyboard"):
+            if upload_type in IMAGE_UPLOAD_TYPES:
                 try:
                     content, ext = normalize_uploaded_image(content, Path(file.filename).suffix.lower())
                 except ValueError:
@@ -151,48 +252,8 @@ async def upload_file(
             with open(target_path, "wb") as f:
                 f.write(content)
 
-            # 更新後設資料
-            if upload_type == "source":
-                relative_path = f"source/{filename}"
-            elif upload_type == "character":
-                relative_path = f"characters/{filename}"
-            elif upload_type == "character_ref":
-                relative_path = f"characters/refs/{filename}"
-            elif upload_type == "clue":
-                relative_path = f"clues/{filename}"
-            elif upload_type == "storyboard":
-                relative_path = f"storyboards/{filename}"
-            else:
-                relative_path = f"{upload_type}/{filename}"
-
-            if upload_type == "character" and name:
-                try:
-                    with project_change_source("webui"):
-                        get_project_manager().update_project_character_sheet(
-                            project_name, name, f"characters/{filename}"
-                        )
-                except KeyError:
-                    pass  # 角色不存在，忽略
-
-            if upload_type == "character_ref" and name:
-                try:
-                    with project_change_source("webui"):
-                        get_project_manager().update_character_reference_image(
-                            project_name, name, f"characters/refs/{filename}"
-                        )
-                except KeyError:
-                    pass  # 角色不存在，忽略
-
-            if upload_type == "clue" and name:
-                try:
-                    with project_change_source("webui"):
-                        get_project_manager().update_clue_sheet(
-                            project_name,
-                            name,
-                            f"clues/{filename}",
-                        )
-                except KeyError:
-                    pass  # 線索不存在，忽略
+            relative_path = f"{UPLOAD_DIRS.get(upload_type, upload_type)}/{filename}"
+            _update_upload_metadata(manager, project_name, upload_type, name, relative_path, target_path, filename)
 
             return {
                 "success": True,

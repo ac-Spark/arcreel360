@@ -2,7 +2,7 @@
  * 集數工作流：建立/更新/刪除集、片段、場景、生成劇本/分鏡/影片 等。
  */
 
-import type { EpisodeMeta, EpisodeScript, ProjectData } from "@/types";
+import type { EpisodeMeta, EpisodeScript, ProjectData, Scene } from "@/types";
 import { withScriptFileQuery , getApi} from "./_http";
 import type { SuccessResponse } from "./types";
 
@@ -314,6 +314,50 @@ export const episodesApi = {
     return getApi().request(
       `/projects/${encodeURIComponent(projectName)}/clues/${encodeURIComponent(oldName)}/rename`,
       { method: "POST", body: JSON.stringify({ new_name: newName }) },
+    );
+  },
+
+  // ==================== 專案場景管理（project.json scenes） ====================
+  //
+  // 注意：本檔已有 `deleteScene`（L~180）負責刪除「劇集動畫模式劇本」中
+  // 的單一分鏡 scene（scene_id），語意完全不同。為避免覆蓋既有 export，
+  // 專案層級場景實體 CRUD 一律使用 `*ProjectScene` 命名。
+
+  async addProjectScene(
+    projectName: string,
+    name: string,
+    description: string,
+  ): Promise<{ success: boolean; scene: Scene }> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(projectName)}/scenes`,
+      {
+        method: "POST",
+        body: JSON.stringify({ name, description }),
+      },
+    );
+  },
+
+  async updateProjectScene(
+    projectName: string,
+    sceneName: string,
+    updates: Partial<Scene>,
+  ): Promise<{ success: boolean; scene: Scene }> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(projectName)}/scenes/${encodeURIComponent(sceneName)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(updates),
+      },
+    );
+  },
+
+  async deleteProjectScene(
+    projectName: string,
+    sceneName: string,
+  ): Promise<{ success: boolean; message: string }> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(projectName)}/scenes/${encodeURIComponent(sceneName)}`,
+      { method: "DELETE" },
     );
   },
 

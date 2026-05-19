@@ -1,72 +1,45 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ImagePlus, Pencil, Trash2, Upload, User } from "lucide-react";
+import { ImagePlus, Mountain, Trash2, Upload } from "lucide-react";
 import { API } from "@/api";
-import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
 import { AspectFrame } from "@/components/ui/AspectFrame";
-import { GenerateButton } from "@/components/ui/GenerateButton";
-import { ImageFlipReveal } from "@/components/ui/ImageFlipReveal";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useConfirm } from "@/hooks/useConfirm";
-import type { Character } from "@/types";
+import type { Scene } from "@/types";
 import { UseUploadedAsFinalToggle } from "./UseUploadedAsFinalToggle";
 
-interface CharacterSavePayload {
+interface SceneSavePayload {
   description: string;
-  voiceStyle: string;
   referenceFile?: File | null;
 }
 
-interface CharacterCardProps {
+interface SceneCardProps {
   name: string;
-  character: Character;
+  scene: Scene;
   projectName: string;
-  onSave: (name: string, payload: CharacterSavePayload) => Promise<void>;
-  onToggleUseUploaded?: (name: string, value: boolean) => Promise<void> | void;
-  onGenerate: (name: string) => void;
+  onSave: (name: string, payload: SceneSavePayload) => Promise<void>;
+  onToggleUseUploaded: (name: string, value: boolean) => Promise<void> | void;
   onDelete?: (name: string) => Promise<void> | void;
-  onRename?: (oldName: string, newName: string) => Promise<void> | void;
-  onRestoreVersion?: () => Promise<void> | void;
-  generating?: boolean;
 }
 
-export function CharacterCard({
+export function SceneCard({
   name,
-  character,
+  scene,
   projectName,
   onSave,
   onToggleUseUploaded,
-  onGenerate,
   onDelete,
-  onRename,
-  onRestoreVersion,
-  generating = false,
-}: CharacterCardProps) {
+}: SceneCardProps) {
   const confirm = useConfirm();
-  const [renaming, setRenaming] = useState(false);
-  const [nameDraft, setNameDraft] = useState(name);
 
-  useEffect(() => {
-    setNameDraft(name);
-  }, [name]);
-
-  const commitRename = async () => {
-    const trimmed = nameDraft.trim();
-    setRenaming(false);
-    if (!trimmed || trimmed === name || !onRename) {
-      setNameDraft(name);
-      return;
-    }
-    await onRename(name, trimmed);
-  };
   const sheetFp = useProjectsStore(
-    (s) => character.character_sheet ? s.getAssetFingerprint(character.character_sheet) : null,
+    (s) => (scene.scene_sheet ? s.getAssetFingerprint(scene.scene_sheet) : null),
   );
   const referenceFp = useProjectsStore(
-    (s) => character.reference_image ? s.getAssetFingerprint(character.reference_image) : null,
+    (s) => (scene.scene_ref ? s.getAssetFingerprint(scene.scene_ref) : null),
   );
-  const [description, setDescription] = useState(character.description);
-  const [voiceStyle, setVoiceStyle] = useState(character.voice_style ?? "");
+
+  const [description, setDescription] = useState(scene.description);
   const [imgError, setImgError] = useState(false);
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [referencePreview, setReferencePreview] = useState<string | null>(null);
@@ -76,13 +49,12 @@ export function CharacterCard({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    setDescription(character.description);
-    setVoiceStyle(character.voice_style ?? "");
-  }, [character.description, character.voice_style]);
+    setDescription(scene.description);
+  }, [scene.description]);
 
   useEffect(() => {
     setImgError(false);
-  }, [character.character_sheet, sheetFp]);
+  }, [scene.scene_sheet, sheetFp]);
 
   useEffect(() => {
     setReferenceFile(null);
@@ -90,7 +62,7 @@ export function CharacterCard({
       if (prev) URL.revokeObjectURL(prev);
       return null;
     });
-  }, [character.reference_image]);
+  }, [scene.scene_ref]);
 
   useEffect(() => {
     return () => {
@@ -113,9 +85,7 @@ export function CharacterCard({
   }, [autoResize, description]);
 
   const isDirty =
-    description !== character.description ||
-    voiceStyle !== (character.voice_style ?? "") ||
-    referenceFile !== null;
+    description !== scene.description || referenceFile !== null;
 
   const handleReferenceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -143,22 +113,18 @@ export function CharacterCard({
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave(name, {
-        description,
-        voiceStyle,
-        referenceFile,
-      });
+      await onSave(name, { description, referenceFile });
     } finally {
       setSaving(false);
     }
   };
 
-  const sheetUrl = character.character_sheet
-    ? API.getFileUrl(projectName, character.character_sheet, sheetFp)
+  const sheetUrl = scene.scene_sheet
+    ? API.getFileUrl(projectName, scene.scene_sheet, sheetFp)
     : null;
 
-  const savedReferenceUrl = character.reference_image
-    ? API.getFileUrl(projectName, character.reference_image, referenceFp)
+  const savedReferenceUrl = scene.scene_ref
+    ? API.getFileUrl(projectName, scene.scene_ref, referenceFp)
     : null;
 
   const displayedReferenceUrl = referencePreview ?? savedReferenceUrl;
@@ -177,89 +143,59 @@ export function CharacterCard({
         setIsEditing(false);
       }}
     >
-      <div className="mb-4 flex items-center justify-between gap-2">
-        {renaming ? (
-          <input
-            type="text"
-            autoFocus
-            value={nameDraft}
-            onChange={(e) => setNameDraft(e.target.value)}
-            onBlur={() => void commitRename()}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                void commitRename();
-              } else if (e.key === "Escape") {
-                setNameDraft(name);
-                setRenaming(false);
-              }
-            }}
-            className="flex-1 rounded border border-indigo-500 bg-gray-800 px-2 py-0.5 text-lg font-bold text-white focus:outline-none"
-            aria-label="角色名稱"
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={() => onRename && setRenaming(true)}
-            disabled={!onRename}
-            className="group flex flex-1 min-w-0 items-center gap-1.5 text-left disabled:cursor-default"
-            title={onRename ? "點擊改名" : undefined}
-          >
-            <h3 className="truncate text-lg font-bold text-white">{name}</h3>
-            {onRename && (
-              <Pencil className="h-3 w-3 shrink-0 text-gray-600 opacity-0 transition-opacity group-hover:opacity-100" />
-            )}
-          </button>
-        )}
+      {/* ---- Header ---- */}
+      <div className="mb-4 flex items-center gap-2">
+        <h3 className="min-w-0 flex-1 truncate text-lg font-bold text-white">
+          {name}
+        </h3>
+        <span className="shrink-0 rounded-full bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-300">
+          場景
+        </span>
         {onDelete && (
           <button
             type="button"
             onClick={async () => {
               const ok = await confirm({
-                message: `確定要刪除角色「${name}」？此操作無法復原。`,
+                message: `確定要刪除場景「${name}」？此操作無法復原。`,
                 danger: true,
               });
               if (ok) void onDelete(name);
             }}
             className="shrink-0 rounded p-1.5 text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60"
-            title="刪除角色"
-            aria-label={`刪除角色 ${name}`}
+            title="刪除場景"
+            aria-label={`刪除場景 ${name}`}
           >
             <Trash2 className="h-4 w-4" />
           </button>
         )}
       </div>
 
+      {/* ---- Images ---- */}
       <div className="mb-4 space-y-3">
         <div>
           <div className="mb-1.5 flex items-center justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-              角色設計圖
+              場景設計圖
             </span>
-            <VersionTimeMachine
-              projectName={projectName}
-              resourceType="characters"
-              resourceId={name}
-              onRestore={onRestoreVersion}
-            />
           </div>
           <PreviewableImageFrame
             src={sheetUrl && !imgError ? sheetUrl : null}
             alt={`${name} 設計圖`}
           >
-            <AspectFrame ratio="3:4">
-              <ImageFlipReveal
-                src={sheetUrl && !imgError ? sheetUrl : null}
-                alt={`${name} 設計圖`}
-                className="h-full w-full object-cover"
-                onError={() => setImgError(true)}
-                fallback={
-                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-500">
-                    <User className="h-10 w-10" />
-                    <span className="text-xs">點選生成</span>
-                  </div>
-                }
-              />
+            <AspectFrame ratio="16:9">
+              {sheetUrl && !imgError ? (
+                <img
+                  src={sheetUrl}
+                  alt={`${name} 設計圖`}
+                  className="h-full w-full object-cover"
+                  onError={() => setImgError(true)}
+                />
+              ) : (
+                <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-500">
+                  <Mountain className="h-10 w-10" />
+                  <span className="text-xs">尚無設計圖</span>
+                </div>
+              )}
             </AspectFrame>
           </PreviewableImageFrame>
         </div>
@@ -331,16 +267,14 @@ export function CharacterCard({
         </div>
       </div>
 
-      {onToggleUseUploaded && (
-        <div className="mb-3">
-          <UseUploadedAsFinalToggle
-            checked={Boolean(character.use_uploaded_as_final)}
-            onChange={(value) => void onToggleUseUploaded(name, value)}
-          />
-        </div>
-      )}
+      {/* ---- Use-uploaded-as-final toggle ---- */}
+      <UseUploadedAsFinalToggle
+        checked={Boolean(scene.use_uploaded_as_final)}
+        onChange={(value) => void onToggleUseUploaded(name, value)}
+      />
 
-      <label className="text-xs font-medium text-gray-400">描述</label>
+      {/* ---- Description ---- */}
+      <label className="mt-3 block text-xs font-medium text-gray-400">描述</label>
       <textarea
         ref={textareaRef}
         value={description}
@@ -348,16 +282,7 @@ export function CharacterCard({
         onInput={autoResize}
         rows={3}
         className="mt-1 w-full resize-none overflow-hidden rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-indigo-500 focus:outline-none"
-        placeholder="輸入角色描述..."
-      />
-
-      <label className="mt-3 block text-xs font-medium text-gray-400">聲音風格</label>
-      <input
-        type="text"
-        value={voiceStyle}
-        onChange={(e) => setVoiceStyle(e.target.value)}
-        className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-indigo-500 focus:outline-none"
-        placeholder="例如：溫柔但有威嚴"
+        placeholder="輸入場景描述..."
       />
 
       {isDirty && (
@@ -370,15 +295,6 @@ export function CharacterCard({
           {saving ? "儲存中..." : "儲存"}
         </button>
       )}
-
-      <div className="mt-3">
-        <GenerateButton
-          onClick={() => onGenerate(name)}
-          loading={generating}
-          label={character.character_sheet ? "重新生成設計圖" : "生成設計圖"}
-          className="w-full justify-center"
-        />
-      </div>
     </div>
   );
 }

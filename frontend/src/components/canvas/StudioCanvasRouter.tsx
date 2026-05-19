@@ -9,6 +9,7 @@ import { OverviewCanvas } from "./OverviewCanvas";
 import { SourceFileViewer } from "./SourceFileViewer";
 import { AddCharacterForm } from "./lorebook/AddCharacterForm";
 import { AddClueForm } from "./lorebook/AddClueForm";
+import { AddSceneForm } from "./lorebook/AddSceneForm";
 import { API } from "@/api";
 import { useVideoDurationOptions } from "@/hooks/useVideoDurationOptions";
 import { resolveEpisodeContentMode } from "@/utils/content-mode";
@@ -75,6 +76,7 @@ export function StudioCanvasRouter() {
 
   const [addingCharacter, setAddingCharacter] = useState(false);
   const [addingClue, setAddingClue] = useState(false);
+  const [addingScene, setAddingScene] = useState(false);
 
   const durationOptions = useVideoDurationOptions(currentProjectData?.video_backend);
 
@@ -342,6 +344,140 @@ export function StudioCanvasRouter() {
     }
   }, [currentProjectName, refreshProject]);
 
+  // ---- "自備圖直接當成品" 開關 ----
+  const handleToggleCharacterUseUploaded = useCallback(
+    async (name: string, value: boolean) => {
+      if (!currentProjectName) return;
+      try {
+        await API.updateCharacter(currentProjectName, name, {
+          use_uploaded_as_final: value,
+        });
+        await refreshProject();
+      } catch (err) {
+        useAppStore
+          .getState()
+          .pushToast(`更新角色設定失敗: ${(err as Error).message}`, "error");
+      }
+    },
+    [currentProjectName, refreshProject],
+  );
+
+  const handleToggleClueUseUploaded = useCallback(
+    async (name: string, value: boolean) => {
+      if (!currentProjectName) return;
+      try {
+        await API.updateClue(currentProjectName, name, {
+          use_uploaded_as_final: value,
+        });
+        await refreshProject();
+      } catch (err) {
+        useAppStore
+          .getState()
+          .pushToast(`更新道具設定失敗: ${(err as Error).message}`, "error");
+      }
+    },
+    [currentProjectName, refreshProject],
+  );
+
+  const handleUploadClueReference = useCallback(
+    async (name: string, file: File) => {
+      if (!currentProjectName) return;
+      try {
+        await API.uploadFile(currentProjectName, "clue_ref", file, name);
+        await refreshProject([buildEntityRevisionKey("clue", name)]);
+        useAppStore.getState().pushToast(`道具「${name}」參考圖已上傳`, "success");
+      } catch (err) {
+        useAppStore
+          .getState()
+          .pushToast(`上傳參考圖失敗: ${(err as Error).message}`, "error");
+      }
+    },
+    [currentProjectName, refreshProject],
+  );
+
+  // ---- Scene CRUD callbacks ----
+  const handleSaveScene = useCallback(
+    async (
+      name: string,
+      payload: { description: string; referenceFile?: File | null },
+    ) => {
+      if (!currentProjectName) return;
+      try {
+        await API.updateProjectScene(currentProjectName, name, {
+          description: payload.description,
+        });
+        if (payload.referenceFile) {
+          await API.uploadFile(
+            currentProjectName,
+            "scene_ref",
+            payload.referenceFile,
+            name,
+          );
+        }
+        // 注意：ProjectChange.entity_type 尚無 "scene"，無法走 entity
+        // revision 失效路徑；改以 refreshProject() 重抓 asset_fingerprints
+        // 讓 scene 圖片快取自然刷新。
+        await refreshProject();
+        useAppStore.getState().pushToast(`場景「${name}」已更新`, "success");
+      } catch (err) {
+        useAppStore
+          .getState()
+          .pushToast(`更新場景失敗: ${(err as Error).message}`, "error");
+      }
+    },
+    [currentProjectName, refreshProject],
+  );
+
+  const handleToggleSceneUseUploaded = useCallback(
+    async (name: string, value: boolean) => {
+      if (!currentProjectName) return;
+      try {
+        await API.updateProjectScene(currentProjectName, name, {
+          use_uploaded_as_final: value,
+        });
+        await refreshProject();
+      } catch (err) {
+        useAppStore
+          .getState()
+          .pushToast(`更新場景設定失敗: ${(err as Error).message}`, "error");
+      }
+    },
+    [currentProjectName, refreshProject],
+  );
+
+  const handleDeleteScene = useCallback(
+    async (name: string) => {
+      if (!currentProjectName) return;
+      try {
+        await API.deleteProjectScene(currentProjectName, name);
+        await refreshProject();
+        useAppStore.getState().pushToast(`場景「${name}」已刪除`, "success");
+      } catch (err) {
+        useAppStore
+          .getState()
+          .pushToast(`刪除場景失敗: ${(err as Error).message}`, "error");
+      }
+    },
+    [currentProjectName, refreshProject],
+  );
+
+  const handleAddSceneSubmit = useCallback(
+    async (name: string, description: string) => {
+      if (!currentProjectName) return;
+      try {
+        await API.addProjectScene(currentProjectName, name, description);
+        await refreshProject();
+        setAddingScene(false);
+        useAppStore.getState().pushToast(`場景「${name}」已新增`, "success");
+      } catch (err) {
+        useAppStore
+          .getState()
+          .pushToast(`新增場景失敗: ${(err as Error).message}`, "error");
+      }
+    },
+    [currentProjectName, refreshProject],
+  );
+
   const handleRestoreAsset = useCallback(async () => {
     await refreshProject();
   }, [refreshProject]);
@@ -369,18 +505,30 @@ export function StudioCanvasRouter() {
         <Redirect to="/characters" />
       </Route>
 
-      {/* Characters & Clues share one LorebookGallery to avoid remount flash */}
-      {(location === "/characters" || location === "/clues") && (
+      {/* Characters / Clues / Scenes share one LorebookGallery to avoid remount flash */}
+      {(location === "/characters" ||
+        location === "/clues" ||
+        location === "/scenes") && (
         <div className="p-4">
           <LorebookGallery
             projectName={currentProjectName}
             characters={currentProjectData?.characters ?? {}}
             clues={currentProjectData?.clues ?? {}}
-            mode={location === "/clues" ? "clues" : "characters"}
+            scenes={currentProjectData?.scenes ?? {}}
+            mode={
+              location === "/clues"
+                ? "clues"
+                : location === "/scenes"
+                  ? "scenes"
+                  : "characters"
+            }
             onSaveCharacter={handleSaveCharacter}
             onUpdateClue={handleUpdateClue}
             onGenerateCharacter={handleGenerateCharacter}
             onGenerateClue={handleGenerateClue}
+            onToggleCharacterUseUploaded={handleToggleCharacterUseUploaded}
+            onToggleClueUseUploaded={handleToggleClueUseUploaded}
+            onUploadClueReference={handleUploadClueReference}
             onDeleteCharacter={handleDeleteCharacter}
             onDeleteClue={handleDeleteClue}
             onRenameCharacter={handleRenameCharacter}
@@ -389,8 +537,12 @@ export function StudioCanvasRouter() {
             onRestoreClueVersion={handleRestoreAsset}
             generatingCharacterNames={generatingResources.characterNames}
             generatingClueNames={generatingResources.clueNames}
+            onSaveScene={handleSaveScene}
+            onToggleSceneUseUploaded={handleToggleSceneUseUploaded}
+            onDeleteScene={handleDeleteScene}
             onAddCharacter={() => setAddingCharacter(true)}
             onAddClue={() => setAddingClue(true)}
+            onAddScene={() => setAddingScene(true)}
           />
           {addingCharacter && (
             <AddCharacterForm
@@ -402,6 +554,12 @@ export function StudioCanvasRouter() {
             <AddClueForm
               onSubmit={handleAddClueSubmit}
               onCancel={() => setAddingClue(false)}
+            />
+          )}
+          {addingScene && (
+            <AddSceneForm
+              onSubmit={handleAddSceneSubmit}
+              onCancel={() => setAddingScene(false)}
             />
           )}
         </div>

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Pencil, Puzzle, Trash2 } from "lucide-react";
+import { ImagePlus, Pencil, Puzzle, Trash2, Upload } from "lucide-react";
 import { API } from "@/api";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
 import { AspectFrame } from "@/components/ui/AspectFrame";
@@ -8,6 +8,7 @@ import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useConfirm } from "@/hooks/useConfirm";
 import type { Clue } from "@/types";
+import { UseUploadedAsFinalToggle } from "./UseUploadedAsFinalToggle";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -19,6 +20,10 @@ interface ClueCardProps {
   projectName: string;
   onUpdate: (name: string, updates: Partial<Clue>) => void;
   onGenerate: (name: string) => void;
+  /** 上傳參考圖（multipart）。提供時才顯示參考圖上傳入口。 */
+  onUploadReference?: (name: string, file: File) => Promise<void> | void;
+  /** 切換「直接以上傳圖為最終成品」。 */
+  onToggleUseUploaded?: (name: string, value: boolean) => Promise<void> | void;
   onDelete?: (name: string) => Promise<void> | void;
   onRename?: (oldName: string, newName: string) => Promise<void> | void;
   onRestoreVersion?: () => Promise<void> | void;
@@ -44,6 +49,8 @@ export function ClueCard({
   projectName,
   onUpdate,
   onGenerate,
+  onUploadReference,
+  onToggleUseUploaded,
   onDelete,
   onRename,
   onRestoreVersion,
@@ -69,9 +76,16 @@ export function ClueCard({
   const sheetFp = useProjectsStore(
     (s) => clue.clue_sheet ? s.getAssetFingerprint(clue.clue_sheet) : null,
   );
+  const referenceFp = useProjectsStore(
+    (s) => clue.reference_image ? s.getAssetFingerprint(clue.reference_image) : null,
+  );
   const [description, setDescription] = useState(clue.description);
   const [imgError, setImgError] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  const [referencePreview, setReferencePreview] = useState<string | null>(null);
+  const [savingReference, setSavingReference] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isDirty = description !== clue.description;
 
@@ -82,6 +96,22 @@ export function ClueCard({
   useEffect(() => {
     setImgError(false);
   }, [clue.clue_sheet, sheetFp]);
+
+  useEffect(() => {
+    setReferenceFile(null);
+    setReferencePreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }, [clue.reference_image]);
+
+  useEffect(() => {
+    return () => {
+      if (referencePreview) {
+        URL.revokeObjectURL(referencePreview);
+      }
+    };
+  }, [referencePreview]);
 
   // Auto-resize textarea.
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -102,9 +132,35 @@ export function ClueCard({
     onUpdate(name, { description });
   };
 
+  const handleReferenceChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !onUploadReference) return;
+
+    setReferenceFile(file);
+    setReferencePreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+    setSavingReference(true);
+    try {
+      await onUploadReference(name, file);
+    } finally {
+      setSavingReference(false);
+    }
+  };
+
   const sheetUrl = clue.clue_sheet
     ? API.getFileUrl(projectName, clue.clue_sheet, sheetFp)
     : null;
+
+  const savedReferenceUrl = clue.reference_image
+    ? API.getFileUrl(projectName, clue.reference_image, referenceFp)
+    : null;
+
+  const displayedReferenceUrl = referencePreview ?? savedReferenceUrl;
 
   return (
     <div
@@ -222,6 +278,85 @@ export function ClueCard({
           </AspectFrame>
         </PreviewableImageFrame>
       </div>
+
+      {/* ---- Reference image upload ---- */}
+      {onUploadReference && (
+        <div className="mb-4">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+              參考圖
+            </span>
+            {displayedReferenceUrl && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="text-xs text-gray-400 transition-colors hover:text-gray-200"
+              >
+                替換
+              </button>
+            )}
+          </div>
+
+          {displayedReferenceUrl ? (
+            <PreviewableImageFrame
+              src={displayedReferenceUrl}
+              alt={`${name} 參考圖`}
+              buttonClassName="right-2.5 top-2.5"
+            >
+              <div className="relative overflow-hidden rounded-lg border border-gray-700 bg-gray-800">
+                <img
+                  src={displayedReferenceUrl}
+                  alt={`${name} 參考圖`}
+                  className="h-28 w-full object-cover"
+                />
+                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-3 py-2">
+                  <span className="flex items-center gap-1.5 text-xs text-gray-200">
+                    <ImagePlus className="h-3.5 w-3.5" />
+                    {savingReference
+                      ? "上傳中..."
+                      : referenceFile
+                        ? "已上傳參考圖"
+                        : "已儲存參考圖"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="rounded bg-black/40 px-2 py-1 text-xs text-gray-200 transition-colors hover:bg-black/60"
+                  >
+                    更換
+                  </button>
+                </div>
+              </div>
+            </PreviewableImageFrame>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-700 bg-gray-800/50 px-3 py-4 text-sm text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-300"
+            >
+              <Upload className="h-4 w-4" />
+              上傳參考圖
+            </button>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".png,.jpg,.jpeg,.webp"
+            onChange={handleReferenceChange}
+            className="hidden"
+          />
+        </div>
+      )}
+
+      {/* ---- Use-uploaded-as-final toggle ---- */}
+      {onToggleUseUploaded && (
+        <div className="mb-3">
+          <UseUploadedAsFinalToggle
+            checked={Boolean(clue.use_uploaded_as_final)}
+            onChange={(value) => void onToggleUseUploaded(name, value)}
+          />
+        </div>
+      )}
 
       {/* ---- Description ---- */}
       <textarea
