@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useMemo } from "react";
 import type { EntityMentionSources } from "@/utils/entity-mentions";
 import { tokenizeForHighlight } from "@/utils/entity-mentions-highlight";
 
@@ -19,7 +19,7 @@ interface MentionHighlightOverlayProps {
  */
 export const MentionHighlightOverlay = forwardRef<HTMLPreElement, MentionHighlightOverlayProps>(
   function MentionHighlightOverlay({ value, entities, className = "" }, ref) {
-    const tokens = tokenizeForHighlight(value, entities);
+    const tokens = useMemo(() => tokenizeForHighlight(value, entities), [value, entities]);
 
     return (
       <pre
