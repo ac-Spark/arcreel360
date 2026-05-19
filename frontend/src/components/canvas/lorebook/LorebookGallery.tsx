@@ -32,24 +32,26 @@ interface LorebookGalleryProps {
   onUpdateClue: (name: string, updates: Partial<Clue>) => void;
   onGenerateCharacter: (name: string) => void;
   onGenerateClue: (name: string) => void;
-  onToggleCharacterUseUploaded?: (name: string, value: boolean) => Promise<void> | void;
-  onToggleClueUseUploaded?: (name: string, value: boolean) => Promise<void> | void;
+  onGenerateScene: (name: string) => void;
   onUploadClueReference?: (name: string, file: File) => Promise<void> | void;
+  onUploadSceneReference?: (name: string, file: File) => Promise<void> | void;
   onDeleteCharacter?: (name: string) => Promise<void> | void;
   onDeleteClue?: (name: string) => Promise<void> | void;
   onRenameCharacter?: (oldName: string, newName: string) => Promise<void> | void;
   onRenameClue?: (oldName: string, newName: string) => Promise<void> | void;
+  onRenameScene?: (oldName: string, newName: string) => Promise<void> | void;
   onRestoreCharacterVersion?: () => Promise<void> | void;
   onRestoreClueVersion?: () => Promise<void> | void;
   generatingCharacterNames?: Set<string>;
   generatingClueNames?: Set<string>;
+  generatingSceneNames?: Set<string>;
   /** ---- Scene 相關 ---- */
   onSaveScene: (
     name: string,
-    payload: { description: string; referenceFile?: File | null },
+    payload: { description: string },
   ) => Promise<void>;
-  onToggleSceneUseUploaded: (name: string, value: boolean) => Promise<void> | void;
   onDeleteScene?: (name: string) => Promise<void> | void;
+  onRestoreSceneVersion?: () => Promise<void> | void;
   /** Called when the user clicks "新增角色". */
   onAddCharacter?: () => void;
   /** Called when the user clicks "新增線索". */
@@ -63,6 +65,13 @@ interface LorebookGalleryProps {
 // ---------------------------------------------------------------------------
 
 type Tab = "characters" | "clues" | "scenes";
+type BatchKind = "characters" | "clues" | "scenes";
+
+const BATCH_LABELS: Record<BatchKind, string> = {
+  characters: "角色",
+  clues: "道具",
+  scenes: "場景",
+};
 
 // ---------------------------------------------------------------------------
 // LorebookGallery
@@ -78,20 +87,22 @@ export function LorebookGallery({
   onUpdateClue,
   onGenerateCharacter,
   onGenerateClue,
-  onToggleCharacterUseUploaded,
-  onToggleClueUseUploaded,
+  onGenerateScene,
   onUploadClueReference,
+  onUploadSceneReference,
   onDeleteCharacter,
   onDeleteClue,
   onRenameCharacter,
   onRenameClue,
+  onRenameScene,
   onRestoreCharacterVersion,
   onRestoreClueVersion,
   generatingCharacterNames,
   generatingClueNames,
+  generatingSceneNames,
   onSaveScene,
-  onToggleSceneUseUploaded,
   onDeleteScene,
+  onRestoreSceneVersion,
   onAddCharacter,
   onAddClue,
   onAddScene,
@@ -127,23 +138,27 @@ export function LorebookGallery({
   const clueCount = clueEntries.length;
   const sceneCount = sceneEntries.length;
 
-  const [batchBusy, setBatchBusy] = useState<"characters" | "clues" | null>(null);
+  const [batchBusy, setBatchBusy] = useState<BatchKind | null>(null);
 
-  const runBatch = async (kind: "characters" | "clues", force: boolean) => {
+  const runBatch = async (kind: BatchKind, force: boolean) => {
     if (batchBusy) return;
-    const label = kind === "characters" ? "角色" : "道具";
     setBatchBusy(kind);
     try {
-      const res = kind === "characters"
-        ? await API.batchGenerateCharacters(projectName, { force })
-        : await API.batchGenerateClues(projectName, { force });
+      let res: { enqueued: string[]; skipped: { id: string; reason: string }[] };
+      if (kind === "characters") {
+        res = await API.batchGenerateCharacters(projectName, { force });
+      } else if (kind === "clues") {
+        res = await API.batchGenerateClues(projectName, { force });
+      } else {
+        res = await API.batchGenerateScenes(projectName, { force });
+      }
       useAppStore.getState().pushToast(
-        `已入隊 ${res.enqueued.length} 個${label}，略過 ${res.skipped.length}`,
+        `已入隊 ${res.enqueued.length} 個${BATCH_LABELS[kind]}，略過 ${res.skipped.length}`,
         "success",
       );
     } catch (err) {
       useAppStore.getState().pushToast(
-        `批次生成${label}失敗：${(err as Error).message}`,
+        `批次生成${BATCH_LABELS[kind]}失敗：${(err as Error).message}`,
         "error",
       );
     } finally {
@@ -155,6 +170,8 @@ export function LorebookGallery({
     generatingCharacterNames?.has(name) ?? false;
   const isGeneratingClue = (name: string) =>
     generatingClueNames?.has(name) ?? false;
+  const isGeneratingScene = (name: string) =>
+    generatingSceneNames?.has(name) ?? false;
 
   return (
     <div className="flex flex-col gap-4">
@@ -199,7 +216,6 @@ export function LorebookGallery({
                     character={character}
                     projectName={projectName}
                     onSave={onSaveCharacter}
-                    onToggleUseUploaded={onToggleCharacterUseUploaded}
                     onGenerate={onGenerateCharacter}
                     onDelete={onDeleteCharacter}
                     onRename={onRenameCharacter}
@@ -261,7 +277,6 @@ export function LorebookGallery({
                     onUpdate={onUpdateClue}
                     onGenerate={onGenerateClue}
                     onUploadReference={onUploadClueReference}
-                    onToggleUseUploaded={onToggleClueUseUploaded}
                     onDelete={onDeleteClue}
                     onRename={onRenameClue}
                     onRestoreVersion={onRestoreClueVersion}
@@ -318,8 +333,12 @@ export function LorebookGallery({
                     scene={scene}
                     projectName={projectName}
                     onSave={onSaveScene}
-                    onToggleUseUploaded={onToggleSceneUseUploaded}
+                    onGenerate={onGenerateScene}
+                    onUploadReference={onUploadSceneReference}
                     onDelete={onDeleteScene}
+                    onRename={onRenameScene}
+                    onRestoreVersion={onRestoreSceneVersion}
+                    generating={isGeneratingScene(sceneName)}
                   />
                 </div>
               ))}
@@ -328,6 +347,29 @@ export function LorebookGallery({
 
           <div className="flex flex-wrap items-center justify-center gap-2">
             {onAddScene && <AddButton onClick={onAddScene}>新增場景</AddButton>}
+            {sceneCount > 0 && (
+              <>
+                <BatchButton
+                  loading={batchBusy === "scenes"}
+                  disabled={batchBusy !== null}
+                  onClick={() => void runBatch("scenes", false)}
+                >
+                  批次生成（缺圖）
+                </BatchButton>
+                <BatchButton
+                  variant="warning"
+                  loading={batchBusy === "scenes"}
+                  disabled={batchBusy !== null}
+                  onClick={async () => {
+                    if (await confirm({ message: "會覆寫所有場景設計圖。確定？", danger: true })) {
+                      void runBatch("scenes", true);
+                    }
+                  }}
+                >
+                  全部重生
+                </BatchButton>
+              </>
+            )}
           </div>
         </>
       )}

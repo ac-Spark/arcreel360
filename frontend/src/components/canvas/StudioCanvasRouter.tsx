@@ -26,6 +26,7 @@ const ACTIVE_TASK_STATUSES = new Set<TaskItem["status"]>(["queued", "running"]);
 interface GeneratingResources {
   characterNames: Set<string>;
   clueNames: Set<string>;
+  sceneNames: Set<string>;
   storyboardIds: Set<string>;
   videoIds: Set<string>;
 }
@@ -39,6 +40,7 @@ function collectGeneratingResources(
   const resources: GeneratingResources = {
     characterNames: new Set<string>(),
     clueNames: new Set<string>(),
+    sceneNames: new Set<string>(),
     storyboardIds: new Set<string>(),
     videoIds: new Set<string>(),
   };
@@ -57,6 +59,9 @@ function collectGeneratingResources(
         break;
       case "clue":
         resources.clueNames.add(task.resource_id);
+        break;
+      case "scene":
+        resources.sceneNames.add(task.resource_id);
         break;
       case "storyboard":
         resources.storyboardIds.add(task.resource_id);
@@ -344,41 +349,6 @@ export function StudioCanvasRouter() {
     }
   }, [currentProjectName, refreshProject]);
 
-  // ---- "自備圖直接當成品" 開關 ----
-  const handleToggleCharacterUseUploaded = useCallback(
-    async (name: string, value: boolean) => {
-      if (!currentProjectName) return;
-      try {
-        await API.updateCharacter(currentProjectName, name, {
-          use_uploaded_as_final: value,
-        });
-        await refreshProject();
-      } catch (err) {
-        useAppStore
-          .getState()
-          .pushToast(`更新角色設定失敗: ${(err as Error).message}`, "error");
-      }
-    },
-    [currentProjectName, refreshProject],
-  );
-
-  const handleToggleClueUseUploaded = useCallback(
-    async (name: string, value: boolean) => {
-      if (!currentProjectName) return;
-      try {
-        await API.updateClue(currentProjectName, name, {
-          use_uploaded_as_final: value,
-        });
-        await refreshProject();
-      } catch (err) {
-        useAppStore
-          .getState()
-          .pushToast(`更新道具設定失敗: ${(err as Error).message}`, "error");
-      }
-    },
-    [currentProjectName, refreshProject],
-  );
-
   const handleUploadClueReference = useCallback(
     async (name: string, file: File) => {
       if (!currentProjectName) return;
@@ -399,24 +369,13 @@ export function StudioCanvasRouter() {
   const handleSaveScene = useCallback(
     async (
       name: string,
-      payload: { description: string; referenceFile?: File | null },
+      payload: { description: string },
     ) => {
       if (!currentProjectName) return;
       try {
         await API.updateProjectScene(currentProjectName, name, {
           description: payload.description,
         });
-        if (payload.referenceFile) {
-          await API.uploadFile(
-            currentProjectName,
-            "scene_ref",
-            payload.referenceFile,
-            name,
-          );
-        }
-        // 注意：ProjectChange.entity_type 尚無 "scene"，無法走 entity
-        // revision 失效路徑；改以 refreshProject() 重抓 asset_fingerprints
-        // 讓 scene 圖片快取自然刷新。
         await refreshProject();
         useAppStore.getState().pushToast(`場景「${name}」已更新`, "success");
       } catch (err) {
@@ -428,22 +387,51 @@ export function StudioCanvasRouter() {
     [currentProjectName, refreshProject],
   );
 
-  const handleToggleSceneUseUploaded = useCallback(
-    async (name: string, value: boolean) => {
+  const handleUploadSceneReference = useCallback(
+    async (name: string, file: File) => {
       if (!currentProjectName) return;
       try {
-        await API.updateProjectScene(currentProjectName, name, {
-          use_uploaded_as_final: value,
-        });
+        await API.uploadFile(currentProjectName, "scene_ref", file, name);
         await refreshProject();
+        useAppStore.getState().pushToast(`場景「${name}」參考圖已上傳`, "success");
       } catch (err) {
         useAppStore
           .getState()
-          .pushToast(`更新場景設定失敗: ${(err as Error).message}`, "error");
+          .pushToast(`上傳參考圖失敗: ${(err as Error).message}`, "error");
       }
     },
     [currentProjectName, refreshProject],
   );
+
+  const handleGenerateScene = useCallback(async (name: string) => {
+    if (!currentProjectName) return;
+    try {
+      await API.generateScene(
+        currentProjectName,
+        name,
+        currentProjectData?.scenes?.[name]?.description ?? "",
+      );
+      useAppStore
+        .getState()
+        .pushToast(`場景「${name}」生成任務已提交`, "success");
+    } catch (err) {
+      useAppStore.getState().pushToast(`提交失敗: ${(err as Error).message}`, "error");
+    }
+  }, [currentProjectName, currentProjectData]);
+
+  const handleRenameScene = useCallback(async (oldName: string, newName: string) => {
+    if (!currentProjectName) return;
+    try {
+      const res = await API.renameProjectScene(currentProjectName, oldName, newName);
+      await refreshProject();
+      useAppStore.getState().pushToast(
+        `場景「${oldName}」→「${newName}」（更新 ${res.scripts_updated} 份劇本）`,
+        "success",
+      );
+    } catch (err) {
+      useAppStore.getState().pushToast(`改名失敗: ${(err as Error).message}`, "error");
+    }
+  }, [currentProjectName, refreshProject]);
 
   const handleDeleteScene = useCallback(
     async (name: string) => {
@@ -526,20 +514,22 @@ export function StudioCanvasRouter() {
             onUpdateClue={handleUpdateClue}
             onGenerateCharacter={handleGenerateCharacter}
             onGenerateClue={handleGenerateClue}
-            onToggleCharacterUseUploaded={handleToggleCharacterUseUploaded}
-            onToggleClueUseUploaded={handleToggleClueUseUploaded}
+            onGenerateScene={handleGenerateScene}
             onUploadClueReference={handleUploadClueReference}
+            onUploadSceneReference={handleUploadSceneReference}
             onDeleteCharacter={handleDeleteCharacter}
             onDeleteClue={handleDeleteClue}
             onRenameCharacter={handleRenameCharacter}
             onRenameClue={handleRenameClue}
+            onRenameScene={handleRenameScene}
             onRestoreCharacterVersion={handleRestoreAsset}
             onRestoreClueVersion={handleRestoreAsset}
             generatingCharacterNames={generatingResources.characterNames}
             generatingClueNames={generatingResources.clueNames}
+            generatingSceneNames={generatingResources.sceneNames}
             onSaveScene={handleSaveScene}
-            onToggleSceneUseUploaded={handleToggleSceneUseUploaded}
             onDeleteScene={handleDeleteScene}
+            onRestoreSceneVersion={handleRestoreAsset}
             onAddCharacter={() => setAddingCharacter(true)}
             onAddClue={() => setAddingClue(true)}
             onAddScene={() => setAddingScene(true)}

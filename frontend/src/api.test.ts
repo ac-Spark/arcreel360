@@ -202,6 +202,7 @@ describe("API", () => {
       await API.addClue("demo", "Key", "prop", "important");
       await API.updateClue("demo", "Key", { importance: "minor" });
       await API.deleteClue("demo", "Key");
+      await API.renameProjectScene("demo", "Old Place", "New Place");
 
       await API.getScript("demo", "episode 1.json");
       await API.updateScene("demo", "scene-1", "episode_1.json", { x: 1 });
@@ -219,6 +220,8 @@ describe("API", () => {
       await API.generateVideo("demo", "seg-1", "vid", "episode_1.json");
       await API.generateCharacter("demo", "Hero", "prompt");
       await API.generateClue("demo", "Key", "prompt");
+      await API.generateScene("demo", "Place", "prompt");
+      await API.batchGenerateScenes("demo", { names: ["Place"], force: true });
 
       expect(requestSpy).toHaveBeenCalledWith("/projects");
       expect(requestSpy).toHaveBeenCalledWith("/projects", {
@@ -270,6 +273,10 @@ describe("API", () => {
           importance: "major",
         }),
       });
+      expect(requestSpy).toHaveBeenCalledWith("/projects/demo/project-scenes/Old%20Place/rename", {
+        method: "POST",
+        body: JSON.stringify({ new_name: "New Place" }),
+      });
       expect(requestSpy).toHaveBeenCalledWith(
         "/projects/demo/scripts/episode%201.json",
       );
@@ -293,6 +300,14 @@ describe("API", () => {
           script_file: "episode_1.json",
           duration_seconds: 4,
         }),
+      });
+      expect(requestSpy).toHaveBeenCalledWith("/projects/demo/generate/scene/Place", {
+        method: "POST",
+        body: JSON.stringify({ prompt: "prompt" }),
+      });
+      expect(requestSpy).toHaveBeenCalledWith("/projects/demo/generate/scenes/batch", {
+        method: "POST",
+        body: JSON.stringify({ names: ["Place"], force: true }),
       });
     });
 

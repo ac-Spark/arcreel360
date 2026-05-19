@@ -8,7 +8,7 @@
 
 export type TaskStatus = "queued" | "running" | "succeeded" | "failed";
 export type TaskMediaType = "image" | "video";
-export type TaskType = "storyboard" | "video" | "character" | "clue";
+export type TaskType = "storyboard" | "video" | "character" | "clue" | "scene";
 
 export interface TaskItem {
   task_id: string;

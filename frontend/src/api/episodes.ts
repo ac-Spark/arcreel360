@@ -3,8 +3,22 @@
  */
 
 import type { EpisodeMeta, EpisodeScript, ProjectData, Scene } from "@/types";
-import { withScriptFileQuery , getApi} from "./_http";
+import { getApi, withScriptFileQuery } from "./_http";
 import type { SuccessResponse } from "./types";
+
+type BatchGenerateResponse = {
+  enqueued: string[];
+  skipped: { id: string; reason: string }[];
+};
+
+type RenameResourceResponse = {
+  success: boolean;
+  old_name: string;
+  new_name: string;
+  files_moved: number;
+  scripts_updated: number;
+  versions_updated: number;
+};
 
 export const episodesApi = {
   async updateEpisode(
@@ -36,7 +50,7 @@ export const episodesApi = {
   async batchGenerateStoryboards(
     name: string,
     body: { script_file: string; ids?: string[] | null; force?: boolean },
-  ): Promise<{ enqueued: string[]; skipped: { id: string; reason: string }[] }> {
+  ): Promise<BatchGenerateResponse> {
     return getApi().request(
       `/projects/${encodeURIComponent(name)}/generate/storyboards/batch`,
       { method: "POST", body: JSON.stringify(body) },
@@ -46,7 +60,7 @@ export const episodesApi = {
   async batchGenerateVideos(
     name: string,
     body: { script_file: string; ids?: string[] | null; force?: boolean },
-  ): Promise<{ enqueued: string[]; skipped: { id: string; reason: string }[] }> {
+  ): Promise<BatchGenerateResponse> {
     return getApi().request(
       `/projects/${encodeURIComponent(name)}/generate/videos/batch`,
       { method: "POST", body: JSON.stringify(body) },
@@ -56,7 +70,7 @@ export const episodesApi = {
   async batchGenerateCharacters(
     name: string,
     body: { names?: string[] | null; force?: boolean } = {},
-  ): Promise<{ enqueued: string[]; skipped: { id: string; reason: string }[] }> {
+  ): Promise<BatchGenerateResponse> {
     return getApi().request(
       `/projects/${encodeURIComponent(name)}/generate/characters/batch`,
       { method: "POST", body: JSON.stringify(body) },
@@ -66,9 +80,19 @@ export const episodesApi = {
   async batchGenerateClues(
     name: string,
     body: { names?: string[] | null; force?: boolean } = {},
-  ): Promise<{ enqueued: string[]; skipped: { id: string; reason: string }[] }> {
+  ): Promise<BatchGenerateResponse> {
     return getApi().request(
       `/projects/${encodeURIComponent(name)}/generate/clues/batch`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  },
+
+  async batchGenerateScenes(
+    name: string,
+    body: { names?: string[] | null; force?: boolean } = {},
+  ): Promise<BatchGenerateResponse> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(name)}/generate/scenes/batch`,
       { method: "POST", body: JSON.stringify(body) },
     );
   },
@@ -238,14 +262,7 @@ export const episodesApi = {
     projectName: string,
     oldName: string,
     newName: string,
-  ): Promise<{
-    success: boolean;
-    old_name: string;
-    new_name: string;
-    files_moved: number;
-    scripts_updated: number;
-    versions_updated: number;
-  }> {
+  ): Promise<RenameResourceResponse> {
     return getApi().request(
       `/projects/${encodeURIComponent(projectName)}/characters/${encodeURIComponent(oldName)}/rename`,
       { method: "POST", body: JSON.stringify({ new_name: newName }) },
@@ -303,14 +320,7 @@ export const episodesApi = {
     projectName: string,
     oldName: string,
     newName: string,
-  ): Promise<{
-    success: boolean;
-    old_name: string;
-    new_name: string;
-    files_moved: number;
-    scripts_updated: number;
-    versions_updated: number;
-  }> {
+  ): Promise<RenameResourceResponse> {
     return getApi().request(
       `/projects/${encodeURIComponent(projectName)}/clues/${encodeURIComponent(oldName)}/rename`,
       { method: "POST", body: JSON.stringify({ new_name: newName }) },
@@ -321,7 +331,8 @@ export const episodesApi = {
   //
   // 注意：本檔已有 `deleteScene`（L~180）負責刪除「劇集動畫模式劇本」中
   // 的單一分鏡 scene（scene_id），語意完全不同。為避免覆蓋既有 export，
-  // 專案層級場景實體 CRUD 一律使用 `*ProjectScene` 命名。
+  // 專案層級場景實體 CRUD 一律使用 `*ProjectScene` 命名，API path
+  // 也使用 `/project-scenes` 避免撞到劇本內分鏡 `/scenes/{scene_id}`。
 
   async addProjectScene(
     projectName: string,
@@ -329,7 +340,7 @@ export const episodesApi = {
     description: string,
   ): Promise<{ success: boolean; scene: Scene }> {
     return getApi().request(
-      `/projects/${encodeURIComponent(projectName)}/scenes`,
+      `/projects/${encodeURIComponent(projectName)}/project-scenes`,
       {
         method: "POST",
         body: JSON.stringify({ name, description }),
@@ -343,7 +354,7 @@ export const episodesApi = {
     updates: Partial<Scene>,
   ): Promise<{ success: boolean; scene: Scene }> {
     return getApi().request(
-      `/projects/${encodeURIComponent(projectName)}/scenes/${encodeURIComponent(sceneName)}`,
+      `/projects/${encodeURIComponent(projectName)}/project-scenes/${encodeURIComponent(sceneName)}`,
       {
         method: "PATCH",
         body: JSON.stringify(updates),
@@ -356,8 +367,19 @@ export const episodesApi = {
     sceneName: string,
   ): Promise<{ success: boolean; message: string }> {
     return getApi().request(
-      `/projects/${encodeURIComponent(projectName)}/scenes/${encodeURIComponent(sceneName)}`,
+      `/projects/${encodeURIComponent(projectName)}/project-scenes/${encodeURIComponent(sceneName)}`,
       { method: "DELETE" },
+    );
+  },
+
+  async renameProjectScene(
+    projectName: string,
+    oldName: string,
+    newName: string,
+  ): Promise<RenameResourceResponse> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(projectName)}/project-scenes/${encodeURIComponent(oldName)}/rename`,
+      { method: "POST", body: JSON.stringify({ new_name: newName }) },
     );
   },
 
@@ -465,6 +487,21 @@ export const episodesApi = {
   ): Promise<{ success: boolean; task_id: string; message: string }> {
     return getApi().request(
       `/projects/${encodeURIComponent(projectName)}/generate/clue/${encodeURIComponent(clueName)}`,
+      {
+        method: "POST",
+        body: JSON.stringify({ prompt }),
+      },
+    );
+  },
+
+  /** 生成場景設計圖 */
+  async generateScene(
+    projectName: string,
+    sceneName: string,
+    prompt: string,
+  ): Promise<{ success: boolean; task_id: string; message: string }> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(projectName)}/generate/scene/${encodeURIComponent(sceneName)}`,
       {
         method: "POST",
         body: JSON.stringify({ prompt }),

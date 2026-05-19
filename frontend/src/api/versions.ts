@@ -9,7 +9,7 @@ export const versionsApi = {
   /**
    * 獲取資源版本列表
    * @param projectName - 專案名稱
-   * @param resourceType - 資源型別 (storyboards, videos, characters, clues)
+   * @param resourceType - 資源型別 (storyboards, videos, characters, clues, scenes)
    * @param resourceId - 資源 ID
    */
   async getVersions(

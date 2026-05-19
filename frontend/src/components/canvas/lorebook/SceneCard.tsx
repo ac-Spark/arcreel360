@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ImagePlus, Mountain, Trash2, Upload } from "lucide-react";
+import { ImagePlus, Mountain, Pencil, Trash2, Upload } from "lucide-react";
 import { API } from "@/api";
+import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
 import { AspectFrame } from "@/components/ui/AspectFrame";
+import { GenerateButton } from "@/components/ui/GenerateButton";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useConfirm } from "@/hooks/useConfirm";
 import type { Scene } from "@/types";
-import { UseUploadedAsFinalToggle } from "./UseUploadedAsFinalToggle";
 
 interface SceneSavePayload {
   description: string;
-  referenceFile?: File | null;
 }
 
 interface SceneCardProps {
@@ -18,8 +18,12 @@ interface SceneCardProps {
   scene: Scene;
   projectName: string;
   onSave: (name: string, payload: SceneSavePayload) => Promise<void>;
-  onToggleUseUploaded: (name: string, value: boolean) => Promise<void> | void;
+  onGenerate?: (name: string) => void;
+  onUploadReference?: (name: string, file: File) => Promise<void> | void;
   onDelete?: (name: string) => Promise<void> | void;
+  onRename?: (oldName: string, newName: string) => Promise<void> | void;
+  onRestoreVersion?: () => Promise<void> | void;
+  generating?: boolean;
 }
 
 export function SceneCard({
@@ -27,10 +31,30 @@ export function SceneCard({
   scene,
   projectName,
   onSave,
-  onToggleUseUploaded,
+  onGenerate,
+  onUploadReference,
   onDelete,
+  onRename,
+  onRestoreVersion,
+  generating = false,
 }: SceneCardProps) {
   const confirm = useConfirm();
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState(name);
+
+  useEffect(() => {
+    setNameDraft(name);
+  }, [name]);
+
+  const commitRename = async () => {
+    const trimmed = nameDraft.trim();
+    setRenaming(false);
+    if (!trimmed || trimmed === name || !onRename) {
+      setNameDraft(name);
+      return;
+    }
+    await onRename(name, trimmed);
+  };
 
   const sheetFp = useProjectsStore(
     (s) => (scene.scene_sheet ? s.getAssetFingerprint(scene.scene_sheet) : null),
@@ -44,6 +68,7 @@ export function SceneCard({
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [referencePreview, setReferencePreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savingReference, setSavingReference] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -84,36 +109,30 @@ export function SceneCard({
     autoResize();
   }, [autoResize, description]);
 
-  const isDirty =
-    description !== scene.description || referenceFile !== null;
+  const isDirty = description !== scene.description;
 
-  const handleReferenceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleReferenceChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    e.target.value = "";
+    if (!file || !onUploadReference) return;
 
     setReferenceFile(file);
     setReferencePreview((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return URL.createObjectURL(file);
     });
-    e.target.value = "";
-  };
-
-  const clearPendingReference = () => {
-    setReferenceFile(null);
-    setReferencePreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    setSavingReference(true);
+    try {
+      await onUploadReference(name, file);
+    } finally {
+      setSavingReference(false);
     }
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave(name, { description, referenceFile });
+      await onSave(name, { description });
     } finally {
       setSaving(false);
     }
@@ -128,7 +147,12 @@ export function SceneCard({
     : null;
 
   const displayedReferenceUrl = referencePreview ?? savedReferenceUrl;
-  const hasSavedReference = Boolean(savedReferenceUrl) && !referencePreview;
+  let referenceStatusLabel = "已儲存參考圖";
+  if (savingReference) {
+    referenceStatusLabel = "上傳中...";
+  } else if (referenceFile) {
+    referenceStatusLabel = "已上傳參考圖";
+  }
 
   return (
     <div
@@ -145,12 +169,39 @@ export function SceneCard({
     >
       {/* ---- Header ---- */}
       <div className="mb-4 flex items-center gap-2">
-        <h3 className="min-w-0 flex-1 truncate text-lg font-bold text-white">
-          {name}
-        </h3>
-        <span className="shrink-0 rounded-full bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-300">
-          場景
-        </span>
+        {renaming ? (
+          <input
+            type="text"
+            autoFocus
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onBlur={() => void commitRename()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void commitRename();
+              } else if (e.key === "Escape") {
+                setNameDraft(name);
+                setRenaming(false);
+              }
+            }}
+            className="min-w-0 flex-1 rounded border border-indigo-500 bg-gray-800 px-2 py-0.5 text-lg font-bold text-white focus:outline-none"
+            aria-label="場景名稱"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => onRename && setRenaming(true)}
+            disabled={!onRename}
+            className="group flex min-w-0 flex-1 items-center gap-1.5 text-left disabled:cursor-default"
+            title={onRename ? "點擊改名" : undefined}
+          >
+            <h3 className="truncate text-lg font-bold text-white">{name}</h3>
+            {onRename && (
+              <Pencil className="h-3 w-3 shrink-0 text-gray-600 opacity-0 transition-opacity group-hover:opacity-100" />
+            )}
+          </button>
+        )}
         {onDelete && (
           <button
             type="button"
@@ -177,6 +228,12 @@ export function SceneCard({
             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
               場景設計圖
             </span>
+            <VersionTimeMachine
+              projectName={projectName}
+              resourceType="scenes"
+              resourceId={name}
+              onRestore={onRestoreVersion}
+            />
           </div>
           <PreviewableImageFrame
             src={sheetUrl && !imgError ? sheetUrl : null}
@@ -200,81 +257,73 @@ export function SceneCard({
           </PreviewableImageFrame>
         </div>
 
-        <div>
-          <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-              參考圖
-            </span>
-            {(referenceFile || hasSavedReference) && (
+        {onUploadReference && (
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                參考圖
+              </span>
+              {displayedReferenceUrl && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs text-gray-400 transition-colors hover:text-gray-200"
+                >
+                  替換
+                </button>
+              )}
+            </div>
+
+            {displayedReferenceUrl ? (
+              <PreviewableImageFrame
+                src={displayedReferenceUrl}
+                alt={`${name} 參考圖`}
+                buttonClassName="right-2.5 top-2.5"
+              >
+                <div className="relative overflow-hidden rounded-lg border border-gray-700 bg-gray-800">
+                  <img
+                    src={displayedReferenceUrl}
+                    alt={`${name} 參考圖`}
+                    className="h-28 w-full object-cover"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-3 py-2">
+                    <span className="flex items-center gap-1.5 text-xs text-gray-200">
+                      <ImagePlus className="h-3.5 w-3.5" />
+                      {referenceStatusLabel}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="rounded bg-black/40 px-2 py-1 text-xs text-gray-200 transition-colors hover:bg-black/60"
+                    >
+                      更換
+                    </button>
+                  </div>
+                </div>
+              </PreviewableImageFrame>
+            ) : (
               <button
                 type="button"
-                onClick={() =>
-                  referenceFile
-                    ? clearPendingReference()
-                    : fileInputRef.current?.click()
-                }
-                className="text-xs text-gray-400 transition-colors hover:text-gray-200"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-700 bg-gray-800/50 px-3 py-4 text-sm text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-300"
               >
-                {referenceFile ? "取消待上傳" : "替換"}
+                <Upload className="h-4 w-4" />
+                上傳參考圖
               </button>
             )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".png,.jpg,.jpeg,.webp"
+              onChange={handleReferenceChange}
+              className="hidden"
+            />
           </div>
-
-          {displayedReferenceUrl ? (
-            <PreviewableImageFrame
-              src={displayedReferenceUrl}
-              alt={`${name} 參考圖`}
-              buttonClassName="right-2.5 top-2.5"
-            >
-              <div className="relative overflow-hidden rounded-lg border border-gray-700 bg-gray-800">
-                <img
-                  src={displayedReferenceUrl}
-                  alt={`${name} 參考圖`}
-                  className="h-28 w-full object-cover"
-                />
-                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-3 py-2">
-                  <span className="flex items-center gap-1.5 text-xs text-gray-200">
-                    <ImagePlus className="h-3.5 w-3.5" />
-                    {referenceFile ? "待儲存參考圖" : "已儲存參考圖"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="rounded bg-black/40 px-2 py-1 text-xs text-gray-200 transition-colors hover:bg-black/60"
-                  >
-                    更換
-                  </button>
-                </div>
-              </div>
-            </PreviewableImageFrame>
-          ) : (
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-700 bg-gray-800/50 px-3 py-4 text-sm text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-300"
-            >
-              <Upload className="h-4 w-4" />
-              上傳參考圖
-            </button>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".png,.jpg,.jpeg,.webp"
-            onChange={handleReferenceChange}
-            className="hidden"
-          />
-        </div>
+        )}
       </div>
 
-      {/* ---- Use-uploaded-as-final toggle ---- */}
-      <UseUploadedAsFinalToggle
-        checked={Boolean(scene.use_uploaded_as_final)}
-        onChange={(value) => void onToggleUseUploaded(name, value)}
-      />
-
       {/* ---- Description ---- */}
-      <label className="mt-3 block text-xs font-medium text-gray-400">描述</label>
+      <label className="block text-xs font-medium text-gray-400">描述</label>
       <textarea
         ref={textareaRef}
         value={description}
@@ -294,6 +343,17 @@ export function SceneCard({
         >
           {saving ? "儲存中..." : "儲存"}
         </button>
+      )}
+
+      {onGenerate && (
+        <div className="mt-3">
+          <GenerateButton
+            onClick={() => onGenerate(name)}
+            loading={generating}
+            label={scene.scene_sheet ? "重新生成設計圖" : "生成設計圖"}
+            className="w-full justify-center"
+          />
+        </div>
       )}
     </div>
   );

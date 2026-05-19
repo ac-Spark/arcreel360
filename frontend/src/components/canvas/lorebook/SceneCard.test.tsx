@@ -30,11 +30,11 @@ describe("SceneCard", () => {
         scene={{ description: "陰森的走廊" }}
         projectName="demo"
         onSave={vi.fn()}
-        onToggleUseUploaded={vi.fn()}
       />,
     );
 
     expect(screen.getByText("廢棄醫院")).toBeInTheDocument();
+    expect(screen.queryByText("場景")).not.toBeInTheDocument();
     const textarea = screen.getByPlaceholderText("輸入場景描述...");
     expect(textarea).toHaveValue("陰森的走廊");
   });
@@ -49,7 +49,6 @@ describe("SceneCard", () => {
         }}
         projectName="demo"
         onSave={vi.fn()}
-        onToggleUseUploaded={vi.fn()}
       />,
     );
 
@@ -57,30 +56,6 @@ describe("SceneCard", () => {
       "src",
       "/api/v1/files/demo/scenes/廢棄醫院.png",
     );
-  });
-
-  it("calls onToggleUseUploaded when the switch is clicked", async () => {
-    const onToggle = vi.fn().mockResolvedValue(undefined);
-    renderSceneCard(
-      <SceneCard
-        name="廢棄醫院"
-        scene={{ description: "陰森的走廊", use_uploaded_as_final: false }}
-        projectName="demo"
-        onSave={vi.fn()}
-        onToggleUseUploaded={onToggle}
-      />,
-    );
-
-    const sw = screen.getByRole("switch", {
-      name: "直接以上傳圖為最終成品",
-    });
-    expect(sw).toHaveAttribute("aria-checked", "false");
-
-    fireEvent.click(sw);
-
-    await waitFor(() => {
-      expect(onToggle).toHaveBeenCalledWith("廢棄醫院", true);
-    });
   });
 
   it("submits description changes through onSave", async () => {
@@ -91,7 +66,6 @@ describe("SceneCard", () => {
         scene={{ description: "陰森的走廊" }}
         projectName="demo"
         onSave={onSave}
-        onToggleUseUploaded={vi.fn()}
       />,
     );
 
@@ -103,20 +77,59 @@ describe("SceneCard", () => {
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith("廢棄醫院", {
         description: "陰森的走廊與破窗",
-        referenceFile: null,
       });
     });
   });
 
-  it("keeps a selected reference file and submits it on save", async () => {
+  it("calls onGenerate when the generate button is clicked", () => {
+    const onGenerate = vi.fn();
+    renderSceneCard(
+      <SceneCard
+        name="廢棄醫院"
+        scene={{ description: "陰森的走廊" }}
+        projectName="demo"
+        onSave={vi.fn()}
+        onGenerate={onGenerate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "生成設計圖" }));
+
+    expect(onGenerate).toHaveBeenCalledWith("廢棄醫院");
+  });
+
+  it("calls onRename after editing the scene name", async () => {
+    const onRename = vi.fn().mockResolvedValue(undefined);
+    renderSceneCard(
+      <SceneCard
+        name="廢棄醫院"
+        scene={{ description: "陰森的走廊" }}
+        projectName="demo"
+        onSave={vi.fn()}
+        onRename={onRename}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "廢棄醫院" }));
+    const input = screen.getByLabelText("場景名稱");
+    fireEvent.change(input, { target: { value: "地下診所" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(onRename).toHaveBeenCalledWith("廢棄醫院", "地下診所");
+    });
+  });
+
+  it("uploads a selected reference file immediately", async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
+    const onUploadReference = vi.fn().mockResolvedValue(undefined);
     const { container } = renderSceneCard(
       <SceneCard
         name="廢棄醫院"
         scene={{ description: "陰森的走廊" }}
         projectName="demo"
         onSave={onSave}
-        onToggleUseUploaded={vi.fn()}
+        onUploadReference={onUploadReference}
       />,
     );
 
@@ -128,16 +141,12 @@ describe("SceneCard", () => {
       target: { files: [file] },
     });
 
-    expect(screen.getByText("待儲存參考圖")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "儲存" }));
-
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith("廢棄醫院", {
-        description: "陰森的走廊",
-        referenceFile: file,
-      });
+      expect(onUploadReference).toHaveBeenCalledWith("廢棄醫院", file);
+      expect(screen.getByText("已上傳參考圖")).toBeInTheDocument();
     });
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "儲存" })).not.toBeInTheDocument();
   });
 
   it("confirms before deleting", async () => {
@@ -148,7 +157,6 @@ describe("SceneCard", () => {
         scene={{ description: "陰森的走廊" }}
         projectName="demo"
         onSave={vi.fn()}
-        onToggleUseUploaded={vi.fn()}
         onDelete={onDelete}
       />,
     );

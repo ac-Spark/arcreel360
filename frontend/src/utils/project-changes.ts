@@ -27,7 +27,7 @@ export function buildEntityRevisionKey(
 }
 
 export function buildVersionResourceRevisionKey(
-  resourceType: "storyboards" | "videos" | "characters" | "clues",
+  resourceType: "storyboards" | "videos" | "characters" | "clues" | "scenes",
   resourceId: string,
 ): string {
   if (resourceType === "storyboards" || resourceType === "videos") {
@@ -35,6 +35,12 @@ export function buildVersionResourceRevisionKey(
   }
   if (resourceType === "characters") {
     return buildEntityRevisionKey("character", resourceId);
+  }
+  if (resourceType === "scenes") {
+    // ProjectChange.entity_type 尚無 "scene"，無法走 entity revision
+    // 失效路徑（同 StudioCanvasRouter.handleSaveScene 的處理）。這裡仍
+    // 回傳穩定的 scene 專屬 key，呼叫端用 refreshProject() 重抓快取。
+    return `scene:${resourceId}`;
   }
   return buildEntityRevisionKey("clue", resourceId);
 }

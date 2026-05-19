@@ -1,4 +1,4 @@
-"""resource_rename.py — 角色 / 道具改名（含檔案、版本、劇本引用）
+"""resource_rename.py — 角色 / 道具 / 場景改名（含檔案、版本、劇本引用）
 
 設計目標：
 - **原子性**：失敗時 rollback 已搬移的檔案，不留中途狀態
@@ -18,7 +18,38 @@ from typing import Literal
 
 logger = logging.getLogger(__name__)
 
-ResourceKind = Literal["character", "clue"]
+ResourceKind = Literal["character", "clue", "scene"]
+
+_BUCKET_BY_KIND: dict[ResourceKind, str] = {
+    "character": "characters",
+    "clue": "clues",
+    "scene": "scenes",
+}
+_FOLDER_BY_KIND: dict[ResourceKind, str] = {
+    "character": "characters",
+    "clue": "clues",
+    "scene": "scenes",
+}
+_SHEET_KEY_BY_KIND: dict[ResourceKind, str] = {
+    "character": "character_sheet",
+    "clue": "clue_sheet",
+    "scene": "scene_sheet",
+}
+_REF_FIELD_BY_KIND: dict[ResourceKind, tuple[str, str]] = {
+    "character": ("reference_image", "characters/refs"),
+    "clue": ("reference_image", "clues/refs"),
+    "scene": ("scene_ref", "scenes/refs"),
+}
+_LIST_REFERENCE_KEYS_BY_KIND: dict[ResourceKind, list[str]] = {
+    "character": ["characters_in_segment", "characters_in_scene"],
+    "clue": ["clues_in_segment", "clues_in_scene"],
+    "scene": [],
+}
+_SCALAR_REFERENCE_KEYS_BY_KIND: dict[ResourceKind, list[str]] = {
+    "character": [],
+    "clue": [],
+    "scene": ["scene_in_segment", "scene_in_scene"],
+}
 
 # 不允許的檔名字元（路徑分隔、保留字元、控制字元）
 _INVALID_NAME_RE = re.compile(r'[/\\:\*\?"<>\|\x00-\x1f]')
@@ -59,11 +90,11 @@ def rename_resource(
     old_name: str,
     new_name: str,
 ) -> RenameResult:
-    """改名一個角色或道具。**會直接修改傳入的 project dict**，呼叫者負責 save。
+    """改名一個角色、道具或場景。**會直接修改傳入的 project dict**，呼叫者負責 save。
 
     步驟：
     1. 校驗 new_name 合法 + 不衝突
-    2. 收集所有要搬移的檔案（角色設計圖、reference image、版本歷史、道具設計圖）
+    2. 收集所有要搬移的檔案（設計圖、reference image、版本歷史）
     3. 預先計算所有目標路徑，檢查衝突
     4. 執行搬移（記錄已搬，失敗時 rollback）
     5. 更新 project.json 的 dict key + 路徑欄位
@@ -74,7 +105,7 @@ def rename_resource(
     if new_name == old_name:
         return RenameResult(0, 0, 0)
 
-    bucket = "characters" if kind == "character" else "clues"
+    bucket = _BUCKET_BY_KIND[kind]
     if old_name not in project.get(bucket, {}):
         raise KeyError(f"{bucket}: {old_name} 不存在")
     if new_name in project.get(bucket, {}):
@@ -106,8 +137,8 @@ def rename_resource(
     # 更新 project dict（原地）
     bucket_dict = project[bucket]
     entry = bucket_dict.pop(old_name)
-    sheet_key = "character_sheet" if kind == "character" else "clue_sheet"
-    folder = "characters" if kind == "character" else "clues"
+    sheet_key = _SHEET_KEY_BY_KIND[kind]
+    folder = _FOLDER_BY_KIND[kind]
 
     # 更新內部路徑欄位
     if entry.get(sheet_key):
@@ -115,11 +146,12 @@ def rename_resource(
         if old_rel.startswith(f"{folder}/{old_name}"):
             entry[sheet_key] = old_rel.replace(f"{folder}/{old_name}", f"{folder}/{new_name}", 1)
 
-    if kind == "character" and entry.get("reference_image"):
-        old_rel = entry["reference_image"]
-        ref_prefix = "characters/refs/"
+    ref_field, ref_folder = _REF_FIELD_BY_KIND[kind]
+    if entry.get(ref_field):
+        old_rel = entry[ref_field]
+        ref_prefix = f"{ref_folder}/"
         if old_rel.startswith(f"{ref_prefix}{old_name}"):
-            entry["reference_image"] = old_rel.replace(f"{ref_prefix}{old_name}", f"{ref_prefix}{new_name}", 1)
+            entry[ref_field] = old_rel.replace(f"{ref_prefix}{old_name}", f"{ref_prefix}{new_name}", 1)
 
     bucket_dict[new_name] = entry
 
@@ -138,7 +170,7 @@ def rename_resource(
 
 def _plan_moves(project_path: Path, kind: ResourceKind, old_name: str, new_name: str) -> list[_Move]:
     moves: list[_Move] = []
-    folder = "characters" if kind == "character" else "clues"
+    folder = _FOLDER_BY_KIND[kind]
 
     # 1. 主設計圖 {folder}/{name}.{ext}
     main_dir = project_path / folder
@@ -147,13 +179,13 @@ def _plan_moves(project_path: Path, kind: ResourceKind, old_name: str, new_name:
             if f.is_file():
                 moves.append(_Move(f, main_dir / f"{new_name}{f.suffix}"))
 
-    # 2. 角色 reference 圖 characters/refs/{name}.{ext}
-    if kind == "character":
-        refs_dir = project_path / "characters" / "refs"
-        if refs_dir.exists():
-            for f in refs_dir.glob(f"{old_name}.*"):
-                if f.is_file():
-                    moves.append(_Move(f, refs_dir / f"{new_name}{f.suffix}"))
+    # 2. reference 圖 {folder}/refs/{name}.{ext}
+    _, ref_folder = _REF_FIELD_BY_KIND[kind]
+    refs_dir = project_path / ref_folder
+    if refs_dir.exists():
+        for f in refs_dir.glob(f"{old_name}.*"):
+            if f.is_file():
+                moves.append(_Move(f, refs_dir / f"{new_name}{f.suffix}"))
 
     # 3. 版本歷史 versions/{folder}/{old_name}_v*.{ext}
     versions_dir = project_path / "versions" / folder
@@ -178,7 +210,7 @@ def _update_versions_json(project_path: Path, kind: ResourceKind, old_name: str,
         logger.warning("versions.json 解析失敗，跳過")
         return 0
 
-    bucket = "characters" if kind == "character" else "clues"
+    bucket = _BUCKET_BY_KIND[kind]
     items = data.get(bucket, [])
     if not isinstance(items, list):
         return 0
@@ -199,11 +231,8 @@ def _update_scripts(project_path: Path, kind: ResourceKind, old_name: str, new_n
     if not scripts_dir.exists():
         return 0
 
-    list_keys = (
-        ["characters_in_segment", "characters_in_scene"]
-        if kind == "character"
-        else ["clues_in_segment", "clues_in_scene"]
-    )
+    list_keys = _LIST_REFERENCE_KEYS_BY_KIND[kind]
+    scalar_keys = _SCALAR_REFERENCE_KEYS_BY_KIND[kind]
 
     updated_files = 0
     for script_file in scripts_dir.glob("*.json"):
@@ -224,6 +253,11 @@ def _update_scripts(project_path: Path, kind: ResourceKind, old_name: str, new_n
                     if new_arr != arr:
                         item[key] = new_arr
                         changed = True
+
+            for key in scalar_keys:
+                if item.get(key) == old_name:
+                    item[key] = new_name
+                    changed = True
 
             # dialogue.speaker（只有 character 改名才需要）
             if kind == "character":

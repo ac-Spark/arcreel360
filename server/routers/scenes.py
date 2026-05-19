@@ -33,10 +33,13 @@ class UpdateSceneRequest(BaseModel):
     description: str | None = None
     scene_sheet: str | None = None
     scene_ref: str | None = None
-    use_uploaded_as_final: bool | None = None
 
 
-@router.post("/projects/{project_name}/scenes")
+class RenameSceneRequest(BaseModel):
+    new_name: str
+
+
+@router.post("/projects/{project_name}/project-scenes")
 async def add_scene(project_name: str, req: CreateSceneRequest, _user: CurrentUser):
     """新增場景"""
     try:
@@ -53,7 +56,6 @@ async def add_scene(project_name: str, req: CreateSceneRequest, _user: CurrentUs
                     "description": req.description,
                     "scene_sheet": "",
                     "scene_ref": "",
-                    "use_uploaded_as_final": False,
                 }
                 created.update(scenes[req.name])
 
@@ -73,7 +75,7 @@ async def add_scene(project_name: str, req: CreateSceneRequest, _user: CurrentUs
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.patch("/projects/{project_name}/scenes/{scene_name}")
+@router.patch("/projects/{project_name}/project-scenes/{scene_name}")
 async def update_scene(project_name: str, scene_name: str, req: UpdateSceneRequest, _user: CurrentUser):
     """更新場景"""
     try:
@@ -86,7 +88,7 @@ async def update_scene(project_name: str, scene_name: str, req: UpdateSceneReque
                 if scene_name not in project.get("scenes", {}):
                     raise KeyError(scene_name)
                 scene = project["scenes"][scene_name]
-                for field in ("description", "scene_sheet", "scene_ref", "use_uploaded_as_final"):
+                for field in ("description", "scene_sheet", "scene_ref"):
                     value = getattr(req, field)
                     if value is not None:
                         scene[field] = value
@@ -108,7 +110,57 @@ async def update_scene(project_name: str, scene_name: str, req: UpdateSceneReque
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/projects/{project_name}/scenes/{scene_name}")
+@router.post("/projects/{project_name}/project-scenes/{scene_name}/rename")
+async def rename_scene(
+    project_name: str,
+    scene_name: str,
+    req: RenameSceneRequest,
+    _user: CurrentUser,
+):
+    """改名專案級場景：搬移檔案、更新版本記錄、替換劇本引用、寫回 project.json。"""
+    from lib.resource_rename import rename_resource
+
+    try:
+
+        def _sync():
+            manager = get_project_manager()
+            project_path = manager.get_project_path(project_name)
+            project = manager.load_project(project_name)
+
+            with project_change_source("webui"):
+                result = rename_resource(
+                    project_path=project_path,
+                    project=project,
+                    kind="scene",
+                    old_name=scene_name,
+                    new_name=req.new_name,
+                )
+                manager.save_project(project_name, project)
+
+            return {
+                "success": True,
+                "old_name": scene_name,
+                "new_name": req.new_name,
+                "files_moved": result.files_moved,
+                "scripts_updated": result.scripts_updated,
+                "versions_updated": result.versions_updated,
+            }
+
+        return await asyncio.to_thread(_sync)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"專案 '{project_name}' 不存在")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/projects/{project_name}/project-scenes/{scene_name}")
 async def delete_scene(project_name: str, scene_name: str, _user: CurrentUser):
     """刪除場景"""
     try:

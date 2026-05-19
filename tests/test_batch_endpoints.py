@@ -36,6 +36,10 @@ class _FakePMGen:
                 "玉佩": {"type": "prop", "description": "綠色玉佩"},
                 "古劍": {"type": "weapon", "description": "古劍", "clue_sheet": "clues/古劍.png"},
             },
+            "scenes": {
+                "古城": {"description": "斑駁城牆與夕陽"},
+                "已生成場景": {"description": "舊場景", "scene_sheet": "scenes/已生成場景.png"},
+            },
         }
         self.script = {
             "content_mode": "narration",
@@ -162,6 +166,52 @@ class TestBatchGenerate:
         assert body["enqueued"] == ["玉佩"]
         reasons = {s["id"]: s["reason"] for s in body["skipped"]}
         assert reasons.get("未知") == "not_found"
+
+    def test_generate_scene(self, tmp_path, monkeypatch):
+        ppath = _prepare_project(tmp_path)
+        pm = _FakePMGen(ppath)
+        queue = _FakeQueue()
+        client = _client_gen(monkeypatch, pm, queue)
+
+        with client:
+            resp = client.post(
+                "/api/v1/projects/demo/generate/scene/古城",
+                json={"prompt": "斑駁城牆與夕陽"},
+            )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["success"] is True
+        assert body["task_id"] == "task-1"
+        assert len(queue.calls) == 1
+        assert queue.calls[0]["task_type"] == "scene"
+        assert queue.calls[0]["media_type"] == "image"
+        assert queue.calls[0]["resource_id"] == "古城"
+        assert queue.calls[0]["payload"]["prompt"] == "斑駁城牆與夕陽"
+
+    def test_scenes_batch_with_explicit_names(self, tmp_path, monkeypatch):
+        ppath = _prepare_project(tmp_path)
+        pm = _FakePMGen(ppath)
+        queue = _FakeQueue()
+        client = _client_gen(monkeypatch, pm, queue)
+
+        with client:
+            resp = client.post(
+                "/api/v1/projects/demo/generate/scenes/batch",
+                json={"names": ["古城", "未知"]},
+            )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["enqueued"] == ["古城"]
+        reasons = {s["id"]: s["reason"] for s in body["skipped"]}
+        assert reasons.get("未知") == "not_found"
+        assert len(queue.calls) == 1
+        assert queue.calls[0]["task_type"] == "scene"
+        assert queue.calls[0]["media_type"] == "image"
+        assert queue.calls[0]["resource_id"] == "古城"
+        assert queue.calls[0]["payload"]["prompt"] == "斑駁城牆與夕陽"
+        assert queue.calls[0]["payload"]["from_batch"] is True
 
 
 # -------------------- 劇集流程：compose / script / preprocess --------------------

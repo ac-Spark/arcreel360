@@ -59,6 +59,10 @@ class GenerateClueRequest(BaseModel):
     prompt: str
 
 
+class GenerateSceneRequest(BaseModel):
+    prompt: str
+
+
 _LEGACY_PROVIDER_NAMES: dict[str, str] = {
     "gemini": "gemini-aistudio",
     "aistudio": "gemini-aistudio",
@@ -308,6 +312,11 @@ class BatchCharacterRequest(BaseModel):
 
 
 class BatchClueRequest(BaseModel):
+    names: list[str] | None = None
+    force: bool = False
+
+
+class BatchSceneRequest(BaseModel):
     names: list[str] | None = None
     force: bool = False
 
@@ -587,6 +596,69 @@ async def generate_clues_batch(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ==================== 批次：場景 ====================
+
+
+@router.post("/projects/{project_name}/generate/scenes/batch")
+async def generate_scenes_batch(
+    project_name: str,
+    req: BatchSceneRequest,
+    _user: CurrentUser,
+):
+    """批次提交場景設計圖生成任務。force=false 時跳過已有 scene_sheet 的場景。"""
+    try:
+
+        def _sync():
+            project = get_project_manager().load_project(project_name)
+            scenes: dict = project.get("scenes", {})
+            image_snapshot = _snapshot_image_backend(project_name)
+
+            requested = [str(n) for n in (req.names if req.names is not None else list(scenes.keys()))]
+
+            to_enqueue: list[str] = []
+            skipped: list[dict] = []
+            for name in requested:
+                if name not in scenes:
+                    skipped.append({"id": name, "reason": "not_found"})
+                    continue
+                if not req.force and scenes[name].get("scene_sheet"):
+                    skipped.append({"id": name, "reason": "already_exists"})
+                    continue
+                to_enqueue.append(name)
+            return to_enqueue, skipped, image_snapshot, scenes
+
+        to_enqueue, skipped, image_snapshot, scenes = await asyncio.to_thread(_sync)
+
+        queue = get_generation_queue()
+        enqueued: list[str] = []
+        for name in to_enqueue:
+            prompt = scenes[name].get("description", "")
+            await queue.enqueue_task(
+                project_name=project_name,
+                task_type="scene",
+                media_type="image",
+                resource_id=name,
+                payload={
+                    "prompt": prompt,
+                    "from_batch": True,
+                    **image_snapshot,
+                },
+                source="webui",
+                user_id=_user.id,
+            )
+            enqueued.append(name)
+
+        return {"enqueued": enqueued, "skipped": skipped}
+
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ==================== 線索設計圖生成 ====================
 
 
@@ -624,6 +696,53 @@ async def generate_clue(project_name: str, clue_name: str, req: GenerateClueRequ
             "success": True,
             "task_id": result["task_id"],
             "message": f"道具「{clue_name}」設計圖生成任務已提交",
+        }
+
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== 場景設計圖生成 ====================
+
+
+@router.post("/projects/{project_name}/generate/scene/{scene_name}")
+async def generate_scene(project_name: str, scene_name: str, req: GenerateSceneRequest, _user: CurrentUser):
+    """
+    提交場景設計圖生成任務到佇列，立即回傳 task_id。
+    """
+    try:
+
+        def _sync():
+            project = get_project_manager().load_project(project_name)
+            if scene_name not in project.get("scenes", {}):
+                raise HTTPException(status_code=404, detail=f"場景「{scene_name}」不存在")
+            return _snapshot_image_backend(project_name)
+
+        image_snapshot = await asyncio.to_thread(_sync)
+
+        queue = get_generation_queue()
+        result = await queue.enqueue_task(
+            project_name=project_name,
+            task_type="scene",
+            media_type="image",
+            resource_id=scene_name,
+            payload={
+                "prompt": req.prompt,
+                **image_snapshot,
+            },
+            source="webui",
+            user_id=_user.id,
+        )
+
+        return {
+            "success": True,
+            "task_id": result["task_id"],
+            "message": f"場景「{scene_name}」設計圖生成任務已提交",
         }
 
     except FileNotFoundError as e:
