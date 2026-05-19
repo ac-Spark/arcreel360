@@ -22,6 +22,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from lib import agent_profile
+from lib.entity_reconciler import reconcile_script
 from lib.project_change_hints import emit_project_change_hint
 
 logger = logging.getLogger(__name__)
@@ -371,6 +372,13 @@ class ProjectManager:
         metadata.setdefault("created_at", now)
         metadata.setdefault("status", "draft")
         metadata["updated_at"] = now
+
+        # 補齊非關鍵路徑，任何失敗都不應阻擋存檔
+        try:
+            project_json = self.load_project(project_name)
+            script = reconcile_script(script, project_json)
+        except Exception:
+            logger.warning("關聯補齊失敗，沿用原劇本繼續存檔: %s", project_name, exc_info=True)
 
         scenes = script.get("scenes", [])
         if not isinstance(scenes, list):
