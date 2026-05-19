@@ -570,10 +570,11 @@ async def update_scene(name: str, scene_id: str, req: UpdateSceneRequest, _user:
                             "video_prompt",
                             "characters_in_scene",
                             "clues_in_scene",
+                            "scene_in_scene",
                             "segment_break",
                             "note",
                         ]:
-                            if value is None and key != "note":
+                            if value is None and key not in {"note", "scene_in_scene"}:
                                 continue
                             scene[key] = value
                     break
@@ -603,6 +604,7 @@ class UpdateSegmentRequest(BaseModel):
     video_prompt: dict | str | None = None
     characters_in_segment: list[str] | None = None
     clues_in_segment: list[str] | None = None
+    scene_in_segment: str | None = None
     transition_to_next: str | None = None
     note: str | None = None
     novel_text: str | None = None
@@ -615,6 +617,7 @@ UPDATE_SEGMENT_FIELDS = (
     "video_prompt",
     "characters_in_segment",
     "clues_in_segment",
+    "scene_in_segment",
     "transition_to_next",
     "novel_text",
 )
@@ -646,8 +649,10 @@ async def update_segment(name: str, segment_id: str, req: UpdateSegmentRequest, 
                 if segment.get("segment_id") == segment_id:
                     segment_found = True
                     for field in UPDATE_SEGMENT_FIELDS:
+                        if field not in req.model_fields_set:
+                            continue
                         value = getattr(req, field)
-                        if value is not None:
+                        if value is not None or field == "scene_in_segment":
                             segment[field] = value
                     if "note" in req.model_fields_set:
                         segment["note"] = req.note

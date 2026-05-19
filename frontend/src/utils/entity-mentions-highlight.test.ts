@@ -10,12 +10,78 @@ const entities = {
   clues: {
     "道具A": {},
   },
+  scenes: {
+    古城: {},
+  },
 };
 
 describe("tokenizeForHighlight", () => {
   it("returns a single text token for pure text without @", () => {
     expect(tokenizeForHighlight("沒有任何標記", entities)).toEqual([
       { type: "text", value: "沒有任何標記" },
+    ]);
+  });
+
+  it("tokenizes linked entity names in plain source text", () => {
+    expect(
+      tokenizeForHighlight("Hero 拿起 Key，抵達古城。", entities, {
+        linkedNames: {
+          characterNames: ["Hero"],
+          clueNames: ["Key"],
+          sceneName: "古城",
+        },
+      }),
+    ).toEqual([
+      { type: "mention", value: "Hero", name: "Hero", kind: "character" },
+      { type: "text", value: " 拿起 " },
+      { type: "mention", value: "Key", name: "Key", kind: "clue" },
+      { type: "text", value: "，抵達" },
+      { type: "mention", value: "古城", name: "古城", kind: "scene" },
+      { type: "text", value: "。" },
+    ]);
+  });
+
+  it("does not highlight linked ASCII names inside longer words", () => {
+    expect(
+      tokenizeForHighlight("Heroic action", entities, {
+        linkedNames: {
+          characterNames: ["Hero"],
+          clueNames: [],
+          sceneName: null,
+        },
+      }),
+    ).toEqual([
+      { type: "text", value: "Heroic action" },
+    ]);
+  });
+
+  it("highlights bare alias in plain text, mapping token name back to original key", () => {
+    expect(
+      tokenizeForHighlight("阿克走進房間", entities, {
+        linkedNames: {
+          characterNames: ["阿克 (Arke)"],
+          clueNames: [],
+          sceneName: null,
+        },
+      }),
+    ).toEqual([
+      { type: "mention", value: "阿克", name: "阿克 (Arke)", kind: "character" },
+      { type: "text", value: "走進房間" },
+    ]);
+  });
+
+  it("highlights english alias of a linked entity", () => {
+    expect(
+      tokenizeForHighlight("Arke arrives", entities, {
+        linkedNames: {
+          characterNames: ["阿克 (Arke)"],
+          clueNames: [],
+          sceneName: null,
+        },
+      }),
+    ).toEqual([
+      { type: "mention", value: "Arke", name: "阿克 (Arke)", kind: "character" },
+      { type: "text", value: " arrives" },
     ]);
   });
 
@@ -44,6 +110,13 @@ describe("tokenizeForHighlight", () => {
   it("keeps a known prefix followed by non-space unknown chars as text", () => {
     expect(tokenizeForHighlight("@Aplus", entities)).toEqual([
       { type: "text", value: "@Aplus" },
+    ]);
+  });
+
+  it("tokenizes a known scene mention", () => {
+    expect(tokenizeForHighlight("抵達 @古城", entities)).toEqual([
+      { type: "text", value: "抵達 " },
+      { type: "mention", value: "@古城", name: "古城", kind: "scene" },
     ]);
   });
 

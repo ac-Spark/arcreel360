@@ -3,7 +3,7 @@ import { UI_LAYERS } from "@/utils/ui-layers";
 
 export interface EntityMentionItem {
   name: string;
-  kind: "character" | "clue";
+  kind: "character" | "clue" | "scene";
 }
 
 export interface EntityMentionMenuHandle {
@@ -21,6 +21,18 @@ interface EntityMentionMenuProps {
 
 const DEFAULT_MENU_ID = "entity-mention-menu";
 const WORKSPACE_POPOVER_Z_INDEX = Number(UI_LAYERS.workspacePopover.replace("z-", ""));
+
+const KIND_LABELS: Record<EntityMentionItem["kind"], string> = {
+  character: "角色",
+  clue: "道具",
+  scene: "場景",
+};
+
+const KIND_CLASSES: Record<EntityMentionItem["kind"], string> = {
+  character: "text-cyan-300",
+  clue: "text-yellow-400",
+  scene: "text-emerald-300",
+};
 
 export const EntityMentionMenu = forwardRef<EntityMentionMenuHandle, EntityMentionMenuProps>(
   function EntityMentionMenu({ id = DEFAULT_MENU_ID, className = "", filter, items, onSelect }, ref) {
@@ -74,8 +86,6 @@ export const EntityMentionMenu = forwardRef<EntityMentionMenuHandle, EntityMenti
       >
         {filtered.map((item, i) => {
           const isActive = i === activeIndex;
-          const kindLabel = item.kind === "character" ? "角色" : "道具";
-          const kindClass = item.kind === "character" ? "text-cyan-300" : "text-yellow-400";
           return (
             <button
               key={`${item.kind}:${item.name}`}
@@ -106,7 +116,9 @@ export const EntityMentionMenu = forwardRef<EntityMentionMenuHandle, EntityMenti
               }`}
             >
               <span className="min-w-0 truncate font-medium text-gray-300">{item.name}</span>
-              <span className={`shrink-0 text-xs font-medium ${kindClass}`}>{kindLabel}</span>
+              <span className={`shrink-0 text-xs font-medium ${KIND_CLASSES[item.kind]}`}>
+                {KIND_LABELS[item.kind]}
+              </span>
             </button>
           );
         })}

@@ -33,7 +33,10 @@ export function useEntityMentionInput(opts: {
     ...Object.keys(entities.clues)
       .filter(Boolean)
       .map((name) => ({ name, kind: "clue" as const })),
-  ], [entities.characters, entities.clues]);
+    ...Object.keys(entities.scenes ?? {})
+      .filter(Boolean)
+      .map((name) => ({ name, kind: "scene" as const })),
+  ], [entities.characters, entities.clues, entities.scenes]);
 
   const items = useMemo(() => {
     const query = filter.toLowerCase();

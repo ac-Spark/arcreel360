@@ -425,6 +425,7 @@ export function TimelineCanvas({
                       aspectRatio={aspectRatio}
                       characters={projectData.characters}
                       clues={projectData.clues}
+                      scenes={projectData.scenes ?? {}}
                       projectName={projectName}
                       durationOptions={durationOptions}
                       onUpdatePrompt={updatePromptForScript}

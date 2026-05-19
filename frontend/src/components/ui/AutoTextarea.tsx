@@ -11,13 +11,14 @@ interface AutoTextareaProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
-  /** 提供時啟用 @ 角色/道具自動補完選單與高亮。 */
+  /** 提供時啟用 @ 角色/道具/場景自動補完選單與高亮。 */
   entities?: EntityMentionSources;
 }
 
 const EMPTY_MENTION_ENTITIES: EntityMentionSources = {
   characters: {},
   clues: {},
+  scenes: {},
 };
 
 // Overlay 與 textarea 必須共用 metrics, 否則高亮文字會對不齊。

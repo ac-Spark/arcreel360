@@ -14,7 +14,7 @@ import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useCostStore } from "@/stores/cost-store";
 import { EntityMentionMenu } from "./EntityMentionMenu";
-import { MentionHighlightOverlay } from "./MentionHighlightOverlay";
+import { MentionHighlightedText, MentionHighlightOverlay } from "./MentionHighlightOverlay";
 import { useEntityMentionInput } from "./useEntityMentionInput";
 import { ImagePromptEditor } from "./ImagePromptEditor";
 import { VideoPromptEditor } from "./VideoPromptEditor";
@@ -33,6 +33,7 @@ import type {
   ImagePrompt,
   VideoPrompt,
   TransitionType,
+  Scene,
 } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -74,10 +75,12 @@ const MENTION_UPDATE_FIELDS = {
   narration: {
     characters: "characters_in_segment",
     clues: "clues_in_segment",
+    scene: "scene_in_segment",
   },
   drama: {
     characters: "characters_in_scene",
     clues: "clues_in_scene",
+    scene: "scene_in_scene",
   },
 } as const;
 
@@ -104,6 +107,12 @@ function getCharacterNames(segment: Segment, mode: "narration" | "drama"): strin
 
 function getClueNames(segment: Segment, mode: "narration" | "drama"): string[] {
   return getSegmentField(segment, mode, "clues_in_segment", "clues_in_scene");
+}
+
+function getSceneName(segment: Segment, mode: "narration" | "drama"): string | null {
+  return mode === "narration"
+    ? ((segment as NarrationSegment).scene_in_segment ?? null)
+    : ((segment as DramaScene).scene_in_scene ?? null);
 }
 
 function getSourceMentionValue(segment: Segment, mode: "narration" | "drama"): string {
@@ -134,7 +143,8 @@ function sameNames(a: string[], b: string[]): boolean {
 function sameMentionNames(a: EntityMentionNames, b: EntityMentionNames): boolean {
   return (
     sameNames(a.characterNames, b.characterNames) &&
-    sameNames(a.clueNames, b.clueNames)
+    sameNames(a.clueNames, b.clueNames) &&
+    a.sceneName === b.sceneName
   );
 }
 
@@ -149,10 +159,21 @@ function buildMentionFieldUpdates(
   }
 
   const fields = MENTION_UPDATE_FIELDS[contentMode];
-  return {
-    [fields.characters]: mentions.characterNames,
-    [fields.clues]: mentions.clueNames,
-  };
+  const updates: SegmentUpdateExtras = {};
+
+  if (
+    !sameNames(mentions.characterNames, currentNames.characterNames) ||
+    !sameNames(mentions.clueNames, currentNames.clueNames)
+  ) {
+    updates[fields.characters] = mentions.characterNames;
+    updates[fields.clues] = mentions.clueNames;
+  }
+
+  if (mentions.sceneName !== currentNames.sceneName) {
+    updates[fields.scene] = mentions.sceneName;
+  }
+
+  return Object.keys(updates).length > 0 ? updates : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -234,6 +255,7 @@ interface SegmentCardProps {
   aspectRatio: string; // "9:16" or "16:9"
   characters: Record<string, Character>;
   clues: Record<string, Clue>;
+  scenes?: Record<string, Scene>;
   projectName: string;
   durationOptions?: number[];
   onUpdatePrompt?: SegmentUpdateHandler;
@@ -454,6 +476,7 @@ function TextColumn({
           <MentionHighlightOverlay
             value={sourceDraft}
             entities={mentionContext.entities}
+            linkedNames={mentionContext.currentNames}
             className="min-h-[8rem] px-2 py-1.5 text-sm leading-relaxed whitespace-pre-wrap break-words border border-transparent"
           />
           <textarea
@@ -509,7 +532,12 @@ function TextColumn({
             <li key={i} className="text-sm text-gray-300">
               <span className="font-bold text-indigo-400">{d.speaker}</span>
               <span className="mx-1 text-gray-600">:</span>
-              <span>{d.line}</span>
+              <span>
+                <MentionHighlightedText
+                  value={d.line}
+                  entities={mentionContext.entities}
+                />
+              </span>
             </li>
           ))}
         </ul>
@@ -878,6 +906,7 @@ export function SegmentCard({
   aspectRatio,
   characters,
   clues,
+  scenes = {},
   projectName,
   durationOptions,
   onUpdatePrompt,
@@ -893,12 +922,14 @@ export function SegmentCard({
   const segCost = useCostStore((s) => s.getSegmentCost(segmentId));
   const charNames = getCharacterNames(segment, contentMode);
   const clueNames = getClueNames(segment, contentMode);
+  const sceneName = getSceneName(segment, contentMode);
   const mentionEntities = useMemo<EntityMentionSources>(
     () => ({
       characters,
       clues,
+      scenes,
     }),
-    [characters, clues],
+    [characters, clues, scenes],
   );
   const [mentionDrafts, setMentionDrafts] = useState<SegmentMentionDrafts>(() =>
     getSegmentMentionDrafts(segment, contentMode)
@@ -930,10 +961,11 @@ export function SegmentCard({
       currentNames: {
         characterNames: charNames,
         clueNames,
+        sceneName,
       },
       entities: mentionEntities,
     }),
-    [charNames, clueNames, contentMode, mentionEntities],
+    [charNames, clueNames, contentMode, mentionEntities, sceneName],
   );
   const buildMentionUpdatesForDraft = useCallback(
     (patch: Partial<SegmentMentionDrafts>): SegmentUpdateExtras | undefined => {

@@ -75,6 +75,7 @@ export interface NarrationSegment {
   novel_text: string;
   characters_in_segment: string[];
   clues_in_segment: string[];
+  scene_in_segment?: string | null;
   image_prompt: ImagePrompt | string;
   video_prompt: VideoPrompt | string;
   transition_to_next: TransitionType;
@@ -89,6 +90,7 @@ export interface DramaScene {
   scene_type: string;
   characters_in_scene: string[];
   clues_in_scene: string[];
+  scene_in_scene?: string | null;
   image_prompt: ImagePrompt | string;
   video_prompt: VideoPrompt | string;
   transition_to_next: TransitionType;

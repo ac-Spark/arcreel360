@@ -3,7 +3,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SegmentCard } from "./SegmentCard";
 import { useAppStore } from "@/stores/app-store";
-import type { NarrationSegment } from "@/types";
+import type { DramaScene, NarrationSegment } from "@/types";
 
 vi.mock("@/components/canvas/timeline/VersionTimeMachine", () => ({
   VersionTimeMachine: () => <div data-testid="version-time-machine">versions</div>,
@@ -39,6 +39,7 @@ function makeSegment(overrides: Partial<NarrationSegment> = {}): NarrationSegmen
     novel_text: "在雨夜裡抬頭。",
     characters_in_segment: ["Hero"],
     clues_in_segment: [],
+    scene_in_segment: null,
     image_prompt: "一張電影感分鏡圖",
     video_prompt: "鏡頭緩慢推進",
     transition_to_next: "cut",
@@ -48,6 +49,36 @@ function makeSegment(overrides: Partial<NarrationSegment> = {}): NarrationSegmen
       video_thumbnail: null,
       video_uri: null,
       status: "completed",
+    },
+    ...overrides,
+  };
+}
+
+function makeDramaScene(overrides: Partial<DramaScene> = {}): DramaScene {
+  return {
+    scene_id: "SC-1",
+    duration_seconds: 8,
+    segment_break: false,
+    scene_type: "劇情",
+    characters_in_scene: ["Hero"],
+    clues_in_scene: ["Key"],
+    scene_in_scene: "古城",
+    image_prompt: "一張電影感分鏡圖",
+    video_prompt: {
+      action: "角色抵達場景",
+      camera_motion: "Static",
+      ambiance_audio: "風聲",
+      dialogue: [
+        { speaker: "Hero", line: "抵達 @古城，看見 @Key。" },
+      ],
+    },
+    transition_to_next: "cut",
+    generated_assets: {
+      storyboard_image: null,
+      video_clip: null,
+      video_thumbnail: null,
+      video_uri: null,
+      status: "pending",
     },
     ...overrides,
   };
@@ -114,6 +145,28 @@ describe("SegmentCard", () => {
     );
   });
 
+  it("highlights linked entity names in saved narration text", () => {
+    renderSegmentCard({
+      segment: makeSegment({
+        novel_text: "Hero 拿起 Key。",
+        characters_in_segment: ["Hero"],
+        clues_in_segment: ["Key"],
+      }),
+      characters: { Hero: { description: "hero" } },
+      clues: {
+        Key: { type: "prop", description: "key", importance: "major" },
+      },
+    });
+
+    const overlay = screen
+      .getAllByTestId("mention-highlight-overlay")
+      .find((node) => node.textContent === "Hero 拿起 Key。");
+
+    expect(overlay).toBeDefined();
+    expect(within(overlay!).getByText("Hero")).toHaveClass("text-cyan-300");
+    expect(within(overlay!).getByText("Key")).toHaveClass("text-yellow-300");
+  });
+
   it("shows live character mentions in the header before the segment is committed", () => {
     renderSegmentCard({
       segment: makeSegment({ characters_in_segment: [] }),
@@ -164,5 +217,45 @@ describe("SegmentCard", () => {
         clues_in_segment: ["Key"],
       },
     );
+  });
+
+  it("uses @scene mentions in prompt text to update the segment scene reference", () => {
+    const onUpdatePrompt = vi.fn();
+    renderSegmentCard({
+      segment: makeSegment({
+        characters_in_segment: [],
+        clues_in_segment: [],
+        scene_in_segment: null,
+      }),
+      scenes: { 古城: { description: "城牆與街道" } },
+      onUpdatePrompt,
+    });
+
+    const imagePrompt = screen.getByPlaceholderText("分鏡圖描述...");
+    fireEvent.change(imagePrompt, { target: { value: "遠景 @古城" } });
+
+    expect(onUpdatePrompt).toHaveBeenCalledWith(
+      "SEG-1",
+      "image_prompt",
+      "遠景 @古城",
+      {
+        scene_in_segment: "古城",
+      },
+    );
+  });
+
+  it("highlights known mentions inside drama dialogue lines", () => {
+    renderSegmentCard({
+      segment: makeDramaScene(),
+      contentMode: "drama",
+      characters: { Hero: { description: "hero" } },
+      clues: {
+        Key: { type: "prop", description: "key", importance: "major" },
+      },
+      scenes: { 古城: { description: "城牆與街道" } },
+    });
+
+    expect(screen.getByText("@古城")).toHaveClass("text-emerald-300");
+    expect(screen.getByText("@Key")).toHaveClass("text-yellow-300");
   });
 });

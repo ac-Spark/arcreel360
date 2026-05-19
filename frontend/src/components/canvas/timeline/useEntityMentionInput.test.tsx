@@ -13,6 +13,9 @@ const entities = {
   clues: {
     青玉碎片: {},
   },
+  scenes: {
+    古城: {},
+  },
 };
 
 type HookValue = ReturnType<typeof useEntityMentionInput> & {
@@ -119,6 +122,14 @@ describe("useEntityMentionInput", () => {
     expect(inputElement().selectionStart).toBe(1 + item.name.length + 1);
   });
 
+  it("offers scene mentions in the same menu", () => {
+    render(<HookHarness />);
+
+    changeInput("@古");
+
+    expect(latest!.items).toContainEqual({ name: "古城", kind: "scene" });
+  });
+
   it("produces text recognised by extractEntityMentions", () => {
     render(<HookHarness />);
     changeInput("@錦");
@@ -130,6 +141,7 @@ describe("useEntityMentionInput", () => {
     expect(extractEntityMentions(latest!.value, entities)).toEqual({
       characterNames: ["錦衣衛"],
       clueNames: [],
+      sceneName: null,
     });
   });
 });
