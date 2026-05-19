@@ -7,7 +7,6 @@
 import asyncio
 import json
 import logging
-import shutil
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -19,6 +18,7 @@ from lib import PROJECT_ROOT
 from lib.image_utils import normalize_uploaded_image
 from lib.project_change_hints import emit_project_change_batch, project_change_source
 from lib.project_manager import ProjectManager
+from lib.version_manager import VersionManager
 from server.auth import CurrentUser
 
 router = APIRouter()
@@ -29,44 +29,6 @@ pm = ProjectManager(PROJECT_ROOT / "projects")
 
 def get_project_manager() -> ProjectManager:
     return pm
-
-
-class _SkipPromotion(Exception):
-    """內部訊號：實體未開啟 use_uploaded_as_final，交易內中止以避免無謂寫回。"""
-
-
-def _apply_uploaded_as_final(
-    manager: ProjectManager,
-    project_name: str,
-    *,
-    kind: str,
-    name: str,
-    ref_abs: Path,
-    sheet_filename: str,
-) -> None:
-    """若該實體開啟 use_uploaded_as_final，將剛上傳的參考圖複製到正規 sheet 路徑。
-
-    這樣後續分鏡生圖／版本流程都能沿用既有 *_sheet 約定，無需特例。
-    kind: "character" | "clue" | "scene"
-    """
-    collection = {"character": "characters", "clue": "clues", "scene": "scenes"}[kind]
-    sheet_field = {"character": "character_sheet", "clue": "clue_sheet", "scene": "scene_sheet"}[kind]
-    sheet_rel = f"{collection}/{sheet_filename}"
-
-    def _promote(project: dict) -> None:
-        entry = project.get(collection, {}).get(name)
-        if not entry or not entry.get("use_uploaded_as_final"):
-            raise _SkipPromotion
-        sheet_dir = manager.get_project_path(project_name) / collection
-        sheet_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(ref_abs, sheet_dir / sheet_filename)
-        entry[sheet_field] = sheet_rel
-
-    with project_change_source("webui"):
-        try:
-            manager.update_project(project_name, _promote)
-        except _SkipPromotion:
-            pass
 
 
 IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"]
@@ -85,6 +47,14 @@ REF_UPLOAD_KINDS = {
     "character_ref": "character",
     "clue_ref": "clue",
     "scene_ref": "scene",
+}
+METADATA_UPDATE_METHODS = {
+    "character": "update_project_character_sheet",
+    "character_ref": "update_character_reference_image",
+    "clue": "update_clue_sheet",
+    "clue_ref": "update_clue_reference_image",
+    "scene": "update_scene_sheet",
+    "scene_ref": "update_scene_reference_image",
 }
 
 # 允許的檔案型別
@@ -126,51 +96,54 @@ def _update_upload_metadata(
     if not name:
         return
 
-    def _update_character_sheet() -> None:
-        manager.update_project_character_sheet(project_name, name, relative_path)
-
-    def _update_character_ref() -> None:
-        manager.update_character_reference_image(project_name, name, relative_path)
-
-    def _update_clue_sheet() -> None:
-        manager.update_clue_sheet(project_name, name, relative_path)
-
-    def _update_clue_ref() -> None:
-        manager.update_clue_reference_image(project_name, name, relative_path)
-
-    def _update_scene_sheet() -> None:
-        manager.update_scene_sheet(project_name, name, relative_path)
-
-    def _update_scene_ref() -> None:
-        manager.update_scene_reference_image(project_name, name, relative_path)
-
-    metadata_updates = {
-        "character": _update_character_sheet,
-        "character_ref": _update_character_ref,
-        "clue": _update_clue_sheet,
-        "clue_ref": _update_clue_ref,
-        "scene": _update_scene_sheet,
-        "scene_ref": _update_scene_ref,
-    }
-
-    update = metadata_updates.get(upload_type)
-    if update is None:
+    update_method = METADATA_UPDATE_METHODS.get(upload_type)
+    if update_method is None:
         return
 
     try:
         with project_change_source("webui"):
-            update()
+            getattr(manager, update_method)(project_name, name, relative_path)
+        # 上傳參考圖 → 寫入 v0 可替換基底版本，並讓該資源 sheet 指向 v0
         if kind := REF_UPLOAD_KINDS.get(upload_type):
-            _apply_uploaded_as_final(
+            _promote_reference_to_base_version(
                 manager,
                 project_name,
                 kind=kind,
                 name=name,
                 ref_abs=target_path,
-                sheet_filename=filename,
             )
     except KeyError:
         pass  # 對應實體不存在，忽略
+
+
+# kind → (version resource_type, sheet 更新方法名)
+_REF_KIND_MAP = {
+    "character": ("characters", "update_project_character_sheet"),
+    "clue": ("clues", "update_clue_sheet"),
+    "scene": ("scenes", "update_scene_sheet"),
+}
+
+
+def _promote_reference_to_base_version(
+    manager: ProjectManager,
+    project_name: str,
+    *,
+    kind: str,
+    name: str,
+    ref_abs: Path,
+) -> None:
+    """把剛上傳的參考圖寫入 v0 基底版本，並讓資源 sheet 指向 v0 當前檔。
+
+    v0 是可替換的基底（重複上傳會覆蓋同一槽位），上傳後即成為當前圖，
+    可直接用於分鏡／影片生成（沿用既有讀 *_sheet 的流程）。
+    """
+    resource_type, sheet_setter = _REF_KIND_MAP[kind]
+    project_path = manager.get_project_path(project_name)
+    vm = VersionManager(project_path)
+    result = vm.set_base_version(resource_type, name, ref_abs, prompt="使用者上傳")
+
+    with project_change_source("webui"):
+        getattr(manager, sheet_setter)(project_name, name, result["file"])
 
 
 @router.get("/files/{project_name}/{path:path}")

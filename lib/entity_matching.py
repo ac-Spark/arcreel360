@@ -127,9 +127,7 @@ def build_sorted_entries(
     reconcile_script），避免每個 segment 重跑 regex 與排序。
     """
     all_entries = (
-        _build_entries(characters, "character")
-        + _build_entries(clues, "clue")
-        + _build_entries(scenes, "scene")
+        _build_entries(characters, "character") + _build_entries(clues, "clue") + _build_entries(scenes, "scene")
     )
 
     # 以 alias 去重：同一 alias 只保留優先序最高的條目

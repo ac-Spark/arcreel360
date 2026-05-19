@@ -40,6 +40,9 @@ class VersionManager:
         "scenes": ".png",
     }
 
+    # v0 = 使用者上傳的可替換基底版本（與 v1+ 的不可變 AI 歷史快照語義不同）
+    BASE_VERSION = 0
+
     def __init__(self, project_path: Path):
         """
         初始化版本管理器
@@ -103,9 +106,9 @@ class VersionManager:
             if not resource_data:
                 return {"current_version": 0, "versions": []}
 
-            # 新增 is_current 和 file_url 欄位
+            # 新增 is_current 和 file_url 欄位；v0 排在最前，其餘按版本號升序
             versions = []
-            for v in resource_data.get("versions", []):
+            for v in sorted(resource_data.get("versions", []), key=lambda x: x.get("version", 0)):
                 version_info = v.copy()
                 version_info["is_current"] = v["version"] == resource_data["current_version"]
                 version_info["file_url"] = f"/api/v1/files/{self.project_path.name}/{v['file']}"
@@ -159,8 +162,9 @@ class VersionManager:
 
             resource_data = data[resource_type][resource_id]
             existing_versions = resource_data.get("versions", [])
+            # AI 生成版本從 1 起算；v0（使用者上傳基底）不參與遞增
             max_version = max(
-                (item.get("version", 0) for item in existing_versions),
+                (item.get("version", 0) for item in existing_versions if item.get("version", 0) > 0),
                 default=0,
             )
             new_version = max_version + 1
@@ -190,6 +194,60 @@ class VersionManager:
 
             self._save_versions(data)
             return new_version
+
+    def set_base_version(
+        self,
+        resource_type: str,
+        resource_id: str,
+        source_file: Path,
+        prompt: str = "使用者上傳",
+        **metadata,
+    ) -> dict:
+        """寫入 / 覆蓋 v0 基底版本（使用者上傳的可替換基底）。
+
+        與 add_version 不同：v0 是固定槽位，重複呼叫會覆蓋同一筆而非累積，
+        且不影響 AI 版本（v1+）的遞增。寫入後 current_version 設為 0。
+        """
+        if resource_type not in self.RESOURCE_TYPES:
+            raise ValueError(f"不支援的資源型別: {resource_type}")
+
+        source_file = Path(source_file)
+        if not source_file.exists():
+            raise FileNotFoundError(f"來源檔案不存在: {source_file}")
+
+        with self._lock:
+            data = self._load_versions()
+            data.setdefault(resource_type, {})
+            resource_data = data[resource_type].setdefault(resource_id, {"current_version": 0, "versions": []})
+
+            # v0 檔名固定（不帶 timestamp）以確保覆蓋而非累積
+            ext = self.EXTENSIONS.get(resource_type, ".png")
+            version_filename = f"{resource_id}_v0{ext}"
+            version_rel_path = f"versions/{resource_type}/{version_filename}"
+            version_abs_path = self.project_path / version_rel_path
+            version_abs_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source_file, version_abs_path)
+
+            base_record = {
+                "version": self.BASE_VERSION,
+                "file": version_rel_path,
+                "prompt": prompt,
+                "created_at": self._generate_iso_timestamp(),
+                **metadata,
+            }
+
+            versions = resource_data.setdefault("versions", [])
+            for idx, item in enumerate(versions):
+                if item.get("version") == self.BASE_VERSION:
+                    versions[idx] = base_record
+                    break
+            else:
+                versions.append(base_record)
+
+            resource_data["current_version"] = self.BASE_VERSION
+            self._save_versions(data)
+
+        return {"version": self.BASE_VERSION, "file": version_rel_path}
 
     def backup_current(
         self, resource_type: str, resource_id: str, current_file: Path, prompt: str, **metadata

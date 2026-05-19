@@ -119,13 +119,11 @@ class ProjectManager:
             "description": description,
             "scene_sheet": scene_sheet,
             "scene_ref": "",
-            "use_uploaded_as_final": False,
         }
 
     @staticmethod
     def _needs_generated_sheet(project_dir: Path, entity: dict, sheet_key: str) -> bool:
-        if entity.get("use_uploaded_as_final"):
-            return False
+        # 已有 sheet（含使用者上傳寫入 v0 後指向的 sheet）即不需 AI 生成
         sheet = entity.get(sheet_key)
         return not sheet or not (project_dir / sheet).exists()
 
@@ -365,13 +363,6 @@ class ProjectManager:
 
         # 更新後設資料（相容舊指令碼：可能缺少 metadata，或 narration 使用 segments）
         now = datetime.now().isoformat()
-        metadata = script.get("metadata")
-        if not isinstance(metadata, dict):
-            metadata = {}
-            script["metadata"] = metadata
-        metadata.setdefault("created_at", now)
-        metadata.setdefault("status", "draft")
-        metadata["updated_at"] = now
 
         # 補齊非關鍵路徑，任何失敗都不應阻擋存檔
         try:
@@ -379,6 +370,14 @@ class ProjectManager:
             script = reconcile_script(script, project_json)
         except Exception:
             logger.warning("關聯補齊失敗，沿用原劇本繼續存檔: %s", project_name, exc_info=True)
+
+        metadata = script.get("metadata")
+        if not isinstance(metadata, dict):
+            metadata = {}
+            script["metadata"] = metadata
+        metadata.setdefault("created_at", now)
+        metadata.setdefault("status", "draft")
+        metadata["updated_at"] = now
 
         scenes = script.get("scenes", [])
         if not isinstance(scenes, list):
@@ -1685,15 +1684,11 @@ class ProjectManager:
             append_existing(clue_data.get("clue_sheet"))
 
         # 場景參考圖（單數欄位，narration 用 scene_in_segment / drama 用 scene_in_scene）
+        # scene_sheet 已指向當前版本（使用者上傳寫入 v0 或 AI 生成）；無則退回 scene_ref
         scene_name = scene.get("scene_in_scene") or scene.get("scene_in_segment")
         if scene_name:
             scene_data = project.get("scenes", {}).get(scene_name, {})
-            # use_uploaded_as_final 時優先用上傳圖；否則用 AI 生成的 scene_sheet
-            if scene_data.get("use_uploaded_as_final"):
-                candidate = scene_data.get("scene_ref") or scene_data.get("scene_sheet")
-            else:
-                candidate = scene_data.get("scene_sheet") or scene_data.get("scene_ref")
-            append_existing(candidate)
+            append_existing(scene_data.get("scene_sheet") or scene_data.get("scene_ref"))
 
         return refs
 
@@ -1753,7 +1748,7 @@ class ProjectManager:
         """
         獲取待生成設計圖的場景列表
 
-        排除：已有實體 scene_sheet 檔案、或 use_uploaded_as_final 的場景。
+        排除：已有 scene_sheet 檔案的場景（含使用者上傳寫入 v0 後指向的 sheet）。
         （注意：與既有 get_pending_scenes(分鏡資產查詢) 為不同語義，刻意分名。）
         """
         project = self.load_project(project_name)
@@ -1796,30 +1791,6 @@ class ProjectManager:
             self.save_project(project_name, project)
 
         return added
-
-    # ==================== 自備圖（use_uploaded_as_final）旗標 ====================
-
-    def _set_use_uploaded_as_final(self, project_name: str, collection: str, name: str, value: bool) -> dict:
-        project = self.load_project(project_name)
-
-        if name not in project.get(collection, {}):
-            raise KeyError(f"'{name}' 不存在於 {collection}")
-
-        project[collection][name]["use_uploaded_as_final"] = value
-        self.save_project(project_name, project)
-        return project
-
-    def set_character_use_uploaded_as_final(self, project_name: str, name: str, value: bool) -> dict:
-        """設定角色是否「直接以上傳圖為最終成品」"""
-        return self._set_use_uploaded_as_final(project_name, "characters", name, value)
-
-    def set_clue_use_uploaded_as_final(self, project_name: str, name: str, value: bool) -> dict:
-        """設定線索是否「直接以上傳圖為最終成品」"""
-        return self._set_use_uploaded_as_final(project_name, "clues", name, value)
-
-    def set_scene_use_uploaded_as_final(self, project_name: str, name: str, value: bool) -> dict:
-        """設定場景是否「直接以上傳圖為最終成品」"""
-        return self._set_use_uploaded_as_final(project_name, "scenes", name, value)
 
     def update_clue_reference_image(self, project_name: str, name: str, ref_path: str) -> dict:
         """更新線索的參考圖路徑（支援線索自備圖）"""

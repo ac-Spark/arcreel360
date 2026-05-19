@@ -36,7 +36,6 @@ class UpdateCharacterRequest(BaseModel):
     voice_style: str | None = None
     character_sheet: str | None = None
     reference_image: str | None = None
-    use_uploaded_as_final: bool | None = None
 
 
 @router.post("/projects/{project_name}/characters")
@@ -87,8 +86,6 @@ async def update_character(
                     char["character_sheet"] = req.character_sheet
                 if req.reference_image is not None:
                     char["reference_image"] = req.reference_image
-                if req.use_uploaded_as_final is not None:
-                    char["use_uploaded_as_final"] = req.use_uploaded_as_final
                 result_char.update(char)
 
             with project_change_source("webui"):

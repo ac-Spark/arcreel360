@@ -9,7 +9,6 @@ import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useConfirm } from "@/hooks/useConfirm";
 import type { Character } from "@/types";
-import { UseUploadedAsFinalToggle } from "./UseUploadedAsFinalToggle";
 
 interface CharacterSavePayload {
   description: string;
@@ -22,7 +21,6 @@ interface CharacterCardProps {
   character: Character;
   projectName: string;
   onSave: (name: string, payload: CharacterSavePayload) => Promise<void>;
-  onToggleUseUploaded?: (name: string, value: boolean) => Promise<void> | void;
   onGenerate: (name: string) => void;
   onDelete?: (name: string) => Promise<void> | void;
   onRename?: (oldName: string, newName: string) => Promise<void> | void;
@@ -35,7 +33,6 @@ export function CharacterCard({
   character,
   projectName,
   onSave,
-  onToggleUseUploaded,
   onGenerate,
   onDelete,
   onRename,
@@ -330,15 +327,6 @@ export function CharacterCard({
           />
         </div>
       </div>
-
-      {onToggleUseUploaded && (
-        <div className="mb-3">
-          <UseUploadedAsFinalToggle
-            checked={Boolean(character.use_uploaded_as_final)}
-            onChange={(value) => void onToggleUseUploaded(name, value)}
-          />
-        </div>
-      )}
 
       <label className="text-xs font-medium text-gray-400">描述</label>
       <textarea

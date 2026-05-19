@@ -1,9 +1,6 @@
 """entity_matching 模組測試 — 與前端 entity-matching.test.ts 對稱。"""
 
-import pytest
-
 from lib.entity_matching import EntityMentionNames, expand_entity_aliases, scan_entity_mentions
-
 
 # ============ expand_entity_aliases ============
 

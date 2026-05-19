@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from lib.project_manager import ProjectManager
+from lib.version_manager import VersionManager
 from server.auth import CurrentUserInfo, get_current_user
 from server.routers import files
 
@@ -172,7 +173,8 @@ class TestFilesRouter:
 
             # confirm metadata updated for character/clue
             project = pm.load_project("demo")
-            assert project["characters"]["Alice"]["character_sheet"] == "characters/Alice.jpg"
+            # 上傳 character_ref 後寫入 v0，sheet 改指向 v0 基底（取代先前的 characters/Alice.jpg）
+            assert project["characters"]["Alice"]["character_sheet"].startswith("versions/characters/")
             assert project["characters"]["Alice"]["reference_image"] == "characters/refs/Alice.webp"
             assert project["clues"]["玉佩"]["clue_sheet"] == "clues/玉佩.jpg"
 
@@ -392,8 +394,10 @@ class TestFilesRouter:
             assert change2["important"] is False
 
 
-class TestUploadUseUploadedAsFinal:
-    def test_scene_upload_and_ref(self, tmp_path, monkeypatch):
+class TestUploadReferenceWritesBaseVersion:
+    """上傳參考圖即寫入 v0 可替換基底，並讓 sheet 指向 v0（取代舊 use_uploaded_as_final）。"""
+
+    def test_scene_ref_writes_v0_and_sheet(self, tmp_path, monkeypatch):
         client, pm = _client(monkeypatch, tmp_path)
         pm.add_project_scene("demo", "古城", "城牆")
 
@@ -406,30 +410,34 @@ class TestUploadUseUploadedAsFinal:
 
         scene = pm.get_project_scene("demo", "古城")
         assert scene["scene_ref"].startswith("scenes/refs/")
-        # 未開旗標：不應自動複製成 sheet
-        assert scene["scene_sheet"] == ""
-
-    def test_scene_ref_promoted_when_flag_on(self, tmp_path, monkeypatch):
-        client, pm = _client(monkeypatch, tmp_path)
-        pm.add_project_scene("demo", "古城", "城牆")
-        pm.set_scene_use_uploaded_as_final("demo", "古城", True)
-
-        with client:
-            up = client.post(
-                "/api/v1/projects/demo/upload/scene_ref?name=古城",
-                files={"file": ("c.jpg", _img_bytes("JPEG"), "image/jpeg")},
-            )
-            assert up.status_code == 200
-
-        scene = pm.get_project_scene("demo", "古城")
-        assert scene["scene_ref"].startswith("scenes/refs/")
-        # 開旗標：ref 應被複製成正規 sheet
-        assert scene["scene_sheet"].startswith("scenes/")
+        # 上傳即寫 v0，sheet 指向 v0 檔
+        assert scene["scene_sheet"].startswith("versions/scenes/")
         assert (pm.get_project_path("demo") / scene["scene_sheet"]).exists()
 
-    def test_clue_ref_promoted_when_flag_on(self, tmp_path, monkeypatch):
+        vm = VersionManager(pm.get_project_path("demo"))
+        info = vm.get_versions("scenes", "古城")
+        assert info["current_version"] == 0
+        assert [v for v in info["versions"] if v["version"] == 0]
+
+    def test_scene_ref_reupload_overwrites_v0(self, tmp_path, monkeypatch):
         client, pm = _client(monkeypatch, tmp_path)
-        pm.set_clue_use_uploaded_as_final("demo", "玉佩", True)
+        pm.add_project_scene("demo", "古城", "城牆")
+
+        with client:
+            for _ in range(2):
+                up = client.post(
+                    "/api/v1/projects/demo/upload/scene_ref?name=古城",
+                    files={"file": ("c.jpg", _img_bytes("JPEG"), "image/jpeg")},
+                )
+                assert up.status_code == 200
+
+        vm = VersionManager(pm.get_project_path("demo"))
+        info = vm.get_versions("scenes", "古城")
+        # 覆蓋，不累積
+        assert len([v for v in info["versions"] if v["version"] == 0]) == 1
+
+    def test_clue_ref_writes_v0_and_sheet(self, tmp_path, monkeypatch):
+        client, pm = _client(monkeypatch, tmp_path)
 
         with client:
             up = client.post(
@@ -440,4 +448,18 @@ class TestUploadUseUploadedAsFinal:
 
         clue = pm.get_clue("demo", "玉佩")
         assert clue["reference_image"].startswith("clues/refs/")
-        assert clue["clue_sheet"].startswith("clues/")
+        assert clue["clue_sheet"].startswith("versions/clues/")
+
+    def test_character_ref_writes_v0_and_sheet(self, tmp_path, monkeypatch):
+        client, pm = _client(monkeypatch, tmp_path)
+
+        with client:
+            up = client.post(
+                "/api/v1/projects/demo/upload/character_ref?name=Alice",
+                files={"file": ("c.jpg", _img_bytes("JPEG"), "image/jpeg")},
+            )
+            assert up.status_code == 200
+
+        char = pm.get_project_character("demo", "Alice")
+        assert char["reference_image"].startswith("characters/refs/")
+        assert char["character_sheet"].startswith("versions/characters/")

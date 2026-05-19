@@ -20,8 +20,6 @@ export interface Character {
   character_sheet?: string;
   voice_style?: string;
   reference_image?: string;
-  /** 開啟時：上傳的參考圖直接作為最終成品，不再經 AI 生成 */
-  use_uploaded_as_final?: boolean;
 }
 
 export interface Clue {
@@ -30,8 +28,6 @@ export interface Clue {
   importance: "major" | "minor";
   clue_sheet?: string;
   reference_image?: string;
-  /** 開啟時：上傳的參考圖直接作為最終成品，不再經 AI 生成 */
-  use_uploaded_as_final?: boolean;
 }
 
 /**
@@ -42,8 +38,6 @@ export interface Scene {
   description: string;
   scene_sheet?: string;
   scene_ref?: string;
-  /** 開啟時：上傳的參考圖直接作為最終成品，不再經 AI 生成 */
-  use_uploaded_as_final?: boolean;
 }
 
 export interface AspectRatio {

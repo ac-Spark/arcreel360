@@ -1,4 +1,4 @@
-"""場景(scene)實體與 use_uploaded_as_final 旗標的 ProjectManager 測試。"""
+"""場景(scene)實體的 ProjectManager 測試。"""
 
 import pytest
 
@@ -21,7 +21,7 @@ class TestSceneEntity:
         assert scene["description"] == "斑駁的青磚城牆，黃昏光線"
         assert scene["scene_sheet"] == ""
         assert scene["scene_ref"] == ""
-        assert scene["use_uploaded_as_final"] is False
+        assert "use_uploaded_as_final" not in scene
 
     def test_get_missing_scene_raises(self, tmp_path):
         pm = _make_pm(tmp_path)
@@ -55,49 +55,32 @@ class TestSceneEntity:
         assert pm.get_project_scene("demo", "古城牆")["description"] == "舊描述"
         assert pm.get_project_scene("demo", "市集")["description"] == "熱鬧市集"
 
-    def test_pending_scenes_excludes_generated_and_uploaded_final(self, tmp_path):
+    def test_pending_scenes_excludes_those_with_sheet(self, tmp_path):
         pm = _make_pm(tmp_path)
         pm.add_project_scene("demo", "待生成", "需要 AI 生成")
         pm.add_project_scene("demo", "已生成", "已有 sheet")
-        pm.add_project_scene("demo", "自備圖", "使用者上傳當成品")
 
-        # 已生成: 寫一個實體檔案
+        # 已生成: 寫一個實體檔案 + 指向 sheet（含使用者上傳寫 v0 後的情境）
         sheet_rel = "scenes/已生成.png"
         (pm.get_project_path("demo") / sheet_rel).write_bytes(b"x")
         pm.update_scene_sheet("demo", "已生成", sheet_rel)
-
-        # 自備圖: 開旗標
-        pm.set_scene_use_uploaded_as_final("demo", "自備圖", True)
 
         pending = pm.get_pending_scene_sheets("demo")
         names = {p["name"] for p in pending}
         assert names == {"待生成"}
 
-
-class TestUseUploadedAsFinal:
-    def test_character_flag_excludes_from_pending(self, tmp_path):
-        pm = _make_pm(tmp_path)
-        pm.add_project_character("demo", "錦衣衛", "黑衣帶刀")
-        pm.set_character_use_uploaded_as_final("demo", "錦衣衛", True)
-
-        assert pm.get_pending_characters("demo") == []
-
-    def test_clue_flag_and_reference_image(self, tmp_path):
+    def test_clue_reference_image_setter(self, tmp_path):
         pm = _make_pm(tmp_path)
         pm.add_clue("demo", "龍紋玉佩", "prop", "古玉", "major")
         pm.update_clue_reference_image("demo", "龍紋玉佩", "clues/refs/龍紋玉佩.png")
-        pm.set_clue_use_uploaded_as_final("demo", "龍紋玉佩", True)
 
         clue = pm.get_clue("demo", "龍紋玉佩")
         assert clue["reference_image"] == "clues/refs/龍紋玉佩.png"
-        assert clue["use_uploaded_as_final"] is True
-
-        assert pm.get_pending_clues("demo") == []
 
 
 class TestLegacyCompat:
     def test_old_project_without_scenes_loads(self, tmp_path):
-        """舊 project.json 沒有 scenes/use_uploaded_as_final 欄位仍可運作。"""
+        """舊 project.json 沒有 scenes 欄位仍可運作。"""
         pm = _make_pm(tmp_path)
         # 模擬舊結構: 只有 characters/clues, 無 scenes key
         project = pm.load_project("demo")

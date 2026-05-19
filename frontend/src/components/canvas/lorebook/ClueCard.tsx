@@ -8,7 +8,6 @@ import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useConfirm } from "@/hooks/useConfirm";
 import type { Clue } from "@/types";
-import { UseUploadedAsFinalToggle } from "./UseUploadedAsFinalToggle";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -22,8 +21,6 @@ interface ClueCardProps {
   onGenerate: (name: string) => void;
   /** 上傳參考圖（multipart）。提供時才顯示參考圖上傳入口。 */
   onUploadReference?: (name: string, file: File) => Promise<void> | void;
-  /** 切換「直接以上傳圖為最終成品」。 */
-  onToggleUseUploaded?: (name: string, value: boolean) => Promise<void> | void;
   onDelete?: (name: string) => Promise<void> | void;
   onRename?: (oldName: string, newName: string) => Promise<void> | void;
   onRestoreVersion?: () => Promise<void> | void;
@@ -50,7 +47,6 @@ export function ClueCard({
   onUpdate,
   onGenerate,
   onUploadReference,
-  onToggleUseUploaded,
   onDelete,
   onRename,
   onRestoreVersion,
@@ -344,16 +340,6 @@ export function ClueCard({
             accept=".png,.jpg,.jpeg,.webp"
             onChange={handleReferenceChange}
             className="hidden"
-          />
-        </div>
-      )}
-
-      {/* ---- Use-uploaded-as-final toggle ---- */}
-      {onToggleUseUploaded && (
-        <div className="mb-3">
-          <UseUploadedAsFinalToggle
-            checked={Boolean(clue.use_uploaded_as_final)}
-            onChange={(value) => void onToggleUseUploaded(name, value)}
           />
         </div>
       )}

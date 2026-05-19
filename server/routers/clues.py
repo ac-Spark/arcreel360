@@ -37,7 +37,6 @@ class UpdateClueRequest(BaseModel):
     importance: str | None = None
     clue_sheet: str | None = None
     reference_image: str | None = None
-    use_uploaded_as_final: bool | None = None
 
 
 @router.post("/projects/{project_name}/clues")
@@ -94,8 +93,6 @@ async def update_clue(project_name: str, clue_name: str, req: UpdateClueRequest,
                     clue["clue_sheet"] = req.clue_sheet
                 if req.reference_image is not None:
                     clue["reference_image"] = req.reference_image
-                if req.use_uploaded_as_final is not None:
-                    clue["use_uploaded_as_final"] = req.use_uploaded_as_final
                 result_clue.update(clue)
 
             with project_change_source("webui"):

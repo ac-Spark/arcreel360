@@ -912,27 +912,12 @@ async def execute_scene_task(
         _project = get_project_manager().load_project(project_name)
         if resource_id not in _project.get("scenes", {}):
             raise ValueError(f"scene not found: {resource_id}")
-        _scene_data = _project["scenes"][resource_id]
         _style = _project.get("style", "")
         _style_desc = _project.get("style_description", "")
         _full_prompt = build_scene_prompt(resource_id, prompt, _style, _style_desc)
-        return _project, _scene_data, _full_prompt
+        return _project, _full_prompt
 
-    project, scene_data, full_prompt = await asyncio.to_thread(_prepare_scene)
-
-    # 自備圖當成品：已有 scene_sheet 則冪等跳過 AI 生成
-    if scene_data.get("use_uploaded_as_final"):
-        sheet_rel = scene_data.get("scene_sheet") or ""
-        sheet_abs = get_project_manager().get_project_path(project_name) / sheet_rel
-        if sheet_rel and sheet_abs.exists():
-            return {
-                "version": None,
-                "file_path": sheet_rel,
-                "created_at": None,
-                "resource_type": "scenes",
-                "resource_id": resource_id,
-                "skipped": "use_uploaded_as_final",
-            }
+    project, full_prompt = await asyncio.to_thread(_prepare_scene)
 
     generator = await get_media_generator(project_name, payload=payload, user_id=user_id)
     aspect_ratio = get_aspect_ratio(project, "scenes")
