@@ -3,7 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { AutoTextarea } from "@/components/ui/AutoTextarea";
 import { CompactInput } from "@/components/ui/CompactInput";
 import { DropdownPill } from "@/components/ui/DropdownPill";
-import type { EntityMentionSources } from "@/utils/entity-mentions";
+import type { EntityMentionNames, EntityMentionSources } from "@/utils/entity-mentions";
 import { SHOT_TYPES } from "@/types";
 import type { ImagePrompt, ShotType } from "@/types";
 
@@ -11,6 +11,7 @@ interface ImagePromptEditorProps {
   prompt: ImagePrompt;
   onUpdate: (patch: Partial<ImagePrompt>) => void;
   entities?: EntityMentionSources;
+  linkedNames?: EntityMentionNames;
 }
 
 /** Structured editor for ImagePrompt fields with collapsible composition section. */
@@ -18,6 +19,7 @@ export function ImagePromptEditor({
   prompt,
   onUpdate,
   entities,
+  linkedNames,
 }: ImagePromptEditorProps) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -28,6 +30,7 @@ export function ImagePromptEditor({
         onChange={(v) => onUpdate({ scene: v })}
         placeholder="分鏡圖描述..."
         entities={entities}
+        linkedNames={linkedNames}
       />
 
       {/* Collapsible composition fields */}

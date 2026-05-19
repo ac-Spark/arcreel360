@@ -14,7 +14,6 @@ AI 生成劇本時常在正文（novel_text / image_prompt.scene / video_prompt.
 
 from __future__ import annotations
 
-import copy
 from typing import Any
 
 from lib.entity_matching import AliasEntries, build_sorted_entries, scan_with_entries
@@ -71,7 +70,9 @@ def reconcile_item(
         fields: (chars_field, clues_field, scene_field) 欄位名三元組
     """
     chars_field, clues_field, scene_field = fields
-    result = copy.deepcopy(item)
+    # 只改三個頂層欄位、巢狀內容只讀，故淺拷貝即可保證不 mutate 入參；
+    # 避免與 reconcile_script 的整份 deepcopy 疊成每個 item 雙重深拷貝。
+    result = dict(item)
 
     text = _collect_text(result)
     if not text:
@@ -96,7 +97,9 @@ def reconcile_script(script: dict[str, Any], project_json: dict[str, Any]) -> di
     narration → segments + *_in_segment；drama → scenes + *_in_scene。
     project.json 無實體或結構不符時等同 no-op（回傳結構等價的新 dict）。
     """
-    result = copy.deepcopy(script)
+    # 僅重新賦值 result[items_key]，list 內每個 item 由 reconcile_item 各自淺拷貝；
+    # 整份淺拷貝即足以不 mutate 入參，不需深拷貝。
+    result = dict(script)
 
     characters = project_json.get("characters") if isinstance(project_json, dict) else None
     clues = project_json.get("clues") if isinstance(project_json, dict) else None

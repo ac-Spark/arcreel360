@@ -166,7 +166,6 @@ def scan_with_entries(text: str, sorted_entries: AliasEntries) -> EntityMentionN
             if i + alias_len > text_len:
                 continue
             if text[i : i + alias_len] == entry.alias and _check_boundary(text, i, alias_len, entry.alias):
-                # 命中
                 if entry.kind == "character":
                     found_characters.add(entry.original_key)
                 elif entry.kind == "clue":

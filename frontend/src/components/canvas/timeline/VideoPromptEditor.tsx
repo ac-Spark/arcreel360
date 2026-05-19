@@ -4,7 +4,7 @@ import { AutoTextarea } from "@/components/ui/AutoTextarea";
 import { CompactInput } from "@/components/ui/CompactInput";
 import { DropdownPill } from "@/components/ui/DropdownPill";
 import { DialogueListEditor } from "./DialogueListEditor";
-import type { EntityMentionSources } from "@/utils/entity-mentions";
+import type { EntityMentionNames, EntityMentionSources } from "@/utils/entity-mentions";
 import { CAMERA_MOTIONS } from "@/types";
 import type { VideoPrompt, CameraMotion, Dialogue } from "@/types";
 
@@ -13,6 +13,7 @@ interface VideoPromptEditorProps {
   onUpdate: (patch: Partial<VideoPrompt>) => void;
   speakerOptions?: string[];
   entities?: EntityMentionSources;
+  linkedNames?: EntityMentionNames;
 }
 
 /** Structured editor for VideoPrompt fields with collapsible metadata section. */
@@ -21,6 +22,7 @@ export function VideoPromptEditor({
   onUpdate,
   speakerOptions,
   entities,
+  linkedNames,
 }: VideoPromptEditorProps) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -31,6 +33,7 @@ export function VideoPromptEditor({
         onChange={(v) => onUpdate({ action: v })}
         placeholder="影片動作描述..."
         entities={entities}
+        linkedNames={linkedNames}
       />
 
       {/* Collapsible metadata fields */}

@@ -90,6 +90,10 @@ function getSegmentId(segment: Segment, mode: "narration" | "drama"): string {
     : (segment as DramaScene).scene_id;
 }
 
+// 空值回共用凍結常數而非新 []，否則每 render 產生新引用會讓 mentionContext
+// memo 失效，連帶使下游 tokenizeForHighlight memo 每 render 重算。
+const EMPTY_NAMES: readonly string[] = Object.freeze([]);
+
 function getSegmentField(
   segment: Segment,
   mode: "narration" | "drama",
@@ -97,8 +101,8 @@ function getSegmentField(
   dramaKey: keyof DramaScene,
 ): string[] {
   return mode === "narration"
-    ? (((segment as NarrationSegment)[narrationKey] as string[] | undefined) ?? [])
-    : (((segment as DramaScene)[dramaKey] as string[] | undefined) ?? []);
+    ? (((segment as NarrationSegment)[narrationKey] as string[] | undefined) ?? (EMPTY_NAMES as string[]))
+    : (((segment as DramaScene)[dramaKey] as string[] | undefined) ?? (EMPTY_NAMES as string[]));
 }
 
 function getCharacterNames(segment: Segment, mode: "narration" | "drama"): string[] {
@@ -536,6 +540,7 @@ function TextColumn({
                 <MentionHighlightedText
                   value={d.line}
                   entities={mentionContext.entities}
+                  linkedNames={mentionContext.currentNames}
                 />
               </span>
             </li>
@@ -703,6 +708,7 @@ function PromptColumn({
             prompt={imgDraft}
             onUpdate={fireStructuredImage}
             entities={mentionContext.entities}
+            linkedNames={mentionContext.currentNames}
           />
         ) : (
           <AutoTextarea
@@ -713,6 +719,7 @@ function PromptColumn({
             }}
             placeholder="分鏡圖描述..."
             entities={mentionContext.entities}
+            linkedNames={mentionContext.currentNames}
           />
         )}
       </div>
@@ -732,6 +739,7 @@ function PromptColumn({
             onUpdate={fireStructuredVideo}
             speakerOptions={speakerOptions}
             entities={mentionContext.entities}
+            linkedNames={mentionContext.currentNames}
           />
         ) : (
           <AutoTextarea
@@ -742,6 +750,7 @@ function PromptColumn({
             }}
             placeholder="影片動作描述..."
             entities={mentionContext.entities}
+            linkedNames={mentionContext.currentNames}
           />
         )}
       </div>

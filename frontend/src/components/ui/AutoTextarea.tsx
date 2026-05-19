@@ -3,7 +3,7 @@ import type { ChangeEvent } from "react";
 import { EntityMentionMenu } from "@/components/canvas/timeline/EntityMentionMenu";
 import { MentionHighlightOverlay } from "@/components/canvas/timeline/MentionHighlightOverlay";
 import { useEntityMentionInput } from "@/components/canvas/timeline/useEntityMentionInput";
-import type { EntityMentionSources } from "@/utils/entity-mentions";
+import type { EntityMentionNames, EntityMentionSources } from "@/utils/entity-mentions";
 import { UI_LAYERS } from "@/utils/ui-layers";
 
 interface AutoTextareaProps {
@@ -13,6 +13,9 @@ interface AutoTextareaProps {
   className?: string;
   /** 提供時啟用 @ 角色/道具/場景自動補完選單與高亮。 */
   entities?: EntityMentionSources;
+  /** 該片段已關聯的實體名稱；裸名（無 @）也會高亮，與原文一致。
+   *  僅在同時提供 `entities`（啟用高亮層）時生效。 */
+  linkedNames?: EntityMentionNames;
 }
 
 const EMPTY_MENTION_ENTITIES: EntityMentionSources = {
@@ -34,6 +37,7 @@ export function AutoTextarea({
   placeholder,
   className,
   entities,
+  linkedNames,
 }: AutoTextareaProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -86,6 +90,7 @@ export function AutoTextarea({
       <MentionHighlightOverlay
         value={value}
         entities={mentionEntities}
+        linkedNames={linkedNames}
         className={`${SHARED_METRICS} border border-transparent text-gray-200`}
       />
       <textarea
