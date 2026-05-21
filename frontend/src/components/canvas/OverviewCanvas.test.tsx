@@ -92,6 +92,39 @@ describe("OverviewCanvas", () => {
     });
   }, 10_000);
 
+  it("shows a generate-overview action when the project has episodes but no overview", async () => {
+    vi.spyOn(API, "generateOverview").mockResolvedValue({
+      success: true,
+      overview: {
+        synopsis: "summary",
+        genre: "fantasy",
+        theme: "growth",
+        world_setting: "palace",
+      },
+    });
+    vi.spyOn(API, "getProject").mockResolvedValue({
+      project: makeProjectData(),
+      scripts: {},
+    });
+
+    // 有劇集但無 overview —— 不應落入 WelcomeCanvas，且概述入口仍須可見
+    renderOverviewCanvas(
+      <OverviewCanvas
+        projectName="demo"
+        projectData={makeProjectData({ overview: undefined })}
+      />,
+    );
+
+    expect(screen.queryByTestId("welcome-canvas")).not.toBeInTheDocument();
+    expect(screen.getByText("專案概述")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "生成概述" }));
+
+    await waitFor(() => {
+      expect(API.generateOverview).toHaveBeenCalledWith("demo");
+    });
+  });
+
   it("shows a save action only when style description is edited", async () => {
     vi.spyOn(API, "updateStyleDescription").mockResolvedValue({ success: true });
     vi.spyOn(API, "getProject").mockResolvedValue({

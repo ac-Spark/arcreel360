@@ -309,30 +309,42 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
           />
         ) : (
           <>
-            {overview && (
-              <div className="space-y-3 rounded-xl border border-gray-800 bg-gray-900 p-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-gray-300">專案概述</h3>
-                  <button
-                    type="button"
-                    onClick={() => void handleRegenerate()}
-                    disabled={regenerating}
-                    className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-50 ${focusRing}`}
-                    title="重新生成概述"
-                  >
-                    <RefreshCw
-                      className={`h-3 w-3 ${regenerating ? "animate-spin" : ""}`}
-                    />
-                    <span>{regenerating ? "生成中..." : "重新生成"}</span>
-                  </button>
-                </div>
-                <p className="text-sm text-gray-400">{overview.synopsis}</p>
-                <div className="flex gap-4 text-xs text-gray-500">
-                  <span>題材：{overview.genre}</span>
-                  <span>主題：{overview.theme}</span>
-                </div>
+            <div className="space-y-3 rounded-xl border border-gray-800 bg-gray-900 p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-300">專案概述</h3>
+                <button
+                  type="button"
+                  onClick={() => void handleRegenerate()}
+                  disabled={regenerating}
+                  className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-50 ${focusRing}`}
+                  title={overview ? "重新生成概述" : "生成概述"}
+                >
+                  <RefreshCw
+                    className={`h-3 w-3 ${regenerating ? "animate-spin" : ""}`}
+                  />
+                  <span>
+                    {regenerating
+                      ? "生成中..."
+                      : overview
+                        ? "重新生成"
+                        : "生成概述"}
+                  </span>
+                </button>
               </div>
-            )}
+              {overview ? (
+                <>
+                  <p className="text-sm text-gray-400">{overview.synopsis}</p>
+                  <div className="flex gap-4 text-xs text-gray-500">
+                    <span>題材：{overview.genre}</span>
+                    <span>主題：{overview.theme}</span>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  尚未生成專案概述。點選右上角「生成概述」依來源內容自動生成，生成後製作流程才會往下推進。
+                </p>
+              )}
+            </div>
 
             {status && (
               <div className="grid grid-cols-2 gap-3">
