@@ -29,6 +29,7 @@ services:
       PNPM_HOME: /tmp/.pnpm
     volumes:
       - ./frontend:/build
+      - ./tests:/tests:ro
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
