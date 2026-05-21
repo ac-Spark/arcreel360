@@ -150,7 +150,7 @@ def test_openai_tool_declarations_cover_skills_and_fs_tools() -> None:
         "fs_list",
         "run_subagent",
     }
-    assert len(OPENAI_TOOL_DECLARATIONS) == 14
+    assert len(OPENAI_TOOL_DECLARATIONS) == 20
 
 
 def test_each_openai_tool_schema_is_strict_object_schema() -> None:
@@ -288,3 +288,62 @@ async def test_runner_receives_permission_deny_as_tool_result(skill_context: Ski
             "type": "function_call_output",
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_always_allow_gate_asks_user_for_destructive_actions() -> None:
+    from server.agent_runtime.permission_gate import Allow, AlwaysAllowGate, AskUser
+
+    gate = AlwaysAllowGate()
+
+    decision_delete = gate.check("delete_entity", {"entity_type": "character", "name": "小明"}, "session_123")
+    assert isinstance(decision_delete, AskUser)
+    assert decision_delete.question == "確定要刪除專案中的角色「小明」嗎？"
+
+    decision_rename = gate.check(
+        "rename_entity", {"entity_type": "clue", "old_name": "舊道具", "new_name": "新道具"}, "session_123"
+    )
+    assert isinstance(decision_rename, AskUser)
+    assert decision_rename.question == "確定要將專案中的道具「舊道具」改名為「新道具」嗎？"
+
+    decision_other = gate.check("fs_read", {"path": "x.json"}, "session_123")
+    assert isinstance(decision_other, Allow)
+
+
+@pytest.mark.asyncio
+async def test_destructive_openai_tool_returns_approval_required(skill_context: SkillCallContext) -> None:
+    from server.agent_runtime.openai_tool_adapters import build_skill_tools
+
+    handler_called = False
+
+    async def delete_handler(_ctx: SkillCallContext, _args: dict[str, Any]) -> dict[str, Any]:
+        nonlocal handler_called
+        handler_called = True
+        return {"ok": True}
+
+    declaration = FunctionDeclaration(
+        name="delete_entity",
+        description="Delete entity",
+        parameters={
+            "type": "object",
+            "properties": {
+                "entity_type": {"type": "string"},
+                "name": {"type": "string"},
+            },
+            "required": ["entity_type", "name"],
+        },
+    )
+
+    tool = build_skill_tools([declaration], {"delete_entity": delete_handler}, AlwaysAllowGate())[0]
+    result = await tool.on_invoke_tool(
+        ToolContext(skill_context, tool_call_id="call-delete"),
+        json.dumps({"entity_type": "scene", "name": "雨夜街口"}),
+    )
+
+    assert handler_called is False
+    assert result == {
+        "permission_denied": True,
+        "reason": "approval_required",
+        "question": "確定要刪除專案中的場景「雨夜街口」嗎？",
+        "tool": "delete_entity",
+    }

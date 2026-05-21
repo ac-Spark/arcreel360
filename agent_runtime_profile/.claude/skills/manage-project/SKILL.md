@@ -1,12 +1,12 @@
 ---
 name: manage-project
-description: 專案管理工具集。使用場景：(1) 分集切分——探測切分點並執行切分，(2) 批次新增角色/線索到 project.json。提供 peek（預覽）+ split（執行）的漸進式切分工作流，以及角色/線索批次寫入。
+description: 專案管理工具集。使用場景：(1) 分集切分——探測切分點並執行切分，(2) 世界觀操作——新增、編輯、改名、刪除角色/道具/場景。提供 peek（預覽）+ split（執行）的漸進式切分工作流，以及 project.json 世界觀寫入。
 user-invocable: false
 ---
 
 # 專案管理工具集
 
-提供專案檔案管理的命令列工具，主要用於分集切分和角色/線索批次寫入。
+提供專案檔案管理工具，主要用於分集切分和世界觀資料維護。
 
 ## 工具一覽
 
@@ -14,7 +14,7 @@ user-invocable: false
 |------|------|--------|
 | `peek_split_point.py` | 探測目標字數附近的上下文和自然斷點 | 主 agent（階段 2） |
 | `split_episode.py` | 執行分集切分，生成 episode_N.txt + _remaining.txt | 主 agent（階段 2） |
-| `add_characters_clues.py` | 批次新增角色/線索到 project.json | subagent |
+| `add_characters_clues.py` | 批次新增角色/道具到 project.json（legacy CLI） | subagent |
 
 ## 分集切分工作流
 
@@ -74,14 +74,29 @@ python .claude/skills/manage-project/scripts/split_episode.py --source {原始�
 
 失敗時 functions 一律回 `{"ok": false, "error": "...", "reason": "..."}`；CLI 腳本則把錯誤印到 stderr 並以非零結束碼退出。看到失敗不可回報完成，必須依錯誤訊息修正參數後重試。
 
-## 角色/線索批次寫入
+## 世界觀操作
 
-從專案目錄內執行，自動檢測專案名稱：
+`gemini-full` / `openai-full` 可直接呼叫以下 function tools：
+
+| tool | 功能 |
+|------|------|
+| `generate_characters` | 新增角色定義 |
+| `generate_clues` | 新增道具定義 |
+| `generate_scenes` | 新增場景定義 |
+| `update_character` | 更新角色描述 |
+| `update_clue` | 更新道具描述 |
+| `update_scene` | 更新場景描述 |
+| `rename_entity` | 改名角色/道具/場景，會觸發權限確認 |
+| `delete_entity` | 刪除角色/道具/場景，會觸發權限確認 |
+
+更新工具只改 `description`。改名/刪除是破壞性操作，必須經 permission gate 確認，不可無條件執行。
+
+Claude legacy 路徑可從專案目錄內執行 `add_characters_clues.py`，自動檢測專案名稱，只支援批次新增角色/道具：
 
 ⚠️ 必須單行，JSON 使用緊湊格式，不可用 `\` 換行：
 
 ```bash
-python .claude/skills/manage-project/scripts/add_characters_clues.py --characters '{"角色名": {"description": "...", "voice_style": "..."}}' --clues '{"線索名": {"type": "prop", "description": "...", "importance": "major"}}'
+python .claude/skills/manage-project/scripts/add_characters_clues.py --characters '{"角色名": {"description": "...", "voice_style": "..."}}' --clues '{"道具名": {"description": "...", "importance": "major"}}'
 ```
 
 腳本行為：

@@ -5,12 +5,12 @@ Clue Generator - 使用 Gemini API 生成線索設計圖
 Usage:
     python generate_clue.py --all
     python generate_clue.py --clue "玉佩"
-    python generate_clue.py --clues "玉佩" "老槐樹"
+    python generate_clue.py --clues "玉佩" "密信"
     python generate_clue.py --list
 
 Example:
     python generate_clue.py --all
-    python generate_clue.py --clue "老槐樹"
+    python generate_clue.py --clue "玉佩"
 """
 
 import argparse
@@ -43,14 +43,12 @@ def generate_clue(clue_name: str) -> Path:
 
     # 獲取線索資訊
     clue = pm.get_clue(project_name, clue_name)
-    clue_type = clue.get("type", "prop")
     description = clue.get("description", "")
 
     if not description:
         raise ValueError(f"線索 '{clue_name}' 的描述為空，請先新增描述")
 
     print(f"🎨 正在生成線索設計圖: {clue_name}")
-    print(f"   型別: {clue_type}")
     print(f"   描述: {description[:50]}..." if len(description) > 50 else f"   描述: {description}")
 
     queued = enqueue_and_wait(
@@ -83,10 +81,7 @@ def list_pending_clues() -> None:
 
     print(f"\n📋 待生成的線索 ({len(pending)} 個):\n")
     for clue in pending:
-        clue_type = clue.get("type", "prop")
-        type_emoji = "📦" if clue_type == "prop" else "🏠"
-        print(f"  {type_emoji} {clue['name']}")
-        print(f"     型別: {clue_type}")
+        print(f"  📦 {clue['name']}")
         print(f"     描述: {clue.get('description', '')[:60]}...")
         print()
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-add_characters_clues.py - 批次新增角色/線索到 project.json
+add_characters_clues.py - 批次新增角色/道具到 project.json
 
 用法（需從專案目錄內執行，必須單行）:
-    python .claude/skills/manage-project/scripts/add_characters_clues.py --characters '{"角色名": {"description": "...", "voice_style": "..."}}' --clues '{"線索名": {"type": "prop", "description": "...", "importance": "major"}}'
+    python .claude/skills/manage-project/scripts/add_characters_clues.py --characters '{"角色名": {"description": "...", "voice_style": "..."}}' --clues '{"道具名": {"description": "...", "importance": "major"}}'
 """
 
 import argparse
@@ -70,12 +70,12 @@ def _verify_persisted(pm: ProjectManager, project_name: str, key: str, entries: 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="批次新增角色/線索到 project.json",
+        description="批次新增角色/道具到 project.json",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例（需從專案目錄內執行，必須單行）:
     %(prog)s --characters '{"李白": {"description": "白衣劍客", "voice_style": "豪放"}}'
-    %(prog)s --clues '{"玉佩": {"type": "prop", "description": "溫潤白玉", "importance": "major"}}'
+    %(prog)s --clues '{"玉佩": {"description": "溫潤白玉", "importance": "major"}}'
         """,
     )
 

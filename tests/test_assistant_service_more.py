@@ -138,6 +138,7 @@ class TestAssistantServiceMore:
             prompt = provider._build_system_prompt("missing")  # type: ignore[attr-defined]
 
             assert "繁體中文" in prompt
+            assert "圖片/影片生成 prompt" in prompt
 
     @pytest.mark.asyncio
     async def test_service_init_interrupts_stale_running_sessions(self, tmp_path):

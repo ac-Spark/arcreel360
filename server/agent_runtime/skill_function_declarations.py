@@ -17,6 +17,12 @@ Workflow skills 全部接入：
 - ``generate_clues``          ✅ 写入 project.json 线索定义
 - ``manga_workflow_status``   ✅ 编排状态查询，纯只读
 - ``generate_storyboard``     ✅ 批量入队 storyboard task，等待 worker 完成
+- ``generate_scenes``        ✅ 写入 project.json 場景定义
+- ``update_character``       ✅ 更新 project.json 角色描述
+- ``update_clue``            ✅ 更新 project.json 道具/线索描述
+- ``update_scene``           ✅ 更新 project.json 場景描述
+- ``rename_entity``          ✅ 改名角色 / 道具 / 場景並更新引用
+- ``delete_entity``          ✅ 刪除角色 / 道具 / 場景定义
 - ``generate_video``          ✅ 批量入队 video task，等待 worker 完成
 - ``compose_video``           ✅ subprocess 调用 compose_video.py（ffmpeg）
 
@@ -96,6 +102,19 @@ def _build_persist_failure(
         "added": [name for name in added if name in persisted],
         "skipped": skipped,
     }
+
+
+_ENTITY_BUCKETS: dict[str, str] = {
+    "character": "characters",
+    "clue": "clues",
+    "scene": "scenes",
+}
+
+_ENTITY_LABELS: dict[str, str] = {
+    "character": "角色",
+    "clue": "道具",
+    "scene": "場景",
+}
 
 
 def _safe_project_file_exists(project_path: Path, rel_path: Any) -> bool:
@@ -492,8 +511,7 @@ async def _handle_generate_characters(ctx: SkillCallContext, args: dict[str, Any
 GENERATE_CLUES_DECL = FunctionDeclaration(
     name="generate_clues",
     description=(
-        "向 project.json 新增一组线索（道具）定义。"
-        "与 generate_characters 类似：仅写入定义，图片生成由 queue 异步处理。"
+        "向 project.json 新增一组线索（道具）定义。与 generate_characters 类似：仅写入定义，图片生成由 queue 异步处理。"
     ),
     parameters={
         "type": "object",
@@ -561,6 +579,317 @@ async def _handle_generate_clues(ctx: SkillCallContext, args: dict[str, Any]) ->
     if persist_failure:
         return persist_failure
     return {"ok": True, "added": added, "skipped": skipped}
+
+
+# ---------------------------------------------------------------------------
+# Skill: generate_scenes
+# ---------------------------------------------------------------------------
+
+GENERATE_SCENES_DECL = FunctionDeclaration(
+    name="generate_scenes",
+    description=(
+        "向 project.json 新增一组场景定义（不立即生成图片，仅写入文本元数据）。"
+        "圖片生成仍由後續流程處理，handler 只同步寫入場景定義。"
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "scenes": {
+                "type": "array",
+                "description": "场景列表",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "description": {
+                            "type": "string",
+                            "description": "敘事式描述：場景環境、氣氛、時間、地點、主要景物",
+                        },
+                    },
+                    "required": ["name", "description"],
+                },
+            }
+        },
+        "required": ["scenes"],
+    },
+)
+
+
+async def _handle_generate_scenes(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
+    scenes = args.get("scenes")
+    if not isinstance(scenes, list) or not scenes:
+        return {"error": "invalid_argument", "reason": "scenes must be a non-empty array"}
+
+    added: list[str] = []
+    skipped: list[dict[str, str]] = []
+    for entry in scenes:
+        if not isinstance(entry, dict):
+            skipped.append({"name": "<invalid>", "reason": "entry must be object"})
+            continue
+        name = str(entry.get("name") or "").strip()
+        description = str(entry.get("description") or "").strip()
+        if not name or not description:
+            skipped.append({"name": name or "<empty>", "reason": "name and description required"})
+            continue
+        try:
+            project = ctx.project_manager.load_project(ctx.project_name)
+            if name in project.get("scenes", {}):
+                skipped.append({"name": name, "reason": "already exists"})
+                continue
+
+            ctx.project_manager.add_project_scene(
+                ctx.project_name,
+                name=name,
+                description=description,
+            )
+            added.append(name)
+        except Exception as exc:
+            skipped.append({"name": name, "reason": str(exc)})
+
+    persisted = ctx.project_manager.load_project(ctx.project_name).get("scenes", {})
+    persist_failure = _build_persist_failure(
+        entity_label="場景",
+        persisted=persisted,
+        added=added,
+        skipped=skipped,
+    )
+    if persist_failure:
+        return persist_failure
+    if not added:
+        return {
+            "ok": False,
+            "error": "nothing_added",
+            "reason": "沒有任何場景被寫入",
+            "skipped": skipped,
+        }
+    return {"ok": True, "added": added, "skipped": skipped}
+
+
+# ---------------------------------------------------------------------------
+# Skill: update_character
+# ---------------------------------------------------------------------------
+
+UPDATE_CHARACTER_DECL = FunctionDeclaration(
+    name="update_character",
+    description="更新 project.json 中已有角色的描述。",
+    parameters={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "要更新的角色名稱"},
+            "description": {"type": "string", "description": "新的描述內容"},
+        },
+        "required": ["name", "description"],
+    },
+)
+
+
+async def _handle_update_entity_description(
+    ctx: SkillCallContext,
+    args: dict[str, Any],
+    *,
+    entity_type: str,
+) -> dict[str, Any]:
+    name = str(args.get("name") or "").strip()
+    description = str(args.get("description") or "").strip()
+    if not name or not description:
+        return {"error": "invalid_argument", "reason": "name and description are required"}
+
+    bucket = _ENTITY_BUCKETS[entity_type]
+    label = _ENTITY_LABELS[entity_type]
+
+    def mutate(project: dict):
+        entities = project.setdefault(bucket, {})
+        if name not in entities:
+            raise KeyError(f"{label} '{name}' 不存在")
+        entities[name]["description"] = description
+
+    try:
+        await asyncio.to_thread(ctx.project_manager.update_project, ctx.project_name, mutate)
+        return {
+            "ok": True,
+            "entity_type": entity_type,
+            "name": name,
+            "description": description,
+            "message": f"{label} '{name}' 描述已更新",
+        }
+    except KeyError as exc:
+        return {"error": "not_found", "reason": str(exc)}
+    except Exception as exc:
+        return {"error": "update_failed", "reason": str(exc)}
+
+
+async def _handle_update_character(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
+    return await _handle_update_entity_description(ctx, args, entity_type="character")
+
+
+# ---------------------------------------------------------------------------
+# Skill: update_clue
+# ---------------------------------------------------------------------------
+
+UPDATE_CLUE_DECL = FunctionDeclaration(
+    name="update_clue",
+    description="更新 project.json 中已有道具（線索）的描述。",
+    parameters={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "要更新的線索名稱"},
+            "description": {"type": "string", "description": "新的描述內容"},
+        },
+        "required": ["name", "description"],
+    },
+)
+
+
+async def _handle_update_clue(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
+    return await _handle_update_entity_description(ctx, args, entity_type="clue")
+
+
+# ---------------------------------------------------------------------------
+# Skill: update_scene
+# ---------------------------------------------------------------------------
+
+UPDATE_SCENE_DECL = FunctionDeclaration(
+    name="update_scene",
+    description="更新 project.json 中已有場景的描述。",
+    parameters={
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "要更新的場景名稱"},
+            "description": {"type": "string", "description": "新的描述內容"},
+        },
+        "required": ["name", "description"],
+    },
+)
+
+
+async def _handle_update_scene(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
+    return await _handle_update_entity_description(ctx, args, entity_type="scene")
+
+
+# ---------------------------------------------------------------------------
+# Skill: rename_entity
+# ---------------------------------------------------------------------------
+
+RENAME_ENTITY_DECL = FunctionDeclaration(
+    name="rename_entity",
+    description="改名角色、道具（線索）或場景。此操作會移動相關檔案、更新版本記錄、替換劇本引用並寫回 project.json。",
+    parameters={
+        "type": "object",
+        "properties": {
+            "entity_type": {
+                "type": "string",
+                "enum": ["character", "clue", "scene"],
+                "description": "實體類型：character (角色), clue (道具/線索), scene (場景)",
+            },
+            "old_name": {"type": "string", "description": "原本的名稱"},
+            "new_name": {"type": "string", "description": "新的名稱"},
+        },
+        "required": ["entity_type", "old_name", "new_name"],
+    },
+)
+
+
+async def _handle_rename_entity(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
+    entity_type = args.get("entity_type")
+    old_name = str(args.get("old_name") or "").strip()
+    new_name = str(args.get("new_name") or "").strip()
+
+    if entity_type not in _ENTITY_BUCKETS:
+        return {"error": "invalid_argument", "reason": "entity_type must be character, clue, or scene"}
+    if not old_name or not new_name:
+        return {"error": "invalid_argument", "reason": "old_name and new_name are required"}
+
+    from lib.resource_rename import rename_resource
+
+    def _sync():
+        project_path = ctx.project_manager.get_project_path(ctx.project_name)
+        project = ctx.project_manager.load_project(ctx.project_name)
+
+        from lib.project_change_hints import project_change_source
+
+        with project_change_source("agent"):
+            result = rename_resource(
+                project_path=project_path,
+                project=project,
+                kind=entity_type,
+                old_name=old_name,
+                new_name=new_name,
+            )
+            ctx.project_manager.save_project(ctx.project_name, project)
+        return result
+
+    try:
+        result = await asyncio.to_thread(_sync)
+        return {
+            "ok": True,
+            "entity_type": entity_type,
+            "old_name": old_name,
+            "new_name": new_name,
+            "files_moved": result.files_moved,
+            "scripts_updated": result.scripts_updated,
+            "versions_updated": result.versions_updated,
+        }
+    except KeyError as exc:
+        return {"error": "not_found", "reason": str(exc)}
+    except ValueError as exc:
+        return {"error": "invalid_value", "reason": str(exc)}
+    except Exception as exc:
+        return {"error": "rename_failed", "reason": str(exc)}
+
+
+# ---------------------------------------------------------------------------
+# Skill: delete_entity
+# ---------------------------------------------------------------------------
+
+DELETE_ENTITY_DECL = FunctionDeclaration(
+    name="delete_entity",
+    description="刪除角色、道具（線索）或場景。此操作會將該實體自 project.json 中移除。",
+    parameters={
+        "type": "object",
+        "properties": {
+            "entity_type": {
+                "type": "string",
+                "enum": ["character", "clue", "scene"],
+                "description": "實體類型：character (角色), clue (道具/線索), scene (場景)",
+            },
+            "name": {"type": "string", "description": "要刪除的實體名稱"},
+        },
+        "required": ["entity_type", "name"],
+    },
+)
+
+
+async def _handle_delete_entity(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
+    entity_type = args.get("entity_type")
+    name = str(args.get("name") or "").strip()
+
+    if entity_type not in _ENTITY_BUCKETS:
+        return {"error": "invalid_argument", "reason": "entity_type must be character, clue, or scene"}
+    if not name:
+        return {"error": "invalid_argument", "reason": "name is required"}
+
+    from lib.project_change_hints import project_change_source
+
+    bucket = _ENTITY_BUCKETS[entity_type]
+    label = _ENTITY_LABELS[entity_type]
+
+    def _mutate(project: dict):
+        entities = project.get(bucket, {})
+        if name not in entities:
+            raise KeyError(f"{label} '{name}' 不存在")
+        del entities[name]
+
+    def _sync():
+        with project_change_source("agent"):
+            ctx.project_manager.update_project(ctx.project_name, _mutate)
+
+    try:
+        await asyncio.to_thread(_sync)
+        return {"ok": True, "entity_type": entity_type, "name": name, "message": f"{label} '{name}' 已刪除"}
+    except KeyError as exc:
+        return {"error": "not_found", "reason": str(exc)}
+    except Exception as exc:
+        return {"error": "delete_failed", "reason": str(exc)}
 
 
 # ---------------------------------------------------------------------------
@@ -1020,6 +1349,12 @@ SKILL_DECLARATIONS: list[FunctionDeclaration] = [
     GENERATE_SCRIPT_DECL,
     GENERATE_CHARACTERS_DECL,
     GENERATE_CLUES_DECL,
+    GENERATE_SCENES_DECL,
+    UPDATE_CHARACTER_DECL,
+    UPDATE_CLUE_DECL,
+    UPDATE_SCENE_DECL,
+    RENAME_ENTITY_DECL,
+    DELETE_ENTITY_DECL,
     MANGA_WORKFLOW_STATUS_DECL,
     GENERATE_STORYBOARD_DECL,
     GENERATE_VIDEO_DECL,
@@ -1034,6 +1369,12 @@ SKILL_HANDLERS: dict[str, SkillHandler] = {
     "generate_script": _handle_generate_script,
     "generate_characters": _handle_generate_characters,
     "generate_clues": _handle_generate_clues,
+    "generate_scenes": _handle_generate_scenes,
+    "update_character": _handle_update_character,
+    "update_clue": _handle_update_clue,
+    "update_scene": _handle_update_scene,
+    "rename_entity": _handle_rename_entity,
+    "delete_entity": _handle_delete_entity,
     "manga_workflow_status": _handle_manga_workflow_status,
     "generate_storyboard": _handle_generate_storyboard,
     "generate_video": _handle_generate_video,

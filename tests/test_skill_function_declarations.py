@@ -88,6 +88,12 @@ def test_workflow_skills_registered() -> None:
         "generate_script",
         "generate_characters",
         "generate_clues",
+        "generate_scenes",
+        "update_character",
+        "update_clue",
+        "update_scene",
+        "rename_entity",
+        "delete_entity",
         "manga_workflow_status",
         "generate_storyboard",
         "generate_video",
@@ -554,3 +560,278 @@ async def test_run_subagent_catches_handler_exception(
     result = await run_subagent(context, "manga_workflow_status", {})
     # 不应抛出，而是结构化错误
     assert result["error"] == "project_not_found"
+
+
+# ---------------------------------------------------------------------------
+# generate_scenes
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_generate_scenes_writes_to_project_json(
+    context: SkillCallContext, project_manager: ProjectManager, project_name: str
+) -> None:
+    result = await run_subagent(
+        context,
+        "generate_scenes",
+        {
+            "scenes": [
+                {"name": "客廳", "description": "主角的家"},
+                {"name": "辦公室", "description": "主角工作的地方"},
+            ]
+        },
+    )
+    assert result == {"ok": True, "added": ["客廳", "辦公室"], "skipped": []}
+
+    project = project_manager.load_project(project_name)
+    assert "客廳" in project["scenes"]
+    assert project["scenes"]["客廳"]["description"] == "主角的家"
+    assert "辦公室" in project["scenes"]
+    assert project["scenes"]["辦公室"]["description"] == "主角工作的地方"
+
+
+@pytest.mark.asyncio
+async def test_generate_scenes_rejects_missing_fields(context: SkillCallContext) -> None:
+    result = await run_subagent(
+        context,
+        "generate_scenes",
+        {
+            "scenes": [
+                {"name": "客廳"},  # 缺 description
+                {"description": "主角的家"},  # 缺 name
+            ]
+        },
+    )
+    assert result["error"] == "nothing_added"
+    assert len(result["skipped"]) == 2
+
+
+# ---------------------------------------------------------------------------
+# update_character / update_clue / update_scene
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_update_character_success(
+    context: SkillCallContext, project_manager: ProjectManager, project_name: str
+) -> None:
+    # 預先新增一個角色
+    project = project_manager.load_project(project_name)
+    project["characters"]["小明"] = {"description": "舊描述", "voice_style": "舊風格"}
+    project_manager.save_project(project_name, project)
+
+    result = await run_subagent(
+        context,
+        "update_character",
+        {"name": "小明", "description": "新描述"},
+    )
+    assert result["ok"] is True
+    assert result["entity_type"] == "character"
+    assert result["name"] == "小明"
+    assert result["description"] == "新描述"
+
+    project = project_manager.load_project(project_name)
+    assert project["characters"]["小明"]["description"] == "新描述"
+    assert project["characters"]["小明"]["voice_style"] == "舊風格"
+
+
+@pytest.mark.asyncio
+async def test_update_character_rejects_missing_description(context: SkillCallContext) -> None:
+    result = await run_subagent(
+        context,
+        "update_character",
+        {"name": "小明"},
+    )
+    assert result["error"] == "invalid_argument"
+    assert result["reason"] == "name and description are required"
+
+
+@pytest.mark.asyncio
+async def test_update_character_not_found(context: SkillCallContext) -> None:
+    result = await run_subagent(
+        context,
+        "update_character",
+        {"name": "不存在的角色", "description": "新描述"},
+    )
+    assert result["error"] == "not_found"
+
+
+@pytest.mark.asyncio
+async def test_update_clue_success(
+    context: SkillCallContext, project_manager: ProjectManager, project_name: str
+) -> None:
+    # 預先新增一個線索
+    project = project_manager.load_project(project_name)
+    project["clues"]["神秘鑰匙"] = {"description": "舊描述", "importance": "minor"}
+    project_manager.save_project(project_name, project)
+
+    result = await run_subagent(
+        context,
+        "update_clue",
+        {"name": "神秘鑰匙", "description": "新描述"},
+    )
+    assert result["ok"] is True
+    assert result["entity_type"] == "clue"
+    assert result["name"] == "神秘鑰匙"
+    assert result["description"] == "新描述"
+
+    project = project_manager.load_project(project_name)
+    assert project["clues"]["神秘鑰匙"]["description"] == "新描述"
+    assert project["clues"]["神秘鑰匙"]["importance"] == "minor"
+
+
+@pytest.mark.asyncio
+async def test_update_clue_rejects_missing_description(context: SkillCallContext) -> None:
+    result = await run_subagent(
+        context,
+        "update_clue",
+        {"name": "神秘鑰匙"},
+    )
+    assert result["error"] == "invalid_argument"
+    assert result["reason"] == "name and description are required"
+
+
+@pytest.mark.asyncio
+async def test_update_clue_not_found(context: SkillCallContext) -> None:
+    result = await run_subagent(
+        context,
+        "update_clue",
+        {"name": "不存在的線索", "description": "新描述"},
+    )
+    assert result["error"] == "not_found"
+
+
+@pytest.mark.asyncio
+async def test_update_scene_success(
+    context: SkillCallContext, project_manager: ProjectManager, project_name: str
+) -> None:
+    # 預先新增一個場景
+    project = project_manager.load_project(project_name)
+    project["scenes"] = {"客廳": {"description": "舊描述"}}
+    project_manager.save_project(project_name, project)
+
+    result = await run_subagent(
+        context,
+        "update_scene",
+        {"name": "客廳", "description": "新描述"},
+    )
+    assert result["ok"] is True
+    assert result["entity_type"] == "scene"
+    assert result["name"] == "客廳"
+    assert result["description"] == "新描述"
+
+    project = project_manager.load_project(project_name)
+    assert project["scenes"]["客廳"]["description"] == "新描述"
+
+
+@pytest.mark.asyncio
+async def test_update_scene_rejects_missing_description(context: SkillCallContext) -> None:
+    result = await run_subagent(
+        context,
+        "update_scene",
+        {"name": "客廳"},
+    )
+    assert result["error"] == "invalid_argument"
+    assert result["reason"] == "name and description are required"
+
+
+@pytest.mark.asyncio
+async def test_update_scene_not_found(context: SkillCallContext) -> None:
+    result = await run_subagent(
+        context,
+        "update_scene",
+        {"name": "不存在的場景", "description": "新描述"},
+    )
+    assert result["error"] == "not_found"
+
+
+# ---------------------------------------------------------------------------
+# rename_entity / delete_entity
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_rename_entity_success(
+    context: SkillCallContext, project_manager: ProjectManager, project_name: str
+) -> None:
+    # 預先新增一個角色
+    project = project_manager.load_project(project_name)
+    project["characters"]["小明"] = {"description": "描述"}
+    project_manager.save_project(project_name, project)
+
+    result = await run_subagent(
+        context,
+        "rename_entity",
+        {"entity_type": "character", "old_name": "小明", "new_name": "阿明"},
+    )
+    assert result["ok"] is True
+    assert result["old_name"] == "小明"
+    assert result["new_name"] == "阿明"
+
+    project = project_manager.load_project(project_name)
+    assert "小明" not in project["characters"]
+    assert "阿明" in project["characters"]
+    assert project["characters"]["阿明"]["description"] == "描述"
+
+
+@pytest.mark.asyncio
+async def test_rename_entity_not_found(context: SkillCallContext) -> None:
+    result = await run_subagent(
+        context,
+        "rename_entity",
+        {"entity_type": "character", "old_name": "不存在的角色", "new_name": "新名稱"},
+    )
+    assert result["error"] == "not_found"
+
+
+@pytest.mark.asyncio
+async def test_rename_entity_rejects_missing_names(context: SkillCallContext) -> None:
+    result = await run_subagent(
+        context,
+        "rename_entity",
+        {"entity_type": "character", "old_name": "", "new_name": "新名稱"},
+    )
+    assert result["error"] == "invalid_argument"
+    assert result["reason"] == "old_name and new_name are required"
+
+
+@pytest.mark.asyncio
+async def test_delete_entity_success(
+    context: SkillCallContext, project_manager: ProjectManager, project_name: str
+) -> None:
+    # 預先新增一個角色
+    project = project_manager.load_project(project_name)
+    project["characters"]["小明"] = {"description": "描述"}
+    project_manager.save_project(project_name, project)
+
+    result = await run_subagent(
+        context,
+        "delete_entity",
+        {"entity_type": "character", "name": "小明"},
+    )
+    assert result["ok"] is True
+    assert result["name"] == "小明"
+
+    project = project_manager.load_project(project_name)
+    assert "小明" not in project["characters"]
+
+
+@pytest.mark.asyncio
+async def test_delete_entity_not_found(context: SkillCallContext) -> None:
+    result = await run_subagent(
+        context,
+        "delete_entity",
+        {"entity_type": "character", "name": "不存在的角色"},
+    )
+    assert result["error"] == "not_found"
+
+
+@pytest.mark.asyncio
+async def test_delete_entity_rejects_missing_name(context: SkillCallContext) -> None:
+    result = await run_subagent(
+        context,
+        "delete_entity",
+        {"entity_type": "scene", "name": ""},
+    )
+    assert result["error"] == "invalid_argument"
+    assert result["reason"] == "name is required"

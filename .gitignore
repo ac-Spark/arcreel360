@@ -1,3 +1,4 @@
+.antigravitycli/
 .claude/scheduled_tasks.lock
 pgdata/
 frontend/.pnpm-store

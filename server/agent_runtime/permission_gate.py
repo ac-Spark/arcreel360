@@ -1,8 +1,9 @@
 """PreToolUse 风格的权限闸门。
 
 每次工具执行前由 provider 调用 ``gate.check(tool_name, args, session_id)``，
-返回 ``Allow`` / ``Deny`` / ``AskUser``。默认 ``AlwaysAllowGate`` 全部放行；
-未来可挂载自定义实现（如前端 modal 审批）而无需改 provider。
+返回 ``Allow`` / ``Deny`` / ``AskUser``。默认 ``AlwaysAllowGate`` 放行非破壞性操作，
+但對改名/刪除等破壞性操作要求人工確認；未來可掛載自定義實作（如前端 modal 審批）而
+無需改 provider。
 """
 
 from __future__ import annotations
@@ -29,6 +30,12 @@ class AskUser:
     question: str
 
 
+_ENTITY_LABELS: dict[str, str] = {
+    "character": "角色",
+    "clue": "道具",
+    "scene": "場景",
+}
+
 PermissionDecision = Allow | Deny | AskUser
 GateCallable = Callable[[str, dict[str, Any], str], PermissionDecision | bool | str | None]
 OpenAIToolHandler = Callable[[Any, dict[str, Any]], Awaitable[dict[str, Any]]]
@@ -50,7 +57,7 @@ class PermissionGate(Protocol):
 
 
 class AlwaysAllowGate:
-    """默认放行所有请求。
+    """默认放行非破壞性请求，改名/删除需要人工确认。
 
     适用于无审批 UI 的部署，或测试环境。
     """
@@ -61,6 +68,17 @@ class AlwaysAllowGate:
         args: dict[str, Any],
         session_id: str,
     ) -> PermissionDecision:
+        if tool_name == "delete_entity":
+            entity_type = args.get("entity_type", "entity")
+            label = _ENTITY_LABELS.get(str(entity_type), "實體")
+            name = args.get("name", "")
+            return AskUser(question=f"確定要刪除專案中的{label}「{name}」嗎？")
+        if tool_name == "rename_entity":
+            entity_type = args.get("entity_type", "entity")
+            label = _ENTITY_LABELS.get(str(entity_type), "實體")
+            old_name = args.get("old_name", "")
+            new_name = args.get("new_name", "")
+            return AskUser(question=f"確定要將專案中的{label}「{old_name}」改名為「{new_name}」嗎？")
         return Allow()
 
 

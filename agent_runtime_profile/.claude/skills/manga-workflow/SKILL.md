@@ -69,7 +69,7 @@ description: 將小說轉換為短影片的端到端工作流編排器。當使�
 
 ---
 
-## 階段 1：全域性角色/線索設計
+## 階段 1：全域性世界觀設計
 
 **觸發**：project.json 中 characters 或 clues 為空
 
@@ -80,9 +80,10 @@ description: 將小說轉換為短影片的端到端工作流編排器。當使�
 專案路徑：projects/{project_name}/
 分析範圍：{整部小說 / 使用者指定的範圍}
 已有角色：{已有角色名列表，或"無"}
-已有線索：{已有線索名列表，或"無"}
+已有道具：{已有道具名列表，或"無"}
+已有場景：{已有場景名列表，或"無"}
 
-請分析小說原文，提取角色和線索資訊，寫入 project.json，返回摘要。
+請分析小說原文，提取角色、道具和重要場景資訊，寫入 project.json，返回摘要。
 ```
 
 ---
@@ -117,7 +118,7 @@ description: 將小說轉換為短影片的端到端工作流編排器。當使�
 - **narration** → dispatch `split-narration-segments`
 - **drama** → dispatch `normalize-drama-script`
 
-dispatch prompt 包含：專案名稱、專案路徑、集數、本集小說檔案路徑、角色/線索名稱列表。
+dispatch prompt 包含：專案名稱、專案路徑、集數、本集小說檔案路徑、角色/道具/場景名稱列表。
 
 ---
 
@@ -217,6 +218,6 @@ dispatch `generate-assets` subagent：
 
 ## 資料分層
 
-- 角色/線索完整定義**只存 project.json**，劇本中僅引用名稱
+- 角色/道具/場景完整定義**只存 project.json**，劇本中僅引用名稱
 - 統計欄位（scenes_count、status、progress）**讀時計算**，不儲存
 - 劇集後設資料在劇本儲存時**寫時同步**
