@@ -26,13 +26,11 @@ def get_project_manager() -> ProjectManager:
 
 class CreateClueRequest(BaseModel):
     name: str
-    clue_type: str  # 'prop' 或 'location'
     description: str
     importance: str | None = "major"  # 'major' 或 'minor'
 
 
 class UpdateClueRequest(BaseModel):
-    clue_type: str | None = None
     description: str | None = None
     importance: str | None = None
     clue_sheet: str | None = None
@@ -47,7 +45,7 @@ async def add_clue(project_name: str, req: CreateClueRequest, _user: CurrentUser
         def _sync():
             manager = get_project_manager()
             with project_change_source("webui"):
-                created = manager.add_clue(project_name, req.name, req.clue_type, req.description, req.importance)
+                created = manager.add_clue(project_name, req.name, req.description, req.importance)
             if not created:
                 raise ValueError(f"線索 '{req.name}' 已存在")
             project = manager.load_project(project_name)
@@ -70,8 +68,6 @@ async def update_clue(project_name: str, clue_name: str, req: UpdateClueRequest,
     """更新線索"""
     try:
         # 驗證輸入（純 CPU，無需下沉到執行緒）
-        if req.clue_type is not None and req.clue_type not in ["prop", "location"]:
-            raise HTTPException(status_code=400, detail="線索型別必須是 'prop' 或 'location'")
         if req.importance is not None and req.importance not in ["major", "minor"]:
             raise HTTPException(status_code=400, detail="重要程度必須是 'major' 或 'minor'")
 
@@ -83,8 +79,6 @@ async def update_clue(project_name: str, clue_name: str, req: UpdateClueRequest,
                 if clue_name not in project.get("clues", {}):
                     raise KeyError(clue_name)
                 clue = project["clues"][clue_name]
-                if req.clue_type is not None:
-                    clue["type"] = req.clue_type
                 if req.description is not None:
                     clue["description"] = req.description
                 if req.importance is not None:
@@ -122,7 +116,7 @@ async def rename_clue(
     req: RenameClueRequest,
     _user: CurrentUser,
 ):
-    """改名道具/場景：搬移檔案、更新版本記錄、替換劇本引用、寫回 project.json。"""
+    """改名道具：搬移檔案、更新版本記錄、替換劇本引用、寫回 project.json。"""
     from lib.resource_rename import rename_resource
 
     try:

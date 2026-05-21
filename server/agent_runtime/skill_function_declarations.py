@@ -492,7 +492,7 @@ async def _handle_generate_characters(ctx: SkillCallContext, args: dict[str, Any
 GENERATE_CLUES_DECL = FunctionDeclaration(
     name="generate_clues",
     description=(
-        "向 project.json 新增或更新一组线索（道具/地点）定义。"
+        "向 project.json 新增一组线索（道具）定义。"
         "与 generate_characters 类似：仅写入定义，图片生成由 queue 异步处理。"
     ),
     parameters={
@@ -504,10 +504,6 @@ GENERATE_CLUES_DECL = FunctionDeclaration(
                     "type": "object",
                     "properties": {
                         "name": {"type": "string"},
-                        "clue_type": {
-                            "type": "string",
-                            "enum": ["prop", "location"],
-                        },
                         "description": {"type": "string"},
                         "importance": {
                             "type": "string",
@@ -515,7 +511,7 @@ GENERATE_CLUES_DECL = FunctionDeclaration(
                             "description": "默认 minor；major 会触发后续 clue_sheet 图片生成",
                         },
                     },
-                    "required": ["name", "clue_type", "description"],
+                    "required": ["name", "description"],
                 },
             }
         },
@@ -536,17 +532,15 @@ async def _handle_generate_clues(ctx: SkillCallContext, args: dict[str, Any]) ->
             skipped.append({"name": "<invalid>", "reason": "entry must be object"})
             continue
         name = str(entry.get("name") or "").strip()
-        clue_type = entry.get("clue_type")
         description = str(entry.get("description") or "").strip()
         importance = entry.get("importance") or "minor"
-        if not name or clue_type not in {"prop", "location"} or not description:
+        if not name or not description:
             skipped.append({"name": name or "<empty>", "reason": "missing or invalid fields"})
             continue
         try:
             created = ctx.project_manager.add_clue(
                 ctx.project_name,
                 name=name,
-                clue_type=clue_type,
                 description=description,
                 importance=importance,
             )

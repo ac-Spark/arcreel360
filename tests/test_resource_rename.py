@@ -90,7 +90,6 @@ def _make_project(tmp_path: Path) -> tuple[Path, dict]:
         "clues": {
             "玉佩": {
                 "description": "綠色",
-                "clue_type": "prop",
                 "importance": "major",
                 "clue_sheet": "clues/玉佩.png",
             }

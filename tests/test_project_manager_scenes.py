@@ -71,7 +71,7 @@ class TestSceneEntity:
 
     def test_clue_reference_image_setter(self, tmp_path):
         pm = _make_pm(tmp_path)
-        pm.add_clue("demo", "龍紋玉佩", "prop", "古玉", "major")
+        pm.add_clue("demo", "龍紋玉佩", "古玉", "major")
         pm.update_clue_reference_image("demo", "龍紋玉佩", "clues/refs/龍紋玉佩.png")
 
         clue = pm.get_clue("demo", "龍紋玉佩")
@@ -85,7 +85,7 @@ class TestLegacyCompat:
         # 模擬舊結構: 只有 characters/clues, 無 scenes key
         project = pm.load_project("demo")
         project["characters"] = {"舊角色": {"description": "x", "character_sheet": ""}}
-        project["clues"] = {"舊道具": {"type": "prop", "description": "y", "importance": "minor", "clue_sheet": ""}}
+        project["clues"] = {"舊道具": {"description": "y", "importance": "minor", "clue_sheet": ""}}
         project.pop("scenes", None)
         pm.save_project("demo", project)
 

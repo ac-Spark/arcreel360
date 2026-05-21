@@ -337,10 +337,10 @@ export function StudioCanvasRouter() {
     }
   }, [currentProjectName, refreshProject]);
 
-  const handleAddClueSubmit = useCallback(async (name: string, clueType: string, description: string, importance: string) => {
+  const handleAddClueSubmit = useCallback(async (name: string, description: string, importance: string) => {
     if (!currentProjectName) return;
     try {
-      await API.addClue(currentProjectName, name, clueType, description, importance);
+      await API.addClue(currentProjectName, name, description, importance);
       await refreshProject();
       setAddingClue(false);
       useAppStore.getState().pushToast(`道具「${name}」已新增`, "success");

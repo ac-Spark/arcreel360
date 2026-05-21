@@ -46,7 +46,7 @@ def _client(monkeypatch, tmp_path):
     pm.create_project("demo")
     pm.create_project_metadata("demo", "Demo", "Anime", "narration")
     pm.add_character("demo", "Alice", "desc")
-    pm.add_clue("demo", "玉佩", "prop", "desc", "major")
+    pm.add_clue("demo", "玉佩", "desc", "major")
 
     monkeypatch.setattr(files, "get_project_manager", lambda: pm)
     monkeypatch.setattr("lib.text_generator.create_text_backend_for_task", _fake_create_backend)

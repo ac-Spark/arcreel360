@@ -28,15 +28,6 @@ interface ClueCardProps {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-const TYPE_LABELS: Record<string, string> = {
-  prop: "道具",
-  location: "環境",
-};
-
-// ---------------------------------------------------------------------------
 // ClueCard
 // ---------------------------------------------------------------------------
 
@@ -207,10 +198,6 @@ export function ClueCard({
           </button>
         )}
 
-        <span className="shrink-0 rounded-full bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-300">
-          {TYPE_LABELS[clue.type] ?? clue.type}
-        </span>
-
         {clue.importance === "major" ? (
           <span className="shrink-0 rounded-full bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-400 border border-indigo-500/20">
             重要
@@ -226,7 +213,7 @@ export function ClueCard({
             type="button"
             onClick={async () => {
               const ok = await confirm({
-                message: `確定要刪除道具/場景「${name}」？此操作無法復原。`,
+                message: `確定要刪除道具「${name}」？此操作無法復原。`,
                 danger: true,
               });
               if (ok) void onDelete(name);

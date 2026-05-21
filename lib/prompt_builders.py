@@ -5,7 +5,8 @@
 
 模組職責:
 - 角色設計圖 Prompt 構建
-- 線索設計圖 Prompt 構建（道具類/環境類）
+- 線索設計圖 Prompt 構建（道具類）
+- 場景設計圖 Prompt 構建（環境類）
 - 分鏡圖 Prompt 字尾
 
 使用方:
@@ -49,28 +50,20 @@ def build_character_prompt(name: str, description: str, style: str = "", style_d
 畫質：高畫質，細節清晰，色彩準確。"""
 
 
-def build_clue_prompt(
-    name: str, description: str, clue_type: str = "prop", style: str = "", style_description: str = ""
-) -> str:
+def build_clue_prompt(name: str, description: str, style: str = "", style_description: str = "") -> str:
     """
-    構建線索設計圖 Prompt
-
-    根據線索型別選擇對應的模板。
+    構建線索（道具）設計圖 Prompt
 
     Args:
         name: 線索名稱
         description: 線索描述
-        clue_type: 線索型別 ("prop" 道具 或 "location" 環境)
         style: 專案風格
         style_description: AI 分析的風格描述
 
     Returns:
         完整的 Prompt 字串
     """
-    if clue_type == "location":
-        return build_location_prompt(name, description, style, style_description)
-    else:
-        return build_prop_prompt(name, description, style, style_description)
+    return build_prop_prompt(name, description, style, style_description)
 
 
 def build_scene_prompt(name: str, description: str, style: str = "", style_description: str = "") -> str:
@@ -122,7 +115,7 @@ def build_prop_prompt(name: str, description: str, style: str = "", style_descri
 
 def build_location_prompt(name: str, description: str, style: str = "", style_description: str = "") -> str:
     """
-    構建環境類線索 Prompt
+    構建場景環境 Prompt
 
     使用 3/4 主畫面 + 右下角細節特寫的構圖。
 

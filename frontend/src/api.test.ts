@@ -199,7 +199,7 @@ describe("API", () => {
       await API.updateCharacter("demo", "Hero", { description: "updated" });
       await API.deleteCharacter("demo", "Hero");
 
-      await API.addClue("demo", "Key", "prop", "important");
+      await API.addClue("demo", "Key", "important", "major");
       await API.updateClue("demo", "Key", { importance: "minor" });
       await API.deleteClue("demo", "Key");
       await API.renameProjectScene("demo", "Old Place", "New Place");
@@ -268,7 +268,6 @@ describe("API", () => {
         method: "POST",
         body: JSON.stringify({
           name: "Key",
-          clue_type: "prop",
           description: "important",
           importance: "major",
         }),

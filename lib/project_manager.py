@@ -1541,19 +1541,17 @@ class ProjectManager:
         self,
         project_name: str,
         name: str,
-        clue_type: str,
         description: str,
         importance: str = "minor",
     ) -> bool:
         """
-        直接新增線索到 project.json
+        直接新增線索（道具）到 project.json
 
         如果線索已存在，跳過不覆蓋。
 
         Args:
             project_name: 專案名稱
             name: 線索名稱
-            clue_type: 線索型別（prop 或 location）
             description: 線索描述
             importance: 重要性（major 或 minor，預設 minor）
 
@@ -1570,7 +1568,6 @@ class ProjectManager:
             project["clues"] = {}
 
         project["clues"][name] = {
-            "type": clue_type,
             "description": description,
             "importance": importance,
             "clue_sheet": "",
@@ -1620,7 +1617,7 @@ class ProjectManager:
 
         Args:
             project_name: 專案名稱
-            clues: 線索字典 {name: {type, description, importance}}
+            clues: 線索字典 {name: {description, importance}}
 
         Returns:
             新增的線索數量
@@ -1634,7 +1631,6 @@ class ProjectManager:
         for name, data in clues.items():
             if name not in project["clues"]:
                 project["clues"][name] = {
-                    "type": data.get("type", "prop"),
                     "description": data.get("description", ""),
                     "importance": data.get("importance", "minor"),
                     "clue_sheet": data.get("clue_sheet", ""),

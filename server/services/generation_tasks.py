@@ -867,11 +867,9 @@ async def execute_clue_task(
         _project = get_project_manager().load_project(project_name)
         if resource_id not in _project.get("clues", {}):
             raise ValueError(f"clue not found: {resource_id}")
-        _clue_data = _project["clues"][resource_id]
         _style = _project.get("style", "")
         _style_desc = _project.get("style_description", "")
-        _clue_type = _clue_data.get("type", "prop")
-        _full_prompt = build_clue_prompt(resource_id, prompt, _clue_type, _style, _style_desc)
+        _full_prompt = build_clue_prompt(resource_id, prompt, _style, _style_desc)
         return _project, _full_prompt
 
     project, full_prompt = await asyncio.to_thread(_prepare_clue)

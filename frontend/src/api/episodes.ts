@@ -274,7 +274,6 @@ export const episodesApi = {
   async addClue(
     projectName: string,
     name: string,
-    clueType: string,
     description: string,
     importance: string = "major",
   ): Promise<SuccessResponse> {
@@ -284,7 +283,6 @@ export const episodesApi = {
         method: "POST",
         body: JSON.stringify({
           name,
-          clue_type: clueType,
           description,
           importance,
         }),

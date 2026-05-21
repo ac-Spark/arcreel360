@@ -247,12 +247,12 @@ class TestProjectManagerMore:
         # direct add_* return bool
         assert pm.add_character("demo", "Bob", "side", "") is True
         assert pm.add_character("demo", "Bob", "side", "") is False
-        assert pm.add_clue("demo", "線索X", "prop", "desc", "minor") is True
-        assert pm.add_clue("demo", "線索X", "prop", "desc", "minor") is False
+        assert pm.add_clue("demo", "線索X", "desc", "minor") is True
+        assert pm.add_clue("demo", "線索X", "desc", "minor") is False
 
         added_chars = pm.add_characters_batch("demo", {"Bob": {"description": "d"}, "C": {"description": "d"}})
         assert added_chars == 1
-        added_clues = pm.add_clues_batch("demo", {"線索X": {"type": "prop"}, "線索Y": {"type": "location"}})
+        added_clues = pm.add_clues_batch("demo", {"線索X": {"description": "d"}, "線索Y": {"description": "d"}})
         assert added_clues == 1
 
         pm.add_episode("demo", 1, "第一集", "scripts/episode_1.json")

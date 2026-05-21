@@ -125,7 +125,7 @@ describe("SegmentCard", () => {
       segment: makeSegment({ clues_in_segment: [] }),
       characters: { Hero: { description: "hero" } },
       clues: {
-        Key: { type: "prop", description: "key", importance: "major" },
+        Key: { description: "key", importance: "major" },
       },
       onUpdatePrompt,
     });
@@ -154,7 +154,7 @@ describe("SegmentCard", () => {
       }),
       characters: { Hero: { description: "hero" } },
       clues: {
-        Key: { type: "prop", description: "key", importance: "major" },
+        Key: { description: "key", importance: "major" },
       },
     });
 
@@ -200,7 +200,7 @@ describe("SegmentCard", () => {
       segment: makeSegment({ clues_in_segment: [] }),
       characters: { Hero: { description: "hero" } },
       clues: {
-        Key: { type: "prop", description: "key", importance: "major" },
+        Key: { description: "key", importance: "major" },
       },
       onUpdatePrompt,
     });
@@ -250,7 +250,7 @@ describe("SegmentCard", () => {
       contentMode: "drama",
       characters: { Hero: { description: "hero" } },
       clues: {
-        Key: { type: "prop", description: "key", importance: "major" },
+        Key: { description: "key", importance: "major" },
       },
       scenes: { 古城: { description: "城牆與街道" } },
     });

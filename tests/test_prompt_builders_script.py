@@ -14,10 +14,7 @@ class TestPromptBuildersScript:
 
     def test_formatters_include_descriptions(self):
         assert _format_character_names({"比比拉布": {"description": "香蕉裡的貓"}}) == "- **比比拉布**：香蕉裡的貓"
-        assert (
-            _format_clue_names({"玉佩": {"clue_type": "prop", "description": "綠色玉佩"}})
-            == "- **玉佩**（道具）：綠色玉佩"
-        )
+        assert _format_clue_names({"玉佩": {"description": "綠色玉佩"}}) == "- **玉佩**：綠色玉佩"
 
     def test_build_narration_prompt_contains_dynamic_durations(self):
         prompt = build_narration_prompt(

@@ -1,7 +1,6 @@
 from lib.prompt_builders import (
     build_character_prompt,
     build_clue_prompt,
-    build_location_prompt,
     build_prop_prompt,
     build_storyboard_suffix,
     build_style_prompt,
@@ -21,12 +20,10 @@ class TestPromptBuilders:
         assert "姜月茴" in prompt
         assert "黑髮，冷靜神態。" in prompt
 
-    def test_build_clue_prompt_dispatches_by_type(self):
-        prop_prompt = build_clue_prompt("玉佩", "古樸", clue_type="prop", style="寫實")
-        location_prompt = build_clue_prompt("祠堂", "昏暗", clue_type="location", style="寫實")
+    def test_build_clue_prompt_builds_prop_prompt(self):
+        clue_prompt = build_clue_prompt("玉佩", "古樸", style="寫實")
 
-        assert prop_prompt == build_prop_prompt("玉佩", "古樸", "寫實", "")
-        assert location_prompt == build_location_prompt("祠堂", "昏暗", "寫實", "")
+        assert clue_prompt == build_prop_prompt("玉佩", "古樸", "寫實", "")
 
     def test_build_storyboard_suffix_by_aspect_ratio(self):
         assert build_storyboard_suffix(aspect_ratio="9:16") == "豎屏構圖。"

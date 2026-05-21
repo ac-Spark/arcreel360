@@ -129,14 +129,13 @@ vi.mock("./lorebook/AddClueForm", () => ({
   }: {
     onSubmit: (
       name: string,
-      clueType: string,
       description: string,
       importance: string,
     ) => Promise<void>;
     onCancel: () => void;
   }) => (
     <div data-testid="add-clue-form">
-      <button onClick={() => void onSubmit("NewClue", "prop", "desc", "major")}>
+      <button onClick={() => void onSubmit("NewClue", "desc", "major")}>
         submit-add-clue
       </button>
       <button onClick={onCancel}>cancel-add-clue</button>
@@ -154,7 +153,7 @@ function makeProjectData(overrides: Partial<ProjectData> = {}): ProjectData {
       Hero: { description: "hero description" },
     },
     clues: {
-      Key: { type: "prop", description: "key description", importance: "major" },
+      Key: { description: "key description", importance: "major" },
     },
     ...overrides,
   };
@@ -355,7 +354,6 @@ describe("StudioCanvasRouter", () => {
       expect(API.addClue).toHaveBeenCalledWith(
         "demo",
         "NewClue",
-        "prop",
         "desc",
         "major",
       );

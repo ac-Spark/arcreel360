@@ -23,7 +23,6 @@ export interface Character {
 }
 
 export interface Clue {
-  type: "prop" | "location";
   description: string;
   importance: "major" | "minor";
   clue_sheet?: string;

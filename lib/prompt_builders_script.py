@@ -20,22 +20,17 @@ def _format_character_names(characters: dict) -> str:
 
 
 def _format_clue_names(clues: dict) -> str:
-    """格式化線索列表（含類型與描述，協助 LLM 正確識別）"""
-    type_label = {"prop": "道具", "location": "場景"}
+    """格式化線索列表（含描述，協助 LLM 正確識別）"""
     lines = []
     for name, data in clues.items():
         if not isinstance(data, dict):
             lines.append(f"- **{name}**")
             continue
         desc = (data.get("description") or "").strip()
-        ctype = data.get("clue_type")
-        head = f"- **{name}**"
-        if ctype in type_label:
-            head += f"（{type_label[ctype]}）"
         if desc:
-            lines.append(f"{head}：{desc}")
+            lines.append(f"- **{name}**：{desc}")
         else:
-            lines.append(head)
+            lines.append(f"- **{name}**")
     return "\n".join(lines)
 
 
@@ -136,11 +131,10 @@ b. **characters_in_segment**：列出本片段中實際出場的角色名稱。
    - 若小說正文使用代稱、別名或第三人稱，仍應對照描述歸位到對應角色。
    - 若片段無任何已定義角色出場（如純風景描述），填空陣列 []。
 
-c. **clues_in_segment**：列出本片段中可見或被提及的線索名稱（道具與場景）。
+c. **clues_in_segment**：列出本片段中可見或被提及的道具線索名稱。
    - 可選值：[{", ".join(clue_names)}]
-   - 必須**忠實標註**：只要小說正文的描寫匹配 clues 區塊中某個線索的描述（包含別稱、外觀特徵、所在地點），就要列入。
-   - 「道具」類線索若在畫面中可見，務必填入，後續會作為視覺參考圖；遺漏會導致影像生成時道具走樣。
-   - 「場景」類線索若是該片段發生地，也要填入。
+   - 必須**忠實標註**：只要小說正文的描寫匹配 clues 區塊中某個道具線索的描述（包含別稱、外觀特徵、所在地點），就要列入。
+   - 道具線索若在畫面中可見，務必填入，後續會作為視覺參考圖；遺漏會導致影像生成時道具走樣。
    - 若片段確實未涉及任何已定義線索，填空陣列 []。
 
 d. **image_prompt**：生成包含以下欄位的物件：
@@ -256,11 +250,10 @@ a. **characters_in_scene**：列出本場景中實際出場的角色名稱。
    - 若場景使用代稱、別名或第三人稱，仍應對照描述歸位到對應角色。
    - 若場景無任何已定義角色出場，填空陣列 []。
 
-b. **clues_in_scene**：列出本場景中可見或被提及的線索名稱（道具與場景）。
+b. **clues_in_scene**：列出本場景中可見或被提及的道具線索名稱。
    - 可選值：[{", ".join(clue_names)}]
-   - 必須**忠實標註**：只要場景描寫匹配 clues 區塊中某個線索的描述（包含別稱、外觀特徵、所在地點），就要列入。
-   - 「道具」類線索若在畫面中可見，務必填入，後續會作為視覺參考圖；遺漏會導致影像生成時道具走樣。
-   - 「場景」類線索若是該場景發生地，也要填入。
+   - 必須**忠實標註**：只要場景描寫匹配 clues 區塊中某個道具線索的描述（包含別稱、外觀特徵、所在地點），就要列入。
+   - 道具線索若在畫面中可見，務必填入，後續會作為視覺參考圖；遺漏會導致影像生成時道具走樣。
    - 若場景確實未涉及任何已定義線索，填空陣列 []。
 
 c. **image_prompt**：生成包含以下欄位的物件：

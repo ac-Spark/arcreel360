@@ -40,7 +40,6 @@ class DataValidator:
 
     VALID_CONTENT_MODES = {"narration", "drama"}
     VALID_DURATIONS = {4, 6, 8}
-    VALID_CLUE_TYPES = {"prop", "location"}
     VALID_CLUE_IMPORTANCE = {"major", "minor"}
     VALID_SCENE_TYPES = {"劇情", "空鏡"}
     ID_PATTERN = re.compile(r"^E\d+S\d+(?:_\d+)?$")
@@ -212,12 +211,6 @@ class DataValidator:
                 if not isinstance(clue_data, dict):
                     errors.append(f"線索 '{clue_name}' 資料格式錯誤，應為物件")
                     continue
-
-                clue_type = clue_data.get("type")
-                if not clue_type:
-                    errors.append(f"線索 '{clue_name}' 缺少必填欄位: type")
-                elif clue_type not in self.VALID_CLUE_TYPES:
-                    errors.append(f"線索 '{clue_name}' type 值無效: '{clue_type}'，必須是 {self.VALID_CLUE_TYPES}")
 
                 if not clue_data.get("description"):
                     errors.append(f"線索 '{clue_name}' 缺少必填欄位: description")

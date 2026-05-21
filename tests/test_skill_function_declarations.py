@@ -190,38 +190,36 @@ async def test_generate_clues_writes_to_project_json(
             "clues": [
                 {
                     "name": "玉佩",
-                    "clue_type": "prop",
                     "description": "祖傳玉佩",
                     "importance": "major",
                 },
                 {
-                    "name": "小酒館",
-                    "clue_type": "location",
-                    "description": "故事的開端地點",
+                    "name": "銅鑰匙",
+                    "description": "帶有刻痕的黃銅鑰匙",
                 },
             ]
         },
     )
     assert result["ok"] is True
     assert "玉佩" in result["added"]
-    assert "小酒館" in result["added"]
+    assert "銅鑰匙" in result["added"]
 
     project = project_manager.load_project(project_name)
     assert project["clues"]["玉佩"]["importance"] == "major"
-    assert project["clues"]["小酒館"]["importance"] == "minor"
+    assert project["clues"]["銅鑰匙"]["importance"] == "minor"
 
 
 @pytest.mark.asyncio
 async def test_generate_clues_dedup_existing(
     context: SkillCallContext, project_manager: ProjectManager, project_name: str
 ) -> None:
-    project_manager.add_clue(project_name, "玉佩", "prop", "舊定義", "minor")
+    project_manager.add_clue(project_name, "玉佩", "舊定義", "minor")
     result = await run_subagent(
         context,
         "generate_clues",
         {
             "clues": [
-                {"name": "玉佩", "clue_type": "prop", "description": "重複定義"},
+                {"name": "玉佩", "description": "重複定義"},
             ]
         },
     )
@@ -230,13 +228,13 @@ async def test_generate_clues_dedup_existing(
 
 
 @pytest.mark.asyncio
-async def test_generate_clues_rejects_invalid_type(context: SkillCallContext) -> None:
+async def test_generate_clues_rejects_missing_fields(context: SkillCallContext) -> None:
     result = await run_subagent(
         context,
         "generate_clues",
         {
             "clues": [
-                {"name": "x", "clue_type": "weapon", "description": "wrong type"},
+                {"name": "x"},
             ]
         },
     )
@@ -304,7 +302,7 @@ async def test_manga_workflow_status_stage_5_6_missing_sheets(
     project_root: Path,
 ) -> None:
     project_manager.add_project_character(project_name, "x", "desc", None)
-    project_manager.add_clue(project_name, "y", "prop", "desc", "major")
+    project_manager.add_clue(project_name, "y", "desc", "major")
     pdir = project_root / project_name
     (pdir / "source" / "episode_1.txt").write_text("text", "utf-8")
     (pdir / "drafts" / "episode_1").mkdir(parents=True)

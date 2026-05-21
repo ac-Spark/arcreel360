@@ -1,16 +1,22 @@
 import { useState } from "react";
 import { X, Loader2 } from "lucide-react";
 
+type Importance = "major" | "minor";
+
+const IMPORTANCE_OPTIONS: Array<{ value: Importance; label: string }> = [
+  { value: "major", label: "重要" },
+  { value: "minor", label: "次要" },
+];
+
 interface AddClueFormProps {
-  onSubmit: (name: string, clueType: string, description: string, importance: string) => Promise<void>;
+  onSubmit: (name: string, description: string, importance: Importance) => Promise<void>;
   onCancel: () => void;
 }
 
 export function AddClueForm({ onSubmit, onCancel }: AddClueFormProps) {
   const [name, setName] = useState("");
-  const [clueType, setClueType] = useState<"prop" | "location">("prop");
   const [description, setDescription] = useState("");
-  const [importance, setImportance] = useState<"major" | "minor">("major");
+  const [importance, setImportance] = useState<Importance>("major");
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -18,7 +24,7 @@ export function AddClueForm({ onSubmit, onCancel }: AddClueFormProps) {
     if (!name.trim() || !description.trim()) return;
     setSubmitting(true);
     try {
-      await onSubmit(name.trim(), clueType, description.trim(), importance);
+      await onSubmit(name.trim(), description.trim(), importance);
     } finally {
       setSubmitting(false);
     }
@@ -55,45 +61,29 @@ export function AddClueForm({ onSubmit, onCancel }: AddClueFormProps) {
           />
         </div>
 
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-400 mb-1">型別</label>
-            <div className="flex gap-2">
-              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-center text-xs transition-colors ${clueType === "prop"
-                  ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
-                  : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-                }`}>
-                <input type="radio" name="clueType" value="prop" checked={clueType === "prop"} onChange={() => setClueType("prop")} className="sr-only" />
-                道具
+        <div>
+          <label className="block text-xs font-medium text-gray-400 mb-1">重要性</label>
+          <div className="flex gap-2">
+            {IMPORTANCE_OPTIONS.map((option) => (
+              <label
+                key={option.value}
+                className={`flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-center text-xs transition-colors ${
+                  importance === option.value
+                    ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
+                    : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="importance"
+                  value={option.value}
+                  checked={importance === option.value}
+                  onChange={() => setImportance(option.value)}
+                  className="sr-only"
+                />
+                {option.label}
               </label>
-              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-center text-xs transition-colors ${clueType === "location"
-                  ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
-                  : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-                }`}>
-                <input type="radio" name="clueType" value="location" checked={clueType === "location"} onChange={() => setClueType("location")} className="sr-only" />
-                環境
-              </label>
-            </div>
-          </div>
-
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-400 mb-1">重要性</label>
-            <div className="flex gap-2">
-              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-center text-xs transition-colors ${importance === "major"
-                  ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
-                  : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-                }`}>
-                <input type="radio" name="importance" value="major" checked={importance === "major"} onChange={() => setImportance("major")} className="sr-only" />
-                重要
-              </label>
-              <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-1.5 text-center text-xs transition-colors ${importance === "minor"
-                  ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
-                  : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-                }`}>
-                <input type="radio" name="importance" value="minor" checked={importance === "minor"} onChange={() => setImportance("minor")} className="sr-only" />
-                次要
-              </label>
-            </div>
+            ))}
           </div>
         </div>
 
