@@ -42,7 +42,7 @@ pnpm check       # typecheck + test
 - `generate.py` — 分鏡/影片/角色/線索生成（入隊到任務佇列）
 - `assistant.py` — 跨 provider 助理會話管理（SSE 流式，依 `assistant_provider` 路由到對應 runtime）
 - `agent_chat.py` — 智慧體對話互動
-- `tasks.py` — 任務佇列狀態（SSE 流式）
+- `tasks.py` — 任務佇列狀態、SSE 流式、排隊任務取消
 - `project_events.py` — 專案事件 SSE 推送
 - `files.py` — 檔案上傳與靜態資源
 - `versions.py` — 資源版本歷史與回滾
@@ -70,6 +70,7 @@ pnpm check       # typecheck + test
 - **MediaGenerator** (`media_generator.py`) — 組合後端 + VersionManager + UsageTracker
 - **GenerationQueue** (`generation_queue.py`) — 非同步任務佇列，SQLAlchemy ORM 後端，lease-based 併發控制
 - **GenerationWorker** (`generation_worker.py`) — 後臺 Worker，分 image/video 兩條併發通道
+- **episode_splitter** (`episode_splitter.py`) — 原文分集切分、自然斷點搜尋、說書模式自動按集數均分
 - **ProjectManager** (`project_manager.py`) — 專案檔案系統操作和資料管理
 - **StatusCalculator** (`status_calculator.py`) — 讀時計算狀態欄位，不儲存冗餘狀態
 - **UsageTracker** (`usage_tracker.py`) — API 用量追蹤
@@ -137,16 +138,31 @@ session 訊息持久化：`agent_messages` 表（`lib/db/models/agent_message.py
 | 劇集後設資料（episode/title/script_file） | `project.json` | 劇本儲存時寫時同步 |
 | 統計欄位（scenes_count / status / progress） | 不儲存 | `StatusCalculator` 讀時計算注入 |
 
+### 劇集 Step 1 預處理
+
+`lib/episode_preprocess.py` 依 `project.json.content_mode` 呼叫 agent profile 內的 Step 1 腳本：
+
+- `narration` → `split_narration_segments.py`，輸出 `drafts/episode_N/step1_segments.md`
+- `drama` → `normalize_drama_script.py`，輸出 `drafts/episode_N/step1_normalized_script.md`
+
+原文解析優先序：
+
+1. 使用者指定 `source` 時，讀取該專案內檔案。
+2. 存在 `source/episode_N.txt` 時，優先使用手動精切檔。
+3. `narration` 模式缺專屬檔時，串接 `source/` 內文字檔（排除 `_remaining.txt` 與 `episode_N.*`），再依 `project.json.episodes` 數量均分取該集。
+4. `drama` 規範化模式缺專屬檔時，目前直接使用串接後的整本原文。
+
 ### 實時通訊
 
 - 助手：`/api/v1/assistant/sessions/{id}/stream` — SSE 流式回覆
 - 專案事件：`/api/v1/projects/{name}/events/stream` — SSE 推送專案變更
-- 任務佇列：前端輪詢 `/api/v1/tasks` 獲取狀態
+- 任務佇列：`/api/v1/tasks/stream` — SSE 推送 snapshot / task 事件；`/api/v1/tasks` 仍可查詢列表
 
 ### 任務佇列
 
 所有生成任務（分鏡/影片/角色/線索）統一透過 GenerationQueue 入隊，由 GenerationWorker 非同步處理。
 `generation_queue_client.py` 的 `enqueue_and_wait()` 封裝入隊 + 等待完成。
+任務狀態包含 `queued` / `running` / `succeeded` / `failed` / `cancelled`；取消只允許排隊中任務，依賴任務會以 `cancelled_by="cascade"` 標記級聯取消。
 
 ### Pydantic 資料模型
 

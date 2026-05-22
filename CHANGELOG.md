@@ -2,6 +2,14 @@
 
 本檔記錄 ArcReel 360 相對原始 ArcReel 專案的重要差異與維護脈絡。
 
+### 劇集預處理、任務佇列與文件同步
+
+- **README 對齊目前 runtime 現況**：將 assistant provider 說明從早期的 `Claude full + Gemini Lite + OpenAI Lite` 更新為 `Claude full + Gemini Lite/Full + OpenAI Lite/Full`，並把 `workflow-grade` 改寫為設計語彙，而非使用者可選的第三種 provider tier。
+- **CLAUDE.md 架構說明同步**：補上 `episode_splitter.py`、Step 1 預處理原文解析優先序、任務 SSE 與排隊任務取消規則，避免 agent 依舊文件誤判路由與資料流。
+- **說書模式自動均分原文**：`narration` Step 1 在缺少 `source/episode_N.txt` 時，會串接 `source/` 下原文檔並依 `project.json.episodes` 均分取該集；使用者仍可指定 `source` 覆寫。
+- **指定原文入口**：前端劇集 actions bar 新增「指定原文」下拉，列出 `source/` 下可用文字檔，讓使用者能用特定原文檔重新拆段或規範化。
+- **任務取消體驗**：任務 HUD 支援取消單一排隊任務、預覽依賴任務級聯取消，以及取消專案內所有排隊任務；後端任務狀態新增 `cancelled` 與 `cancelled_by`。
+
 ### Gemini Full ADK 遷移與架構收尾
 
 將 `gemini-full` runtime 從原生 `google-genai` function calling 遷移至 Google ADK (`google-adk`) 框架，提升工具循環的穩定性與擴展性。
@@ -16,7 +24,7 @@
 
 新增 `gemini-full` 執行階段供應商作為 Claude 之外的第二個 full-tier runtime，並補齊周邊基礎設施與已知缺陷。
 
-- **新 runtime**：`server/agent_runtime/` 加入 `gemini_full_runtime_provider.py`（Gemini function calling 工具循環）、`tool_sandbox.py`（白名單 fs_read / fs_write / fs_list）、`permission_gate.py`（PreToolUse 風格權限閘門）、`skill_function_declarations.py`（7 個 skill → FunctionDeclaration 翻譯與 dispatch）。與既有的 `gemini-lite` / `openai-lite` / `claude` 並列為四個可切換 runtime，由 `ASSISTANT_PROVIDER` 環境變數或 `system_setting.assistant_provider` 決定。
+- **新 runtime**：`server/agent_runtime/` 加入 `gemini_full_runtime_provider.py`（Gemini function calling 工具循環）、`tool_sandbox.py`（白名單 fs_read / fs_write / fs_list）、`permission_gate.py`（PreToolUse 風格權限閘門）、`skill_function_declarations.py`（7 個 skill → FunctionDeclaration 翻譯與 dispatch）。目前與 `claude`、`gemini-lite`、`openai-lite`、`openai-full` 並列為五個可切換 runtime，由 `ASSISTANT_PROVIDER` 環境變數或 `system_setting.assistant_provider` 決定。
 - **持久化**：新增 `agent_messages` 表（migration `a1b2c3d4e5f6`）作為跨 provider 的訊息持久化共用欄位，tool_use / tool_result 在此寫入以利 SSE 重放。
 - **資料契約**：`turn_schema.normalize_block()` 統一將 `tool_result.content` / `tool_use.result` / `skill_content` 序列化為字串。先前後端工具回傳 dict（如 `fs_write` 的 `{bytes_written, created}`）會直接被前端當 React child 渲染並觸發 React error #31；序列化集中在後端出口處理後，所有 turn_grouper / stream_projector 路徑收尾都會經過。前端 `ContentBlockRenderer` 補上 defense-in-depth stringify。
 - **Skill subprocess 環境**：`compose_video` skill 透過 subprocess 執行時，`cwd` 切到 project 目錄後 sys.path 不再包含 repo root，導致 `from lib.project_manager import ...` 失敗。`skill_function_declarations._handle_compose_video` 在 spawn 時注入 `PYTHONPATH=<repo_root>`。
@@ -100,7 +108,7 @@
 | 面向 | 原作者版本 | ArcReel 360 |
 | --- | --- | --- |
 | Assistant 核心設計 | Claude runtime 為中心 | 多 provider runtime 為中心 |
-| 可用 assistant | Claude | Claude、Gemini Lite、OpenAI Lite |
+| 可用 assistant | Claude | Claude、Gemini Lite/Full、OpenAI Lite/Full |
 | 配置判定 | Anthropic 容易被視為全域必填 | 改為依目前 provider 判定 |
 | 前端能力假設 | 預設 provider 能力完整一致 | 顯式 capability 降級 |
 | 檔案語系 | 簡體中文為主 | 繁體中文為主 |
