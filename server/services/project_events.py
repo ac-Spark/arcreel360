@@ -22,7 +22,7 @@ from lib.project_change_hints import (
     register_project_change_batch_listener,
     register_project_change_listener,
 )
-from lib.project_manager import ProjectManager
+from lib.project_manager import ProjectManager, _episode_from_filename
 
 logger = logging.getLogger(__name__)
 
@@ -364,6 +364,20 @@ class ProjectEventService:
             episode = script.get("episode")
             if not isinstance(episode, int):
                 continue
+
+            filename_episode = _episode_from_filename(script_path.name)
+            if filename_episode is not None and filename_episode != episode:
+                # 檔名與內容不一致時跳過，避免同一集被不同劇本輪流改寫索引。
+                logger.warning(
+                    "劇本檔名集數與內容 episode 不一致，跳過索引同步 "
+                    "project=%s file=%s 檔名集數=%s 內容episode=%s",
+                    project_name,
+                    script_path.name,
+                    filename_episode,
+                    episode,
+                )
+                continue
+
             title = str(script.get("title") or "")
             expected_script_file = f"scripts/{script_path.name}"
             existing = current_episodes.get(episode)

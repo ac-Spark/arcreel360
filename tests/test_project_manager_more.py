@@ -446,3 +446,81 @@ class TestCommitEpisodeSplit:
         pm.create_project_metadata("demo", "Demo")
         with pytest.raises(ValueError, match="source 路徑超出"):
             pm.commit_episode_split("demo", "../../etc/passwd", 1, "a", "b")
+
+
+class TestEpisodeIndexConsistency:
+    """防止「兩個劇本檔撞號」造成事件服務索引同步迴圈的防線。"""
+
+    def _make_pm(self, tmp_path: Path) -> ProjectManager:
+        pm = ProjectManager(tmp_path / "projects")
+        pm.create_project("demo")
+        pm.create_project_metadata("demo", "Demo", "Anime", "narration")
+        return pm
+
+    def test_save_script_corrects_episode_to_match_filename(self, tmp_path):
+        """內容 episode 與檔名集數不一致時，以檔名為準校正內容。"""
+        pm = self._make_pm(tmp_path)
+        # 內容宣稱第 1 集，卻存進 episode_2.json
+        script = {
+            "episode": 1,
+            "title": "第二集",
+            "content_mode": "narration",
+            "segments": [
+                {"segment_id": "E1S01", "episode": 1, "duration_seconds": 4},
+            ],
+        }
+        pm.save_script("demo", script, "episode_2.json")
+
+        loaded = pm.load_script("demo", "episode_2.json")
+        assert loaded["episode"] == 2
+        assert loaded["segments"][0]["episode"] == 2
+        # segment_id 不被校正（由生成端決定）
+        assert loaded["segments"][0]["segment_id"] == "E1S01"
+
+    def test_save_script_keeps_consistent_episode_untouched(self, tmp_path):
+        """內容 episode 與檔名一致時不做任何校正。"""
+        pm = self._make_pm(tmp_path)
+        script = {
+            "episode": 2,
+            "title": "第二集",
+            "content_mode": "narration",
+            "segments": [{"segment_id": "E2S01", "episode": 2, "duration_seconds": 4}],
+        }
+        pm.save_script("demo", script, "episode_2.json")
+        loaded = pm.load_script("demo", "episode_2.json")
+        assert loaded["episode"] == 2
+        assert loaded["segments"][0]["episode"] == 2
+
+    def test_two_scripts_do_not_collide_after_save(self, tmp_path):
+        """即使兩份內容都宣稱 episode=1，存成不同檔名後集數仍互不衝突。"""
+        pm = self._make_pm(tmp_path)
+        for filename in ("episode_1.json", "episode_2.json"):
+            pm.save_script(
+                "demo",
+                {
+                    "episode": 1,
+                    "title": filename,
+                    "content_mode": "narration",
+                    "segments": [],
+                },
+                filename,
+            )
+        assert pm.load_script("demo", "episode_1.json")["episode"] == 1
+        assert pm.load_script("demo", "episode_2.json")["episode"] == 2
+
+    def test_sync_episode_from_script_is_noop_when_unchanged(self, tmp_path):
+        """索引無變化時 sync_episode_from_script 不重寫 project.json。"""
+        pm = self._make_pm(tmp_path)
+        pm.save_script(
+            "demo",
+            {"episode": 1, "title": "第一集", "content_mode": "narration", "segments": []},
+            "episode_1.json",
+        )
+        pm.sync_episode_from_script("demo", "episode_1.json")
+
+        project_file = pm.get_project_path("demo") / "project.json"
+        before = project_file.stat().st_mtime_ns
+        # 第二次同步：內容未變，不應觸發寫入
+        pm.sync_episode_from_script("demo", "episode_1.json")
+        after = project_file.stat().st_mtime_ns
+        assert before == after

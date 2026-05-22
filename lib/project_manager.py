@@ -29,6 +29,13 @@ logger = logging.getLogger(__name__)
 
 PROJECT_NAME_PATTERN = re.compile(r"^[A-Za-z0-9-]+$")
 PROJECT_SLUG_SANITIZER = re.compile(r"[^a-zA-Z0-9]+")
+EPISODE_FILENAME_PATTERN = re.compile(r"episode[_\s]*(\d+)", re.IGNORECASE)
+
+
+def _episode_from_filename(filename: str) -> int | None:
+    """從劇本檔名解析集數，如 episode_2.json → 2；無法解析時回傳 None。"""
+    match = EPISODE_FILENAME_PATTERN.search(filename)
+    return int(match.group(1)) if match else None
 
 
 def _next_display_order(episodes: list[dict]) -> int:
@@ -361,6 +368,27 @@ class ProjectManager:
             chapter = script["novel"].get("chapter", "chapter_01")
             filename = f"{chapter.replace(' ', '_')}_script.json"
 
+        # 以檔名集數為唯一真相源，校正內容的 episode 欄位。
+        # 防止「episode=1 的內容被寫進 episode_2.json」造成兩檔撞號、
+        # 進而拖垮事件服務的索引同步迴圈。檔名無法解析集數時不校正。
+        filename_episode = _episode_from_filename(filename)
+        if filename_episode is not None and script.get("episode") != filename_episode:
+            logger.warning(
+                "劇本內容 episode=%s 與檔名集數=%s 不一致，以檔名為準校正 project=%s file=%s",
+                script.get("episode"),
+                filename_episode,
+                project_name,
+                filename,
+            )
+            script["episode"] = filename_episode
+            for items_key in ("segments", "scenes"):
+                items = script.get(items_key)
+                if not isinstance(items, list):
+                    continue
+                for item in items:
+                    if isinstance(item, dict) and "episode" in item:
+                        item["episode"] = filename_episode
+
         # 更新後設資料（相容舊指令碼：可能缺少 metadata，或 narration 使用 segments）
         now = datetime.now().isoformat()
 
@@ -448,6 +476,10 @@ class ProjectManager:
         if episode_entry is None:
             episode_entry = {"episode": episode_num, "order": _next_display_order(episodes)}
             episodes.append(episode_entry)
+        elif episode_entry.get("title") == episode_title and episode_entry.get("script_file") == script_file:
+            # 內容無變化時直接返回，不觸發 save_project（避免無謂的變更 hint
+            # 造成事件服務反覆重掃，形成自我觸發迴圈），也不打 info log。
+            return project
 
         # 同步核心後設資料（不包含統計欄位，統計欄位由 StatusCalculator 讀時計算）
         episode_entry["title"] = episode_title
