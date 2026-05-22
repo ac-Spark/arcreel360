@@ -17,7 +17,7 @@ from lib.db.repositories.task_repo import TaskRepository
 logger = logging.getLogger(__name__)
 
 ACTIVE_TASK_STATUSES = ("queued", "running")
-TERMINAL_TASK_STATUSES = ("succeeded", "failed")
+TERMINAL_TASK_STATUSES = ("succeeded", "failed", "cancelled")
 TASK_WORKER_LEASE_TTL_SEC = 10.0
 TASK_WORKER_HEARTBEAT_SEC = 3.0
 TASK_POLL_INTERVAL_SEC = 1.0
@@ -108,6 +108,39 @@ class GenerationQueue:
         if task:
             logger.warning("任務失敗 task_id=%s error=%s", task_id, error_message[:200])
         return task
+
+    async def get_cancel_preview(self, task_id: str) -> dict[str, Any]:
+
+        async with self._session_factory() as session:
+            repo = TaskRepository(session)
+            return await repo.get_cancel_preview(task_id)
+
+    async def cancel_task(self, task_id: str) -> dict[str, Any]:
+
+        async with self._session_factory() as session:
+            repo = TaskRepository(session)
+            result = await repo.cancel_task(task_id)
+
+        cancelled_count = len(result.get("cancelled", []))
+        if cancelled_count > 0:
+            logger.info("任務取消 task_id=%s count=%d", task_id, cancelled_count)
+        return result
+
+    async def get_cancel_all_preview(self, project_name: str) -> int:
+
+        async with self._session_factory() as session:
+            repo = TaskRepository(session)
+            return await repo.get_cancel_all_preview(project_name)
+
+    async def cancel_all_queued(self, project_name: str) -> dict[str, Any]:
+
+        async with self._session_factory() as session:
+            repo = TaskRepository(session)
+            result = await repo.cancel_all_queued(project_name)
+
+        if result.get("cancelled_count", 0) > 0:
+            logger.info("批量取消任務 project=%s count=%d", project_name, result["cancelled_count"])
+        return result
 
     async def get_task(self, task_id: str) -> dict[str, Any] | None:
 

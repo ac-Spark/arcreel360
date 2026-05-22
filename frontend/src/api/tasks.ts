@@ -3,8 +3,11 @@
  */
 
 import type { TaskItem, TaskStats } from "@/types";
-import { API_BASE, withAuthQuery , getApi} from "./_http";
-import type { TaskListFilters,
+import { API_BASE, getApi, withAuthQuery } from "./_http";
+import type {
+  TaskCancelAllPreviewResponse,
+  TaskCancelPreviewResponse,
+  TaskListFilters,
   TaskStreamOptions,
   TaskStreamSnapshotPayload,
   TaskStreamTaskPayload,
@@ -52,6 +55,39 @@ export const tasksApi = {
     if (projectName) params.append("project_name", projectName);
     const query = params.toString();
     return getApi().request(`/tasks/stats${query ? "?" + query : ""}`);
+  },
+
+  async cancelPreview(taskId: string): Promise<TaskCancelPreviewResponse> {
+    return getApi().request(
+      `/tasks/${encodeURIComponent(taskId)}/cancel-preview`,
+    );
+  },
+
+  async cancelTask(
+    taskId: string,
+  ): Promise<{ cancelled: TaskItem[]; skipped_running: TaskItem[] }> {
+    return getApi().request(`/tasks/${encodeURIComponent(taskId)}/cancel`, {
+      method: "POST",
+    });
+  },
+
+  async cancelAllPreview(
+    projectName: string,
+  ): Promise<TaskCancelAllPreviewResponse> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(projectName)}/tasks/cancel-all-preview`,
+    );
+  },
+
+  async cancelAllQueued(
+    projectName: string,
+  ): Promise<{ cancelled_count: number; skipped_running_count: number }> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(projectName)}/tasks/cancel-all`,
+      {
+        method: "POST",
+      },
+    );
   },
 
   openTaskStream(options: TaskStreamOptions = {}): EventSource {

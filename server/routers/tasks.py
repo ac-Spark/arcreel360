@@ -155,6 +155,37 @@ async def stream_tasks(
         await asyncio.sleep(poll_interval)
 
 
+@router.get("/tasks/{task_id}/cancel-preview")
+async def cancel_preview(task_id: str, _user: CurrentUser):
+    queue = get_task_queue()
+    try:
+        return await queue.get_cancel_preview(task_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/tasks/{task_id}/cancel")
+async def cancel_task(task_id: str, _user: CurrentUser):
+    queue = get_task_queue()
+    try:
+        return await queue.cancel_task(task_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/projects/{project_name}/tasks/cancel-all-preview")
+async def cancel_all_preview(project_name: str, _user: CurrentUser):
+    queue = get_task_queue()
+    queued_count = await queue.get_cancel_all_preview(project_name)
+    return {"queued_count": queued_count}
+
+
+@router.post("/projects/{project_name}/tasks/cancel-all")
+async def cancel_all_queued(project_name: str, _user: CurrentUser):
+    queue = get_task_queue()
+    return await queue.cancel_all_queued(project_name)
+
+
 @router.get("/tasks/{task_id}")
 async def get_task(task_id: str, _user: CurrentUser):
     queue = get_task_queue()

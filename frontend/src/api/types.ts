@@ -43,6 +43,21 @@ export interface TaskStreamTaskPayload {
   stats: TaskStats;
 }
 
+export interface TaskCancelPreviewItem {
+  task_id: string;
+  task_type: string;
+  resource_id: string;
+}
+
+export interface TaskCancelPreviewResponse {
+  task: TaskCancelPreviewItem;
+  cascaded: TaskCancelPreviewItem[];
+}
+
+export interface TaskCancelAllPreviewResponse {
+  queued_count: number;
+}
+
 export interface ProjectEventStreamOptions {
   projectName: string;
   onSnapshot?: (payload: ProjectEventSnapshotPayload, event: MessageEvent) => void;

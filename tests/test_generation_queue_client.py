@@ -7,9 +7,11 @@ import pytest
 from lib.generation_queue_client import (
     BatchTaskResult,
     BatchTaskSpec,
+    TaskCancelledError,
     TaskWaitTimeoutError,
     WorkerOfflineError,
     batch_enqueue_and_wait_sync,
+    enqueue_and_wait,
     enqueue_task_only,
     wait_for_task,
 )
@@ -88,6 +90,57 @@ class TestGenerationQueueClient:
                 timeout_seconds=5.0,
                 worker_offline_grace_seconds=0.2,
             )
+
+    async def test_wait_for_task_returns_cancelled_task(self, generation_queue):
+        task = await generation_queue.enqueue_task(
+            project_name="demo",
+            task_type="storyboard",
+            media_type="image",
+            resource_id="S03",
+            payload={"prompt": "p"},
+            script_file="episode_01.json",
+            source="skill",
+        )
+        await generation_queue.cancel_task(task["task_id"])
+
+        finished = await wait_for_task(
+            task["task_id"],
+            poll_interval=0.05,
+            timeout_seconds=0.2,
+            worker_offline_grace_seconds=10.0,
+        )
+
+        assert finished["status"] == "cancelled"
+
+    @patch("lib.generation_queue_client.wait_for_task", new_callable=AsyncMock)
+    @patch("lib.generation_queue_client.enqueue_task_only", new_callable=AsyncMock)
+    async def test_enqueue_and_wait_cancelled(self, mock_enqueue, mock_wait):
+        mock_enqueue.return_value = {"task_id": "t-cancelled"}
+        mock_wait.return_value = {"status": "cancelled"}
+
+        with pytest.raises(TaskCancelledError, match="t-cancelled"):
+            await enqueue_and_wait(
+                project_name="demo",
+                task_type="storyboard",
+                media_type="image",
+                resource_id="S03",
+                payload={"prompt": "p"},
+                script_file="episode_01.json",
+            )
+
+    @patch("lib.generation_queue_client.wait_for_task", new_callable=AsyncMock)
+    @patch("lib.generation_queue_client.enqueue_task_only", new_callable=AsyncMock)
+    def test_batch_cancelled_result_is_failure(self, mock_enqueue, mock_wait):
+        mock_enqueue.return_value = {"task_id": "t-cancelled"}
+        mock_wait.return_value = {"status": "cancelled"}
+
+        _successes, failures = batch_enqueue_and_wait_sync(
+            project_name="demo",
+            specs=[BatchTaskSpec(task_type="storyboard", media_type="image", resource_id="S03")],
+        )
+
+        assert failures[0].status == "cancelled"
+        assert failures[0].error == "task cancelled"
 
 
 class TestBatchEnqueueAndWaitSync:

@@ -357,6 +357,10 @@ describe("API", () => {
         pageSize: 20,
       });
       await API.getTaskStats("demo");
+      await API.cancelPreview("task id");
+      await API.cancelTask("task id");
+      await API.cancelAllPreview("demo");
+      await API.cancelAllQueued("demo");
       await API.getVersions("demo", "storyboards", "seg-1");
       await API.restoreVersion("demo", "storyboards", "seg-1", 3);
       await API.deleteStyleImage("demo");
@@ -395,6 +399,14 @@ describe("API", () => {
         "/projects/demo/tasks?status=failed&task_type=image&source=agent&page=3&page_size=20",
       );
       expect(requestSpy).toHaveBeenCalledWith("/tasks/stats?project_name=demo");
+      expect(requestSpy).toHaveBeenCalledWith("/tasks/task%20id/cancel-preview");
+      expect(requestSpy).toHaveBeenCalledWith("/tasks/task%20id/cancel", {
+        method: "POST",
+      });
+      expect(requestSpy).toHaveBeenCalledWith("/projects/demo/tasks/cancel-all-preview");
+      expect(requestSpy).toHaveBeenCalledWith("/projects/demo/tasks/cancel-all", {
+        method: "POST",
+      });
       expect(requestSpy).toHaveBeenCalledWith(
         "/projects/demo/assistant/sessions?status=running",
       );
@@ -699,7 +711,7 @@ describe("API", () => {
         "snapshot",
         JSON.stringify({
           tasks: [makeTask()],
-          stats: { queued: 1, running: 0, succeeded: 0, failed: 0, total: 1 },
+          stats: { queued: 1, running: 0, succeeded: 0, failed: 0, cancelled: 0, total: 1 },
         }),
       );
       es.emit(
@@ -707,7 +719,7 @@ describe("API", () => {
         JSON.stringify({
           action: "updated",
           task: makeTask({ status: "running" }),
-          stats: { queued: 0, running: 1, succeeded: 0, failed: 0, total: 1 },
+          stats: { queued: 0, running: 1, succeeded: 0, failed: 0, cancelled: 0, total: 1 },
         }),
       );
       es.emit("snapshot", "{invalid json");
