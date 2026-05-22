@@ -6,6 +6,7 @@ import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { ProjectsPage } from "@/components/pages/ProjectsPage";
+import type { ProjectSummary } from "@/types";
 
 vi.mock("@/components/pages/CreateProjectModal", () => ({
   CreateProjectModal: () => <div data-testid="create-project-modal">Create Project Modal</div>,
@@ -20,6 +21,23 @@ function renderPage() {
       </Router>,
     ),
     location,
+  };
+}
+
+function makeProjectSummary(overrides: Partial<ProjectSummary> = {}): ProjectSummary {
+  return {
+    name: "demo",
+    title: "Demo Project",
+    style: "Anime",
+    thumbnail: null,
+    status: {
+      current_phase: "setup",
+      phase_progress: 0.1,
+      characters: { total: 0, completed: 0 },
+      clues: { total: 0, completed: 0 },
+      episodes_summary: { total: 0, scripted: 0, in_production: 0, completed: 0 },
+    },
+    ...overrides,
   };
 }
 
@@ -262,5 +280,54 @@ describe("ProjectsPage", () => {
     await waitFor(() => {
       expect(location.history?.at(-1)).toBe("/app/projects/demo-renamed");
     });
+  });
+
+  it("opens the delete confirmation dialog, handles deletion, and refreshes the list", async () => {
+    vi.spyOn(API, "listProjects")
+      .mockResolvedValueOnce({
+        projects: [
+          makeProjectSummary({
+            name: "to-delete",
+            title: "Project to Delete",
+          }),
+        ],
+      })
+      .mockResolvedValueOnce({ projects: [] });
+
+    const deleteSpy = vi.spyOn(API, "deleteProject").mockResolvedValue({ success: true } as any);
+
+    renderPage();
+
+    expect(await screen.findByText("Project to Delete")).toBeInTheDocument();
+
+    const deleteBtn = screen.getByRole("button", { name: "刪除專案 Project to Delete" });
+    fireEvent.click(deleteBtn);
+
+    expect(screen.getByRole("heading", { name: "刪除專案" })).toBeInTheDocument();
+
+    const confirmBtn = screen.getByRole("button", { name: "確認刪除" });
+    expect(confirmBtn).toBeDisabled();
+
+    const input = screen.getByPlaceholderText("DELETE");
+    fireEvent.change(input, { target: { value: "DELETE" } });
+    expect(confirmBtn).not.toBeDisabled();
+
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(deleteSpy).toHaveBeenCalledWith("to-delete");
+    });
+
+    await waitFor(() => {
+      expect(API.listProjects).toHaveBeenCalledTimes(2);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "刪除專案" })).not.toBeInTheDocument();
+    });
+    expect(await screen.findByText("暫無專案")).toBeInTheDocument();
+
+    expect(useAppStore.getState().toast?.text).toBe("專案「Project to Delete」已刪除");
+    expect(useAppStore.getState().toast?.tone).toBe("success");
   });
 });

@@ -9,6 +9,7 @@ import { CreateProjectModal } from "./CreateProjectModal";
 import { OpenClawModal } from "./OpenClawModal";
 import { ProjectCard } from "./projects/ProjectCard";
 import { ImportConflictDialog } from "./projects/ImportConflictDialog";
+import { DeleteProjectDialog } from "./projects/DeleteProjectDialog";
 import {
   ImportDiagnosticsDialogWrapper,
   fallbackDiagnostics,
@@ -16,6 +17,7 @@ import {
 import type {
   ImportConflictPolicy,
   ImportFailureDiagnostics,
+  ProjectSummary,
 } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -31,6 +33,8 @@ export function ProjectsPage() {
   const [conflictProjectName, setConflictProjectName] = useState<string | null>(null);
   const [importDiagnostics, setImportDiagnostics] = useState<ImportFailureDiagnostics | null>(null);
   const [showOpenClaw, setShowOpenClaw] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<ProjectSummary | null>(null);
+  const [deletingProject, setDeletingProject] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
   const isConfigComplete = useConfigStatusStore((s) => s.isComplete);
   const fetchConfigStatus = useConfigStatusStore((s) => s.fetch);
@@ -164,6 +168,33 @@ export function ProjectsPage() {
     setConflictProjectName(null);
   }, [importingProject]);
 
+  const handleConfirmDelete = useCallback(async () => {
+    const project = projectToDelete;
+    if (!project) return;
+
+    setDeletingProject(true);
+    try {
+      await API.deleteProject(project.name);
+      useAppStore
+        .getState()
+        .pushToast(`專案「${project.title || project.name}」已刪除`, "success");
+      setProjectToDelete(null);
+      await loadProjects();
+    } catch (err) {
+      const error = err as Error & { detail?: string };
+      useAppStore
+        .getState()
+        .pushToast(`刪除失敗：${error.detail || error.message || "未知錯誤"}`, "error");
+    } finally {
+      setDeletingProject(false);
+    }
+  }, [projectToDelete, loadProjects]);
+
+  const handleCancelDelete = useCallback(() => {
+    if (deletingProject) return;
+    setProjectToDelete(null);
+  }, [deletingProject]);
+
   return (
     <div className="workbench-shell workbench-grid min-h-screen text-[color:var(--wb-text-primary)]">
       {/* Header */}
@@ -278,7 +309,7 @@ export function ProjectsPage() {
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((p) => (
-              <ProjectCard key={p.name} project={p} />
+              <ProjectCard key={p.name} project={p} onRequestDelete={setProjectToDelete} />
             ))}
           </div>
         )}
@@ -301,6 +332,15 @@ export function ProjectsPage() {
         />
       )}
       {showOpenClaw && <OpenClawModal onClose={() => setShowOpenClaw(false)} />}
+      {projectToDelete !== null && (
+        <DeleteProjectDialog
+          projectName={projectToDelete.name}
+          projectTitle={projectToDelete.title}
+          deleting={deletingProject}
+          onCancel={handleCancelDelete}
+          onConfirm={handleConfirmDelete}
+        />
+      )}
     </div>
   );
 }

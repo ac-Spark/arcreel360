@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { FolderOpen } from "lucide-react";
+import { FolderOpen, Trash2 } from "lucide-react";
 import type { ProjectStatus, ProjectSummary } from "@/types";
 
 const PHASE_LABELS: Record<string, string> = {
@@ -10,8 +10,16 @@ const PHASE_LABELS: Record<string, string> = {
   completed: "已完成",
 };
 
-export function ProjectCard({ project }: { project: ProjectSummary }) {
+export function ProjectCard({
+  project,
+  onRequestDelete,
+}: {
+  project: ProjectSummary;
+  onRequestDelete: (project: ProjectSummary) => void;
+}) {
   const [, navigate] = useLocation();
+  const projectPath = `/app/projects/${project.name}`;
+  const projectLabel = project.title || project.name;
   const status = project.status;
   const hasStatus = status && "current_phase" in status;
 
@@ -22,20 +30,43 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
   const clues = hasStatus ? (status as ProjectStatus).clues : null;
   const summary = hasStatus ? (status as ProjectStatus).episodes_summary : null;
 
+  const openProject = () => navigate(projectPath);
+
   return (
-    <button
-      type="button"
-      onClick={() => navigate(`/app/projects/${project.name}`)}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={openProject}
+      onKeyDown={(e) => {
+        if (e.currentTarget !== e.target) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openProject();
+        }
+      }}
       className="project-card workbench-panel hover:workbench-panel-strong group relative flex cursor-pointer flex-col gap-4 overflow-hidden rounded-[1.35rem] p-5 text-left"
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/6 to-transparent opacity-70" />
+
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onRequestDelete(project);
+        }}
+        className="absolute right-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black/50 text-[color:var(--wb-text-muted)] opacity-0 transition hover:border-rose-400/50 hover:text-rose-400 group-hover:opacity-100"
+        title="刪除專案"
+        aria-label={`刪除專案 ${projectLabel}`}
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
 
       {/* Thumbnail or placeholder */}
       <div className="relative aspect-video w-full overflow-hidden rounded-[1rem] border border-white/6 bg-[rgba(10,16,28,0.86)]">
         {project.thumbnail ? (
           <img
             src={project.thumbnail}
-            alt={project.title}
+            alt={projectLabel}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
         ) : (
@@ -52,7 +83,7 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
           創作工作臺
         </div>
         <h3 className="mt-2 truncate text-base font-semibold text-[color:var(--wb-text-primary)]">
-          {project.title}
+          {projectLabel}
         </h3>
         <p className="mt-1 text-xs text-[color:var(--wb-text-muted)]">
           {project.style || "未設定風格"}
@@ -95,6 +126,6 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
           {summary.completed > 0 && ` · ${summary.completed} 集已完成`}
         </div>
       )}
-    </button>
+    </div>
   );
 }
