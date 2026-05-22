@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Annotated
 if TYPE_CHECKING:
     from server.services.jianying_draft_service import JianyingDraftService
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Body, File, Form, HTTPException, Query, UploadFile
 from fastapi import Path as FastAPIPath
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
@@ -701,6 +701,10 @@ class SplitEpisodeRequest(BaseModel):
     title: str | None = None
 
 
+class PreprocessEpisodeRequest(BaseModel):
+    source: str | None = None
+
+
 def _resolve_source_file_for_split(manager: ProjectManager, project_name: str, source: str) -> Path:
     from lib.episode_splitter import SourceFileError, resolve_source_under
 
@@ -1319,9 +1323,14 @@ async def generate_episode_script(name: str, episode: int, _user: CurrentUser):
 
 
 @router.post("/projects/{name}/episodes/{episode}/preprocess")
-async def preprocess_episode(name: str, episode: int, _user: CurrentUser):
+async def preprocess_episode(
+    name: str,
+    episode: int,
+    _user: CurrentUser,
+    req: PreprocessEpisodeRequest = Body(default=None),
+):
     """Step 1 預處理：根據 content_mode 呼叫對應 skill 腳本。"""
-    from lib.episode_preprocess import run_preprocess
+    from lib.episode_preprocess import SourceNotReadyError, run_preprocess
 
     try:
         manager = get_project_manager()
@@ -1330,6 +1339,7 @@ async def preprocess_episode(name: str, episode: int, _user: CurrentUser):
 
         project = await asyncio.to_thread(manager.load_project, name)
         project_path = manager.get_project_path(name)
+        source = req.source if req else None
         with project_change_source("webui"):
             return await asyncio.to_thread(
                 run_preprocess,
@@ -1337,8 +1347,12 @@ async def preprocess_episode(name: str, episode: int, _user: CurrentUser):
                 episode,
                 content_mode=project.get("content_mode", "narration"),
                 repo_root=PROJECT_ROOT,
+                source=source,
             )
 
+    except SourceNotReadyError as e:
+        # 該集尚未分集切分：使用者可修正，回 400 而非 500。
+        raise HTTPException(status_code=400, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except (FileNotFoundError, RuntimeError) as e:

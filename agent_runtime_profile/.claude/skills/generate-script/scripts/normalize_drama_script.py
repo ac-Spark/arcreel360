@@ -12,6 +12,7 @@ normalize_drama_script.py - 使用 Gemini Pro 生成規範化劇本
 """
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -93,6 +94,78 @@ def build_normalize_prompt(
 """
 
 
+# 「尚未分集切分」專用退出碼：run_preprocess 依此把錯誤映射成 HTTP 400。
+SOURCE_NOT_READY_EXIT_CODE = 3
+
+# 視為小說原文的副檔名（單檔 fallback 用）。
+_SOURCE_SUFFIXES = (".txt", ".md", ".text")
+
+
+class SourceNotReadyError(FileNotFoundError):
+    """缺少可用的小說原文，需使用者上傳或指定來源。
+
+    繼承 FileNotFoundError 以沿用 resolve_novel_text 呼叫端既有的 except 分支；
+    main() 會把它對應到 SOURCE_NOT_READY_EXIT_CODE 退出。
+    """
+
+
+def _episode_source_files(source_dir: Path) -> list[Path]:
+    """列出 source/ 內可視為小說原文的檔案（排除分集切分產生的 _remaining.txt 與 episode_N.txt）。"""
+    if not source_dir.is_dir():
+        return []
+    return sorted(
+        f
+        for f in source_dir.iterdir()
+        if (
+            f.is_file()
+            and f.suffix.lower() in _SOURCE_SUFFIXES
+            and f.name != "_remaining.txt"
+            and not re.match(r"^episode_\d+\.(txt|md|text)$", f.name, re.IGNORECASE)
+        )
+    )
+
+
+def _read_whole_source(source_dir: Path) -> str:
+    """把 source/ 內所有原文檔按檔名排序串接成「整本原文」。"""
+    files = _episode_source_files(source_dir)
+    return "\n\n".join(f.read_text(encoding="utf-8") for f in files)
+
+
+def resolve_novel_text(project_path: Path, episode: int, source: str | None) -> str:
+    """決定並讀取某集的小說原文。
+
+    解析順序：
+    1. 使用者指定 source → 讀該檔。
+    2. source/episode_{episode}.txt 存在 → 讀它（進階使用者手動精切的產物）。
+    3. 否則 → 讀 source/ 整本原文（不均分，直接回傳整本）。
+
+    Raises:
+        ValueError: 指定的 source 路徑超出專案目錄。
+        FileNotFoundError: 指定的 source 檔不存在或路徑無效。
+        SourceNotReadyError: 未指定 source 且 source/ 內無原文檔／整本內容為空。
+    """
+    if source is not None:
+        if not source.strip():
+            raise FileNotFoundError("未指定原始檔路徑（指定了空路徑）")
+        project_root = project_path.resolve()
+        source_path = (project_path / source).resolve()
+        if not source_path.is_relative_to(project_root):
+            raise ValueError(f"路徑超出專案目錄: {source_path}")
+        if not source_path.exists() or source_path.is_dir():
+            raise FileNotFoundError(f"未找到原始檔: {source_path}")
+        return source_path.read_text(encoding="utf-8")
+
+    candidate = project_path / "source" / f"episode_{episode}.txt"
+    if candidate.exists():
+        return candidate.read_text(encoding="utf-8")
+
+    whole = _read_whole_source(project_path / "source")
+    if not whole.strip():
+        raise SourceNotReadyError("source/ 內沒有可用的小說原文。請先在資產面板上傳小說原文檔，再執行規範化。")
+
+    return whole
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="使用 Gemini Pro 生成規範化劇本",
@@ -100,7 +173,7 @@ def main():
         epilog="""
 示例:
     %(prog)s --episode 1
-    %(prog)s --episode 1 --source source/chapter1.txt
+    %(prog)s --episode 1 --source source/episode_1.txt
     %(prog)s --episode 1 --dry-run
         """,
     )
@@ -111,7 +184,7 @@ def main():
         "-s",
         type=str,
         default=None,
-        help="指定小說原始檔路徑（預設讀取 source/ 目錄下所有檔案）",
+        help="指定小說原始檔路徑（預設讀 source/episode_{N}.txt）",
     )
     parser.add_argument("--dry-run", action="store_true", help="僅顯示 Prompt，不實際呼叫 API")
 
@@ -123,26 +196,16 @@ def main():
     project = pm.load_project(project_name)
 
     # 讀取小說原文
-    if args.source:
-        source_path = (project_path / args.source).resolve()
-        if not source_path.is_relative_to(project_path.resolve()):
-            print(f"❌ 路徑超出專案目錄: {source_path}")
-            sys.exit(1)
-        if not source_path.exists():
-            print(f"❌ 未找到原始檔: {source_path}")
-            sys.exit(1)
-        novel_text = source_path.read_text(encoding="utf-8")
-    else:
-        source_dir = project_path / "source"
-        if not source_dir.exists() or not any(source_dir.iterdir()):
-            print(f"❌ source/ 目錄為空或不存在: {source_dir}")
-            sys.exit(1)
-        # 按檔名排序讀取所有文字檔案
-        texts = []
-        for f in sorted(source_dir.iterdir()):
-            if f.suffix in (".txt", ".md", ".text"):
-                texts.append(f.read_text(encoding="utf-8"))
-        novel_text = "\n\n".join(texts)
+    try:
+        novel_text = resolve_novel_text(project_path, args.episode, args.source)
+    except SourceNotReadyError as e:
+        # 尚未分集切分：可由使用者修正，用專用退出碼讓上層映射成 HTTP 400。
+        sys.stderr.write(f"SourceNotReadyError: {e}\n")
+        print(f"❌ {e}")
+        sys.exit(SOURCE_NOT_READY_EXIT_CODE)
+    except (ValueError, FileNotFoundError) as e:
+        print(f"❌ {e}")
+        sys.exit(1)
 
     if not novel_text.strip():
         print("❌ 小說原文為空")

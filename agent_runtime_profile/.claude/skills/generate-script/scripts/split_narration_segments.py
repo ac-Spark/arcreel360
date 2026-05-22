@@ -9,6 +9,8 @@ split_narration_segments.py - 使用 LLM 將小說原文拆分為說書模式片
 """
 
 import argparse
+import json
+import re
 import sys
 from pathlib import Path
 
@@ -130,21 +132,105 @@ def build_split_prompt(
 """
 
 
+# 「尚未分集切分」專用退出碼：run_preprocess 依此把錯誤映射成 HTTP 400。
+SOURCE_NOT_READY_EXIT_CODE = 3
+
+# 視為小說原文的副檔名（單檔 fallback 用）。
+_SOURCE_SUFFIXES = (".txt", ".md", ".text")
+
+
+class SourceNotReadyError(FileNotFoundError):
+    """缺少可用的小說原文，需使用者上傳或指定來源。
+
+    繼承 FileNotFoundError 以沿用 resolve_novel_text 呼叫端既有的 except 分支；
+    main() 會把它對應到 SOURCE_NOT_READY_EXIT_CODE 退出。
+    """
+
+
+def _episode_source_files(source_dir: Path) -> list[Path]:
+    """列出 source/ 內可視為小說原文的檔案（排除分集切分產生的 _remaining.txt 與 episode_N.txt）。"""
+    if not source_dir.is_dir():
+        return []
+    return sorted(
+        f
+        for f in source_dir.iterdir()
+        if (
+            f.is_file()
+            and f.suffix.lower() in _SOURCE_SUFFIXES
+            and f.name != "_remaining.txt"
+            and not re.match(r"^episode_\d+\.(txt|md|text)$", f.name, re.IGNORECASE)
+        )
+    )
+
+
+def _read_whole_source(source_dir: Path) -> str:
+    """把 source/ 內所有原文檔按檔名排序串接成「整本原文」。"""
+    files = _episode_source_files(source_dir)
+    return "\n\n".join(f.read_text(encoding="utf-8") for f in files)
+
+
+def _episode_index_and_total(project_path: Path, episode: int) -> tuple[int, int]:
+    """從 project.json 算出 (該集在升序集列表中的 1-based 索引, 總集數)。
+
+    project.json 不存在 / 無 episodes / 該集不在列表 → 退化為 (1, 1)，
+    亦即把整本當單一一集，確保仍可拆段。
+    """
+    project_json = project_path / "project.json"
+    if not project_json.exists():
+        return (1, 1)
+    try:
+        data = json.loads(project_json.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return (1, 1)
+    episodes = data.get("episodes") or []
+    numbers = sorted(int(ep["episode"]) for ep in episodes if isinstance(ep, dict) and "episode" in ep)
+    if not numbers or episode not in numbers:
+        return (1, 1)
+    return (numbers.index(episode) + 1, len(numbers))
+
+
 def resolve_novel_text(project_path: Path, episode: int, source: str | None) -> str:
-    """決定並讀取小說原文來源"""
-    if source:
+    """決定並讀取某集的小說原文。
+
+    解析順序：
+    1. 使用者指定 source → 讀該檔（覆寫自動均分）。
+    2. source/episode_{episode}.txt 存在 → 讀它（進階使用者手動精切的產物）。
+    3. 否則 → 讀 source/ 整本原文，按 project.json 的集數均分，取本集那一段。
+
+    Raises:
+        ValueError: 指定的 source 路徑超出專案目錄。
+        FileNotFoundError: 指定的 source 檔不存在或路徑無效。
+        SourceNotReadyError: 未指定 source 且 source/ 內無原文檔／整本內容為空／均分後該集為空。
+    """
+    if source is not None:
+        if not source.strip():
+            raise FileNotFoundError("未指定原始檔路徑（指定了空路徑）")
         project_root = project_path.resolve()
         source_path = (project_path / source).resolve()
         if not source_path.is_relative_to(project_root):
             raise ValueError(f"路徑超出專案目錄: {source_path}")
-        if not source_path.exists():
+        if not source_path.exists() or source_path.is_dir():
             raise FileNotFoundError(f"未找到原始檔: {source_path}")
         return source_path.read_text(encoding="utf-8")
 
     candidate = project_path / "source" / f"episode_{episode}.txt"
-    if not candidate.exists():
-        raise FileNotFoundError(f"未找到第 {episode} 集的原始檔: {candidate}")
-    return candidate.read_text(encoding="utf-8")
+    if candidate.exists():
+        return candidate.read_text(encoding="utf-8")
+
+    whole = _read_whole_source(project_path / "source")
+    if not whole.strip():
+        raise SourceNotReadyError("source/ 內沒有可用的小說原文。請先在資產面板上傳小說原文檔，再執行拆段。")
+
+    from lib.episode_splitter import split_into_n_episodes
+
+    index, total = _episode_index_and_total(project_path, episode)
+    parts = split_into_n_episodes(whole, total)
+    result = parts[index - 1]
+    if not result.strip():
+        raise SourceNotReadyError(
+            f"均分原文後第 {episode} 集的內容為空。整本原文共計 {len(whole)} 字，無法均分成 {total} 集。請確認小說字數是否足夠或集數設定是否正確。"
+        )
+    return result
 
 
 def main():
@@ -178,6 +264,11 @@ def main():
     # 讀取小說原文
     try:
         novel_text = resolve_novel_text(project_path, args.episode, args.source)
+    except SourceNotReadyError as e:
+        # 尚未分集切分：可由使用者修正，用專用退出碼讓上層映射成 HTTP 400。
+        sys.stderr.write(f"SourceNotReadyError: {e}\n")
+        print(f"❌ {e}")
+        sys.exit(SOURCE_NOT_READY_EXIT_CODE)
     except (ValueError, FileNotFoundError) as e:
         print(f"❌ {e}")
         sys.exit(1)

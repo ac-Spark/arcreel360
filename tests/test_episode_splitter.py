@@ -81,3 +81,65 @@ def test_split_episode_text_anchor_multiple_picks_nearest():
     result = split_episode_text(text, target_chars=target_offset_chars, anchor="錨點AB", context=30)
     assert result["split_pos"] == len("錨點AB") + 20 + len("錨點AB")
     assert result["anchor_match_count"] == 2
+
+
+def test_split_into_n_episodes_single():
+    """N=1：整本即唯一一集。"""
+    from lib.episode_splitter import split_into_n_episodes
+
+    text = "第一句。第二句。第三句。"
+    parts = split_into_n_episodes(text, 1)
+    assert parts == [text]
+
+
+def test_split_into_n_episodes_two_parts_concatenate_to_original():
+    """N=2：兩段串接後等於原文（不丟字、不重複）。"""
+    from lib.episode_splitter import split_into_n_episodes
+
+    text = "甲" * 50 + "。" + "乙" * 50 + "。"
+    parts = split_into_n_episodes(text, 2)
+    assert len(parts) == 2
+    assert "".join(parts) == text
+    assert min(len(p) for p in parts) >= len(text) // 4
+
+
+def test_split_into_n_episodes_cuts_on_sentence_end():
+    """切點應落在句末標點之後，不切斷句子。"""
+    from lib.episode_splitter import split_into_n_episodes
+
+    text = "甲甲甲甲甲。乙乙乙乙乙。丙丙丙丙丙。"
+    parts = split_into_n_episodes(text, 3)
+    assert len(parts) == 3
+    assert "".join(parts) == text
+    for part in parts[:-1]:
+        assert part.rstrip()[-1] in "。！？…"
+
+
+def test_split_into_n_episodes_three_parts():
+    """N=3：產生 3 段，串接還原。"""
+    from lib.episode_splitter import split_into_n_episodes
+
+    text = "".join(f"這是第{i}句話。" for i in range(30))
+    parts = split_into_n_episodes(text, 3)
+    assert len(parts) == 3
+    assert "".join(parts) == text
+
+
+def test_split_into_n_episodes_invalid_n_raises():
+    """N<1 → ValueError。"""
+    import pytest
+
+    from lib.episode_splitter import split_into_n_episodes
+
+    with pytest.raises(ValueError):
+        split_into_n_episodes("一些文字。", 0)
+
+
+def test_split_into_n_episodes_more_episodes_than_content():
+    """N 大於可切分句子數：仍回傳 N 段，允許部分段為空字串，串接仍還原。"""
+    from lib.episode_splitter import split_into_n_episodes
+
+    text = "只有一句。"
+    parts = split_into_n_episodes(text, 5)
+    assert len(parts) == 5
+    assert "".join(parts) == text

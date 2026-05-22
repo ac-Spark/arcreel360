@@ -14,10 +14,22 @@ from lib import agent_profile
 
 _PREPROCESS_TIMEOUT = 1800
 
+# 與 split_narration_segments.py 的 SOURCE_NOT_READY_EXIT_CODE 對齊：
+# 拆段腳本以此退出碼表示「該集尚未分集切分、無法定位原文」。
+_SOURCE_NOT_READY_EXIT_CODE = 3
+
 _CONTENT_MODE_SCRIPTS = {
     "narration": ("split_narration_segments.py", "step1_segments.md"),
     "drama": ("normalize_drama_script.py", "step1_normalized_script.md"),
 }
+
+
+class SourceNotReadyError(RuntimeError):
+    """指定集數尚未分集切分、無法定位原文——屬使用者可修正的狀況。
+
+    繼承 RuntimeError，讓既有把 RuntimeError 當 500 的呼叫端在未更新時
+    仍能運作；已更新的 HTTP 路由則優先攔截本類別並回 400。
+    """
 
 
 def run_preprocess(
@@ -26,6 +38,7 @@ def run_preprocess(
     *,
     content_mode: str | None = None,
     repo_root: Path | None = None,
+    source: str | None = None,
 ) -> dict:
     """執行某集的 Step 1 預處理。
 
@@ -35,6 +48,7 @@ def run_preprocess(
     Raises:
         ValueError: content_mode 不合法。
         FileNotFoundError: 預處理腳本不存在。
+        SourceNotReadyError: 該集尚未分集切分、無法定位原文（使用者可修正）。
         RuntimeError: 腳本執行失敗或逾時。
     """
     project_path = Path(project_path)
@@ -56,9 +70,13 @@ def run_preprocess(
     if not skill_script.exists():
         raise FileNotFoundError(f"找不到預處理腳本: {skill_script}")
 
+    cmd = [sys.executable, str(skill_script), "--episode", str(episode)]
+    if source is not None:
+        cmd.extend(["--source", source])
+
     try:
         proc = subprocess.run(
-            [sys.executable, str(skill_script), "--episode", str(episode)],
+            cmd,
             cwd=str(project_path),
             capture_output=True,
             text=True,
@@ -67,6 +85,22 @@ def run_preprocess(
     except subprocess.TimeoutExpired as e:
         raise RuntimeError("預處理執行逾時（>30 分鐘）") from e
 
+    if proc.returncode == _SOURCE_NOT_READY_EXIT_CODE:
+        # 該集尚未分集切分：使用者可修正，交由路由映射成 HTTP 400。
+        # 優先解析 stderr 中的 SourceNotReadyError: 乾淨訊息
+        detail = ""
+        stderr_content = proc.stderr or ""
+        for line in stderr_content.splitlines():
+            if line.startswith("SourceNotReadyError:"):
+                detail = line.replace("SourceNotReadyError:", "", 1).strip()
+                break
+        if not detail:
+            # Fallback 到 stdout/stderr，過濾 ❌ 表情符號與前後雜訊
+            raw = proc.stdout.strip() or proc.stderr.strip()
+            if raw.startswith("❌"):
+                raw = raw[1:].strip()
+            detail = raw[-2000:]
+        raise SourceNotReadyError(detail or f"第 {episode} 集尚未分集切分，請先切分後再執行拆段。")
     if proc.returncode != 0:
         raise RuntimeError(f"{script_filename} 失敗 (rc={proc.returncode}): {proc.stderr[-2000:]}")
 

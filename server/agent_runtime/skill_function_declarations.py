@@ -322,16 +322,20 @@ PREPROCESS_EPISODE_DECL = FunctionDeclaration(
     ),
     parameters={
         "type": "object",
-        "properties": {"episode": {"type": "integer", "description": "集數編號"}},
+        "properties": {
+            "episode": {"type": "integer", "description": "集數編號"},
+            "source": {"type": "string", "description": "可選的指定原文相對路徑，若不指定則自動均分"},
+        },
         "required": ["episode"],
     },
 )
 
 
 async def _handle_preprocess_episode(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
-    from lib.episode_preprocess import run_preprocess
+    from lib.episode_preprocess import SourceNotReadyError, run_preprocess
 
     episode = args.get("episode")
+    source = args.get("source")
     if not isinstance(episode, int) or episode < 1:
         return {"ok": False, "error": "invalid_argument", "reason": "需要 episode(int>=1)"}
     project_path = ctx.project_manager.get_project_path(ctx.project_name)
@@ -341,8 +345,11 @@ async def _handle_preprocess_episode(ctx: SkillCallContext, args: dict[str, Any]
             project_path,
             episode,
             repo_root=ctx.project_manager.projects_root.parent,
+            source=source,
         )
         return {"ok": True, **result}
+    except SourceNotReadyError as exc:
+        return {"ok": False, "error": "source_not_ready", "reason": str(exc)}
     except ValueError as exc:
         return {"ok": False, "error": "invalid_content_mode", "reason": str(exc)}
     except FileNotFoundError as exc:

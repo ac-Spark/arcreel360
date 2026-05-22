@@ -211,3 +211,48 @@ def split_episode_text(source_text: str, target_chars: int, anchor: str, context
         "anchor_match_count": len(positions),
         "target_offset": target_offset,
     }
+
+
+def split_into_n_episodes(text: str, total_episodes: int) -> list[str]:
+    """把整本原文按有效字數均分為 total_episodes 段，切點落最近句末標點。
+
+    供「拆段時自動按集數均分原文」使用：不需錨點、不需使用者指定切點。
+    保證 "".join(回傳值) == text（不丟字、不重複）。
+
+    Args:
+        text: 整本小說原文。
+        total_episodes: 目標段數（= project.json 的集數），須 >= 1。
+
+    Returns:
+        長度為 total_episodes 的字串列表，依序為第 1..N 段。
+        當內容過短不足以切出 N 段時，末尾段可能為空字串。
+
+    Raises:
+        ValueError: total_episodes < 1。
+    """
+    if total_episodes < 1:
+        raise ValueError(f"集數必須 >= 1，得到 {total_episodes}")
+    if total_episodes == 1:
+        return [text]
+
+    total = count_chars(text)
+    cut_offsets: list[int] = []
+    for k in range(1, total_episodes):
+        target_chars = round(total * k / total_episodes)
+        raw_offset = find_char_offset(text, target_chars)
+        breakpoints = find_natural_breakpoints(text, raw_offset, window=200)
+        sentence_bps = [bp for bp in breakpoints if bp["type"] == "sentence"]
+        chosen = sentence_bps or breakpoints
+        offset = chosen[0]["offset"] if chosen else raw_offset
+        cut_offsets.append(offset)
+
+    # 切點需單調遞增且落在 [0, len(text)]，避免重疊或越界。
+    cut_offsets = sorted(min(max(o, 0), len(text)) for o in cut_offsets)
+
+    parts: list[str] = []
+    prev = 0
+    for offset in cut_offsets:
+        parts.append(text[prev:offset])
+        prev = offset
+    parts.append(text[prev:])
+    return parts

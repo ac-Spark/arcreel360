@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Film, Image as ImageIcon, RotateCcw, Scissors, Wand2 } from "lucide-react";
+import { ChevronDown, FileText, Film, Image as ImageIcon, RotateCcw, Scissors, Wand2 } from "lucide-react";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -18,6 +18,15 @@ type Busy =
   | "storyboards"
   | "videos"
   | "compose";
+
+type SourceFile = { name: string; size: number; url?: string };
+
+const SOURCE_TEXT_SUFFIXES = [".txt", ".md", ".text"];
+
+function isSourceTextFile(file: SourceFile) {
+  const lower = file.name.toLowerCase();
+  return file.name !== "_remaining.txt" && SOURCE_TEXT_SUFFIXES.some((suffix) => lower.endsWith(suffix));
+}
 
 /**
  * Episode-level batch actions: preprocess / regenerate script /
@@ -54,9 +63,36 @@ export function EpisodeActionsBar({
     }
   };
 
-  const handlePreprocess = () =>
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [sources, setSources] = useState<{ name: string; size: number }[]>([]);
+  const [loadingSources, setLoadingSources] = useState(false);
+
+  const fetchSources = async () => {
+    setLoadingSources(true);
+    try {
+      const res = await API.listFiles(projectName);
+      const sourceFiles = ((res.files.source || []) as SourceFile[]).filter(isSourceTextFile);
+      setSources(sourceFiles);
+    } catch (err) {
+      toast(`取得原文列表失敗：${(err as Error).message}`, "error");
+    } finally {
+      setLoadingSources(false);
+    }
+  };
+
+  const handleSourceSelect = async (sourceName: string) => {
+    setDropdownOpen(false);
+    const message = hasScript
+      ? `重新拆段會覆蓋目前的片段拆分結果。確定要使用原文「${sourceName}」重新拆段？`
+      : `確定要使用原文「${sourceName}」進行拆段？`;
+    if (await confirm({ message })) {
+      void handlePreprocess(sourceName);
+    }
+  };
+
+  const handlePreprocess = (source?: string) =>
     run("preprocess", preprocessLabel, async () => {
-      const res = await API.preprocessEpisode(projectName, episode);
+      const res = await API.preprocessEpisode(projectName, episode, source);
       useAppStore.getState().invalidateEntities([`draft:episode_${episode}_step1`]);
       return res.step1_path;
     });
@@ -102,12 +138,64 @@ export function EpisodeActionsBar({
         disabled={busy !== null}
         onClick={async () => {
           const message = hasScript
-            ? "重新拆段會覆寫 Step 1 中介檔。確定？"
-            : "拆段會產生 Step 1 中介檔。確定？";
+            ? "重新拆段會覆蓋目前的片段拆分結果。確定？"
+            : "拆段會把這集原文切成片段。確定？";
           if (await confirm({ message })) void handlePreprocess();
         }}
         tone="neutral"
       />
+
+      <div className="relative">
+        <ActionButton
+          icon={<ChevronDown className="h-3.5 w-3.5" />}
+          label="指定原文"
+          loading={busy === "preprocess"}
+          disabled={busy !== null}
+          onClick={() => {
+            if (!dropdownOpen) void fetchSources();
+            setDropdownOpen(!dropdownOpen);
+          }}
+          tone="neutral"
+        />
+
+        {dropdownOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
+            <div className="absolute left-0 z-50 mt-1 min-w-[12rem] w-64 rounded-lg border border-gray-800 bg-gray-950 p-1.5 shadow-2xl">
+              <div className="px-2.5 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500">
+                選擇 source 檔案
+              </div>
+              <div className="my-1 h-px bg-gray-800" />
+              {loadingSources ? (
+                <div className="flex items-center justify-center py-4 text-xs text-gray-400">
+                  <span className="mr-2 inline-block h-3.5 w-3.5 animate-spin rounded-full border border-gray-600 border-t-transparent" />
+                  載入中...
+                </div>
+              ) : sources.length === 0 ? (
+                <div className="px-2.5 py-3 text-center text-xs text-gray-500">
+                  source/ 目錄下無可用文字檔
+                </div>
+              ) : (
+                <div className="max-h-60 overflow-y-auto">
+                  {sources.map((file) => (
+                    <button
+                      key={file.name}
+                      type="button"
+                      onClick={() => void handleSourceSelect(file.name)}
+                      className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
+                    >
+                      <span className="mr-2 truncate font-mono">{file.name}</span>
+                      <span className="shrink-0 text-[0.625rem] text-gray-500">
+                        {(file.size / 1024).toFixed(1)} KB
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
       <ActionButton
         icon={<Wand2 className="h-3.5 w-3.5" />}
         label={scriptLabel}
@@ -116,7 +204,7 @@ export function EpisodeActionsBar({
         onClick={async () => {
           const message = hasScript
             ? "重新生成劇本會覆寫現有劇本。確定？"
-            : "生成劇本會根據 Step 1 中介檔產生 JSON 劇本。確定？";
+            : "生成劇本會根據拆段結果產生劇本。確定？";
           if (await confirm({ message })) void handleScript();
         }}
         tone="neutral"

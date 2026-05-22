@@ -122,10 +122,11 @@ export const episodesApi = {
   async preprocessEpisode(
     name: string,
     episode: number,
+    source?: string,
   ): Promise<{ step1_path: string; content_mode: string }> {
     return getApi().request(
       `/projects/${encodeURIComponent(name)}/episodes/${episode}/preprocess`,
-      { method: "POST", body: JSON.stringify({}) },
+      { method: "POST", body: JSON.stringify({ source }) },
     );
   },
 

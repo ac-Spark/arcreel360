@@ -517,3 +517,54 @@ class TestProjectsRouter:
                 ).status_code
                 == 404
             )
+
+    def test_preprocess_episode_source_not_ready_returns_400(self, tmp_path, monkeypatch):
+        """尚未分集切分的集數按拆段 → SourceNotReadyError → HTTP 400（非 500）。"""
+        import lib.episode_preprocess as ep
+
+        def _raise(*args, **kwargs):
+            raise ep.SourceNotReadyError("第 2 集尚未分集切分，請先切分後再執行拆段。")
+
+        monkeypatch.setattr(ep, "run_preprocess", _raise)
+        client = _client(monkeypatch, _FakePM(tmp_path), _FakeCalc())
+        with client:
+            r = client.post("/api/v1/projects/ready/episodes/2/preprocess")
+            assert r.status_code == 400
+            assert "分集切分" in r.json()["detail"]
+
+    def test_preprocess_episode_runtime_error_still_500(self, tmp_path, monkeypatch):
+        """非「尚未切分」的腳本失敗仍維持 HTTP 500。"""
+        import lib.episode_preprocess as ep
+
+        def _raise(*args, **kwargs):
+            raise RuntimeError("split_narration_segments.py 失敗 (rc=1)")
+
+        monkeypatch.setattr(ep, "run_preprocess", _raise)
+        client = _client(monkeypatch, _FakePM(tmp_path), _FakeCalc())
+        with client:
+            r = client.post("/api/v1/projects/ready/episodes/2/preprocess")
+            assert r.status_code == 500
+
+    def test_preprocess_episode_with_source(self, tmp_path, monkeypatch):
+        """測試 preprocess 路由能接收並傳遞可選的 source 欄位。"""
+        import lib.episode_preprocess as ep
+
+        captured_kwargs = {}
+
+        def _mock_preprocess(*args, **kwargs):
+            captured_kwargs.clear()
+            captured_kwargs.update(kwargs)
+            return {"step1_path": "drafts/episode_2/step1_segments.md", "content_mode": "narration"}
+
+        monkeypatch.setattr(ep, "run_preprocess", _mock_preprocess)
+        client = _client(monkeypatch, _FakePM(tmp_path), _FakeCalc())
+        with client:
+            # 傳遞 json 帶有 source
+            r = client.post("/api/v1/projects/ready/episodes/2/preprocess", json={"source": "source/custom.txt"})
+            assert r.status_code == 200
+            assert captured_kwargs.get("source") == "source/custom.txt"
+
+            # 不傳 body 也要能相容
+            r_empty = client.post("/api/v1/projects/ready/episodes/2/preprocess")
+            assert r_empty.status_code == 200
+            assert captured_kwargs.get("source") is None
