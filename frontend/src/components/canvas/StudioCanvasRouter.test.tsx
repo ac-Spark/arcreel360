@@ -217,6 +217,17 @@ function renderAt(path: string) {
   );
 }
 
+/** Like renderAt, but also returns navigate so tests can switch routes mid-render. */
+function renderWithNav(path: string) {
+  const { hook, navigate } = memoryLocation({ path });
+  const utils = render(
+    <Router hook={hook}>
+      <StudioCanvasRouter />
+    </Router>,
+  );
+  return { ...utils, navigate };
+}
+
 describe("StudioCanvasRouter", () => {
   beforeEach(() => {
     useProjectsStore.setState(useProjectsStore.getInitialState(), true);
@@ -260,6 +271,31 @@ describe("StudioCanvasRouter", () => {
     });
   });
 
+  it("hides the open add form when navigating to another lorebook tab", async () => {
+    useProjectsStore.setState({
+      currentProjectName: "demo",
+      currentProjectData: makeProjectData(),
+      currentScripts: { "episode_1.json": makeScript() },
+    });
+
+    const { navigate } = renderWithNav("/clues");
+
+    fireEvent.click(screen.getByText("add-clue"));
+    expect(await screen.findByTestId("add-clue-form")).toBeInTheDocument();
+
+    navigate("/characters");
+    await waitFor(() => {
+      expect(screen.getByTestId("lorebook-gallery")).toHaveAttribute("data-mode", "characters");
+    });
+    expect(screen.queryByTestId("add-clue-form")).not.toBeInTheDocument();
+
+    navigate("/clues");
+    await waitFor(() => {
+      expect(screen.getByTestId("lorebook-gallery")).toHaveAttribute("data-mode", "clues");
+    });
+    expect(screen.queryByTestId("add-clue-form")).not.toBeInTheDocument();
+  });
+
   it("runs character/clue callbacks and reports API failures with toast", async () => {
     useProjectsStore.setState({
       currentProjectName: "demo",
@@ -281,7 +317,7 @@ describe("StudioCanvasRouter", () => {
     vi.spyOn(API, "generateClue").mockRejectedValue(new Error("generate failed"));
     vi.spyOn(API, "addClue").mockResolvedValue({ success: true });
 
-    renderAt("/characters");
+    const { navigate } = renderWithNav("/characters");
 
     fireEvent.click(screen.getByText("update-character"));
     await waitFor(() => {
@@ -347,6 +383,10 @@ describe("StudioCanvasRouter", () => {
       expect(useAppStore.getState().toast?.text).toContain("提交失敗");
     });
 
+    navigate("/clues");
+    await waitFor(() => {
+      expect(screen.getByTestId("lorebook-gallery")).toHaveAttribute("data-mode", "clues");
+    });
     fireEvent.click(screen.getByText("add-clue"));
     expect(await screen.findByTestId("add-clue-form")).toBeInTheDocument();
     fireEvent.click(screen.getByText("submit-add-clue"));

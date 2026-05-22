@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Route, Switch, Redirect, useLocation } from "wouter";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useAppStore } from "@/stores/app-store";
@@ -22,6 +22,13 @@ import type { Clue, TaskItem } from "@/types";
 // ---------------------------------------------------------------------------
 
 const ACTIVE_TASK_STATUSES = new Set<TaskItem["status"]>(["queued", "running"]);
+type LorebookMode = "characters" | "clues" | "scenes";
+
+const LOREBOOK_MODE_BY_ROUTE: Record<string, LorebookMode> = {
+  "/characters": "characters",
+  "/clues": "clues",
+  "/scenes": "scenes",
+};
 
 interface GeneratingResources {
   characterNames: Set<string>;
@@ -471,6 +478,15 @@ export function StudioCanvasRouter() {
   }, [refreshProject]);
 
   const [location] = useLocation();
+  const lorebookMode = LOREBOOK_MODE_BY_ROUTE[location] ?? null;
+
+  // Abandon any open add form when the route changes, so a form opened on one
+  // lorebook tab does not leak onto another tab.
+  useEffect(() => {
+    setAddingCharacter(false);
+    setAddingClue(false);
+    setAddingScene(false);
+  }, [location]);
 
   if (!currentProjectName) {
     return (
@@ -494,22 +510,14 @@ export function StudioCanvasRouter() {
       </Route>
 
       {/* Characters / Clues / Scenes share one LorebookGallery to avoid remount flash */}
-      {(location === "/characters" ||
-        location === "/clues" ||
-        location === "/scenes") && (
+      {lorebookMode && (
         <div className="p-4">
           <LorebookGallery
             projectName={currentProjectName}
             characters={currentProjectData?.characters ?? {}}
             clues={currentProjectData?.clues ?? {}}
             scenes={currentProjectData?.scenes ?? {}}
-            mode={
-              location === "/clues"
-                ? "clues"
-                : location === "/scenes"
-                  ? "scenes"
-                  : "characters"
-            }
+            mode={lorebookMode}
             onSaveCharacter={handleSaveCharacter}
             onUpdateClue={handleUpdateClue}
             onGenerateCharacter={handleGenerateCharacter}
@@ -534,19 +542,19 @@ export function StudioCanvasRouter() {
             onAddClue={() => setAddingClue(true)}
             onAddScene={() => setAddingScene(true)}
           />
-          {addingCharacter && (
+          {addingCharacter && lorebookMode === "characters" && (
             <AddCharacterForm
               onSubmit={handleAddCharacterSubmit}
               onCancel={() => setAddingCharacter(false)}
             />
           )}
-          {addingClue && (
+          {addingClue && lorebookMode === "clues" && (
             <AddClueForm
               onSubmit={handleAddClueSubmit}
               onCancel={() => setAddingClue(false)}
             />
           )}
-          {addingScene && (
+          {addingScene && lorebookMode === "scenes" && (
             <AddSceneForm
               onSubmit={handleAddSceneSubmit}
               onCancel={() => setAddingScene(false)}
