@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { TimelineCanvas } from "./TimelineCanvas";
 import { API } from "@/api";
-import type { ProjectData } from "@/types";
+import type { NarrationEpisodeScript, ProjectData } from "@/types";
 
 vi.mock("@/api", () => ({
   API: {
@@ -43,6 +43,21 @@ function makeProjectData(): ProjectData {
     episodes: [{ episode: 1, title: "第一集", script_file: "scripts/episode_1.json" }],
     characters: {},
     clues: {},
+  };
+}
+
+function makeEmptyNarrationScript(
+  overrides: Partial<NarrationEpisodeScript> = {},
+): NarrationEpisodeScript {
+  return {
+    episode: 1,
+    title: "第一集",
+    content_mode: "narration",
+    duration_seconds: 0,
+    summary: "",
+    novel: { title: "", chapter: "" },
+    segments: [],
+    ...overrides,
   };
 }
 
@@ -92,17 +107,7 @@ describe("TimelineCanvas", () => {
         episode={1}
         episodeTitle="第一集"
         projectData={makeProjectData()}
-        episodeScript={
-          {
-            episode: 1,
-            title: "第一集",
-            content_mode: "narration",
-            duration_seconds: 0,
-            summary: "",
-            novel: { title: "", chapter: "" },
-            segments: [],
-          } as never
-        }
+        episodeScript={makeEmptyNarrationScript()}
       />,
     );
 
@@ -114,5 +119,25 @@ describe("TimelineCanvas", () => {
     await waitFor(() => expect(API.addEpisodeSegment).toHaveBeenCalledWith("demo", 1));
     // 成功後會 refetch（getProject）
     await waitFor(() => expect(API.getProject).toHaveBeenCalledWith("demo"));
+  });
+
+  it("adds a segment to the route episode even when the script metadata is stale", async () => {
+    vi.mocked(API.addEpisodeSegment).mockResolvedValue({ segment: {}, segments_count: 1 });
+    renderTimelineCanvas(
+      <TimelineCanvas
+        projectName="demo"
+        episode={2}
+        episodeTitle="第二集"
+        projectData={{
+          ...makeProjectData(),
+          episodes: [{ episode: 2, title: "第二集", script_file: "scripts/episode_2.json" }],
+        }}
+        episodeScript={makeEmptyNarrationScript({ title: "第二集" })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "新增片段" }));
+
+    await waitFor(() => expect(API.addEpisodeSegment).toHaveBeenCalledWith("demo", 2));
   });
 });

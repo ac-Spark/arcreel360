@@ -170,7 +170,7 @@ export function TimelineCanvas({
   );
 
   const handleResetScript = useCallback(async () => {
-    if (!episodeScript) return;
+    if (!hasScript) return;
     const confirmed = await confirm({
       message:
         "確定要清空這一集的劇本內容嗎？會清掉所有片段／場景與其分鏡、影片提示詞，回到空骨架（預處理草稿保留）。此操作無法復原。",
@@ -179,7 +179,7 @@ export function TimelineCanvas({
     if (!confirmed) return;
 
     try {
-      await API.resetEpisodeScript(projectName, episodeScript.episode);
+      await API.resetEpisodeScript(projectName, episode);
       await refreshProject();
       useAppStore.getState().pushToast("已清空這一集的劇本", "success");
       setActiveTab("preprocessing");
@@ -188,17 +188,17 @@ export function TimelineCanvas({
         .getState()
         .pushToast(`清空失敗：${(err as Error).message}`, "error");
     }
-  }, [projectName, episodeScript, refreshProject, confirm]);
+  }, [projectName, episode, hasScript, refreshProject, confirm]);
 
   const episodeCost = useCostStore((s) =>
-    episodeScript ? s.getEpisodeCost(episodeScript.episode) : undefined,
+    episodeScript ? s.getEpisodeCost(episode) : undefined,
   );
   const debouncedFetch = useCostStore((s) => s.debouncedFetch);
 
   useEffect(() => {
     if (!projectName) return;
     debouncedFetch(projectName);
-  }, [projectName, episodeScript?.episode, debouncedFetch]);
+  }, [projectName, episode, debouncedFetch]);
 
   // Determine aspect ratio — use project config if available, otherwise defaults
   const aspectRatio =
@@ -310,7 +310,7 @@ export function TimelineCanvas({
         <div className="mb-4">
           <EpisodeTitleEditor
             projectName={projectName}
-            episode={episodeScript?.episode ?? episode}
+            episode={episode}
             title={episodeScript?.title ?? episodeTitle ?? ""}
           />
           {episodeScript && (
@@ -333,7 +333,7 @@ export function TimelineCanvas({
           )}
           <EpisodeActionsBar
             projectName={projectName}
-            episode={episodeScript?.episode ?? episode}
+            episode={episode}
             scriptFile={scriptFile}
             hasScript={hasScript}
           />
@@ -382,7 +382,7 @@ export function TimelineCanvas({
             <div className="mb-4 flex items-center gap-2">
               <AddSegmentButton
                 projectName={projectName}
-                episode={episodeScript.episode}
+                episode={episode}
                 contentMode={contentMode}
                 onAdded={refreshProject}
               />
@@ -441,12 +441,22 @@ export function TimelineCanvas({
                 );
               })}
             </div>
+            {segments.length > 0 && (
+              <div className="mt-4 flex justify-center">
+                <AddSegmentButton
+                  projectName={projectName}
+                  episode={episode}
+                  contentMode={contentMode}
+                  onAdded={refreshProject}
+                />
+              </div>
+            )}
           </>
         ) : null}
 
         {/* Final composed video */}
         {activeTab === "timeline" && episodeScript && (
-          <FinalVideoCard projectName={projectName} episode={episodeScript.episode} />
+          <FinalVideoCard projectName={projectName} episode={episode} />
         )}
 
         {/* Bottom spacer for scroll comfort */}
