@@ -253,7 +253,7 @@ export function CharacterCard({
                 fallback={
                   <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-500">
                     <User className="h-10 w-10" />
-                    <span className="text-xs">點選生成</span>
+                    <span className="text-xs">暫無角色圖片</span>
                   </div>
                 }
               />

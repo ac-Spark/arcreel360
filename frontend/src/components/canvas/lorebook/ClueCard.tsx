@@ -255,7 +255,7 @@ export function ClueCard({
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-500">
                 <Puzzle className="h-10 w-10" />
-                <span className="text-xs">點選生成</span>
+                <span className="text-xs">暫無道具圖片</span>
               </div>
             )}
           </AspectFrame>

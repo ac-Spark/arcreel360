@@ -208,7 +208,13 @@ export function LorebookGallery({
               message="暫無角色，點選下方按鈕新增"
             />
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <>
+              {onAddCharacter && (
+                <div className="flex justify-start mb-4">
+                  <AddButton onClick={onAddCharacter} className="">新增角色</AddButton>
+                </div>
+              )}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               {charEntries.map(([charName, character]) => (
                 <div id={`character-${charName}`} key={charName}>
                   <CharacterCard
@@ -225,7 +231,8 @@ export function LorebookGallery({
                 </div>
               ))}
             </div>
-          )}
+          </>
+        )}
 
           <div className="flex flex-wrap items-center justify-center gap-2">
             {onAddCharacter && (
@@ -267,7 +274,13 @@ export function LorebookGallery({
               message="暫無道具，點選下方按鈕新增"
             />
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <>
+              {onAddClue && (
+                <div className="flex justify-start mb-4">
+                  <AddButton onClick={onAddClue} className="">新增道具</AddButton>
+                </div>
+              )}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               {clueEntries.map(([clueName, clue]) => (
                 <div id={`clue-${clueName}`} key={clueName}>
                   <ClueCard
@@ -285,7 +298,8 @@ export function LorebookGallery({
                 </div>
               ))}
             </div>
-          )}
+          </>
+        )}
 
           <div className="flex flex-wrap items-center justify-center gap-2">
             {onAddClue && <AddButton onClick={onAddClue}>新增道具</AddButton>}
@@ -325,7 +339,13 @@ export function LorebookGallery({
               message="暫無場景，點選下方按鈕新增"
             />
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <>
+              {onAddScene && (
+                <div className="flex justify-start mb-4">
+                  <AddButton onClick={onAddScene} className="">新增場景</AddButton>
+                </div>
+              )}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               {sceneEntries.map(([sceneName, scene]) => (
                 <div id={`scene-${sceneName}`} key={sceneName}>
                   <SceneCard
@@ -343,7 +363,8 @@ export function LorebookGallery({
                 </div>
               ))}
             </div>
-          )}
+          </>
+        )}
 
           <div className="flex flex-wrap items-center justify-center gap-2">
             {onAddScene && <AddButton onClick={onAddScene}>新增場景</AddButton>}
@@ -456,15 +477,17 @@ function EmptyState({
 function AddButton({
   onClick,
   children,
+  className = "mx-auto",
 }: {
   onClick: () => void;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="mx-auto flex items-center gap-1.5 rounded-lg border border-gray-700 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors"
+      className={`flex items-center gap-1.5 rounded-lg border border-gray-700 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors ${className}`}
     >
       <Plus className="h-4 w-4" />
       {children}

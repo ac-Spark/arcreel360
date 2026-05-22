@@ -250,7 +250,7 @@ export function SceneCard({
               ) : (
                 <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-500">
                   <Mountain className="h-10 w-10" />
-                  <span className="text-xs">尚無設計圖</span>
+                  <span className="text-xs">暫無場景圖片</span>
                 </div>
               )}
             </AspectFrame>
