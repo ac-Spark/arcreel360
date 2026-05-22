@@ -147,6 +147,8 @@ _NOISY_PREFIXES: tuple[str, ...] = (
     "/api/v1/projects/",  # 包含 events/stream、assistant/stream 等 SSE
 )
 
+_MAX_LOG_USER_AGENT_LENGTH = 200
+
 
 def _is_noisy_path(path: str) -> bool:
     if path in _NOISY_PATHS:
@@ -156,10 +158,38 @@ def _is_noisy_path(path: str) -> bool:
     return False
 
 
+def _sanitize_log_value(value: str) -> str:
+    cleaned = " ".join(value.replace("\r", " ").replace("\n", " ").replace("\t", " ").split())
+    return cleaned or "-"
+
+
+def _quote_log_value(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _request_client_ip(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    forwarded_ip = forwarded_for.split(",", 1)[0].strip()
+    if forwarded_ip:
+        return _sanitize_log_value(forwarded_ip)
+
+    if request.client is not None and request.client.host:
+        return _sanitize_log_value(request.client.host)
+    return "-"
+
+
+def _request_log_source(request: Request) -> str:
+    user_agent = _sanitize_log_value(request.headers.get("user-agent", "-"))
+    if len(user_agent) > _MAX_LOG_USER_AGENT_LENGTH:
+        user_agent = f"{user_agent[: _MAX_LOG_USER_AGENT_LENGTH - 3]}..."
+    return f'client={_request_client_ip(request)} ua="{_quote_log_value(user_agent)}"'
+
+
 @app.middleware("http")
 async def request_logging_middleware(request: Request, call_next):
     start = time.perf_counter()
     path = request.url.path
+    source = _request_log_source(request)
     _always_skip = path.startswith("/assets") or path == "/health"
     _noisy = _is_noisy_path(path)
     try:
@@ -168,10 +198,11 @@ async def request_logging_middleware(request: Request, call_next):
         if not _always_skip:
             elapsed_ms = (time.perf_counter() - start) * 1000
             logger.exception(
-                "%s %s 500 %.0fms (unhandled)",
+                "%s %s 500 %.0fms %s (unhandled)",
                 request.method,
                 path,
                 elapsed_ms,
+                source,
             )
         raise
     if _always_skip:
@@ -181,11 +212,12 @@ async def request_logging_middleware(request: Request, call_next):
         return response
     elapsed_ms = (time.perf_counter() - start) * 1000
     logger.info(
-        "%s %s %d %.0fms",
+        "%s %s %d %.0fms %s",
         request.method,
         path,
         response.status_code,
         elapsed_ms,
+        source,
     )
     return response
 
