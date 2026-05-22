@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import { API } from "@/api";
+import { API, ApiError } from "@/api";
 import { useAssistantStore } from "@/stores/assistant-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useProjectsStore } from "@/stores/projects-store";
@@ -127,6 +127,26 @@ describe("AppRoutes", () => {
     await waitFor(() => {
       const projectState = useProjectsStore.getState();
       expect(projectState.currentProjectName).toBe("fail-demo");
+      expect(projectState.currentProjectData).toBeNull();
+      expect(projectState.projectDetailLoading).toBe(false);
+    });
+  });
+
+  it("redirects to the projects list when the project no longer exists", async () => {
+    vi.spyOn(API, "getProject").mockRejectedValue(
+      new ApiError({
+        code: "REQUEST_FAILED",
+        message: "專案不存在",
+        status: 404,
+      }),
+    );
+
+    renderAt("/app/projects/deleted-demo");
+
+    expect(await screen.findByTestId("projects-page")).toBeInTheDocument();
+    await waitFor(() => {
+      const projectState = useProjectsStore.getState();
+      expect(projectState.currentProjectName).toBeNull();
       expect(projectState.currentProjectData).toBeNull();
       expect(projectState.projectDetailLoading).toBe(false);
     });

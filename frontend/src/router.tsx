@@ -1,7 +1,7 @@
 // router.tsx — Route definitions for the studio layout
 
 import { useEffect } from "react";
-import { Route, Switch, Redirect, useParams } from "wouter";
+import { Route, Switch, Redirect, useLocation, useParams } from "wouter";
 import { StudioLayout } from "@/components/layout";
 import { StudioCanvasRouter } from "@/components/canvas/StudioCanvasRouter";
 import { ProjectsPage } from "@/components/pages/ProjectsPage";
@@ -45,6 +45,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 function StudioWorkspace() {
   const params = useParams<{ projectName: string }>();
   const projectName = params.projectName ?? null;
+  const [, navigate] = useLocation();
   const { setCurrentProject, setProjectDetailLoading } = useProjectsStore();
 
   useEffect(() => {
@@ -67,11 +68,17 @@ function StudioWorkspace() {
           setCurrentProject(projectName, res.project, res.scripts ?? {}, res.asset_fingerprints);
         }
       })
-      .catch(() => {
-        // Still set the project name so the UI shows something
-        if (!cancelled) {
-          setCurrentProject(projectName, null);
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        if ((err as { status?: number }).status === 404) {
+          setCurrentProject(null, null);
+          setProjectDetailLoading(false);
+          navigate("~/app/projects", { replace: true });
+          return;
         }
+
+        // Still set the project name so the UI shows something for transient failures.
+        setCurrentProject(projectName, null);
       })
       .finally(() => {
         if (!cancelled) setProjectDetailLoading(false);
@@ -81,7 +88,7 @@ function StudioWorkspace() {
       cancelled = true;
       setCurrentProject(null, null);
     };
-  }, [projectName, setCurrentProject, setProjectDetailLoading]);
+  }, [navigate, projectName, setCurrentProject, setProjectDetailLoading]);
 
   return (
     <StudioLayout>
