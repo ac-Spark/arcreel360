@@ -3,6 +3,7 @@ services:
     image: postgres:18-alpine
     user: "1000:1000"
     environment:
+      TZ: Asia/Taipei
       POSTGRES_USER: arcreel
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?請在 .env 中設定 POSTGRES_PASSWORD}
       POSTGRES_DB: arcreel
@@ -23,6 +24,7 @@ services:
     user: "1000:1000"
     working_dir: /build
     environment:
+      TZ: Asia/Taipei
       HOME: /tmp
       COREPACK_HOME: /tmp/.corepack
       npm_config_cache: /tmp/.npm
@@ -50,6 +52,7 @@ services:
       - "${PORT:-1241}:${PORT:-1241}"
     env_file: .env
     environment:
+      TZ: Asia/Taipei
       DATABASE_URL: postgresql+asyncpg://arcreel:${POSTGRES_PASSWORD:?請在 .env 中設定 POSTGRES_PASSWORD}@postgres:5432/arcreel
       HOME: /app/.home
       PORT: ${PORT:-1241}
