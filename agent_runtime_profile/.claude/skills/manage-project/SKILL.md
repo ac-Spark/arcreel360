@@ -80,6 +80,8 @@ python .claude/skills/manage-project/scripts/split_episode.py --source {原始�
 
 | tool | 功能 |
 |------|------|
+| `generate_overview` | 從 source/ 生成並儲存結構化專案概述 |
+| `update_overview` | 保存已整理好的 synopsis / genre / theme / world_setting |
 | `generate_characters` | 新增角色定義 |
 | `generate_clues` | 新增道具定義 |
 | `generate_scenes` | 新增場景定義 |
@@ -89,7 +91,21 @@ python .claude/skills/manage-project/scripts/split_episode.py --source {原始�
 | `rename_entity` | 改名角色/道具/場景，會觸發權限確認 |
 | `delete_entity` | 刪除角色/道具/場景，會觸發權限確認 |
 
-更新工具只改 `description`。改名/刪除是破壞性操作，必須經 permission gate 確認，不可無條件執行。
+`update_overview` 用於把已在對話中產出的世界觀寫入 `project.json.overview`；純文字回覆不會推進專案進度。
+角色/線索/場景更新工具只改 `description`。改名/刪除是破壞性操作，必須經 permission gate 確認，不可無條件執行。
+
+> ⚠️ **嚴禁用 `fs_write` 改 `project.json`。** `fs_write` 是通用寫檔工具，不校驗結構——用它寫世界觀會落到錯誤的欄位名（例如 `world_view` 而非 `overview`），系統讀不到、進度永遠卡在「準備中」。
+>
+> | 你要做的事 | 唯一正確工具 | 寫入欄位 |
+> |---|---|---|
+> | 寫/改世界觀 | `update_overview`（或 `generate_overview`） | `overview.{synopsis,genre,theme,world_setting}` |
+> | 新增角色 | `generate_characters` | `characters` |
+> | 新增線索/道具 | `generate_clues` | `clues` |
+> | 新增場景 | `generate_scenes` | `scenes` |
+> | 改角色/線索/場景描述 | `update_character` / `update_clue` / `update_scene` | 對應 `description` |
+> | 分集切分 | `split_episode` | `episodes` |
+>
+> 沙盒會直接拒絕對 `project.json` 的 `fs_write`，回 `error: "use_dedicated_tool"`。看到此錯誤代表你選錯工具，請改用上表對應工具，不可向使用者回報「已寫入」。
 
 Claude legacy 路徑可從專案目錄內執行 `add_characters_clues.py`，自動檢測專案名稱，只支援批次新增角色/道具：
 

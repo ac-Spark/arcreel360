@@ -1,4 +1,4 @@
-export type ProjectEventSource = "webui" | "worker" | "filesystem";
+export type ProjectEventSource = "webui" | "worker" | "agent" | "filesystem";
 export type WorkspaceAnchorType = "character" | "clue" | "segment" | "episode";
 
 export interface ProjectChangeFocus {

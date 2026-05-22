@@ -3,6 +3,8 @@ import type { LucideIcon } from "lucide-react";
 import {
   Clapperboard,
   Film,
+  Globe,
+  Image as ImageIcon,
   LayoutGrid,
   Scissors,
   ScrollText,
@@ -15,22 +17,26 @@ import { useAssistantStore } from "@/stores/assistant-store";
 /** Lucide icon name → component mapping for icons provided by the API. */
 const ICON_MAP: Record<string, LucideIcon> = {
   clapperboard: Clapperboard,
+  globe: Globe,
   "scroll-text": ScrollText,
   "layout-grid": LayoutGrid,
   film: Film,
   users: Users,
   search: Search,
+  image: ImageIcon,
   scissors: Scissors,
 };
 
 /** Fallback metadata when API doesn't provide label/icon. */
 const SKILL_META_FALLBACK: Record<string, { label: string; icon: LucideIcon }> = {
   "manga-workflow": { label: "影片工作流程", icon: Clapperboard },
+  "generate-overview": { label: "生成世界觀", icon: Globe },
   "generate-script": { label: "生成劇本", icon: ScrollText },
   "generate-storyboard": { label: "生成分鏡圖", icon: LayoutGrid },
   "generate-video": { label: "生成影片", icon: Film },
   "generate-characters": { label: "生成角色圖", icon: Users },
   "generate-clues": { label: "生成道具圖", icon: Search },
+  "generate-scenes": { label: "生成場景", icon: ImageIcon },
   "compose-video": { label: "合成影片", icon: Scissors },
 };
 

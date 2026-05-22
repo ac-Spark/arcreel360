@@ -902,15 +902,19 @@ class AssistantService:
     # ==================== Skills ====================
 
     # Display metadata for user-facing skills (label + Lucide icon name)
+    # 依製作流程順序宣告;list_available_skills 會用此順序排序選單。
     _SKILL_DISPLAY_META: dict[str, dict[str, str]] = {
         "manga-workflow": {"label": "影片工作流", "icon": "clapperboard"},
+        "generate-overview": {"label": "生成世界觀", "icon": "globe"},
+        "generate-characters": {"label": "生成角色圖", "icon": "users"},
+        "generate-clues": {"label": "生成道具圖", "icon": "search"},
+        "generate-scenes": {"label": "生成場景", "icon": "image"},
         "generate-script": {"label": "生成劇本", "icon": "scroll-text"},
         "generate-storyboard": {"label": "生成分鏡圖", "icon": "layout-grid"},
         "generate-video": {"label": "生成影片", "icon": "film"},
-        "generate-characters": {"label": "生成角色圖", "icon": "users"},
-        "generate-clues": {"label": "生成道具圖", "icon": "search"},
         "compose-video": {"label": "合成影片", "icon": "scissors"},
     }
+    _SKILL_DISPLAY_ORDER: tuple[str, ...] = tuple(_SKILL_DISPLAY_META)
 
     def list_available_skills(self, project_name: str | None = None) -> list[dict[str, str]]:
         """List available skills."""
@@ -963,6 +967,15 @@ class AssistantService:
                     skill_entry["icon"] = display["icon"]
                 skills.append(skill_entry)
 
+        # 依 _SKILL_DISPLAY_META 的宣告順序(製作流程順序)排序;
+        # 未登錄的 skill 排在最後,維持原字母順序。
+        skills.sort(
+            key=lambda skill: (
+                self._SKILL_DISPLAY_ORDER.index(skill["name"])
+                if skill["name"] in self._SKILL_DISPLAY_META
+                else len(self._SKILL_DISPLAY_ORDER)
+            )
+        )
         return skills
 
     @staticmethod

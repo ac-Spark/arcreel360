@@ -192,6 +192,19 @@ def test_fs_write_rejects_outside_path(sandbox: ToolSandbox) -> None:
     assert result["error"] == "absolute_path_forbidden"
 
 
+def test_fs_write_rejects_project_json(sandbox: ToolSandbox) -> None:
+    """project.json 必須經專用工具寫入，fs_write 直接拒絕且不改動檔案。"""
+    target = sandbox.allowed_root / "project.json"
+    original = target.read_text(encoding="utf-8")
+
+    result = fs_write(sandbox, "project.json", '{"world_view": {"summary": "x"}}')
+
+    assert result["error"] == "use_dedicated_tool"
+    assert "update_overview" in result["reason"]
+    # 檔案內容必須原封不動
+    assert target.read_text(encoding="utf-8") == original
+
+
 def test_fs_write_creates_missing_parent(sandbox: ToolSandbox) -> None:
     result = fs_write(sandbox, "drafts/episode_2/scene_1.txt", "hi")
     assert result["bytes_written"] == 2

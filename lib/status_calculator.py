@@ -10,6 +10,8 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+OVERVIEW_FIELDS = ("synopsis", "genre", "theme", "world_setting")
+
 
 class StatusCalculator:
     """狀態和統計欄位的實時計算器"""
@@ -112,9 +114,16 @@ class StatusCalculator:
             )
             return "generated", None
 
+    @staticmethod
+    def _has_structured_overview(project: dict) -> bool:
+        overview = project.get("overview")
+        if not isinstance(overview, dict):
+            return False
+        return any(str(overview.get(field) or "").strip() for field in OVERVIEW_FIELDS)
+
     def calculate_current_phase(self, project: dict, episodes_stats: list[dict]) -> str:
         """根據專案和集狀態推斷當前階段"""
-        if not project.get("overview"):
+        if not self._has_structured_overview(project):
             return "setup"
         if not episodes_stats:
             return "worldbuilding"

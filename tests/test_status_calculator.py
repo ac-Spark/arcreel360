@@ -125,6 +125,9 @@ class TestStatusCalculator:
         project_no_overview = {}
         assert calc.calculate_current_phase(project_no_overview, []) == "setup"
 
+        project_text_overview = {"overview": "這不是結構化概述"}
+        assert calc.calculate_current_phase(project_text_overview, []) == "setup"
+
     def test_calculate_current_phase_worldbuilding(self, tmp_path):
         calc = StatusCalculator(_FakePM(tmp_path, {}, {}))
         project = {"overview": {"synopsis": "test"}}

@@ -13,7 +13,7 @@ from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
 
-ProjectChangeSource = Literal["webui", "worker", "filesystem"]
+ProjectChangeSource = Literal["webui", "worker", "agent", "filesystem"]
 ProjectChangeListener = Callable[[str, ProjectChangeSource, tuple[str, ...]], None]
 ProjectChangeBatch = dict[str, Any]
 ProjectChangeBatchListener = Callable[

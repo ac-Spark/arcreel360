@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ImagePlus, RefreshCw, Trash2, Upload } from "lucide-react";
+import { ImagePlus, Trash2, Upload } from "lucide-react";
 import type { ProjectData } from "@/types";
 import { API } from "@/api";
 import { useProjectsStore } from "@/stores/projects-store";
@@ -10,6 +10,7 @@ import { useConfirm } from "@/hooks/useConfirm";
 import { formatCost, totalBreakdown } from "@/utils/cost-format";
 import { sortEpisodesForDisplay } from "@/utils/episodes";
 
+import { OverviewSection } from "./OverviewSection";
 import { WelcomeCanvas } from "./WelcomeCanvas";
 
 interface OverviewCanvasProps {
@@ -33,7 +34,6 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
     debouncedFetch(projectName);
   }, [projectName, projectData?.episodes, debouncedFetch]);
 
-  const [regenerating, setRegenerating] = useState(false);
   const [uploadingStyleImage, setUploadingStyleImage] = useState(false);
   const [deletingStyleImage, setDeletingStyleImage] = useState(false);
   const [savingStyleDescription, setSavingStyleDescription] = useState(false);
@@ -70,21 +70,6 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
   const handleAnalyze = useCallback(async () => {
     await API.generateOverview(projectName);
     await refreshProject();
-  }, [projectName, refreshProject]);
-
-  const handleRegenerate = useCallback(async () => {
-    setRegenerating(true);
-    try {
-      await API.generateOverview(projectName);
-      await refreshProject();
-      useAppStore.getState().pushToast("專案概述已重新生成", "success");
-    } catch (err) {
-      useAppStore
-        .getState()
-        .pushToast(`重新生成失敗: ${(err as Error).message}`, "error");
-    } finally {
-      setRegenerating(false);
-    }
   }, [projectName, refreshProject]);
 
   const handleStyleImageChange = useCallback(
@@ -309,42 +294,11 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
           />
         ) : (
           <>
-            <div className="space-y-3 rounded-xl border border-gray-800 bg-gray-900 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-300">專案概述</h3>
-                <button
-                  type="button"
-                  onClick={() => void handleRegenerate()}
-                  disabled={regenerating}
-                  className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-50 ${focusRing}`}
-                  title={overview ? "重新生成概述" : "生成概述"}
-                >
-                  <RefreshCw
-                    className={`h-3 w-3 ${regenerating ? "animate-spin" : ""}`}
-                  />
-                  <span>
-                    {regenerating
-                      ? "生成中..."
-                      : overview
-                        ? "重新生成"
-                        : "生成概述"}
-                  </span>
-                </button>
-              </div>
-              {overview ? (
-                <>
-                  <p className="text-sm text-gray-400">{overview.synopsis}</p>
-                  <div className="flex gap-4 text-xs text-gray-500">
-                    <span>題材：{overview.genre}</span>
-                    <span>主題：{overview.theme}</span>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-gray-500">
-                  尚未生成專案概述。點選右上角「生成概述」依來源內容自動生成，生成後製作流程才會往下推進。
-                </p>
-              )}
-            </div>
+            <OverviewSection
+              projectName={projectName}
+              overview={overview}
+              onRefresh={refreshProject}
+            />
 
             {status && (
               <div className="grid grid-cols-2 gap-3">

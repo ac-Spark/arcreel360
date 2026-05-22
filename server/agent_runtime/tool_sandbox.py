@@ -183,9 +183,25 @@ def fs_write(
 
     Args:
         mode: ``"overwrite"``（默认）或 ``"create"``。后者在文件已存在时拒绝。
+
+    ``project.json`` 是结构化元数据，必须经专用工具（``update_overview`` /
+    ``generate_characters`` / ``generate_clues`` / ``generate_scenes`` /
+    ``split_episode`` 等）写入以保证 schema 正确；直接用 ``fs_write`` 覆写它
+    会绕过校验、写坏字段（例如把世界观写到 ``world_view`` 而非 ``overview``），
+    导致专案进度无法推进。因此此处硬性拒绝。
     """
     if mode not in {"overwrite", "create"}:
         return {"error": "invalid_mode", "reason": f"mode must be overwrite or create, got {mode!r}"}
+
+    if Path(path).name == "project.json":
+        return {
+            "error": "use_dedicated_tool",
+            "reason": (
+                "不可用 fs_write 改 project.json。世界觀請用 update_overview / generate_overview；"
+                "角色/線索/場景請用 generate_characters / generate_clues / generate_scenes 或對應 update_* 工具；"
+                "分集請用 split_episode。這些工具會寫入正確的結構化欄位並推進專案進度。"
+            ),
+        }
 
     encoded = content.encode("utf-8")
     if len(encoded) > MAX_WRITE_BYTES:
@@ -272,7 +288,11 @@ FS_READ_DECLARATION: dict[str, Any] = {
 
 FS_WRITE_DECLARATION: dict[str, Any] = {
     "name": "fs_write",
-    "description": "寫入專案內文字檔案。僅允許白名單路徑,單檔上限 10 MiB。",
+    "description": (
+        "寫入專案內文字檔案。僅允許白名單路徑,單檔上限 10 MiB。"
+        "禁止用於 project.json——世界觀請用 update_overview,角色/線索/場景請用 "
+        "generate_characters/generate_clues/generate_scenes,分集請用 split_episode。"
+    ),
     "parameters": {
         "type": "object",
         "properties": {

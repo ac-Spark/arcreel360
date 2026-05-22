@@ -15,7 +15,7 @@ import tempfile
 import unicodedata
 from collections.abc import Callable
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +46,10 @@ def _next_display_order(episodes: list[dict]) -> int:
         if isinstance(value, int) and value > max_order:
             max_order = value
     return max_order + 1
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(UTC).isoformat()
 
 
 # ==================== 資料模型 ====================
@@ -336,8 +340,8 @@ class ProjectManager:
             "novel": {"title": title, "chapter": chapter},
             "scenes": [],
             "metadata": {
-                "created_at": datetime.now().isoformat(),
-                "updated_at": datetime.now().isoformat(),
+                "created_at": _utc_now_iso(),
+                "updated_at": _utc_now_iso(),
                 "total_scenes": 0,
                 "estimated_duration_seconds": 0,
                 "status": "draft",
@@ -390,7 +394,7 @@ class ProjectManager:
                         item["episode"] = filename_episode
 
         # 更新後設資料（相容舊指令碼：可能缺少 metadata，或 narration 使用 segments）
-        now = datetime.now().isoformat()
+        now = _utc_now_iso()
 
         # 補齊非關鍵路徑，任何失敗都不應阻擋存檔
         try:
@@ -749,8 +753,8 @@ class ProjectManager:
 
         if "metadata" not in script:
             script["metadata"] = {
-                "created_at": datetime.now().isoformat(),
-                "updated_at": datetime.now().isoformat(),
+                "created_at": _utc_now_iso(),
+                "updated_at": _utc_now_iso(),
                 "total_scenes": 0,
                 "estimated_duration_seconds": 0,
                 "status": "draft",
@@ -1052,7 +1056,7 @@ class ProjectManager:
 
     @staticmethod
     def _touch_metadata(project: dict) -> None:
-        now = datetime.now().isoformat()
+        now = _utc_now_iso()
         if "metadata" not in project:
             project["metadata"] = {"created_at": now, "updated_at": now}
         else:
@@ -1093,8 +1097,8 @@ class ProjectManager:
             "characters": {},
             "clues": {},
             "metadata": {
-                "created_at": datetime.now().isoformat(),
-                "updated_at": datetime.now().isoformat(),
+                "created_at": _utc_now_iso(),
+                "updated_at": _utc_now_iso(),
             },
         }
         if default_duration is not None:
@@ -1907,7 +1911,7 @@ class ProjectManager:
         # 解析並驗證響應
         overview = ProjectOverview.model_validate_json(response_text)
         overview_dict = overview.model_dump()
-        overview_dict["generated_at"] = datetime.now().isoformat()
+        overview_dict["generated_at"] = _utc_now_iso()
 
         # 儲存到 project.json
         project = self.load_project(project_name)

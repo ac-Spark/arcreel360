@@ -6,7 +6,7 @@ script_generator.py - 劇本生成器
 
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -290,7 +290,7 @@ class ScriptGenerator:
             novel.pop("source_file", None)
 
         # 新增時間戳
-        now = datetime.now().isoformat()
+        now = datetime.now(UTC).isoformat()
         script_data.setdefault("metadata", {})
         script_data["metadata"]["created_at"] = now
         script_data["metadata"]["updated_at"] = now

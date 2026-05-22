@@ -86,8 +86,8 @@ def init_and_apply_system_config(project_root: Path) -> SystemConfigManager:
     return existing
 
 
-def _iso_now_millis() -> str:
-    return datetime.now(UTC).astimezone().isoformat(timespec="milliseconds")
+def _utc_now_iso_millis() -> str:
+    return datetime.now(UTC).isoformat(timespec="milliseconds")
 
 
 def _safe_str(value: Any) -> str | None:
@@ -291,7 +291,7 @@ class SystemConfigManager:
 
         payload = {
             "version": int(data.get("version") or 1),
-            "updated_at": _iso_now_millis(),
+            "updated_at": _utc_now_iso_millis(),
             "overrides": data.get("overrides") or {},
         }
 

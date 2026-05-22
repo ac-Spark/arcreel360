@@ -12,6 +12,8 @@ Workflow skills 全部接入：
 - ``peek_split_point``       ✅ 預覽分集切分點
 - ``split_episode``          ✅ 執行分集切分並更新 project.json
 - ``preprocess_episode``     ✅ Step 1 拆段/規範化
+- ``generate_overview``      ✅ 生成並儲存 project.json 概述/世界觀
+- ``update_overview``        ✅ 手動寫入 project.json 概述/世界觀
 - ``generate_script``         ✅ 调用 ScriptGenerator 生成 episode 剧本
 - ``generate_characters``     ✅ 写入 project.json 角色定义
 - ``generate_clues``          ✅ 写入 project.json 线索定义
@@ -41,6 +43,7 @@ from pathlib import Path
 from typing import Any
 
 from lib import agent_profile
+from lib.project_change_hints import project_change_source
 from lib.project_manager import ProjectManager
 from server.agent_runtime.tool_sandbox import ToolSandbox
 
@@ -116,6 +119,8 @@ _ENTITY_LABELS: dict[str, str] = {
     "scene": "場景",
 }
 
+_OVERVIEW_FIELDS = ("synopsis", "genre", "theme", "world_setting")
+
 
 def _safe_project_file_exists(project_path: Path, rel_path: Any) -> bool:
     if not isinstance(rel_path, str) or not rel_path.strip():
@@ -126,6 +131,13 @@ def _safe_project_file_exists(project_path: Path, rel_path: Any) -> bool:
         return full_path.is_relative_to(base) and full_path.exists()
     except (OSError, ValueError):
         return False
+
+
+def _has_structured_overview(project: dict[str, Any]) -> bool:
+    overview = project.get("overview")
+    if not isinstance(overview, dict):
+        return False
+    return any(str(overview.get(field) or "").strip() for field in _OVERVIEW_FIELDS)
 
 
 def _resolve_source_file(ctx: SkillCallContext, source: str) -> tuple[Path | None, dict[str, Any] | None]:
@@ -356,6 +368,90 @@ async def _handle_preprocess_episode(ctx: SkillCallContext, args: dict[str, Any]
         return {"ok": False, "error": "script_missing", "reason": str(exc)}
     except Exception as exc:
         return {"ok": False, "error": "preprocess_failed", "reason": str(exc)}
+
+
+# ---------------------------------------------------------------------------
+# Skill: generate_overview / update_overview
+# ---------------------------------------------------------------------------
+
+GENERATE_OVERVIEW_DECL = FunctionDeclaration(
+    name="generate_overview",
+    description=(
+        "讀取 source/ 原文並生成 project.json 的結構化專案概述。"
+        "輸出包含 synopsis、genre、theme、world_setting，會直接儲存到 project.json，"
+        "用於把專案從準備中推進到世界觀階段。"
+    ),
+    parameters={
+        "type": "object",
+        "properties": {},
+    },
+)
+
+
+async def _handle_generate_overview(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
+    try:
+        with project_change_source("agent"):
+            overview = await ctx.project_manager.generate_overview(ctx.project_name)
+        return {"ok": True, "overview": overview}
+    except FileNotFoundError:
+        return {"ok": False, "error": "project_not_found", "reason": ctx.project_name}
+    except ValueError as exc:
+        return {"ok": False, "error": "missing_prerequisite", "reason": str(exc)}
+    except Exception as exc:
+        logger.exception("generate_overview failed for %s", ctx.project_name)
+        return {"ok": False, "error": "generation_failed", "reason": str(exc)}
+
+
+UPDATE_OVERVIEW_DECL = FunctionDeclaration(
+    name="update_overview",
+    description=(
+        "把已整理好的專案概述/世界觀寫入 project.json。"
+        "當你已在回覆中生成 synopsis、genre、theme 或 world_setting 時，必須呼叫此工具保存，"
+        "否則專案進度不會推進。"
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "synopsis": {"type": "string", "description": "故事梗概"},
+            "genre": {"type": "string", "description": "題材類型"},
+            "theme": {"type": "string", "description": "核心主題"},
+            "world_setting": {"type": "string", "description": "世界觀與時代背景設定"},
+        },
+    },
+)
+
+
+async def _handle_update_overview(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
+    patch: dict[str, str] = {}
+    for field in _OVERVIEW_FIELDS:
+        if field not in args:
+            continue
+        value = str(args.get(field) or "").strip()
+        if value:
+            patch[field] = value
+
+    if not patch:
+        return {
+            "ok": False,
+            "error": "invalid_argument",
+            "reason": "至少需要 synopsis、genre、theme、world_setting 其中一個非空欄位",
+        }
+
+    def mutate(project: dict[str, Any]) -> None:
+        existing = project.get("overview")
+        overview = dict(existing) if isinstance(existing, dict) else {}
+        overview.update(patch)
+        project["overview"] = overview
+
+    try:
+        with project_change_source("agent"):
+            await asyncio.to_thread(ctx.project_manager.update_project, ctx.project_name, mutate)
+        overview = ctx.project_manager.load_project(ctx.project_name).get("overview", {})
+        return {"ok": True, "overview": overview}
+    except FileNotFoundError:
+        return {"ok": False, "error": "project_not_found", "reason": ctx.project_name}
+    except Exception as exc:
+        return {"ok": False, "error": "update_failed", "reason": str(exc)}
 
 
 # ---------------------------------------------------------------------------
@@ -934,6 +1030,19 @@ async def _handle_manga_workflow_status(ctx: SkillCallContext, args: dict[str, A
     episodes = project.get("episodes") or []
     project_path = ctx.project_manager.get_project_path(ctx.project_name)
 
+    # 阶段 0：專案概述 / 世界觀尚未結構化寫入
+    if not _has_structured_overview(project):
+        overview = project.get("overview")
+        return {
+            "stage": 0,
+            "stage_name": "專案概述/世界觀未生成",
+            "next_action": "调用 generate_overview 生成结构化概述，或调用 update_overview 保存已整理的世界观内容",
+            "context": {
+                "overview_present": bool(overview),
+                "overview_type": type(overview).__name__,
+            },
+        }
+
     # 阶段 1：角色/线索为空
     if not characters and not clues:
         return {
@@ -1353,6 +1462,8 @@ SKILL_DECLARATIONS: list[FunctionDeclaration] = [
     PEEK_SPLIT_POINT_DECL,
     SPLIT_EPISODE_DECL,
     PREPROCESS_EPISODE_DECL,
+    GENERATE_OVERVIEW_DECL,
+    UPDATE_OVERVIEW_DECL,
     GENERATE_SCRIPT_DECL,
     GENERATE_CHARACTERS_DECL,
     GENERATE_CLUES_DECL,
@@ -1373,6 +1484,8 @@ SKILL_HANDLERS: dict[str, SkillHandler] = {
     "peek_split_point": _handle_peek_split_point,
     "split_episode": _handle_split_episode,
     "preprocess_episode": _handle_preprocess_episode,
+    "generate_overview": _handle_generate_overview,
+    "update_overview": _handle_update_overview,
     "generate_script": _handle_generate_script,
     "generate_characters": _handle_generate_characters,
     "generate_clues": _handle_generate_clues,

@@ -12,6 +12,7 @@ description: 將小說轉換為短影片的端到端工作流編排器。當使�
 - 小說原文**永遠不載入到主 agent context**，由 subagent 自行讀取
 - 每次 dispatch 只傳**檔案路徑和關鍵引數**，不傳大塊內容
 - 每個 subagent 完成一個聚焦任務就返回，主 agent 負責階段間銜接
+- 生成「世界觀／專案概述」時，必須寫入 `project.json.overview` 的結構化欄位（synopsis、genre、theme、world_setting）；純文字回覆不算完成
 
 > 內容模式規格（畫面比例、時長等）詳見 `.claude/references/content-modes.md`。
 
@@ -28,6 +29,14 @@ description: 將小說轉換為短影片的端到端工作流編排器。當使�
 5. 請使用者將小說文字放入 `source/`
 6. **上傳後自動生成專案概述**（synopsis、genre、theme、world_setting）
 
+### 概述／世界觀生成
+
+**觸發**：`project.json.overview` 缺失、為空，或不是結構化物件。
+
+- `gemini-full` / `openai-full`：呼叫 `generate_overview` 從 `source/` 生成並儲存；若已在對話中整理好內容，呼叫 `update_overview` 保存。
+- Claude legacy：直接更新 `project.json.overview`，必須寫入物件而不是字串。
+- 完成後重新檢查狀態；只有 `project.json.overview` 實際存在時，專案卡片進度才會從「準備中」推進。
+
 ### 現有專案
 
 1. 列出 `projects/` 中的專案
@@ -40,6 +49,7 @@ description: 將小說轉換為短影片的端到端工作流編排器。當使�
 
 進入工作流後，使用 Read 讀取 `project.json`，使用 Glob 檢查檔案系統。按順序檢查，遇到第一個缺失項即確定當前階段：
 
+0. overview 缺失、為空或非結構化？ → **階段 0**
 1. characters/clues 為空？ → **階段 1**
 2. 目標集 source/episode_{N}.txt 不存在？ → **階段 2**
 3. 目標集 drafts/ 中間檔案不存在？ → **階段 3**

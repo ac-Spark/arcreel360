@@ -116,4 +116,46 @@ describe("SlashCommandMenu", () => {
       expect(ref.current!.activeDescendantId).toBe("slash-command-menu-option-1");
     });
   });
+
+  describe("generate-overview / generate-scenes skills", () => {
+    const EXTRA_SKILLS = [
+      ...SKILLS,
+      { name: "generate-overview", description: "生成專案世界觀", scope: "project" as const, path: "/tmp/o" },
+      { name: "generate-scenes", description: "生成場景圖", scope: "project" as const, path: "/tmp/s" },
+    ];
+
+    beforeEach(() => {
+      useAssistantStore.setState({ skills: EXTRA_SKILLS });
+    });
+
+    it("renders both new skills in the menu", () => {
+      render(<SlashCommandMenu filter="" onSelect={onSelect} />);
+      expect(screen.getByText(/generate-overview/)).toBeInTheDocument();
+      expect(screen.getByText(/generate-scenes/)).toBeInTheDocument();
+    });
+
+    it("shows fallback Chinese labels for the new skills", () => {
+      render(<SlashCommandMenu filter="" onSelect={onSelect} />);
+      expect(screen.getByText("生成世界觀")).toBeInTheDocument();
+      expect(screen.getByText("生成場景")).toBeInTheDocument();
+    });
+
+    it("filters generate-overview by name", () => {
+      render(<SlashCommandMenu filter="overview" onSelect={onSelect} />);
+      expect(screen.getByText(/generate-overview/)).toBeInTheDocument();
+      expect(screen.queryByText(/generate-scenes/)).not.toBeInTheDocument();
+    });
+
+    it("filters generate-scenes by Chinese fallback label", () => {
+      render(<SlashCommandMenu filter="場景" onSelect={onSelect} />);
+      expect(screen.getByText(/generate-scenes/)).toBeInTheDocument();
+      expect(screen.queryByText(/generate-overview/)).not.toBeInTheDocument();
+    });
+
+    it("inserts the correct command when a new skill is picked", () => {
+      render(<SlashCommandMenu filter="overview" onSelect={onSelect} />);
+      fireEvent.mouseDown(screen.getByText(/generate-overview/).closest("button")!);
+      expect(onSelect).toHaveBeenCalledWith("/generate-overview");
+    });
+  });
 });

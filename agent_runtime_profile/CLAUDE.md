@@ -102,7 +102,12 @@
 
 ## 工作流程概覽
 
-`/manga-workflow` 編排 skill 按以下階段自動推進（每個階段完成後等待使用者確認）：
+`/manga-workflow` 編排 skill 按以下階段推進。**「等待使用者確認」只發生在「是否進入下一階段」這一個決策點**，
+而**不是**對「資料是否寫入」再確認一次——寫入工具（`update_overview` / `generate_characters` 等）一旦回 `ok: true`，
+資料就已實際存入 `project.json`，已成定局。此時正確的問法是「○○已完成並儲存，要繼續進入下一階段嗎？」，
+**嚴禁**講出「是否確認存入」「是否將此版本存入專案」這類問句——那會讓使用者誤以為資料還沒存。
+
+階段如下：
 
 1. **專案設定**：建立專案、上傳小說、生成專案概述
 2. **全域性角色/線索設計** → dispatch `analyze-characters-clues` subagent
@@ -130,6 +135,31 @@
 2. 自行分析 `characters`（`name` / `description` / `voice_style`）與 `clues`（`name` / `clue_type` / `description` / `importance`）
 3. 呼叫 `generate_characters` / `generate_clues` 寫入 `project.json`
 4. 檢查回傳的 `ok` 欄位；`false` 代表未成功寫入，不可回報「已定義完畢」，必須依 `reason` 修正後重試
+
+### 專案概述/世界觀
+
+> 🔴 **鋼定規則 — 違反即視為任務失敗：**
+>
+> 1. **「生成世界觀」「寫入世界觀」「重新生成概述」一律是工具呼叫任務，不是寫作任務。** 收到這類請求，你**必須實際發出 `update_overview`（已有整理好的內容）或 `generate_overview`（從 source/ 自動生成）的 function call**。把世界觀內容打在回覆裡、列成 Markdown 給使用者看——**不算完成**，專案進度不會推進。
+> 2. **嚴禁「假裝呼叫工具」。** 不可在回覆裡寫「正在呼叫 `update_overview`…」「已寫入 project.json」這類敘述句卻不實際發出 function call。要嘛真的呼叫，要嘛明說你還沒呼叫。
+> 3. **未看到工具回傳的 `tool_result` / `ok: true` 之前，不可向使用者回報「已寫入」「已完成」「已記錄」。** 只有 function call 真正執行並回成功，才算數。
+> 4. 若 `fs_write` 對 `project.json` 回 `error: "use_dedicated_tool"`，代表你選錯工具——立刻改用 `update_overview`，不要重試 `fs_write`。
+> 5. **工具回 `ok: true` 後,世界觀就「已存入」,不可再問「是否確認存入」「是否將此版本存入專案」。** 這類問句邏輯矛盾——資料已成定局。若要徵詢使用者,只能問「世界觀已儲存,要繼續進入角色設定嗎?」這種「下一階段」問題。
+
+世界觀必須儲存到 `project.json.overview`，格式必須是物件：
+
+```json
+{
+  "synopsis": "...",
+  "genre": "...",
+  "theme": "...",
+  "world_setting": "..."
+}
+```
+
+`gemini-full` / `openai-full` 呼叫 `generate_overview` 或 `update_overview`；Claude legacy 可直接編輯 `project.json`。
+
+**正確做法範例**：使用者說「幫我根據原文生成世界觀」→ 你 `fs_read` 讀 `source/` 原文 → 自行整理出 synopsis/genre/theme/world_setting 四個欄位 → **實際發出 `update_overview` function call 帶上這四個欄位** → 看到回傳 `ok: true` → 才回覆使用者「世界觀已寫入，專案進度已推進到『世界觀』階段」。
 
 ## 專案目錄結構
 

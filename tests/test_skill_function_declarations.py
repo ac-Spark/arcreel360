@@ -64,6 +64,18 @@ def project_name(project_manager: ProjectManager) -> str:
     return name
 
 
+def write_minimal_overview(project_manager: ProjectManager, project_name: str) -> None:
+    def mutate(project: dict[str, Any]) -> None:
+        project["overview"] = {
+            "synopsis": "故事",
+            "genre": "奇幻",
+            "theme": "成長",
+            "world_setting": "架空世界",
+        }
+
+    project_manager.update_project(project_name, mutate)
+
+
 @pytest.fixture
 def context(project_root: Path, project_manager: ProjectManager, project_name: str) -> SkillCallContext:
     sandbox = ToolSandbox(project_root=project_root, project_name=project_name)
@@ -85,6 +97,8 @@ def test_workflow_skills_registered() -> None:
         "peek_split_point",
         "split_episode",
         "preprocess_episode",
+        "generate_overview",
+        "update_overview",
         "generate_script",
         "generate_characters",
         "generate_clues",
@@ -131,6 +145,59 @@ def test_get_skill_names_matches_registry() -> None:
 # ---------------------------------------------------------------------------
 # generate_characters
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_update_overview_writes_structured_overview(
+    context: SkillCallContext,
+    project_manager: ProjectManager,
+    project_name: str,
+) -> None:
+    result = await run_subagent(
+        context,
+        "update_overview",
+        {
+            "synopsis": "拉布揭開鎏金城背後的深淵交易。",
+            "genre": "黑暗奇幻",
+            "theme": "反抗與覺醒",
+            "world_setting": "鎏金城由貴族區和平民區割裂，刀盾幣與深淵封印共同支配秩序。",
+        },
+    )
+
+    assert result["ok"] is True
+    assert result["overview"]["world_setting"].startswith("鎏金城")
+    saved = project_manager.load_project(project_name)
+    assert saved["overview"] == result["overview"]
+
+
+@pytest.mark.asyncio
+async def test_generate_overview_delegates_to_project_manager(
+    context: SkillCallContext,
+    project_manager: ProjectManager,
+    project_name: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    generated = {
+        "synopsis": "故事梗概",
+        "genre": "懸疑",
+        "theme": "真相",
+        "world_setting": "現代都市",
+        "generated_at": "2026-05-22T00:00:00",
+    }
+
+    async def fake_generate_overview(name: str) -> dict[str, str]:
+        assert name == project_name
+        project = project_manager.load_project(name)
+        project["overview"] = generated
+        project_manager.save_project(name, project)
+        return generated
+
+    monkeypatch.setattr(project_manager, "generate_overview", fake_generate_overview)
+
+    result = await run_subagent(context, "generate_overview", {})
+
+    assert result == {"ok": True, "overview": generated}
+    assert project_manager.load_project(project_name)["overview"] == generated
 
 
 @pytest.mark.asyncio
@@ -254,7 +321,26 @@ async def test_generate_clues_rejects_missing_fields(context: SkillCallContext) 
 
 
 @pytest.mark.asyncio
-async def test_manga_workflow_status_stage_1_empty(context: SkillCallContext) -> None:
+async def test_manga_workflow_status_reports_missing_overview_before_assets(
+    context: SkillCallContext,
+    project_manager: ProjectManager,
+    project_name: str,
+) -> None:
+    project_manager.add_project_character(project_name, "x", "desc", None)
+
+    result = await run_subagent(context, "manga_workflow_status", {"episode": 1})
+
+    assert result["stage"] == 0
+    assert "generate_overview" in result["next_action"]
+
+
+@pytest.mark.asyncio
+async def test_manga_workflow_status_stage_1_empty(
+    context: SkillCallContext,
+    project_manager: ProjectManager,
+    project_name: str,
+) -> None:
+    write_minimal_overview(project_manager, project_name)
     result = await run_subagent(context, "manga_workflow_status", {})
     assert result["stage"] == 1
     assert "全局角色" in result["stage_name"]
@@ -264,6 +350,7 @@ async def test_manga_workflow_status_stage_1_empty(context: SkillCallContext) ->
 async def test_manga_workflow_status_stage_2_missing_source(
     context: SkillCallContext, project_manager: ProjectManager, project_name: str
 ) -> None:
+    write_minimal_overview(project_manager, project_name)
     project_manager.add_project_character(project_name, "x", "desc", None)
     result = await run_subagent(context, "manga_workflow_status", {"episode": 1})
     assert result["stage"] == 2
@@ -277,6 +364,7 @@ async def test_manga_workflow_status_stage_3_missing_step1(
     project_name: str,
     project_root: Path,
 ) -> None:
+    write_minimal_overview(project_manager, project_name)
     project_manager.add_project_character(project_name, "x", "desc", None)
     (project_root / project_name / "source" / "episode_1.txt").write_text("text", "utf-8")
     result = await run_subagent(context, "manga_workflow_status", {"episode": 1})
@@ -290,6 +378,7 @@ async def test_manga_workflow_status_stage_4_missing_script(
     project_name: str,
     project_root: Path,
 ) -> None:
+    write_minimal_overview(project_manager, project_name)
     project_manager.add_project_character(project_name, "x", "desc", None)
     pdir = project_root / project_name
     (pdir / "source" / "episode_1.txt").write_text("text", "utf-8")
@@ -307,6 +396,7 @@ async def test_manga_workflow_status_stage_5_6_missing_sheets(
     project_name: str,
     project_root: Path,
 ) -> None:
+    write_minimal_overview(project_manager, project_name)
     project_manager.add_project_character(project_name, "x", "desc", None)
     project_manager.add_clue(project_name, "y", "desc", "major")
     pdir = project_root / project_name
@@ -333,6 +423,12 @@ async def test_manga_workflow_status_complete_with_flat_generated_assets(
             "title": "Demo",
             "content_mode": "narration",
             "style": "anime",
+            "overview": {
+                "synopsis": "故事",
+                "genre": "奇幻",
+                "theme": "成長",
+                "world_setting": "架空世界",
+            },
             "characters": {"x": {"description": "desc", "character_sheet": "characters/x.png"}},
             "clues": {},
             "episodes": [{"episode": 1}],

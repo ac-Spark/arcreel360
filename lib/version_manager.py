@@ -78,8 +78,8 @@ class VersionManager:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
     def _generate_timestamp(self) -> str:
-        """生成時間戳字串（用於檔名）"""
-        return datetime.now().strftime("%Y%m%dT%H%M%S")
+        """生成時間戳字串（用於檔名，採 UTC 確保跨時區可排序）"""
+        return datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
 
     def _generate_iso_timestamp(self) -> str:
         """生成 ISO 格式時間戳（用於後設資料）"""
