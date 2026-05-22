@@ -147,13 +147,21 @@ def test_resolve_novel_text_excludes_episode_files(tmp_path):
     assert result == "正文內容。"
 
 
-def test_resolve_novel_text_explicit_source_empty_raises(tmp_path):
-    """當指定的 source 為空字串時，應明確拋出 FileNotFoundError。"""
-    source_dir = tmp_path / "source"
-    source_dir.mkdir(parents=True, exist_ok=True)
-    (source_dir / "novel.md").write_text("正文內容。", encoding="utf-8")
-    _write_project(tmp_path, [{"episode": 1}])
-
     with pytest.raises(FileNotFoundError) as excinfo:
         normalize_drama_script.resolve_novel_text(tmp_path, episode=1, source="")
     assert "未指定原始檔路徑" in str(excinfo.value)
+
+
+def test_resolve_novel_text_multiple_explicit_sources_concatenated(tmp_path):
+    """有指定複數 source 檔案時，應依序讀取並串接內容。"""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "part1.txt").write_text("這是第一章內容。", encoding="utf-8")
+    (source_dir / "part2.txt").write_text("這是第二章內容。", encoding="utf-8")
+    _write_project(tmp_path, [{"episode": 1}])
+
+    result = normalize_drama_script.resolve_novel_text(
+        tmp_path, episode=1, source="source/part1.txt,source/part2.txt"
+    )
+    assert result == "這是第一章內容。\n\n這是第二章內容。"
+

@@ -206,12 +206,18 @@ def resolve_novel_text(project_path: Path, episode: int, source: str | None) -> 
         if not source.strip():
             raise FileNotFoundError("未指定原始檔路徑（指定了空路徑）")
         project_root = project_path.resolve()
-        source_path = (project_path / source).resolve()
-        if not source_path.is_relative_to(project_root):
-            raise ValueError(f"路徑超出專案目錄: {source_path}")
-        if not source_path.exists() or source_path.is_dir():
-            raise FileNotFoundError(f"未找到原始檔: {source_path}")
-        return source_path.read_text(encoding="utf-8")
+        sources = [s.strip() for s in source.split(",") if s.strip()]
+        if not sources:
+            raise FileNotFoundError("未指定原始檔路徑（指定了空路徑）")
+        texts = []
+        for src in sources:
+            source_path = (project_path / src).resolve()
+            if not source_path.is_relative_to(project_root):
+                raise ValueError(f"路徑超出專案目錄: {source_path}")
+            if not source_path.exists() or source_path.is_dir():
+                raise FileNotFoundError(f"未找到原始檔: {source_path}")
+            texts.append(source_path.read_text(encoding="utf-8"))
+        return "\n\n".join(texts)
 
     candidate = project_path / "source" / f"episode_{episode}.txt"
     if candidate.exists():
@@ -251,7 +257,7 @@ def main():
         "-s",
         type=str,
         default=None,
-        help="指定小說原始檔路徑（預設讀 source/episode_{N}.txt）",
+        help="指定小說原始檔路徑，可用逗號分隔多檔（預設讀 source/episode_{N}.txt）",
     )
     parser.add_argument("--dry-run", action="store_true", help="僅顯示 Prompt，不實際呼叫 API")
 

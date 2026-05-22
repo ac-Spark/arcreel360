@@ -66,6 +66,7 @@ export function EpisodeActionsBar({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [sources, setSources] = useState<{ name: string; size: number }[]>([]);
   const [loadingSources, setLoadingSources] = useState(false);
+  const [selectedSources, setSelectedSources] = useState<string[]>([]);
 
   const fetchSources = async () => {
     setLoadingSources(true);
@@ -80,13 +81,31 @@ export function EpisodeActionsBar({
     }
   };
 
-  const handleSourceSelect = async (sourceName: string) => {
+  const toggleSourceSelection = (name: string) => {
+    setSelectedSources((prev) =>
+      prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]
+    );
+  };
+
+  const handleMultiSourceConfirm = async () => {
     setDropdownOpen(false);
-    const message = hasScript
-      ? `重新拆段會覆蓋目前的片段拆分結果。確定要使用原文「${sourceName}」重新拆段？`
-      : `確定要使用原文「${sourceName}」進行拆段？`;
-    if (await confirm({ message })) {
-      void handlePreprocess(sourceName);
+    if (selectedSources.length === 0) {
+      const message = hasScript
+        ? "重新拆段會覆蓋目前的片段拆分結果。確定要自動均分原文進行重新拆段？"
+        : "拆段會把這集原文切成片段。確定要自動均分原文進行拆段？";
+      if (await confirm({ message })) {
+        void handlePreprocess();
+      }
+    } else {
+      // 依據使用者勾選的先後順序或列表順序
+      // 這裡我們直接使用 selectedSources 維持勾選時的先後順序
+      const sourceStr = selectedSources.map((name) => `source/${name}`).join(",");
+      const message = hasScript
+        ? `重新拆段會覆蓋目前的片段拆分結果。確定要使用選取的 ${selectedSources.length} 個原文檔案重新拆段？`
+        : `確定要使用選取的 ${selectedSources.length} 個原文檔案進行拆段？`;
+      if (await confirm({ message })) {
+        void handlePreprocess(sourceStr);
+      }
     }
   };
 
@@ -129,30 +148,23 @@ export function EpisodeActionsBar({
       return `${res.output_path}（${res.duration_seconds.toFixed(1)}s）`;
     });
 
+  const confirmBtnText = selectedSources.length > 0
+    ? `確定${preprocessLabel} (${selectedSources.length})`
+    : `確定${preprocessLabel} (自動均分)`;
+
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2">
-      <ActionButton
-        icon={<Scissors className="h-3.5 w-3.5" />}
-        label={preprocessLabel}
-        loading={busy === "preprocess"}
-        disabled={busy !== null}
-        onClick={async () => {
-          const message = hasScript
-            ? "重新拆段會覆蓋目前的片段拆分結果。確定？"
-            : "拆段會把這集原文切成片段。確定？";
-          if (await confirm({ message })) void handlePreprocess();
-        }}
-        tone="neutral"
-      />
-
       <div className="relative">
         <ActionButton
-          icon={<ChevronDown className="h-3.5 w-3.5" />}
-          label="指定原文"
+          icon={<Scissors className="h-3.5 w-3.5" />}
+          label={`${preprocessLabel} ▾`}
           loading={busy === "preprocess"}
           disabled={busy !== null}
           onClick={() => {
-            if (!dropdownOpen) void fetchSources();
+            if (!dropdownOpen) {
+              setSelectedSources([]);
+              void fetchSources();
+            }
             setDropdownOpen(!dropdownOpen);
           }}
           tone="neutral"
@@ -165,6 +177,9 @@ export function EpisodeActionsBar({
               <div className="px-2.5 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500">
                 選擇 source 檔案
               </div>
+              <div className="px-2.5 pb-1 text-[0.625rem] text-gray-500 normal-case leading-snug">
+                不勾選則自動按集數均分整本原文
+              </div>
               <div className="my-1 h-px bg-gray-800" />
               {loadingSources ? (
                 <div className="flex items-center justify-center py-4 text-xs text-gray-400">
@@ -176,21 +191,44 @@ export function EpisodeActionsBar({
                   source/ 目錄下無可用文字檔
                 </div>
               ) : (
-                <div className="max-h-60 overflow-y-auto">
-                  {sources.map((file) => (
+                <>
+                  <div className="max-h-60 overflow-y-auto">
+                    {sources.map((file) => {
+                      const isSelected = selectedSources.includes(file.name);
+                      return (
+                        <button
+                          key={file.name}
+                          type="button"
+                          onClick={() => toggleSourceSelection(file.name)}
+                          className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              readOnly
+                              className="h-3.5 w-3.5 rounded border-gray-700 bg-gray-900 text-indigo-600 focus:ring-0 focus:ring-offset-0"
+                            />
+                            <span className="truncate font-mono">{file.name}</span>
+                          </div>
+                          <span className="shrink-0 ml-2 text-[0.625rem] text-gray-500">
+                            {(file.size / 1024).toFixed(1)} KB
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="my-1.5 h-px bg-gray-800" />
+                  <div className="p-1">
                     <button
-                      key={file.name}
                       type="button"
-                      onClick={() => void handleSourceSelect(file.name)}
-                      className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
+                      onClick={() => void handleMultiSourceConfirm()}
+                      className="flex w-full items-center justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-center text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <span className="mr-2 truncate font-mono">{file.name}</span>
-                      <span className="shrink-0 text-[0.625rem] text-gray-500">
-                        {(file.size / 1024).toFixed(1)} KB
-                      </span>
+                      {confirmBtnText}
                     </button>
-                  ))}
-                </div>
+                  </div>
+                </>
               )}
             </div>
           </>

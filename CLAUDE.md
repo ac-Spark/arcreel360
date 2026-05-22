@@ -147,7 +147,7 @@ session 訊息持久化：`agent_messages` 表（`lib/db/models/agent_message.py
 
 原文解析優先序：
 
-1. 使用者指定 `source` 時，讀取該專案內檔案。
+1. 使用者指定 `source` 時，讀取該專案內檔案；可用逗號分隔多檔，依序讀取串接（`narration`／`drama` 行為一致）。
 2. 存在 `source/episode_N.txt` 時，優先使用手動精切檔。
 3. `narration` 模式缺專屬檔時，串接 `source/` 內文字檔（排除 `_remaining.txt` 與 `episode_N.*`），再依 `project.json.episodes` 數量均分取該集。
 4. `drama` 規範化模式缺專屬檔時，目前直接使用串接後的整本原文。
