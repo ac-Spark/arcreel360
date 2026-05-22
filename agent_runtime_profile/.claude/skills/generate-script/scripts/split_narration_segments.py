@@ -130,12 +130,29 @@ def build_split_prompt(
 """
 
 
+def resolve_novel_text(project_path: Path, episode: int, source: str | None) -> str:
+    """決定並讀取小說原文來源"""
+    if source:
+        project_root = project_path.resolve()
+        source_path = (project_path / source).resolve()
+        if not source_path.is_relative_to(project_root):
+            raise ValueError(f"路徑超出專案目錄: {source_path}")
+        if not source_path.exists():
+            raise FileNotFoundError(f"未找到原始檔: {source_path}")
+        return source_path.read_text(encoding="utf-8")
+
+    candidate = project_path / "source" / f"episode_{episode}.txt"
+    if not candidate.exists():
+        raise FileNotFoundError(f"未找到第 {episode} 集的原始檔: {candidate}")
+    return candidate.read_text(encoding="utf-8")
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="使用 LLM 將說書模式小說拆分為片段表",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-示例:
+        description="""使用 LLM 將小說原文拆分為說書模式片段。
+預設會輸出 Markdown 片段表到 drafts/episode_{episode}/step1_segments.md。
+
+使用範例:
     %(prog)s --episode 1
     %(prog)s --episode 1 --source source/episode_1.txt
     %(prog)s --episode 1 --dry-run
@@ -148,7 +165,7 @@ def main():
         "-s",
         type=str,
         default=None,
-        help="指定小說原始檔路徑（預設讀 source/episode_{N}.txt 或整個 source/ 目錄）",
+        help="指定小說原始檔路徑（預設讀 source/episode_{N}.txt）",
     )
     parser.add_argument("--dry-run", action="store_true", help="僅顯示 Prompt，不實際呼叫 API")
 
@@ -159,30 +176,11 @@ def main():
     project = pm.load_project(project_name)
 
     # 讀取小說原文
-    if args.source:
-        source_path = (project_path / args.source).resolve()
-        if not source_path.is_relative_to(project_path.resolve()):
-            print(f"❌ 路徑超出專案目錄: {source_path}")
-            sys.exit(1)
-        if not source_path.exists():
-            print(f"❌ 未找到原始檔: {source_path}")
-            sys.exit(1)
-        novel_text = source_path.read_text(encoding="utf-8")
-    else:
-        # 優先用 episode_{N}.txt，找不到再讀整個 source/
-        candidate = project_path / "source" / f"episode_{args.episode}.txt"
-        if candidate.exists():
-            novel_text = candidate.read_text(encoding="utf-8")
-        else:
-            source_dir = project_path / "source"
-            if not source_dir.exists() or not any(source_dir.iterdir()):
-                print(f"❌ source/ 目錄為空或不存在: {source_dir}")
-                sys.exit(1)
-            texts = []
-            for f in sorted(source_dir.iterdir()):
-                if f.suffix in (".txt", ".md", ".text"):
-                    texts.append(f.read_text(encoding="utf-8"))
-            novel_text = "\n\n".join(texts)
+    try:
+        novel_text = resolve_novel_text(project_path, args.episode, args.source)
+    except (ValueError, FileNotFoundError) as e:
+        print(f"❌ {e}")
+        sys.exit(1)
 
     if not novel_text.strip():
         print("❌ 小說原文為空")
