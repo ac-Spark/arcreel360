@@ -151,6 +151,87 @@ def test_handle_preprocess_episode_unknown_mode(tmp_path):
     assert res.get("error") == "invalid_content_mode"
 
 
+def _setup_preprocess_project(tmp_path):
+    """共用 fixture：建立 demo 專案 + 預先寫好 step1 輸出檔，讓 run_preprocess 能完成檢查。"""
+    from lib.project_manager import ProjectManager
+
+    pm = ProjectManager(projects_root=tmp_path / "projects")
+    pm.create_project("demo")
+    pm.create_project_metadata("demo", title="t", style="anime", content_mode="narration")
+    project_path = pm.get_project_path("demo")
+    output_dir = project_path / "drafts" / "episode_1"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "step1_segments.md").write_text("stub", encoding="utf-8")
+    return project_path
+
+
+def test_run_preprocess_without_refs_no_filter_flags(tmp_path, monkeypatch):
+    """不傳 refs 時，CLI 不應含任何新增旗標（向後相容）。"""
+    import subprocess
+
+    from lib import PROJECT_ROOT
+    from lib.episode_preprocess import run_preprocess
+
+    project_path = _setup_preprocess_project(tmp_path)
+    captured_args: list[str] = []
+
+    def mock_run(args, **kwargs):
+        captured_args.extend(args)
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+
+    run_preprocess(project_path, episode=1, content_mode="narration", repo_root=PROJECT_ROOT)
+
+    assert "--no-overview" not in captured_args
+    assert "--no-style" not in captured_args
+    assert "--characters-only" not in captured_args
+    assert "--clues-only" not in captured_args
+    assert "--scenes-only" not in captured_args
+
+
+def test_run_preprocess_with_refs_translates_to_cli_flags(tmp_path, monkeypatch):
+    """refs dict 應準確翻譯成對應 CLI 旗標。"""
+    import subprocess
+
+    from lib import PROJECT_ROOT
+    from lib.episode_preprocess import run_preprocess
+
+    project_path = _setup_preprocess_project(tmp_path)
+    captured_args: list[str] = []
+
+    def mock_run(args, **kwargs):
+        captured_args.extend(args)
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+
+    run_preprocess(
+        project_path,
+        episode=1,
+        content_mode="narration",
+        repo_root=PROJECT_ROOT,
+        refs={
+            "overview": False,
+            "style": True,
+            "characters": ["拉拉布", "赫爾曼"],
+            "clues": [],  # 空陣列 → 旗標仍出現但值為空字串（「都不帶」）
+            "scenes": None,  # None → 不出現旗標（「全帶」）
+        },
+    )
+
+    assert "--no-overview" in captured_args
+    assert "--no-style" not in captured_args
+    # characters：值用 ASCII Unit Separator (U+001F) 分隔,避免名字含逗號被誤拆。
+    idx = captured_args.index("--characters-only")
+    assert captured_args[idx + 1] == "拉拉布\x1f赫爾曼"
+    # clues：空陣列 → 旗標出現，值為空字串
+    idx = captured_args.index("--clues-only")
+    assert captured_args[idx + 1] == ""
+    # scenes：None → 完全不出現
+    assert "--scenes-only" not in captured_args
+
+
 def test_run_preprocess_with_explicit_source(tmp_path, monkeypatch):
     import subprocess
 

@@ -138,6 +138,105 @@ def find_natural_breakpoints(text: str, center_offset: int, window: int = 200) -
     return breakpoints
 
 
+# 成對引號：開引號 → 對應閉引號。
+_QUOTE_PAIRS = {"「": "」", "『": "』", "“": "”"}
+_OPEN_QUOTES = set(_QUOTE_PAIRS.keys())
+_CLOSE_QUOTES = set(_QUOTE_PAIRS.values())
+
+
+def _compute_quote_depth_prefix(text: str) -> list[int]:
+    """一次 O(N) 算出整段文字每個位置的引號總深度。
+
+    depth[i] = 「字元 text[0..i-1] 處理完後」的累積深度,等同 _quote_depth_at(text, i)。
+    長度為 len(text) + 1。供 split_into_n_episodes 等需多次查詢的呼叫者重用,
+    避免每次 _quote_state_at 都從頭線性掃描造成 O(N²)。
+    """
+    n = len(text)
+    depth = [0] * (n + 1)
+    pair_depth = 0
+    straight_open = 0
+    for i in range(n):
+        ch = text[i]
+        if ch in _OPEN_QUOTES:
+            pair_depth += 1
+        elif ch in _CLOSE_QUOTES:
+            pair_depth = max(0, pair_depth - 1)
+        elif ch == '"':
+            straight_open ^= 1
+        depth[i + 1] = pair_depth + straight_open
+    return depth
+
+
+def _quote_state_at(text: str, offset: int) -> tuple[int, int]:
+    """計算 offset 位置前的引號狀態。
+
+    回傳 (pair_depth, straight_open)：
+    - pair_depth：成對引號（「」『』“”）的淨深度，遇開 +1、遇閉 -1（不為負）。
+    - straight_open：直/英文引號（"）的開合狀態，採配對計數，奇數個為 1。
+
+    巢狀引號（如「…『…』…」）由淨深度自然涵蓋。
+    """
+    pair_depth = 0
+    straight_open = 0
+    for ch in text[:offset]:
+        if ch in _OPEN_QUOTES:
+            pair_depth += 1
+        elif ch in _CLOSE_QUOTES:
+            pair_depth = max(0, pair_depth - 1)
+        elif ch == '"':
+            straight_open ^= 1
+    return pair_depth, straight_open
+
+
+def _quote_depth_at(text: str, offset: int) -> int:
+    """offset 前的引號總深度（>0 表示落在對話/引號內部）。"""
+    pair_depth, straight_open = _quote_state_at(text, offset)
+    return pair_depth + straight_open
+
+
+def _adjust_out_of_quotes(
+    text: str, offset: int, depth_prefix: list[int] | None = None
+) -> int:
+    """若 offset 落在成對引號內部，調整到引號外最近的安全點。
+
+    優先往後移到對話結束（閉引號之後）；找不到閉引號（未閉合引號）時，
+    退而往前移到對話開始（開引號之前）。兩者皆失敗（理論上不會）則回原值。
+    保證回傳值仍落在 [0, len(text)]，呼叫端的單調遞增/越界裁切照常生效。
+
+    depth_prefix:可選的預計算引號深度陣列(`_compute_quote_depth_prefix(text)` 的輸出),
+    傳入後「往前找」的 fallback 由 O(N²) 降為 O(N)。
+    """
+    if offset <= 0 or offset >= len(text):
+        return offset
+    pair_depth, straight_open = _quote_state_at(text, offset)
+    if pair_depth == 0 and straight_open == 0:
+        return offset
+
+    # 往後找：移到使深度歸零的閉引號（或直引號）之後。
+    for i in range(offset, len(text)):
+        ch = text[i]
+        if ch in _OPEN_QUOTES:
+            pair_depth += 1
+        elif ch in _CLOSE_QUOTES:
+            pair_depth = max(0, pair_depth - 1)
+        elif ch == '"' and straight_open:
+            straight_open = 0
+        if pair_depth == 0 and straight_open == 0:
+            return i + 1
+
+    # 未閉合引號：往前找到最外層開引號之前。
+    # 有 depth_prefix 時走 O(N) 快路徑;否則退回每次 O(N) 重掃(O(N²) 但保留契約相容)。
+    if depth_prefix is not None:
+        for i in range(offset - 1, -1, -1):
+            if depth_prefix[i] == 0:
+                return i
+    else:
+        for i in range(offset - 1, -1, -1):
+            if _quote_depth_at(text, i) == 0:
+                return i
+    return offset
+
+
 def find_anchor_near_target(text: str, anchor: str, target_offset: int, window: int = 500) -> list[int]:
     """在 target_offset 附近視窗內查 anchor，回匹配「末尾」偏移列表（按距 target_offset 排序）。"""
     search_start = max(0, target_offset - window)
@@ -236,18 +335,43 @@ def split_into_n_episodes(text: str, total_episodes: int) -> list[str]:
         return [text]
 
     total = count_chars(text)
+    text_len = len(text)
+    # 預計算引號深度 prefix:O(N) 一次,免去 _quote_depth_at / _adjust_out_of_quotes
+    # 內每次線性重掃造成的 O(N²)。
+    depth_prefix = _compute_quote_depth_prefix(text)
+
+    # 第 k 個切點落在 [prev_cut + 1, text_len] 區間,保證單調嚴格遞增、不產生空段。
+    # 為每個 k 先挑選最佳切點,再以 prev_cut + 1 為下界強制單調。
     cut_offsets: list[int] = []
+    prev_cut = 0
     for k in range(1, total_episodes):
         target_chars = round(total * k / total_episodes)
         raw_offset = find_char_offset(text, target_chars)
-        breakpoints = find_natural_breakpoints(text, raw_offset, window=200)
+        # 視窗放大到 600：長對話（句末標點稀疏）也能命中自然斷點，
+        # 大幅降低 fallback 成純字數硬切的機率。
+        breakpoints = find_natural_breakpoints(text, raw_offset, window=600)
+        # 優先句末標點，其次段落邊界；引號外的斷點優先（避免對話中間）。
         sentence_bps = [bp for bp in breakpoints if bp["type"] == "sentence"]
         chosen = sentence_bps or breakpoints
-        offset = chosen[0]["offset"] if chosen else raw_offset
-        cut_offsets.append(offset)
+        safe_bp = next(
+            (bp for bp in chosen if depth_prefix[bp["offset"]] == 0), None
+        )
+        if safe_bp is not None:
+            offset = safe_bp["offset"]
+        elif chosen:
+            # 視窗內的斷點全落在引號內：取最近者再往外調整出引號。
+            offset = _adjust_out_of_quotes(text, chosen[0]["offset"], depth_prefix)
+        else:
+            # 完全無自然斷點：fallback 字數硬切，但避開引號內部。
+            offset = _adjust_out_of_quotes(text, raw_offset, depth_prefix)
 
-    # 切點需單調遞增且落在 [0, len(text)]，避免重疊或越界。
-    cut_offsets = sorted(min(max(o, 0), len(text)) for o in cut_offsets)
+        # 強制單調嚴格遞增 + 越界裁切:
+        # _adjust_out_of_quotes 的「未閉合引號」fallback 可能往前推到上一切點之前,
+        # 造成 sorted 後相鄰 offset 重複(產生空段)或順序與 k 編號脫鉤;
+        # 改在此處夾在 [prev_cut + 1, text_len] 內,保證單調且不產生空段。
+        offset = max(prev_cut + 1, min(offset, text_len))
+        cut_offsets.append(offset)
+        prev_cut = offset
 
     parts: list[str] = []
     prev = 0

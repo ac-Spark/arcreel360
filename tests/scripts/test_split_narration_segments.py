@@ -159,7 +159,6 @@ def test_resolve_novel_text_autosplit_empty_raises(tmp_path):
         split_narration_segments.resolve_novel_text(tmp_path, episode=5, source=None)
     assert "均分原文後第 5 集的內容為空" in str(excinfo.value)
 
-
     with pytest.raises(FileNotFoundError) as excinfo:
         split_narration_segments.resolve_novel_text(tmp_path, episode=1, source="")
     assert "未指定原始檔路徑" in str(excinfo.value)
@@ -178,3 +177,161 @@ def test_resolve_novel_text_multiple_explicit_sources_concatenated(tmp_path):
     )
     assert result == "這是第一章內容。\n\n這是第二章內容。"
 
+
+# --- build_split_prompt：細粒度參考來源篩選測試 ---
+
+
+def _sample_overview():
+    return {"synopsis": "概述", "genre": "奇幻", "theme": "成長", "world_setting": "魔法世界"}
+
+
+def _sample_characters():
+    return {
+        "拉拉布": {"description": "主角"},
+        "赫爾曼": {"description": "智者"},
+        "梅露": {"description": "夥伴"},
+    }
+
+
+def _sample_clues():
+    return {"賢者刀盾幣": {"description": "傳說神器"}, "羅盤": {"description": "指引方向"}}
+
+
+def _sample_scenes():
+    return {"鎏金城": {"description": "繁華都城"}, "黑森林": {"description": "陰森異境"}}
+
+
+def test_build_split_prompt_default_includes_all_blocks():
+    """預設不傳新參數時，行為對齊既有：overview/style/characters/clues 都帶。"""
+    prompt = split_narration_segments.build_split_prompt(
+        novel_text="原文",
+        project_overview=_sample_overview(),
+        style="動漫風",
+        characters=_sample_characters(),
+        clues=_sample_clues(),
+    )
+    assert "<overview>" in prompt
+    assert "<style>" in prompt
+    assert "<characters>" in prompt
+    assert "<clues>" in prompt
+    # scenes 預設不傳 → 不帶（向後相容）
+    assert "<scenes>" not in prompt
+
+
+def test_build_split_prompt_no_overview():
+    prompt = split_narration_segments.build_split_prompt(
+        novel_text="原文",
+        project_overview=_sample_overview(),
+        style="動漫風",
+        characters=_sample_characters(),
+        clues=_sample_clues(),
+        include_overview=False,
+    )
+    assert "<overview>" not in prompt
+    assert "<style>" in prompt
+
+
+def test_build_split_prompt_no_style():
+    prompt = split_narration_segments.build_split_prompt(
+        novel_text="原文",
+        project_overview=_sample_overview(),
+        style="動漫風",
+        characters=_sample_characters(),
+        clues=_sample_clues(),
+        include_style=False,
+    )
+    assert "<style>" not in prompt
+    assert "<overview>" in prompt
+
+
+def test_build_split_prompt_empty_characters_omits_section():
+    """空 dict 代表「都不帶」→ 整個 <characters> 區塊省略。"""
+    prompt = split_narration_segments.build_split_prompt(
+        novel_text="原文",
+        project_overview=_sample_overview(),
+        style="動漫風",
+        characters={},
+        clues=_sample_clues(),
+    )
+    assert "<characters>" not in prompt
+    assert "<clues>" in prompt
+
+
+def test_build_split_prompt_filtered_characters_only_listed():
+    """只篩出指定名字。"""
+    chars = _sample_characters()
+    only_one = {"拉拉布": chars["拉拉布"]}
+    prompt = split_narration_segments.build_split_prompt(
+        novel_text="原文",
+        project_overview=_sample_overview(),
+        style="動漫風",
+        characters=only_one,
+        clues=_sample_clues(),
+    )
+    assert "拉拉布" in prompt
+    assert "赫爾曼" not in prompt
+    assert "梅露" not in prompt
+
+
+def test_build_split_prompt_includes_scenes_block():
+    prompt = split_narration_segments.build_split_prompt(
+        novel_text="原文",
+        project_overview=_sample_overview(),
+        style="動漫風",
+        characters=_sample_characters(),
+        clues=_sample_clues(),
+        scenes=_sample_scenes(),
+    )
+    assert "<scenes>" in prompt
+    assert "鎏金城" in prompt
+    assert "黑森林" in prompt
+
+
+def test_build_split_prompt_all_blocks_off_no_project_info_header():
+    """所有區塊都關閉時「## 專案資訊」標題也省略。"""
+    prompt = split_narration_segments.build_split_prompt(
+        novel_text="原文",
+        project_overview=_sample_overview(),
+        style="動漫風",
+        characters={},
+        clues={},
+        include_overview=False,
+        include_style=False,
+    )
+    assert "## 專案資訊" not in prompt
+    assert "<novel>" in prompt
+
+
+# --- _filter_by_names helper 測試 ---
+
+
+def test_filter_by_names_none_passes_through():
+    items = {"A": 1, "B": 2}
+    assert split_narration_segments._filter_by_names(items, None) == items
+
+
+def test_filter_by_names_empty_string_returns_empty():
+    assert split_narration_segments._filter_by_names({"A": 1, "B": 2}, "") == {}
+
+
+def test_filter_by_names_only_selected():
+    assert split_narration_segments._filter_by_names({"A": 1, "B": 2, "C": 3}, "A\x1fC") == {"A": 1, "C": 3}
+
+
+def test_filter_by_names_unknown_silently_ignored():
+    """陣列裡有 project.json 不存在的名字 → 靜默忽略，不報錯。"""
+    assert split_narration_segments._filter_by_names({"A": 1}, "A\x1f不存在\x1fX") == {"A": 1}
+
+
+def test_filter_by_names_preserves_comma_and_whitespace_in_names():
+    """迴歸測試:角色名含逗號或前後空白時,split 不可拆破、不可 strip。
+
+    bug 修復前用 ',' 當分隔符 + n.strip():
+      - 名字「史密斯, 約翰」會被 split 成 ['史密斯', '約翰'] → 全 miss
+      - 名字「 拉拉布 」會被 strip 成「拉拉布」→ name in items 對不上
+    """
+    items = {"史密斯, 約翰": 1, " 拉拉布 ": 2, "正常名": 3}
+    # 用 U+001F 分隔,名字內含的逗號與空白都應保留。
+    assert split_narration_segments._filter_by_names(
+        items, "史密斯, 約翰\x1f 拉拉布 "
+    ) == {"史密斯, 約翰": 1, " 拉拉布 ": 2}

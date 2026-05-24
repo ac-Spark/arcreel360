@@ -1,8 +1,17 @@
-import { useState } from "react";
-import { ChevronDown, FileText, Film, Image as ImageIcon, RotateCcw, Scissors, Wand2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { FileText, Film, Image as ImageIcon, RotateCcw, Scissors, Wand2 } from "lucide-react";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
+import { useProjectsStore } from "@/stores/projects-store";
 import { useConfirm } from "@/hooks/useConfirm";
+import type { ProjectOverview } from "@/types/project";
+import {
+  RefsPicker,
+  defaultRefsValue,
+  hasCustomRefs,
+  type RefsCatalog,
+  type RefsValue,
+} from "./RefsPicker";
 
 interface EpisodeActionsBarProps {
   projectName: string;
@@ -22,10 +31,26 @@ type Busy =
 type SourceFile = { name: string; size: number; url?: string };
 
 const SOURCE_TEXT_SUFFIXES = [".txt", ".md", ".text"];
+const OVERVIEW_FIELDS = ["synopsis", "genre", "theme", "world_setting"] as const;
 
 function isSourceTextFile(file: SourceFile) {
   const lower = file.name.toLowerCase();
   return file.name !== "_remaining.txt" && SOURCE_TEXT_SUFFIXES.some((suffix) => lower.endsWith(suffix));
+}
+
+function hasProjectOverview(overview: ProjectOverview | undefined): boolean {
+  return !!overview && OVERVIEW_FIELDS.some((field) => ((overview[field] ?? "").trim().length > 0));
+}
+
+function preprocessConfirmMessage(hasScript: boolean, selectedCount: number): string {
+  if (selectedCount > 0) {
+    return hasScript
+      ? `重新拆段會覆蓋目前的片段拆分結果。確定要使用選取的 ${selectedCount} 個原文檔案重新拆段？`
+      : `確定要使用選取的 ${selectedCount} 個原文檔案進行拆段？`;
+  }
+  return hasScript
+    ? "重新拆段會覆蓋目前的片段拆分結果。確定要自動均分原文進行重新拆段？"
+    : "拆段會把這集原文切成片段。確定要自動均分原文進行拆段？";
 }
 
 /**
@@ -68,6 +93,27 @@ export function EpisodeActionsBar({
   const [loadingSources, setLoadingSources] = useState(false);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
 
+  // 拆段時可勾選的「參考來源」清單,來自當前 project。
+  const currentProjectData = useProjectsStore((s) => s.currentProjectData);
+  const refsCatalog = useMemo<RefsCatalog>(() => {
+    const p = currentProjectData;
+    return {
+      hasOverview: hasProjectOverview(p?.overview),
+      characters: p?.characters ? Object.keys(p.characters) : [],
+      clues: p?.clues ? Object.keys(p.clues) : [],
+      scenes: p?.scenes ? Object.keys(p.scenes) : [],
+    };
+  }, [currentProjectData]);
+  const [refs, setRefs] = useState<RefsValue>(() => defaultRefsValue(refsCatalog));
+  // 開啟下拉時依當前 catalog 重置為「預設全勾」,避免上次的選擇殘留與 catalog 失同步。
+  const openDropdown = () => {
+    setSelectedSources([]);
+    setRefs(defaultRefsValue(refsCatalog));
+    void fetchSources();
+    setDropdownOpen(true);
+  };
+  const refsDirty = hasCustomRefs(refs, refsCatalog);
+
   const fetchSources = async () => {
     setLoadingSources(true);
     try {
@@ -89,29 +135,21 @@ export function EpisodeActionsBar({
 
   const handleMultiSourceConfirm = async () => {
     setDropdownOpen(false);
-    if (selectedSources.length === 0) {
-      const message = hasScript
-        ? "重新拆段會覆蓋目前的片段拆分結果。確定要自動均分原文進行重新拆段？"
-        : "拆段會把這集原文切成片段。確定要自動均分原文進行拆段？";
-      if (await confirm({ message })) {
-        void handlePreprocess();
-      }
-    } else {
-      // 依據使用者勾選的先後順序或列表順序
-      // 這裡我們直接使用 selectedSources 維持勾選時的先後順序
-      const sourceStr = selectedSources.map((name) => `source/${name}`).join(",");
-      const message = hasScript
-        ? `重新拆段會覆蓋目前的片段拆分結果。確定要使用選取的 ${selectedSources.length} 個原文檔案重新拆段？`
-        : `確定要使用選取的 ${selectedSources.length} 個原文檔案進行拆段？`;
-      if (await confirm({ message })) {
-        void handlePreprocess(sourceStr);
-      }
+    const hasSelectedSources = selectedSources.length > 0;
+    const sourceStr = hasSelectedSources ? selectedSources.map((name) => `source/${name}`).join(",") : undefined;
+    if (await confirm({ message: preprocessConfirmMessage(hasScript, selectedSources.length) })) {
+      void handlePreprocess(sourceStr);
     }
   };
 
   const handlePreprocess = (source?: string) =>
     run("preprocess", preprocessLabel, async () => {
-      const res = await API.preprocessEpisode(projectName, episode, source);
+      const res = await API.preprocessEpisode(
+        projectName,
+        episode,
+        source,
+        refsDirty ? refs : undefined,
+      );
       useAppStore.getState().invalidateEntities([`draft:episode_${episode}_step1`]);
       return res.step1_path;
     });
@@ -162,10 +200,10 @@ export function EpisodeActionsBar({
           disabled={busy !== null}
           onClick={() => {
             if (!dropdownOpen) {
-              setSelectedSources([]);
-              void fetchSources();
+              openDropdown();
+            } else {
+              setDropdownOpen(false);
             }
-            setDropdownOpen(!dropdownOpen);
           }}
           tone="neutral"
         />
@@ -218,6 +256,12 @@ export function EpisodeActionsBar({
                       );
                     })}
                   </div>
+                  <div className="my-1.5 h-px bg-gray-800" />
+                  <RefsPicker
+                    catalog={refsCatalog}
+                    value={refs}
+                    onChange={setRefs}
+                  />
                   <div className="my-1.5 h-px bg-gray-800" />
                   <div className="p-1">
                     <button

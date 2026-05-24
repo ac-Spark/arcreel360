@@ -11,6 +11,23 @@ type BatchGenerateResponse = {
   skipped: { id: string; reason: string }[];
 };
 
+/**
+ * 拆段預處理參考來源設定：控制要把哪些 project context 餵給 AI。
+ *
+ * - `overview` / `style`：boolean 開關。
+ * - `characters` / `clues` / `scenes`：
+ *   - `null` 表示「全帶」（後端預設行為）。
+ *   - `[]` 表示「都不帶」。
+ *   - `["A", "B"]` 表示只帶指定名稱。
+ */
+export type PreprocessRefs = {
+  overview: boolean;
+  style: boolean;
+  characters: string[] | null;
+  clues: string[] | null;
+  scenes: string[] | null;
+};
+
 type RenameResourceResponse = {
   success: boolean;
   old_name: string;
@@ -123,10 +140,13 @@ export const episodesApi = {
     name: string,
     episode: number,
     source?: string,
+    refs?: PreprocessRefs,
   ): Promise<{ step1_path: string; content_mode: string }> {
+    const body: Record<string, unknown> = { source };
+    if (refs !== undefined) body.refs = refs;
     return getApi().request(
       `/projects/${encodeURIComponent(name)}/episodes/${episode}/preprocess`,
-      { method: "POST", body: JSON.stringify({ source }) },
+      { method: "POST", body: JSON.stringify(body) },
     );
   },
 

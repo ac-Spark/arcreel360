@@ -332,6 +332,7 @@ export function TimelineCanvas({
             </div>
           )}
           <EpisodeActionsBar
+            key={`${projectName}:${episode}`}
             projectName={projectName}
             episode={episode}
             scriptFile={scriptFile}

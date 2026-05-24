@@ -33,8 +33,19 @@ def build_split_prompt(
     style: str,
     characters: dict,
     clues: dict,
+    *,
+    include_overview: bool = True,
+    include_style: bool = True,
+    scenes: dict | None = None,
 ) -> str:
-    """構建說書片段拆分的 Prompt"""
+    """構建說書片段拆分的 Prompt。
+
+    Args:
+        characters / clues / scenes:「已篩選後」的 dict——呼叫端負責挑選要帶哪些 key。
+            傳空 dict `{}` 代表「不帶該區塊」(整段 `<...>` 標籤省略);
+            scenes=None 跟 `{}` 等價(都不帶,維持向後相容)。
+        include_overview / include_style:False 代表完全省略該區塊。
+    """
 
     def _format(items: dict) -> str:
         lines = []
@@ -48,8 +59,27 @@ def build_split_prompt(
                 lines.append(f"- **{name}**")
         return "\n".join(lines) or "（暫無）"
 
-    char_block = _format(characters)
-    clue_block = _format(clues)
+    sections: list[str] = []
+    if include_overview:
+        sections.append(
+            "<overview>\n"
+            f"{project_overview.get('synopsis', '')}\n\n"
+            f"題材類型：{project_overview.get('genre', '')}\n"
+            f"核心主題：{project_overview.get('theme', '')}\n"
+            f"世界觀設定：{project_overview.get('world_setting', '')}\n"
+            "</overview>"
+        )
+    if include_style:
+        sections.append(f"<style>\n{style}\n</style>")
+    # characters / clues / scenes：空 dict → 完全省略該 <...> 區塊（空陣列 ≠ 省略的語意由呼叫端決定）。
+    if characters:
+        sections.append(f"<characters>\n{_format(characters)}\n</characters>")
+    if clues:
+        sections.append(f"<clues>\n{_format(clues)}\n</clues>")
+    if scenes:
+        sections.append(f"<scenes>\n{_format(scenes)}\n</scenes>")
+
+    info_block = ("## 專案資訊\n\n" + "\n\n".join(sections) + "\n\n") if sections else ""
 
     return f"""你的任務是將中文小說原文按朗讀節奏拆分為適合短影片配音的片段，輸出 Markdown 表格。
 
@@ -80,29 +110,7 @@ def build_split_prompt(
 - 同一連續場景內標記「-」
 - 不要濫用；多數片段應為「-」
 
-## 專案資訊
-
-<overview>
-{project_overview.get("synopsis", "")}
-
-題材類型：{project_overview.get("genre", "")}
-核心主題：{project_overview.get("theme", "")}
-世界觀設定：{project_overview.get("world_setting", "")}
-</overview>
-
-<style>
-{style}
-</style>
-
-<characters>
-{char_block}
-</characters>
-
-<clues>
-{clue_block}
-</clues>
-
-## 小說原文
+{info_block}## 小說原文
 
 <novel>
 {novel_text}
@@ -132,11 +140,29 @@ def build_split_prompt(
 """
 
 
+def _filter_by_names(items: dict, names_csv: str | None) -> dict:
+    """依 CLI 旗標值篩選 dict。
+
+    - ``names_csv is None`` → 不篩選，原樣回傳（「全帶」語意）。
+    - ``names_csv == ""`` → 回傳空 dict（「都不帶」語意）。
+    - 否則：以 ASCII Unit Separator (U+001F) 分隔取 token，只保留 items 內存在的 key
+      （不存在的名字靜默忽略）。**不做 strip**:project.json 的 dict key 可能含前後空白,
+      strip 會讓 `name in items` 對不上。
+    """
+    if names_csv is None:
+        return items
+    if not names_csv:
+        return {}
+    names = names_csv.split(_REF_NAME_SEPARATOR)
+    return {name: items[name] for name in names if name in items}
+
+
 # 「尚未分集切分」專用退出碼：run_preprocess 依此把錯誤映射成 HTTP 400。
 SOURCE_NOT_READY_EXIT_CODE = 3
 
 # 視為小說原文的副檔名（單檔 fallback 用）。
 _SOURCE_SUFFIXES = (".txt", ".md", ".text")
+_REF_NAME_SEPARATOR = "\x1f"
 
 
 class SourceNotReadyError(FileNotFoundError):
@@ -167,6 +193,27 @@ def _read_whole_source(source_dir: Path) -> str:
     """把 source/ 內所有原文檔按檔名排序串接成「整本原文」。"""
     files = _episode_source_files(source_dir)
     return "\n\n".join(f.read_text(encoding="utf-8") for f in files)
+
+
+def _read_explicit_sources(project_path: Path, source: str) -> str:
+    """讀取使用者明確指定的 source/ 內一或多個原文檔。"""
+    if not source.strip():
+        raise FileNotFoundError("未指定原始檔路徑(指定了空路徑)")
+
+    source_root = (project_path / "source").resolve()
+    sources = [s.strip() for s in source.split(",") if s.strip()]
+    if not sources:
+        raise FileNotFoundError("未指定原始檔路徑(指定了空路徑)")
+
+    texts = []
+    for src in sources:
+        source_path = (project_path / src).resolve()
+        if not source_path.is_relative_to(source_root):
+            raise ValueError(f"路徑超出 source/ 目錄: {source_path}")
+        if not source_path.exists() or source_path.is_dir():
+            raise FileNotFoundError(f"未找到原始檔: {source_path}")
+        texts.append(source_path.read_text(encoding="utf-8"))
+    return "\n\n".join(texts)
 
 
 def _episode_index_and_total(project_path: Path, episode: int) -> tuple[int, int]:
@@ -203,21 +250,7 @@ def resolve_novel_text(project_path: Path, episode: int, source: str | None) -> 
         SourceNotReadyError: 未指定 source 且 source/ 內無原文檔／整本內容為空／均分後該集為空。
     """
     if source is not None:
-        if not source.strip():
-            raise FileNotFoundError("未指定原始檔路徑（指定了空路徑）")
-        project_root = project_path.resolve()
-        sources = [s.strip() for s in source.split(",") if s.strip()]
-        if not sources:
-            raise FileNotFoundError("未指定原始檔路徑（指定了空路徑）")
-        texts = []
-        for src in sources:
-            source_path = (project_path / src).resolve()
-            if not source_path.is_relative_to(project_root):
-                raise ValueError(f"路徑超出專案目錄: {source_path}")
-            if not source_path.exists() or source_path.is_dir():
-                raise FileNotFoundError(f"未找到原始檔: {source_path}")
-            texts.append(source_path.read_text(encoding="utf-8"))
-        return "\n\n".join(texts)
+        return _read_explicit_sources(project_path, source)
 
     candidate = project_path / "source" / f"episode_{episode}.txt"
     if candidate.exists():
@@ -260,6 +293,34 @@ def main():
         help="指定小說原始檔路徑，可用逗號分隔多檔（預設讀 source/episode_{N}.txt）",
     )
     parser.add_argument("--dry-run", action="store_true", help="僅顯示 Prompt，不實際呼叫 API")
+    parser.add_argument(
+        "--no-overview",
+        action="store_true",
+        help="不在 prompt 內帶入 <overview> 區塊（預設帶）",
+    )
+    parser.add_argument(
+        "--no-style",
+        action="store_true",
+        help="不在 prompt 內帶入 <style> 區塊（預設帶）",
+    )
+    parser.add_argument(
+        "--characters-only",
+        type=str,
+        default=None,
+        help="逗號分隔字串，只把這些角色名帶入 prompt；空字串代表完全不帶；不指定代表全帶",
+    )
+    parser.add_argument(
+        "--clues-only",
+        type=str,
+        default=None,
+        help="逗號分隔字串，只把這些線索名帶入 prompt；空字串代表完全不帶；不指定代表全帶",
+    )
+    parser.add_argument(
+        "--scenes-only",
+        type=str,
+        default=None,
+        help="逗號分隔字串，只把這些場景名帶入 prompt；空字串代表完全不帶；不指定代表全帶",
+    )
 
     args = parser.parse_args()
 
@@ -283,12 +344,19 @@ def main():
         print("❌ 小說原文為空")
         sys.exit(1)
 
+    characters = _filter_by_names(project.get("characters", {}) or {}, args.characters_only)
+    clues = _filter_by_names(project.get("clues", {}) or {}, args.clues_only)
+    scenes = _filter_by_names(project.get("scenes", {}) or {}, args.scenes_only)
+
     prompt = build_split_prompt(
         novel_text=novel_text,
         project_overview=project.get("overview", {}),
         style=project.get("style", ""),
-        characters=project.get("characters", {}),
-        clues=project.get("clues", {}),
+        characters=characters,
+        clues=clues,
+        include_overview=not args.no_overview,
+        include_style=not args.no_style,
+        scenes=scenes,
     )
 
     if args.dry_run:

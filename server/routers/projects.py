@@ -701,8 +701,30 @@ class SplitEpisodeRequest(BaseModel):
     title: str | None = None
 
 
+class PreprocessRefs(BaseModel):
+    """細粒度控制 Step 1 預處理時要把哪些參考資料塞進 prompt。
+
+    - `overview` / `style`：布林,False 代表不帶該區塊;預設 True。
+    - `characters` / `clues` / `scenes`：`None` 代表「全帶」(等同省略),
+      空陣列 `[]` 代表「都不帶」,字串陣列代表「只帶這些名字」。
+      陣列裡有 project.json 不存在的名字會靜默忽略。
+
+    ⚠️ **語意限制**:5 個欄位皆有預設值,代表「未指定」與「顯式指定為預設值」
+    在後端不可區分。目前前端 `refsDirty ? refs : undefined` 在客戶端就決定要不要送,
+    無 active 問題;但若日後改成「差量 patch」(只送改過的欄位),後端會把未送的欄位
+    當預設值處理,容易誤觸發「全帶」。屆時應改成 `bool | None = None` + 顯式檢查。
+    """
+
+    overview: bool = True
+    style: bool = True
+    characters: list[str] | None = None
+    clues: list[str] | None = None
+    scenes: list[str] | None = None
+
+
 class PreprocessEpisodeRequest(BaseModel):
     source: str | None = None
+    refs: PreprocessRefs | None = None
 
 
 def _resolve_source_file_for_split(manager: ProjectManager, project_name: str, source: str) -> Path:
@@ -1340,6 +1362,10 @@ async def preprocess_episode(
         project = await asyncio.to_thread(manager.load_project, name)
         project_path = manager.get_project_path(name)
         source = req.source if req else None
+        refs_dict: dict | None = None
+        if req and req.refs is not None:
+            # 用 mode="json" 把空陣列保留為 [],None 仍為 None,避免被 exclude_none 吃掉。
+            refs_dict = req.refs.model_dump(mode="json")
         with project_change_source("webui"):
             return await asyncio.to_thread(
                 run_preprocess,
@@ -1348,6 +1374,7 @@ async def preprocess_episode(
                 content_mode=project.get("content_mode", "narration"),
                 repo_root=PROJECT_ROOT,
                 source=source,
+                refs=refs_dict,
             )
 
     except SourceNotReadyError as e:

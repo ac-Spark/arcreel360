@@ -59,6 +59,8 @@ export type {
   VersionInfo,
 } from "./types";
 
+export type { PreprocessRefs } from "./episodes";
+
 export { ApiError } from "./_http";
 export type { ApiErrorCode } from "./_http";
 

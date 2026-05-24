@@ -22,6 +22,12 @@ _CONTENT_MODE_SCRIPTS = {
     "narration": ("split_narration_segments.py", "step1_segments.md"),
     "drama": ("normalize_drama_script.py", "step1_normalized_script.md"),
 }
+_REF_NAME_SEPARATOR = "\x1f"
+_REF_FILTER_FLAGS = (
+    ("characters", "--characters-only"),
+    ("clues", "--clues-only"),
+    ("scenes", "--scenes-only"),
+)
 
 
 class SourceNotReadyError(RuntimeError):
@@ -32,6 +38,19 @@ class SourceNotReadyError(RuntimeError):
     """
 
 
+def _append_ref_flags(cmd: list[str], refs: dict) -> None:
+    """把 refs dict 翻譯成預處理腳本 CLI 旗標。"""
+    if refs.get("overview") is False:
+        cmd.append("--no-overview")
+    if refs.get("style") is False:
+        cmd.append("--no-style")
+
+    for key, flag in _REF_FILTER_FLAGS:
+        value = refs.get(key)
+        if value is not None:
+            cmd.extend([flag, _REF_NAME_SEPARATOR.join(value)])
+
+
 def run_preprocess(
     project_path: Path,
     episode: int,
@@ -39,8 +58,17 @@ def run_preprocess(
     content_mode: str | None = None,
     repo_root: Path | None = None,
     source: str | None = None,
+    refs: dict | None = None,
 ) -> dict:
     """執行某集的 Step 1 預處理。
+
+    Args:
+        refs: 細粒度參考來源控制(可省略 → 全帶,維持向後相容)。可用鍵:
+            - ``overview`` (bool, 預設 True):False 代表不帶 overview 區塊。
+            - ``style`` (bool, 預設 True):False 代表不帶 style 區塊。
+            - ``characters`` / ``clues`` / ``scenes`` (list[str] | None):
+              ``None`` 代表「全帶」(等同省略),``[]`` 代表「都不帶」,
+              字串陣列代表「只帶這些名字」(不存在的名字靜默忽略)。
 
     Returns:
         {step1_path, content_mode}
@@ -48,7 +76,7 @@ def run_preprocess(
     Raises:
         ValueError: content_mode 不合法。
         FileNotFoundError: 預處理腳本不存在。
-        SourceNotReadyError: 該集尚未分集切分、無法定位原文（使用者可修正）。
+        SourceNotReadyError: 該集尚未分集切分、無法定位原文(使用者可修正)。
         RuntimeError: 腳本執行失敗或逾時。
     """
     project_path = Path(project_path)
@@ -73,6 +101,9 @@ def run_preprocess(
     cmd = [sys.executable, str(skill_script), "--episode", str(episode)]
     if source is not None:
         cmd.extend(["--source", source])
+
+    if refs:
+        _append_ref_flags(cmd, refs)
 
     try:
         proc = subprocess.run(
