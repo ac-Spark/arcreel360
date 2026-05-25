@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { FileText, Film, Image as ImageIcon, RotateCcw, Scissors, Wand2 } from "lucide-react";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useConfirm } from "@/hooks/useConfirm";
 import type { ProjectOverview } from "@/types/project";
+import { UI_LAYERS } from "@/utils/ui-layers";
 import {
   RefsPicker,
   defaultRefsValue,
@@ -18,6 +19,7 @@ interface EpisodeActionsBarProps {
   episode: number;
   scriptFile?: string;
   hasScript: boolean;
+  activeTab?: "preprocessing" | "timeline";
 }
 
 type Busy =
@@ -27,6 +29,8 @@ type Busy =
   | "storyboards"
   | "videos"
   | "compose";
+
+type BatchKind = "storyboards" | "videos";
 
 type SourceFile = { name: string; size: number; url?: string };
 
@@ -40,6 +44,36 @@ function isSourceTextFile(file: SourceFile) {
 
 function hasProjectOverview(overview: ProjectOverview | undefined): boolean {
   return !!overview && OVERVIEW_FIELDS.some((field) => ((overview[field] ?? "").trim().length > 0));
+}
+
+/**
+ * 將上次保留的 refs 用最新 catalog 修剪一遍：
+ * - overview 若 catalog.hasOverview=false → 強制取消勾選
+ * - characters/clues/scenes：
+ *   - catalog 該群為空 → null（沒有可選項目）
+ *   - 上次為 null（全帶）→ 維持 null
+ *   - 上次為具體清單 → 過濾已不存在的 key,保留 [] 與部分清單語意（[] = 全不勾,非空陣列 = 部分勾）
+ *   - 若 catalog 變化導致 valid.length === all.length → 收斂為 null（與 normalizeGroup 一致）
+ */
+function pruneRefsAgainstCatalog(refs: RefsValue, catalog: RefsCatalog): RefsValue {
+  const pruneGroup = (
+    value: string[] | null,
+    all: string[],
+  ): string[] | null => {
+    if (all.length === 0) return null;
+    if (value === null) return null;
+    const valid = value.filter((name) => all.includes(name));
+    if (valid.length === all.length) return null;
+    return valid;
+  };
+
+  return {
+    overview: catalog.hasOverview ? refs.overview : false,
+    style: refs.style,
+    characters: pruneGroup(refs.characters, catalog.characters),
+    clues: pruneGroup(refs.clues, catalog.clues),
+    scenes: pruneGroup(refs.scenes, catalog.scenes),
+  };
 }
 
 function preprocessConfirmMessage(hasScript: boolean, selectedCount: number): string {
@@ -62,8 +96,10 @@ export function EpisodeActionsBar({
   episode,
   scriptFile,
   hasScript,
+  activeTab = "timeline",
 }: EpisodeActionsBarProps) {
   const [busy, setBusy] = useState<Busy>(null);
+  const [batchDialog, setBatchDialog] = useState<BatchKind | null>(null);
   const confirm = useConfirm();
 
   const toast = (msg: string, kind: "success" | "error" | "info" = "info") =>
@@ -105,10 +141,18 @@ export function EpisodeActionsBar({
     };
   }, [currentProjectData]);
   const [refs, setRefs] = useState<RefsValue>(() => defaultRefsValue(refsCatalog));
-  // 開啟下拉時依當前 catalog 重置為「預設全勾」,避免上次的選擇殘留與 catalog 失同步。
+  // 首次掛載時 currentProjectData 可能還沒載入,refsCatalog 為空 → defaultRefsValue 算出的預設不準。
+  // 用 ref 紀錄是否已用「真實 catalog」初始化過,首次開啟下拉時補一次預設。
+  const refsInitialized = useRef(false);
+  // 開啟下拉時保留上次選擇,只修剪已不存在的項目(避免狀態與 catalog 失同步)。
+  // 首次開啟仍會用最新 catalog 重算預設,確保新角色/道具/場景自動帶入。
   const openDropdown = () => {
-    setSelectedSources([]);
-    setRefs(defaultRefsValue(refsCatalog));
+    if (!refsInitialized.current) {
+      setRefs(defaultRefsValue(refsCatalog));
+      refsInitialized.current = true;
+    } else {
+      setRefs((prev) => pruneRefsAgainstCatalog(prev, refsCatalog));
+    }
     void fetchSources();
     setDropdownOpen(true);
   };
@@ -120,6 +164,9 @@ export function EpisodeActionsBar({
       const res = await API.listFiles(projectName);
       const sourceFiles = ((res.files.source || []) as SourceFile[]).filter(isSourceTextFile);
       setSources(sourceFiles);
+      // 修剪掉已不存在的舊選項,保留仍存在的勾選
+      const validNames = new Set(sourceFiles.map((f) => f.name));
+      setSelectedSources((prev) => prev.filter((name) => validNames.has(name)));
     } catch (err) {
       toast(`取得原文列表失敗：${(err as Error).message}`, "error");
     } finally {
@@ -180,6 +227,15 @@ export function EpisodeActionsBar({
       return `已入隊 ${res.enqueued.length} 項，略過 ${res.skipped.length} 項`;
     });
 
+  const runBatchFromDialog = (kind: BatchKind, force: boolean) => {
+    setBatchDialog(null);
+    if (kind === "storyboards") {
+      void handleBatchStoryboards(force);
+      return;
+    }
+    void handleBatchVideos(force);
+  };
+
   const handleCompose = () =>
     run("compose", "合成成片", async () => {
       const res = await API.composeEpisode(projectName, episode);
@@ -191,165 +247,226 @@ export function EpisodeActionsBar({
     : `確定${preprocessLabel} (自動均分)`;
 
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-2">
-      <div className="relative">
-        <ActionButton
-          icon={<Scissors className="h-3.5 w-3.5" />}
-          label={`${preprocessLabel} ▾`}
-          loading={busy === "preprocess"}
-          disabled={busy !== null}
-          onClick={() => {
-            if (!dropdownOpen) {
-              openDropdown();
-            } else {
-              setDropdownOpen(false);
-            }
-          }}
-          tone="neutral"
-        />
+    <>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {activeTab === "preprocessing" ? (
+          <div className="relative">
+            <ActionButton
+              icon={<Scissors className="h-3.5 w-3.5" />}
+              label={`${preprocessLabel} ▾`}
+              loading={busy === "preprocess"}
+              disabled={busy !== null}
+              onClick={() => {
+                if (!dropdownOpen) {
+                  openDropdown();
+                } else {
+                  setDropdownOpen(false);
+                }
+              }}
+              tone="neutral"
+            />
 
-        {dropdownOpen && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
-            <div className="absolute left-0 z-50 mt-1 min-w-[12rem] w-64 rounded-lg border border-gray-800 bg-gray-950 p-1.5 shadow-2xl">
-              <div className="px-2.5 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500">
-                選擇 source 檔案
-              </div>
-              <div className="px-2.5 pb-1 text-[0.625rem] text-gray-500 normal-case leading-snug">
-                不勾選則自動按集數均分整本原文
-              </div>
-              <div className="my-1 h-px bg-gray-800" />
-              {loadingSources ? (
-                <div className="flex items-center justify-center py-4 text-xs text-gray-400">
-                  <span className="mr-2 inline-block h-3.5 w-3.5 animate-spin rounded-full border border-gray-600 border-t-transparent" />
-                  載入中...
-                </div>
-              ) : sources.length === 0 ? (
-                <div className="px-2.5 py-3 text-center text-xs text-gray-500">
-                  source/ 目錄下無可用文字檔
-                </div>
-              ) : (
-                <>
-                  <div className="max-h-60 overflow-y-auto">
-                    {sources.map((file) => {
-                      const isSelected = selectedSources.includes(file.name);
-                      return (
+            {dropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
+                <div className="absolute left-0 z-50 mt-1 min-w-[12rem] w-64 rounded-lg border border-gray-800 bg-gray-950 p-1.5 shadow-2xl">
+                  <div className="px-2.5 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500">
+                    選擇 source 檔案
+                  </div>
+                  <div className="px-2.5 pb-1 text-[0.625rem] text-gray-500 normal-case leading-snug">
+                    不勾選則自動按集數均分整本原文
+                  </div>
+                  <div className="my-1 h-px bg-gray-800" />
+                  {loadingSources ? (
+                    <div className="flex items-center justify-center py-4 text-xs text-gray-400">
+                      <span className="mr-2 inline-block h-3.5 w-3.5 animate-spin rounded-full border border-gray-600 border-t-transparent" />
+                      載入中...
+                    </div>
+                  ) : sources.length === 0 ? (
+                    <div className="px-2.5 py-3 text-center text-xs text-gray-500">
+                      source/ 目錄下無可用文字檔
+                    </div>
+                  ) : (
+                    <>
+                      <div className="max-h-60 overflow-y-auto">
+                        {sources.map((file) => {
+                          const isSelected = selectedSources.includes(file.name);
+                          return (
+                            <button
+                              key={file.name}
+                              type="button"
+                              onClick={() => toggleSourceSelection(file.name)}
+                              className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
+                            >
+                              <div className="flex items-center gap-2 truncate">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  readOnly
+                                  className="h-3.5 w-3.5 rounded border-gray-700 bg-gray-900 text-indigo-600 focus:ring-0 focus:ring-offset-0"
+                                />
+                                <span className="truncate font-mono">{file.name}</span>
+                              </div>
+                              <span className="shrink-0 ml-2 text-[0.625rem] text-gray-500">
+                                {(file.size / 1024).toFixed(1)} KB
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="my-1.5 h-px bg-gray-800" />
+                      <RefsPicker
+                        catalog={refsCatalog}
+                        value={refs}
+                        onChange={setRefs}
+                      />
+                      <div className="my-1.5 h-px bg-gray-800" />
+                      <div className="p-1">
                         <button
-                          key={file.name}
                           type="button"
-                          onClick={() => toggleSourceSelection(file.name)}
-                          className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
+                          onClick={() => void handleMultiSourceConfirm()}
+                          className="flex w-full items-center justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-center text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          <div className="flex items-center gap-2 truncate">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              readOnly
-                              className="h-3.5 w-3.5 rounded border-gray-700 bg-gray-900 text-indigo-600 focus:ring-0 focus:ring-offset-0"
-                            />
-                            <span className="truncate font-mono">{file.name}</span>
-                          </div>
-                          <span className="shrink-0 ml-2 text-[0.625rem] text-gray-500">
-                            {(file.size / 1024).toFixed(1)} KB
-                          </span>
+                          {confirmBtnText}
                         </button>
-                      );
-                    })}
-                  </div>
-                  <div className="my-1.5 h-px bg-gray-800" />
-                  <RefsPicker
-                    catalog={refsCatalog}
-                    value={refs}
-                    onChange={setRefs}
-                  />
-                  <div className="my-1.5 h-px bg-gray-800" />
-                  <div className="p-1">
-                    <button
-                      type="button"
-                      onClick={() => void handleMultiSourceConfirm()}
-                      className="flex w-full items-center justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-center text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {confirmBtnText}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <>
+            <ActionButton
+              icon={<Wand2 className="h-3.5 w-3.5" />}
+              label={scriptLabel}
+              loading={busy === "script"}
+              disabled={busy !== null}
+              onClick={async () => {
+                const message = hasScript
+                  ? "重新生成劇本會覆寫現有劇本。確定？"
+                  : "生成劇本會根據拆段結果產生劇本。確定？";
+                if (await confirm({ message })) void handleScript();
+              }}
+              tone="neutral"
+            />
+
+            <Divider />
+
+            <ActionButton
+              icon={<ImageIcon className="h-3.5 w-3.5" />}
+              label="批次生成分鏡"
+              loading={busy === "storyboards"}
+              disabled={!hasScript || !scriptFile || busy !== null}
+              onClick={() => setBatchDialog("storyboards")}
+              tone="primary"
+            />
+
+            <Divider />
+
+            <ActionButton
+              icon={<Film className="h-3.5 w-3.5" />}
+              label="批次生成影片"
+              loading={busy === "videos"}
+              disabled={!hasScript || !scriptFile || busy !== null}
+              onClick={() => setBatchDialog("videos")}
+              tone="primary"
+            />
+
+            <Divider />
+
+            <ActionButton
+              icon={<FileText className="h-3.5 w-3.5" />}
+              label="合成成片"
+              loading={busy === "compose"}
+              disabled={!hasScript || busy !== null}
+              onClick={() => void handleCompose()}
+              tone="success"
+            />
           </>
         )}
       </div>
-      <ActionButton
-        icon={<Wand2 className="h-3.5 w-3.5" />}
-        label={scriptLabel}
-        loading={busy === "script"}
-        disabled={busy !== null}
-        onClick={async () => {
-          const message = hasScript
-            ? "重新生成劇本會覆寫現有劇本。確定？"
-            : "生成劇本會根據拆段結果產生劇本。確定？";
-          if (await confirm({ message })) void handleScript();
-        }}
-        tone="neutral"
-      />
 
-      <Divider />
+      {batchDialog && (
+        <BatchGenerationDialog
+          kind={batchDialog}
+          onSelect={(force) => runBatchFromDialog(batchDialog, force)}
+          onCancel={() => setBatchDialog(null)}
+        />
+      )}
+    </>
+  );
+}
 
-      <ActionButton
-        icon={<ImageIcon className="h-3.5 w-3.5" />}
-        label="批次生成分鏡"
-        loading={busy === "storyboards"}
-        disabled={!hasScript || !scriptFile || busy !== null}
-        onClick={() => void handleBatchStoryboards(false)}
-        tone="primary"
-      />
-      <ActionButton
-        icon={<RotateCcw className="h-3.5 w-3.5" />}
-        label="強制重生"
-        title="強制重生所有分鏡（含已生成）"
-        loading={busy === "storyboards"}
-        disabled={!hasScript || !scriptFile || busy !== null}
-        onClick={async () => {
-          if (await confirm({ message: "會覆寫所有已生成分鏡。確定？", danger: true })) {
-            void handleBatchStoryboards(true);
-          }
-        }}
-        tone="warning"
-      />
+function BatchGenerationDialog({
+  kind,
+  onSelect,
+  onCancel,
+}: {
+  kind: BatchKind;
+  onSelect: (force: boolean) => void;
+  onCancel: () => void;
+}) {
+  const config =
+    kind === "storyboards"
+      ? {
+          title: "批次生成分鏡",
+          missingLabel: "只生成缺少的分鏡",
+          forceLabel: "全部重生分鏡",
+        }
+      : {
+          title: "批次生成影片",
+          missingLabel: "只生成缺少的影片",
+          forceLabel: "全部重生影片",
+        };
+  const headingId = `batch-generation-${kind}-title`;
 
-      <Divider />
+  return (
+    <div
+      role="presentation"
+      onClick={onCancel}
+      className={`fixed inset-0 ${UI_LAYERS.modal} flex items-center justify-center bg-black/65 px-4`}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={headingId}
+        className="w-full max-w-sm rounded-2xl border border-gray-800 bg-gray-900 p-5 shadow-2xl shadow-black/40"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 id={headingId} className="text-base font-semibold text-gray-100">
+            {config.title}
+          </h2>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-md border border-gray-700 px-2 py-1 text-xs text-gray-400 transition-colors hover:border-gray-500 hover:text-gray-100"
+          >
+            取消
+          </button>
+        </div>
 
-      <ActionButton
-        icon={<Film className="h-3.5 w-3.5" />}
-        label="批次生成影片"
-        loading={busy === "videos"}
-        disabled={!hasScript || !scriptFile || busy !== null}
-        onClick={() => void handleBatchVideos(false)}
-        tone="primary"
-      />
-      <ActionButton
-        icon={<RotateCcw className="h-3.5 w-3.5" />}
-        label="強制重生"
-        title="強制重生所有影片（含已生成）"
-        loading={busy === "videos"}
-        disabled={!hasScript || !scriptFile || busy !== null}
-        onClick={async () => {
-          if (await confirm({ message: "會覆寫所有已生成影片。確定？", danger: true })) {
-            void handleBatchVideos(true);
-          }
-        }}
-        tone="warning"
-      />
-
-      <Divider />
-
-      <ActionButton
-        icon={<FileText className="h-3.5 w-3.5" />}
-        label="合成成片"
-        loading={busy === "compose"}
-        disabled={!hasScript || busy !== null}
-        onClick={() => void handleCompose()}
-        tone="success"
-      />
+        <div className="grid gap-2">
+          <button
+            type="button"
+            onClick={() => onSelect(false)}
+            className="flex items-center gap-3 rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-3 py-3 text-left text-sm text-indigo-100 transition-colors hover:border-indigo-400 hover:bg-indigo-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60"
+          >
+            <ImageIcon className="h-4 w-4 shrink-0 text-indigo-300" />
+            <span>{config.missingLabel}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onSelect(true)}
+            className="flex items-center gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-3 text-left text-sm text-amber-100 transition-colors hover:border-amber-400 hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+          >
+            <RotateCcw className="h-4 w-4 shrink-0 text-amber-300" />
+            <span>{config.forceLabel}</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

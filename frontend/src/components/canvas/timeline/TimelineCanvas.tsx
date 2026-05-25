@@ -337,6 +337,7 @@ export function TimelineCanvas({
             episode={episode}
             scriptFile={scriptFile}
             hasScript={hasScript}
+            activeTab={activeTab}
           />
         </div>
 
