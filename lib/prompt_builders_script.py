@@ -7,31 +7,23 @@ prompt_builders_script.py - 劇本生成 Prompt 構建器
 """
 
 
+def _format_named_entries(items: dict, *, separator: str = "：") -> str:
+    lines = []
+    for name, data in items.items():
+        desc = (data.get("description") or "").strip() if isinstance(data, dict) else ""
+        suffix = f"{separator}{desc}" if desc else ""
+        lines.append(f"- **{name}**{suffix}")
+    return "\n".join(lines)
+
+
 def _format_character_names(characters: dict) -> str:
     """格式化角色列表（含描述，協助 LLM 正確識別）"""
-    lines = []
-    for name, data in characters.items():
-        desc = (data.get("description") or "").strip() if isinstance(data, dict) else ""
-        if desc:
-            lines.append(f"- **{name}**：{desc}")
-        else:
-            lines.append(f"- **{name}**")
-    return "\n".join(lines)
+    return _format_named_entries(characters)
 
 
 def _format_clue_names(clues: dict) -> str:
     """格式化線索列表（含描述，協助 LLM 正確識別）"""
-    lines = []
-    for name, data in clues.items():
-        if not isinstance(data, dict):
-            lines.append(f"- **{name}**")
-            continue
-        desc = (data.get("description") or "").strip()
-        if desc:
-            lines.append(f"- **{name}**：{desc}")
-        else:
-            lines.append(f"- **{name}**")
-    return "\n".join(lines)
+    return _format_named_entries(clues)
 
 
 def _format_duration_constraint(supported_durations: list[int], default_duration: int | None) -> str:
@@ -46,9 +38,52 @@ def _format_aspect_ratio_desc(aspect_ratio: str) -> str:
     """根據寬高比返回構圖描述。"""
     if aspect_ratio == "9:16":
         return "豎屏構圖"
-    elif aspect_ratio == "16:9":
+    if aspect_ratio == "16:9":
         return "橫屏構圖"
     return f"{aspect_ratio} 構圖"
+
+
+def _format_scene_names(scenes: dict) -> str:
+    """格式化場景列表（含描述,協助 LLM 判斷該段發生在哪個場景）。"""
+    return _format_named_entries(scenes, separator=":")
+
+
+def _scene_catalog_block(scenes: dict | None) -> tuple[str, str]:
+    """根據 scenes 清單回 (catalog_xml, rule_text):
+
+    - 0 個場景: 兩者皆為空字串(不注入 catalog 區塊與規則,避免浪費 token)
+    - 1 個或多個: catalog 注入 + 規則要求 LLM 從白名單選或填 null
+    """
+    if not scenes:
+        return "", ""
+
+    scene_names = list(scenes.keys())
+    catalog_xml = (
+        "<scenes_catalog>\n"
+        f"{_format_scene_names(scenes)}\n"
+        "</scenes_catalog>\n\n"
+        "scenes_catalog 為本專案已註冊的場景清單；每個場景已有設計圖（scene_sheet），"
+        "下游會把對應 sheet 圖送入生圖 API 作為環境一致性參考。\n"
+    )
+    rule_text = (
+        "本片段發生的場景名稱，用於下游反查 scene_sheet 參考圖：\n"
+        f"   - 可選值:[{', '.join(scene_names)}] 或 null\n"
+        "   - **必須**來自 `<scenes_catalog>` 清單；未列於清單的場景名稱（例如「書房」「客廳」如未登記）一律填 null。\n"
+        "   - 若該段內容與清單中任一場景**都不符**（例如純人物特寫、抽象空鏡、室內未登記場所），填 null，**禁止強行套用**。\n"
+        "   - 同一個場景可被多段共用（例如多個鏡頭都發生在天安門 → 都填同一個值）。\n"
+    )
+    return catalog_xml, rule_text
+
+
+def _count_step1_rows(step1_md: str, row_prefix: str) -> int:
+    """數 step1 markdown 表格的資料行數。
+
+    narration 表格行以 ``| G`` 開頭（G01/G02...），drama 以 ``| E`` 開頭（E1S01...）。
+    若數不出來（檔案空、被破壞）回 0，呼叫端可改為弱約束（不寫死段數）。
+    """
+    if not step1_md:
+        return 0
+    return sum(1 for line in step1_md.splitlines() if line.lstrip().startswith(f"| {row_prefix}"))
 
 
 def build_narration_prompt(
@@ -61,6 +96,8 @@ def build_narration_prompt(
     supported_durations: list[int] | None = None,
     default_duration: int | None = None,
     aspect_ratio: str = "9:16",
+    episode: int | None = None,
+    scenes: dict | None = None,
 ) -> str:
     """
     構建說書模式的 Prompt
@@ -78,11 +115,33 @@ def build_narration_prompt(
     """
     character_names = list(characters.keys())
     clue_names = list(clues.keys())
+    expected_segments = _count_step1_rows(segments_md, "G")
+    episode_no = episode if episode is not None else 1
+    scenes_catalog_xml, scene_field_rule = _scene_catalog_block(scenes)
+
+    count_block = (
+        f"""
+
+## 鋼定段數約束（最高優先級）
+
+下方 `<segments>` 區塊內共有 **{expected_segments}** 段（G01 ~ G{expected_segments:02d}），
+你輸出的 JSON `segments` 陣列**必須恰好包含 {expected_segments} 個元素**，一段不多、一段不少。
+
+- 第 i 個輸出 segment 對應 step1 表格的第 i 行（G{{i:02d}}）。
+- `segment_id` 必須形如 `E{episode_no}S{{i:02d}}`（集數固定為 {episode_no}，序號從 01 遞增到 {expected_segments:02d}）。
+- `novel_text` 必須**逐字複製** step1 表格中對應行的「原文」欄位，不得改寫、合併、刪減。
+- 若你覺得內容相似想合併，**禁止**——逐段對應是硬要求。
+- 若 token 不夠導致只能輸出部分段，**仍須以縮減描述細節為優先**，保留段數完整。
+"""
+        if expected_segments > 0
+        else ""
+    )
 
     prompt = f"""你的任務是為短影片生成分鏡劇本。請仔細遵循以下指示：
 
 **重要：所有輸出內容必須使用中文。僅 JSON 鍵名和列舉值使用英文。**
-
+**集數：本次處理的是第 {episode_no} 集,所有 segment_id 必須使用 `E{episode_no}S{{序號}}` 格式,不得寫成其他集數。**
+{count_block}
 1. 你將獲得故事概述、視覺風格、角色列表、線索列表，以及已拆分的小說片段。
 
 2. 為每個片段生成：
@@ -110,7 +169,7 @@ def build_narration_prompt(
 {_format_clue_names(clues)}
 </clues>
 
-<segments>
+{scenes_catalog_xml}<segments>
 {segments_md}
 </segments>
 
@@ -137,6 +196,7 @@ c. **clues_in_segment**：列出本片段中可見或被提及的道具線索名
    - 道具線索若在畫面中可見，務必填入，後續會作為視覺參考圖；遺漏會導致影像生成時道具走樣。
    - 若片段確實未涉及任何已定義線索，填空陣列 []。
 
+{("c2. **scene_in_segment**：" + scene_field_rule) if scene_field_rule else ""}
 d. **image_prompt**：生成包含以下欄位的物件：
    - scene：用中文描述此刻畫面中的具體場景。
      **提到角色時必須先寫角色名，再用括號附一句精簡外觀**（例：「比比拉布（香蕉造型的貓）」、「我的刀盾（柴犬造型）」），
@@ -182,6 +242,8 @@ def build_drama_prompt(
     supported_durations: list[int] | None = None,
     default_duration: int | None = None,
     aspect_ratio: str = "16:9",
+    episode: int | None = None,
+    scenes: dict | None = None,
 ) -> str:
     """
     構建劇集動畫模式的 Prompt
@@ -199,11 +261,35 @@ def build_drama_prompt(
     """
     character_names = list(characters.keys())
     clue_names = list(clues.keys())
+    expected_scenes = _count_step1_rows(scenes_md, f"E{episode if episode is not None else ''}")
+    if expected_scenes == 0:
+        # fallback：drama 規範化表頭以 | E{episode}S 開頭，找不到該集數時用泛 E 前綴再試
+        expected_scenes = _count_step1_rows(scenes_md, "E")
+    episode_no = episode if episode is not None else 1
+    scenes_catalog_xml, scene_field_rule = _scene_catalog_block(scenes)
+
+    count_block = (
+        f"""
+
+## 鋼定場景數約束（最高優先級）
+
+下方 `<scenes>` 區塊內共有 **{expected_scenes}** 個場景，
+你輸出的 JSON `scenes` 陣列**必須恰好包含 {expected_scenes} 個元素**，一個不多、一個不少。
+
+- 第 i 個輸出 scene 對應 step1 表格的第 i 行。
+- `scene_id` 必須形如 `E{episode_no}S{{序號:02d}}`（集數固定為 {episode_no}，序號從 01 遞增到 {expected_scenes:02d}），與表格列出的 ID 對齊。
+- 場景描述要**忠實取材**自 step1 表格的「場景描述」欄位，不得擅自合併或刪減場景。
+- 若 token 不夠導致只能輸出部分場景，**仍須以縮減描述細節為優先**，保留場景數完整。
+"""
+        if expected_scenes > 0
+        else ""
+    )
 
     prompt = f"""你的任務是為劇集動畫生成分鏡劇本。請仔細遵循以下指示：
 
 **重要：所有輸出內容必須使用中文。僅 JSON 鍵名和列舉值使用英文。**
-
+**集數：本次處理的是第 {episode_no} 集,所有 scene_id 必須使用 `E{episode_no}S{{序號}}` 格式,不得寫成其他集數。**
+{count_block}
 1. 你將獲得故事概述、視覺風格、角色列表、線索列表，以及已拆分的場景列表。
 
 2. 為每個場景生成：
@@ -231,7 +317,7 @@ def build_drama_prompt(
 {_format_clue_names(clues)}
 </clues>
 
-<scenes>
+{scenes_catalog_xml}<scenes>
 {scenes_md}
 </scenes>
 
@@ -255,6 +341,8 @@ b. **clues_in_scene**：列出本場景中可見或被提及的道具線索名�
    - 必須**忠實標註**：只要場景描寫匹配 clues 區塊中某個道具線索的描述（包含別稱、外觀特徵、所在地點），就要列入。
    - 道具線索若在畫面中可見，務必填入，後續會作為視覺參考圖；遺漏會導致影像生成時道具走樣。
    - 若場景確實未涉及任何已定義線索，填空陣列 []。
+
+{("b2. **scene_in_scene**：" + scene_field_rule) if scene_field_rule else ""}
 
 c. **image_prompt**：生成包含以下欄位的物件：
    - scene：用中文描述此刻畫面中的具體場景。{_format_aspect_ratio_desc(aspect_ratio)}。

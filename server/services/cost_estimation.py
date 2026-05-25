@@ -102,7 +102,7 @@ class CostEstimationService:
             if not script:
                 continue
 
-            raw_segments, id_key, _, _ = get_storyboard_items(script)
+            raw_segments, id_key, _, _, _ = get_storyboard_items(script)
 
             segments_result = []
             ep_est: dict[str, CostBreakdown] = {}

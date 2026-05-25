@@ -34,12 +34,17 @@ class ImageInput:
 
 @dataclass
 class TextGenerationRequest:
-    """通用文字生成請求。各 Backend 忽略不支援的欄位。"""
+    """通用文字生成請求。各 Backend 忽略不支援的欄位。
+
+    若呼叫端不傳 max_output_tokens,各 backend 走 SDK 預設值（gemini-flash ~8k, openai
+    ~16k, ark/grok ~4-8k）。長 prompt 任務務必顯式指定，否則容易被悄悄截斷且不報錯。
+    """
 
     prompt: str
     response_schema: dict | type | None = None
     images: list[ImageInput] | None = None
     system_prompt: str | None = None
+    max_output_tokens: int | None = None
 
 
 @dataclass

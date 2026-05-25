@@ -1,8 +1,8 @@
 """把 ArcReel 的 workflow skill 翻译成 Gemini ``FunctionDeclaration``。
 
 每条 skill 由两部分组成：
-- 一个 ``FunctionDeclaration``，描述参数 schema（喂给 ``google-genai`` 的 ``Tool``）。
-- 一个 async handler ``Callable[[SkillCallContext], Awaitable[dict]]``，
+- 一個 ``FunctionDeclaration``，描述参数 schema（喂给 ``google-genai`` 的 ``Tool``）。
+- 一個 async handler ``Callable[[SkillCallContext], Awaitable[dict]]``，
   实现真正的副作用（调用既有的 ``ProjectManager`` / generation queue / script generator）。
 
 handler 拿到的是结构化参数 + 当前 session 的 ``SkillCallContext``，绝不再二次解析 LLM 输出。
@@ -166,7 +166,7 @@ def _missing_script_assets(
         logger.warning("failed to import storyboard sequence helper", exc_info=True)
         return []
 
-    items, id_field, _, _ = get_storyboard_items(script_data)
+    items, id_field, _, _, _ = get_storyboard_items(script_data)
     missing: list[str] = []
     for item in items:
         resource_id = str(item.get(id_field) or "").strip()
@@ -1172,7 +1172,7 @@ GENERATE_STORYBOARD_DECL = FunctionDeclaration(
     name="generate_storyboard",
     description=(
         "为指定剧集的所有场景批量生成分镜图（image-to-image），写入 storyboards/scene_*.png。"
-        "前置：scripts/episode_{N}.json 已生成。每个场景使用劇本內預先寫好的 image_prompt。"
+        "前置：scripts/episode_{N}.json 已生成。每個场景使用劇本內預先寫好的 image_prompt。"
         "异步走 generation queue，handler 阻塞等所有 task 完成。"
         "可选 scene_ids 只生成部分场景。返回成功/失败统计。"
     ),
@@ -1366,7 +1366,7 @@ async def _enqueue_episode_assets(
 ) -> dict[str, Any]:
     """通用 batch-enqueue：generate_storyboard / generate_video 共用。
 
-    读取 scripts/episode_{N}.json，遍历 scene/segment，把每个 item 的 image_prompt 或
+    读取 scripts/episode_{N}.json，遍历 scene/segment，把每個 item 的 image_prompt 或
     video_prompt 入队为 task_type=storyboard / video，等待全部完成。
     """
     from lib.generation_queue_client import BatchTaskSpec, _batch_enqueue_and_wait
@@ -1395,7 +1395,7 @@ async def _enqueue_episode_assets(
     except Exception as exc:
         return {"error": "import_failed", "reason": str(exc)}
 
-    items, id_field, _, _ = get_storyboard_items(script_data)
+    items, id_field, _, _, _ = get_storyboard_items(script_data)
     if not items:
         return {"error": "empty_script", "reason": "script contains no scenes/segments"}
 
@@ -1511,7 +1511,7 @@ async def run_subagent(
     skill: str,
     args: dict[str, Any],
 ) -> dict[str, Any]:
-    """同步阻塞 dispatch 一个 skill。
+    """同步阻塞 dispatch 一個 skill。
 
     供 ``run_subagent`` 工具直接调用；也可被 provider 内部直接走 declarations 路径调用。
     """

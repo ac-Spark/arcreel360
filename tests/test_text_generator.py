@@ -22,7 +22,7 @@ async def tracker():
     await engine.dispose()
 
 
-def _make_backend(provider="gemini", model="gemini-3-flash-preview"):
+def _make_backend(provider="gemini", model="gemini-3.1-flash-lite-preview"):
     backend = AsyncMock()
     backend.name = provider
     backend.model = model

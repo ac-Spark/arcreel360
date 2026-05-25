@@ -108,7 +108,7 @@ class TestUsageTracker:
         call_id = await tracker.start_call(
             project_name="demo",
             call_type="text",
-            model="gemini-3-flash-preview",
+            model="gemini-3.1-flash-lite-preview",
             prompt="測試 prompt",
             provider="gemini",
         )

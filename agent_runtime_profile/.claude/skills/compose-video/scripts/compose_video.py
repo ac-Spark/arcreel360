@@ -241,7 +241,7 @@ def compose_video(
     video_paths = []
     transitions = []
 
-    items, id_field, _, _ = get_storyboard_items(script)
+    items, id_field, _, _, _ = get_storyboard_items(script)
     for item in items:
         item_id = item.get(id_field) or "<unknown>"
         video_clip = item.get("generated_assets", {}).get("video_clip")

@@ -45,16 +45,11 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
                 media_type="text",
                 capabilities=["text_generation", "structured_output", "vision"],
             ),
-            "gemini-3-flash-preview": ModelInfo(
-                display_name="Gemini 3 Flash",
-                media_type="text",
-                capabilities=["text_generation", "structured_output", "vision"],
-                default=True,
-            ),
             "gemini-3.1-flash-lite-preview": ModelInfo(
                 display_name="Gemini 3.1 Flash Lite",
                 media_type="text",
-                capabilities=["text_generation", "structured_output"],
+                capabilities=["text_generation", "structured_output", "vision"],
+                default=True,
             ),
             # --- image ---
             "gemini-3-pro-image-preview": ModelInfo(
@@ -106,16 +101,11 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
                 media_type="text",
                 capabilities=["text_generation", "structured_output", "vision"],
             ),
-            "gemini-3-flash-preview": ModelInfo(
-                display_name="Gemini 3 Flash",
-                media_type="text",
-                capabilities=["text_generation", "structured_output", "vision"],
-                default=True,
-            ),
             "gemini-3.1-flash-lite-preview": ModelInfo(
                 display_name="Gemini 3.1 Flash Lite",
                 media_type="text",
-                capabilities=["text_generation", "structured_output"],
+                capabilities=["text_generation", "structured_output", "vision"],
+                default=True,
             ),
             # --- image ---
             "gemini-3-pro-image-preview": ModelInfo(

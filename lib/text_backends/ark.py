@@ -68,12 +68,18 @@ class ArkTextBackend:
 
     async def _generate_plain(self, request: TextGenerationRequest) -> TextGenerationResult:
         messages = self._build_messages(request)
+        kwargs: dict[str, Any] = {
+            "model": self._model,
+            "messages": messages,
+        }
+        if request.max_output_tokens is not None:
+            kwargs["max_tokens"] = request.max_output_tokens
+
         response = await asyncio.to_thread(
             self._client.chat.completions.create,
-            model=self._model,
-            messages=messages,
+            **kwargs,
         )
-        return self._parse_chat_response(response)
+        return self._parse_chat_response(response, request.max_output_tokens)
 
     async def _generate_structured(self, request: TextGenerationRequest) -> TextGenerationResult:
         messages = self._build_messages(request)
@@ -82,20 +88,26 @@ class ArkTextBackend:
             from lib.text_backends.base import resolve_schema
 
             schema = resolve_schema(request.response_schema)
+            kwargs: dict[str, Any] = {
+                "model": self._model,
+                "messages": messages,
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "response",
+                        "schema": schema,
+                    },
+                },
+            }
+            if request.max_output_tokens is not None:
+                kwargs["max_tokens"] = request.max_output_tokens
+
             try:
                 response = await asyncio.to_thread(
                     self._client.chat.completions.create,
-                    model=self._model,
-                    messages=messages,
-                    response_format={
-                        "type": "json_schema",
-                        "json_schema": {
-                            "name": "response",
-                            "schema": schema,
-                        },
-                    },
+                    **kwargs,
                 )
-                return self._parse_chat_response(response)
+                return self._parse_chat_response(response, request.max_output_tokens)
             except Exception as exc:
                 logger.warning("原生 response_format 失敗 (%s)，降級到 Instructor/json_object 路徑", exc)
 
@@ -112,6 +124,7 @@ class ArkTextBackend:
             messages=messages,
             response_schema=request.response_schema,
             provider=PROVIDER_ARK,
+            max_output_tokens=request.max_output_tokens,
         )
 
     async def _generate_vision(self, request: TextGenerationRequest) -> TextGenerationResult:
@@ -132,10 +145,16 @@ class ArkTextBackend:
             messages.append({"role": "system", "content": request.system_prompt})
         messages.append({"role": "user", "content": content})
 
+        kwargs: dict[str, Any] = {
+            "model": self._model,
+            "input": messages,
+        }
+        if request.max_output_tokens is not None:
+            kwargs["max_tokens"] = request.max_output_tokens
+
         response = await asyncio.to_thread(
             self._client.responses.create,
-            model=self._model,
-            input=messages,
+            **kwargs,
         )
 
         text = response.output_text if hasattr(response, "output_text") else str(response)
@@ -157,8 +176,15 @@ class ArkTextBackend:
         messages.append({"role": "user", "content": request.prompt})
         return messages
 
-    def _parse_chat_response(self, response) -> TextGenerationResult:
-        text = response.choices[0].message.content
+    def _parse_chat_response(self, response, max_output_tokens: int | None = None) -> TextGenerationResult:
+        choice = response.choices[0]
+        if getattr(choice, "finish_reason", None) == "length":
+            logger.warning(
+                "Ark 回應因 max_tokens (%s) 截斷,輸出 %s tokens",
+                max_output_tokens,
+                response.usage.completion_tokens if getattr(response, "usage", None) else None,
+            )
+        text = choice.message.content
         input_tokens = getattr(getattr(response, "usage", None), "prompt_tokens", None)
         output_tokens = getattr(getattr(response, "usage", None), "completion_tokens", None)
         return TextGenerationResult(

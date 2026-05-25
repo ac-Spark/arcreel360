@@ -23,7 +23,7 @@ def _make_mock_resolver(**async_methods):
 
 async def test_creates_gemini_aistudio_backend():
     mock_resolver = _make_mock_resolver(
-        text_backend_for_task=("gemini-aistudio", "gemini-3-flash-preview"),
+        text_backend_for_task=("gemini-aistudio", "gemini-3.1-flash-lite-preview"),
         provider_config={"api_key": "test-key", "base_url": ""},
     )
 
@@ -39,7 +39,7 @@ async def test_creates_gemini_aistudio_backend():
         mock_create.assert_called_once_with(
             "gemini",
             api_key="test-key",
-            model="gemini-3-flash-preview",
+            model="gemini-3.1-flash-lite-preview",
             base_url="",
         )
         assert result is mock_backend
@@ -70,7 +70,7 @@ async def test_creates_ark_backend():
 
 async def test_creates_vertex_backend():
     mock_resolver = _make_mock_resolver(
-        text_backend_for_task=("gemini-vertex", "gemini-3-flash-preview"),
+        text_backend_for_task=("gemini-vertex", "gemini-3.1-flash-lite-preview"),
         provider_config={"gcs_bucket": "my-bucket"},
     )
 
@@ -85,7 +85,7 @@ async def test_creates_vertex_backend():
 
         mock_create.assert_called_once_with(
             "gemini",
-            model="gemini-3-flash-preview",
+            model="gemini-3.1-flash-lite-preview",
             backend="vertex",
             gcs_bucket="my-bucket",
         )

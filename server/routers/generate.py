@@ -115,7 +115,7 @@ async def generate_storyboard(
         def _sync():
             get_project_manager().load_project(project_name)
             script = get_project_manager().load_script(project_name, req.script_file)
-            items, id_field, _, _ = get_storyboard_items(script)
+            items, id_field, _, _, _ = get_storyboard_items(script)
             resolved = find_storyboard_item(items, id_field, segment_id)
             if resolved is None:
                 raise HTTPException(status_code=404, detail=f"片段/場景 '{segment_id}' 不存在")
@@ -340,7 +340,7 @@ async def generate_storyboards_batch(
         def _sync():
             get_project_manager().load_project(project_name)
             script = get_project_manager().load_script(project_name, req.script_file)
-            items, id_field, _, _ = get_storyboard_items(script)
+            items, id_field, _, _, _ = get_storyboard_items(script)
             project_path = get_project_manager().get_project_path(project_name)
             image_snapshot = _snapshot_image_backend(project_name)
 
@@ -412,7 +412,7 @@ async def generate_videos_batch(
         def _sync():
             get_project_manager().load_project(project_name)
             script = get_project_manager().load_script(project_name, req.script_file)
-            items, id_field, _, _ = get_storyboard_items(script)
+            items, id_field, _, _, _ = get_storyboard_items(script)
             project_path = get_project_manager().get_project_path(project_name)
 
             requested_ids: list[str]

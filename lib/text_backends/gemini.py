@@ -23,7 +23,7 @@ from .base import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "gemini-3-flash-preview"
+DEFAULT_MODEL = "gemini-3.1-flash-lite-preview"
 
 
 class GeminiTextBackend:
@@ -102,6 +102,7 @@ class GeminiTextBackend:
         self,
         response_schema: dict | type | None,
         system_prompt: str | None,
+        max_output_tokens: int | None,
     ) -> dict:
         """構建 generate_content 的 config 字典。"""
         config: dict = {}
@@ -113,6 +114,8 @@ class GeminiTextBackend:
                 config["response_json_schema"] = response_schema
         if system_prompt:
             config["system_instruction"] = system_prompt
+        if max_output_tokens is not None:
+            config["max_output_tokens"] = max_output_tokens
         return config
 
     def _build_contents(self, request: TextGenerationRequest) -> list:
@@ -134,7 +137,11 @@ class GeminiTextBackend:
     @with_retry_async()
     async def generate(self, request: TextGenerationRequest) -> TextGenerationResult:
         """非同步生成文字，支援結構化輸出和 vision。"""
-        config = self._build_config(request.response_schema, request.system_prompt)
+        config = self._build_config(
+            request.response_schema,
+            request.system_prompt,
+            request.max_output_tokens,
+        )
         contents = self._build_contents(request)
 
         response = await self._client.aio.models.generate_content(
@@ -150,6 +157,17 @@ class GeminiTextBackend:
         if response.usage_metadata is not None:
             input_tokens = getattr(response.usage_metadata, "prompt_token_count", None)
             output_tokens = getattr(response.usage_metadata, "candidates_token_count", None)
+
+        candidates = getattr(response, "candidates", None) or []
+        if candidates:
+            finish_reason = getattr(candidates[0], "finish_reason", None)
+            reason_name = getattr(finish_reason, "name", str(finish_reason) if finish_reason else "")
+            if reason_name == "MAX_TOKENS":
+                logger.warning(
+                    "Gemini 回應因 max_output_tokens (%s) 截斷,輸出 %s tokens — 下游 JSON parse 可能不完整",
+                    request.max_output_tokens,
+                    output_tokens,
+                )
 
         return TextGenerationResult(
             text=text,

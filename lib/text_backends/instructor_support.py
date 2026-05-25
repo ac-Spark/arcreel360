@@ -13,6 +13,13 @@ from lib.text_backends.base import TextGenerationResult
 logger = logging.getLogger(__name__)
 
 
+def _max_output_token_kwargs(provider: str, max_output_tokens: int | None) -> dict[str, int]:
+    if max_output_tokens is None:
+        return {}
+    key = "max_completion_tokens" if provider == "openai" else "max_tokens"
+    return {key: max_output_tokens}
+
+
 def generate_structured_via_instructor(
     client,
     model: str,
@@ -20,6 +27,7 @@ def generate_structured_via_instructor(
     response_model: type[BaseModel],
     mode: Mode = Mode.MD_JSON,
     max_retries: int = 2,
+    **kwargs,
 ) -> tuple[str, int | None, int | None]:
     """透過 Instructor 生成結構化輸出（同步版，供 Ark 等同步 SDK 使用）。
 
@@ -36,8 +44,14 @@ def generate_structured_via_instructor(
         messages=messages,
         response_model=response_model,
         max_retries=max_retries,
+        **kwargs,
     )
     json_text = result.model_dump_json()
+
+    choices = getattr(completion, "choices", None)
+    if choices and getattr(choices[0], "finish_reason", None) == "length":
+        limit = kwargs.get("max_completion_tokens") or kwargs.get("max_tokens")
+        logger.warning("Instructor 同步回應因 %s 限制而截斷", limit)
 
     input_tokens = None
     output_tokens = None
@@ -55,6 +69,7 @@ async def generate_structured_via_instructor_async(
     response_model: type[BaseModel],
     mode: Mode = Mode.MD_JSON,
     max_retries: int = 2,
+    **kwargs,
 ) -> tuple[str, int | None, int | None]:
     """透過 Instructor 生成結構化輸出（非同步版，供 OpenAI AsyncOpenAI 使用）。
 
@@ -71,8 +86,14 @@ async def generate_structured_via_instructor_async(
         messages=messages,
         response_model=response_model,
         max_retries=max_retries,
+        **kwargs,
     )
     json_text = result.model_dump_json()
+
+    choices = getattr(completion, "choices", None)
+    if choices and getattr(choices[0], "finish_reason", None) == "length":
+        limit = kwargs.get("max_completion_tokens") or kwargs.get("max_tokens")
+        logger.warning("Instructor 非同步回應因 %s 限制而截斷", limit)
 
     input_tokens = None
     output_tokens = None
@@ -107,6 +128,7 @@ def instructor_fallback_sync(
     messages: list[dict],
     response_schema: dict | type,
     provider: str,
+    max_output_tokens: int | None = None,
 ):
     """同步 Instructor 降級路徑。
 
@@ -116,12 +138,15 @@ def instructor_fallback_sync(
     供 Ark 等同步 SDK 後端使用（呼叫方用 asyncio.to_thread 包裝）。
     不做重試，瞬態錯誤由呼叫方的重試迴圈統一處理。
     """
+    extra_kwargs = _max_output_token_kwargs(provider, max_output_tokens)
+
     if isinstance(response_schema, type):
         json_text, input_tokens, output_tokens = generate_structured_via_instructor(
             client=client,
             model=model,
             messages=messages,
             response_model=response_schema,
+            **extra_kwargs,
         )
         return TextGenerationResult(
             text=json_text,
@@ -137,9 +162,13 @@ def instructor_fallback_sync(
         model=model,
         messages=fb_messages,
         response_format={"type": "json_object"},
+        **extra_kwargs,
     )
     usage = getattr(response, "usage", None)
-    text = response.choices[0].message.content or ""
+    choice = response.choices[0]
+    if getattr(choice, "finish_reason", None) == "length":
+        logger.warning("JSON Object 同步 fallback 回應被截斷 (%s), 輸出限制: %s", provider, max_output_tokens)
+    text = choice.message.content or ""
     return TextGenerationResult(
         text=text.strip() if isinstance(text, str) else str(text),
         provider=provider,
@@ -155,6 +184,7 @@ async def instructor_fallback_async(
     messages: list[dict],
     response_schema: dict | type,
     provider: str,
+    max_output_tokens: int | None = None,
 ):
     """非同步 Instructor 降級路徑。
 
@@ -164,7 +194,7 @@ async def instructor_fallback_async(
     供 OpenAI 等原生非同步 SDK 後端使用。
     不做重試，瞬態錯誤由呼叫方的重試迴圈統一處理。
     """
-    from lib.text_backends.base import TextGenerationResult
+    extra_kwargs = _max_output_token_kwargs(provider, max_output_tokens)
 
     if isinstance(response_schema, type):
         json_text, input_tokens, output_tokens = await generate_structured_via_instructor_async(
@@ -172,6 +202,7 @@ async def instructor_fallback_async(
             model=model,
             messages=messages,
             response_model=response_schema,
+            **extra_kwargs,
         )
         return TextGenerationResult(
             text=json_text,
@@ -187,9 +218,13 @@ async def instructor_fallback_async(
         model=model,
         messages=fb_messages,
         response_format={"type": "json_object"},
+        **extra_kwargs,
     )
     usage = getattr(response, "usage", None)
-    text = response.choices[0].message.content or ""
+    choice = response.choices[0]
+    if getattr(choice, "finish_reason", None) == "length":
+        logger.warning("JSON Object 非同步 fallback 回應被截斷 (%s), 輸出限制: %s", provider, max_output_tokens)
+    text = choice.message.content or ""
     return TextGenerationResult(
         text=text.strip() if isinstance(text, str) else str(text),
         provider=provider,

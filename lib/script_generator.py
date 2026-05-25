@@ -93,6 +93,8 @@ class ScriptGenerator:
                 supported_durations=self._resolve_supported_durations(),
                 default_duration=self.project_json.get("default_duration"),
                 aspect_ratio=self._resolve_aspect_ratio(),
+                episode=episode,
+                scenes=self.project_json.get("scenes", {}),
             )
             schema = NarrationEpisodeScript
         else:
@@ -106,6 +108,8 @@ class ScriptGenerator:
                 supported_durations=self._resolve_supported_durations(),
                 default_duration=self.project_json.get("default_duration"),
                 aspect_ratio=self._resolve_aspect_ratio(),
+                episode=episode,
+                scenes=self.project_json.get("scenes", {}),
             )
             schema = DramaEpisodeScript
 
@@ -113,7 +117,11 @@ class ScriptGenerator:
         logger.info("正在生成第 %d 集劇本...", episode)
         project_name = self.project_path.name
         result = await self.generator.generate(
-            TextGenerationRequest(prompt=prompt, response_schema=schema),
+            TextGenerationRequest(
+                prompt=prompt,
+                response_schema=schema,
+                max_output_tokens=32768,  # 一集約 50 段 * 600 tokens/段 + overhead
+            ),
             project_name=project_name,
         )
         response_text = result.text
@@ -160,6 +168,8 @@ class ScriptGenerator:
                 supported_durations=self._resolve_supported_durations(),
                 default_duration=self.project_json.get("default_duration"),
                 aspect_ratio=self._resolve_aspect_ratio(),
+                episode=episode,
+                scenes=self.project_json.get("scenes", {}),
             )
         else:
             return build_drama_prompt(
@@ -172,6 +182,8 @@ class ScriptGenerator:
                 supported_durations=self._resolve_supported_durations(),
                 default_duration=self.project_json.get("default_duration"),
                 aspect_ratio=self._resolve_aspect_ratio(),
+                episode=episode,
+                scenes=self.project_json.get("scenes", {}),
             )
 
     def _resolve_supported_durations(self) -> list[int] | None:

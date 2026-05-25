@@ -129,7 +129,7 @@ class CostCalculator:
 
     # Gemini 文字 token 費率（美元/百萬 token）
     GEMINI_TEXT_COST = {
-        "gemini-3-flash-preview": {"input": 0.10, "output": 0.40},
+        "gemini-3.1-flash-lite-preview": {"input": 0.10, "output": 0.40},
     }
 
     # Ark 文字 token 費率（元/百萬 token）
@@ -342,7 +342,7 @@ class CostCalculator:
         PROVIDER_GROK: ("GROK_TEXT_COST", "grok-4-1-fast-reasoning", "USD"),
         PROVIDER_OPENAI: ("OPENAI_TEXT_COST", "gpt-5.4-mini", "USD"),
     }
-    _TEXT_COST_DEFAULT = ("GEMINI_TEXT_COST", "gemini-3-flash-preview", "USD")
+    _TEXT_COST_DEFAULT = ("GEMINI_TEXT_COST", "gemini-3.1-flash-lite-preview", "USD")
 
     def calculate_text_cost(
         self,

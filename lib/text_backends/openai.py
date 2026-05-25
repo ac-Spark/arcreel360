@@ -66,6 +66,9 @@ class OpenAITextBackend:
         messages = _build_messages(request)
         kwargs: dict = {"model": self._model, "messages": messages}
 
+        if request.max_output_tokens is not None:
+            kwargs["max_completion_tokens"] = request.max_output_tokens
+
         if request.response_schema:
             schema = resolve_schema(request.response_schema)
             kwargs["response_format"] = {
@@ -89,8 +92,16 @@ class OpenAITextBackend:
             raise
 
         usage = response.usage
+        choice = response.choices[0]
+        if getattr(choice, "finish_reason", None) == "length":
+            logger.warning(
+                "OpenAI 回應因 max_completion_tokens (%s) 截斷,輸出 %s tokens",
+                request.max_output_tokens,
+                usage.completion_tokens if usage else None,
+            )
+
         return TextGenerationResult(
-            text=response.choices[0].message.content or "",
+            text=choice.message.content or "",
             provider=PROVIDER_OPENAI,
             model=self._model,
             input_tokens=usage.prompt_tokens if usage else None,
@@ -162,4 +173,5 @@ async def _instructor_fallback(
         messages=messages,
         response_schema=request.response_schema,
         provider=PROVIDER_OPENAI,
+        max_output_tokens=request.max_output_tokens,
     )

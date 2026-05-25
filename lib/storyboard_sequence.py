@@ -24,7 +24,7 @@ PREVIOUS_STORYBOARD_REFERENCE_DESCRIPTION = (
 )
 
 
-def get_storyboard_items(script: dict) -> tuple[list[dict], str, str, str]:
+def get_storyboard_items(script: dict) -> tuple[list[dict], str, str, str, str]:
     content_mode = script.get("content_mode", "narration")
     if content_mode == "narration" and "segments" in script:
         return (
@@ -32,12 +32,14 @@ def get_storyboard_items(script: dict) -> tuple[list[dict], str, str, str]:
             "segment_id",
             "characters_in_segment",
             "clues_in_segment",
+            "scene_in_segment",
         )
     return (
         list(script.get("scenes", [])),
         "scene_id",
         "characters_in_scene",
         "clues_in_scene",
+        "scene_in_scene",
     )
 
 

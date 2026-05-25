@@ -413,6 +413,27 @@ def _get_model_default_duration(provider_name: str, model_name: str | None) -> i
     return 4
 
 
+def _append_existing_project_asset(reference_images: list[object], project_path: Path, asset_path: str | None) -> None:
+    if not asset_path:
+        return
+    path = project_path / asset_path
+    if path.exists():
+        reference_images.append(path)
+
+
+def _append_entity_reference_images(
+    reference_images: list[object],
+    project_path: Path,
+    entities: dict,
+    names: list[str],
+    sheet_fields: tuple[str, ...],
+) -> None:
+    for name in names:
+        entity_data = entities.get(name, {})
+        sheet = next((entity_data.get(field) for field in sheet_fields if entity_data.get(field)), None)
+        _append_existing_project_asset(reference_images, project_path, sheet)
+
+
 def _collect_reference_images(
     project: dict,
     project_path: Path,
@@ -420,26 +441,37 @@ def _collect_reference_images(
     *,
     char_field: str,
     clue_field: str,
+    scene_field: str | None = None,
     extra_reference_images: list[str] | None = None,
     previous_storyboard_path: Path | None = None,
 ) -> list[object] | None:
     reference_images: list[object] = []
 
-    for char_name in target_item.get(char_field, []):
-        char_data = project.get("characters", {}).get(char_name, {})
-        sheet = char_data.get("character_sheet")
-        if sheet:
-            path = project_path / sheet
-            if path.exists():
-                reference_images.append(path)
+    _append_entity_reference_images(
+        reference_images,
+        project_path,
+        project.get("characters", {}),
+        target_item.get(char_field, []),
+        ("character_sheet",),
+    )
+    _append_entity_reference_images(
+        reference_images,
+        project_path,
+        project.get("clues", {}),
+        target_item.get(clue_field, []),
+        ("clue_sheet",),
+    )
 
-    for clue_name in target_item.get(clue_field, []):
-        clue_data = project.get("clues", {}).get(clue_name, {})
-        sheet = clue_data.get("clue_sheet")
-        if sheet:
-            path = project_path / sheet
-            if path.exists():
-                reference_images.append(path)
+    if scene_field:
+        scene_name = target_item.get(scene_field)
+        if scene_name:
+            _append_entity_reference_images(
+                reference_images,
+                project_path,
+                project.get("scenes", {}),
+                [scene_name],
+                ("scene_sheet", "scene_ref"),
+            )
 
     for extra in extra_reference_images or []:
         extra_path = Path(extra)
@@ -481,14 +513,14 @@ def _require_item_prompt(
     return effective_prompt
 
 
-def _resolve_storyboard_item(script: dict[str, Any], resource_id: str) -> tuple[dict, list[dict], str, str, str]:
+def _resolve_storyboard_item(script: dict[str, Any], resource_id: str) -> tuple[dict, list[dict], str, str, str, str]:
     """Resolve a narration segment or drama scene from a storyboard-compatible script."""
-    items, id_field, char_field, clue_field = get_storyboard_items(script)
+    items, id_field, char_field, clue_field, scene_field = get_storyboard_items(script)
     resolved = find_storyboard_item(items, id_field, resource_id)
     if resolved is None:
         raise ValueError(f"scene/segment not found: {resource_id}")
     target_item, _ = resolved
-    return target_item, items, id_field, char_field, clue_field
+    return target_item, items, id_field, char_field, clue_field, scene_field
 
 
 def _compute_affected_fingerprints(project_name: str, task_type: str, resource_id: str) -> dict[str, int]:
@@ -605,7 +637,9 @@ async def execute_storyboard_task(
         _project = _manager.load_project(project_name)
         _project_path = _manager.get_project_path(project_name)
         _script = _manager.load_script(project_name, script_file)
-        _target_item, _items, _id_field, _char_field, _clue_field = _resolve_storyboard_item(_script, resource_id)
+        _target_item, _items, _id_field, _char_field, _clue_field, _scene_field = _resolve_storyboard_item(
+            _script, resource_id
+        )
 
         _effective_prompt = _require_item_prompt(prompt, _target_item, "image_prompt", resource_id)
         _prev_path = resolve_previous_storyboard_path(_project_path, _items, _id_field, resource_id)
@@ -616,6 +650,7 @@ async def execute_storyboard_task(
             _target_item,
             char_field=_char_field,
             clue_field=_clue_field,
+            scene_field=_scene_field,
             extra_reference_images=payload.get("extra_reference_images") or [],
             previous_storyboard_path=_prev_path,
         )
@@ -676,7 +711,7 @@ async def execute_video_task(
         _effective_prompt = prompt
         if not _effective_prompt:
             _script = _manager.load_script(project_name, script_file)
-            _target_item, _, _, _, _ = _resolve_storyboard_item(_script, resource_id)
+            _target_item, _, _, _, _, _ = _resolve_storyboard_item(_script, resource_id)
             _effective_prompt = _require_item_prompt(prompt, _target_item, "video_prompt", resource_id)
         return _project, _project_path, _effective_prompt
 

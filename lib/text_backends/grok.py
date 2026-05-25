@@ -46,7 +46,10 @@ class GrokTextBackend:
 
     @with_retry_async()
     async def generate(self, request: TextGenerationRequest) -> TextGenerationResult:
-        chat = self._client.chat.create(model=self._model)
+        chat_kwargs = {"model": self._model}
+        if request.max_output_tokens is not None:
+            chat_kwargs["max_tokens"] = request.max_output_tokens
+        chat = self._client.chat.create(**chat_kwargs)
 
         # System prompt
         if request.system_prompt:
@@ -89,6 +92,13 @@ class GrokTextBackend:
             usage = response.usage
             input_tokens = getattr(usage, "input_tokens", None) or getattr(usage, "prompt_tokens", None)
             output_tokens = getattr(usage, "output_tokens", None) or getattr(usage, "completion_tokens", None)
+
+        if getattr(response, "finish_reason", None) == "length":
+            logger.warning(
+                "Grok 回應因 max_tokens (%s) 截斷,輸出 %s tokens",
+                request.max_output_tokens,
+                output_tokens,
+            )
 
         return TextGenerationResult(
             text=text.strip() if isinstance(text, str) else str(text),

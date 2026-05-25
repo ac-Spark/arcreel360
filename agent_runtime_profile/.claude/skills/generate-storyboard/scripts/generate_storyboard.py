@@ -102,7 +102,7 @@ def get_items_from_script(script: dict) -> tuple:
         script: 劇本資料
 
     Returns:
-        (items_list, id_field, char_field, clue_field) 元組
+        (items_list, id_field, char_field, clue_field, scene_field) 元組
     """
     return get_storyboard_items(script)
 
@@ -253,7 +253,7 @@ def generate_storyboard_direct(
     content_mode = script.get("content_mode", "narration")
     project_data = _load_project_metadata(pm, project_name)
 
-    items, id_field, char_field, clue_field = get_items_from_script(script)
+    items, id_field, char_field, clue_field, _ = get_items_from_script(script)
     segments_to_process = _select_storyboard_items(items, id_field, segment_ids)
 
     if not segments_to_process:
