@@ -4,18 +4,18 @@
 
 ## 概述
 
-在 ArcReel 中新增 OpenAI 为第五个预置供应商，支持文本（GPT-5.4）、图片（GPT Image 1.5）、视频（Sora 2）三种媒体类型。采用"共享模块 + 三个独立 Backend"的架构，参照现有 `gemini_shared.py` 模式新增 `openai_shared.py`。
+在 ArcReel 中新增 OpenAI 为第五個预置供应商，支持文本（GPT-5.4）、图片（GPT Image 1.5）、视频（Sora 2）三种媒体类型。采用"共享模块 + 三個独立 Backend"的架构，参照現有 `gemini_shared.py` 模式新增 `openai_shared.py`。
 
 ### 范围
 
 - OpenAI 预置供应商（文本 + 图片 + 视频）
-- **不包含**自定义供应商（下一个迭代）
+- **不包含**自定义供应商（下一個迭代）
 
 ### 关键决策
 
 | 决策点 | 结论 | 理由 |
 |--------|------|------|
-| 架构模式 | 共享 `openai_shared.py` + 三个独立 Backend | 有 `gemini_shared.py` 先例，DRY 且为自定义供应商铺路 |
+| 架构模式 | 共享 `openai_shared.py` + 三個独立 Backend | 有 `gemini_shared.py` 先例，DRY 且为自定义供应商铺路 |
 | SDK | 统一使用 `openai` SDK 2.30.0 | 已在依赖中，三种媒体类型 API 均完整支持 |
 | 结构化输出 | 原生 `response_format` 优先，Instructor fallback | 与 Gemini 后端策略一致 |
 | 图片 API | Images API（`generate` + `edit`） | 与 `ImageBackend` Protocol 天然对齐 |
@@ -149,7 +149,7 @@ class OpenAITextBackend:
 **关键实现细节：**
 
 1. **消息构建** — `_build_messages()` 将 `request.prompt` / `system_prompt` / `images` 转为 OpenAI messages 格式，图片用 `{"type": "image_url", "image_url": {"url": data_uri}}`
-2. **结构化输出** — `_build_response_format()` 将 Pydantic model / JSON schema 转为 `{"type": "json_schema", "json_schema": {...}}`，配合现有 `resolve_schema()` 工具
+2. **结构化输出** — `_build_response_format()` 将 Pydantic model / JSON schema 转为 `{"type": "json_schema", "json_schema": {...}}`，配合現有 `resolve_schema()` 工具
 3. **Instructor fallback（后续迭代）** — 本期仅实现原生 `response_format` 结构化输出。Instructor fallback 路径作为后续优化，待确认 GPT-5.4 系列的 schema 兼容性边界后再添加
 4. **Usage 容错** — `response.usage` 可能为 None（兼容服务），记为 None 不阻塞
 
@@ -372,7 +372,7 @@ def _test_openai(config: dict[str, str]) -> ConnectionTestResponse:
 
 注册到 `_TEST_DISPATCH["openai"] = _test_openai`。
 
-> **注意：** 使用同步 `OpenAI` 客户端而非 `AsyncOpenAI`，因为现有框架通过 `asyncio.to_thread(test_fn, config)` 在线程池中运行所有连接测试函数（与 `_test_grok`、`_test_ark` 等一致）。
+> **注意：** 使用同步 `OpenAI` 客户端而非 `AsyncOpenAI`，因为現有框架通过 `asyncio.to_thread(test_fn, config)` 在线程池中运行所有连接测试函数（与 `_test_grok`、`_test_ark` 等一致）。
 
 ---
 

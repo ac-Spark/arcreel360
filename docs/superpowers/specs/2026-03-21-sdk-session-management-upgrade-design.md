@@ -5,7 +5,7 @@
 项目从 claude-agent-sdk 0.1.48 升级到 0.1.50，利用新增的会话管理 API 简化架构：
 
 - `list_sessions(directory)` — 按 cwd 列出会话，返回 `SDKSessionInfo`（含 `summary` 自动标题）
-- `get_session_info(session_id)` — 查询单个会话元数据
+- `get_session_info(session_id)` — 查询单個会话元数据
 - `tag_session(session_id, tag)` — 为会话打标签
 - `rename_session(session_id, title)` — 重命名会话
 
@@ -164,7 +164,7 @@ Alembic 迁移：
 
 **前端**：
 - `sendMessage` 的 `catch` 分支需正确处理新会话创建失败：移除乐观插入的用户消息 turn、恢复 draft 模式、显示错误提示
-- 修复现有 bug：当前 SDK 未存储消息但前端乐观显示的情况，通过 send-first 模式 + 错误回滚从根本上解决
+- 修复現有 bug：当前 SDK 未存储消息但前端乐观显示的情况，通过 send-first 模式 + 错误回滚从根本上解决
 
 ## 向后兼容
 

@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** 使用 Gemini-3-Flash-Preview 生成 JSON 剧本，替代现有 Agent 流程的 Step 3
+**Goal:** 使用 gemini-3.1-flash-lite-preview 生成 JSON 剧本，替代現有 Agent 流程的 Step 3
 
 **Architecture:** 核心逻辑在 `lib/script_generator.py`，CLI 入口在 `.claude/skills/generate-script/scripts/generate_script.py`。使用 Pydantic 定义数据模型并验证输出，借鉴 Storycraft 的 Prompt 工程技巧。
 
@@ -213,7 +213,7 @@ def build_narration_prompt(
 
 1. 你将获得故事概述、视觉风格、角色列表、线索列表，以及已拆分的小说片段。
 
-2. 为每个片段生成：
+2. 为每個片段生成：
    - image_prompt：第一帧的图像生成提示词
    - video_prompt：动作和音效的视频生成提示词
 
@@ -242,14 +242,14 @@ def build_narration_prompt(
 {segments_md}
 </segments>
 
-segments 为片段拆分表，每行是一个片段，包含：
+segments 为片段拆分表，每行是一個片段，包含：
 - 片段 ID：格式为 E{{集数}}S{{序号}}
 - 小说原文：必须原样保留到 novel_text 字段
 - 时长：4、6 或 8 秒
 - 是否有对话：用于判断是否需要填写 video_prompt.dialogue
 - 是否为 segment_break：场景切换点，需设置 segment_break 为 true
 
-3. 为每个片段生成时，遵循以下规则：
+3. 为每個片段生成时，遵循以下规则：
 
 a. **novel_text**：原样复制小说原文，不做任何修改。
 
@@ -316,7 +316,7 @@ def build_drama_prompt(
 
 1. 你将获得故事概述、视觉风格、角色列表、线索列表，以及已拆分的场景列表。
 
-2. 为每个场景生成：
+2. 为每個场景生成：
    - image_prompt：第一帧的图像生成提示词
    - video_prompt：动作和音效的视频生成提示词
 
@@ -345,14 +345,14 @@ def build_drama_prompt(
 {scenes_md}
 </scenes>
 
-scenes 为场景拆分表，每行是一个场景，包含：
+scenes 为场景拆分表，每行是一個场景，包含：
 - 场景 ID：格式为 E{{集数}}S{{序号}}
 - 场景描述：剧本改编后的场景内容
 - 时长：4、6 或 8 秒（默认 8 秒）
 - 场景类型：剧情、动作、对话等
 - 是否为 segment_break：场景切换点，需设置 segment_break 为 true
 
-3. 为每个场景生成时，遵循以下规则：
+3. 为每個场景生成时，遵循以下规则：
 
 a. **characters_in_scene**：列出本场景中出场的角色名称。
    - 可选值：[{', '.join(character_names)}]
@@ -844,7 +844,7 @@ description: 使用 Gemini API 生成 JSON 剧本。使用场景：(1) 用户运
 
 # generate-script
 
-使用 Gemini API 生成 JSON 剧本，替代现有 Agent 流程的 Step 3。
+使用 Gemini API 生成 JSON 剧本，替代現有 Agent 流程的 Step 3。
 
 ## 前置条件
 

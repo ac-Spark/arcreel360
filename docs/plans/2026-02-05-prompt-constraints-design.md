@@ -91,7 +91,7 @@ e. **video_prompt**：生成包含以下字段的对象：
      排除多场景切换、蒙太奇、快速剪辑等单次生成无法实现的效果。
      排除比喻性动作描述（如"像蝴蝶般飞舞"）。
    - camera_motion：镜头运动（Static, Pan Left, Pan Right, Tilt Up, Tilt Down, Zoom In, Zoom Out, Tracking Shot）
-     每个片段仅选择一种镜头运动。
+     每個片段仅选择一种镜头运动。
    - ambiance_audio：用中文描述画内音（diegetic sound）——环境声、脚步声、物体声音。
      仅描述场景内真实存在的声音。排除音乐、BGM、旁白、画外音。
    - dialogue：{speaker, line} 数组。仅当原文有引号对话时填写。speaker 必须来自 characters_in_segment。
@@ -122,7 +122,7 @@ d. **video_prompt**：生成包含以下字段的对象：
      排除多场景切换、蒙太奇、快速剪辑等单次生成无法实现的效果。
      排除比喻性动作描述（如"像蝴蝶般飞舞"）。
    - camera_motion：镜头运动（Static, Pan Left, Pan Right, Tilt Up, Tilt Down, Zoom In, Zoom Out, Tracking Shot）
-     每个片段仅选择一种镜头运动。
+     每個片段仅选择一种镜头运动。
    - ambiance_audio：用中文描述画内音（diegetic sound）——环境声、脚步声、物体声音。
      仅描述场景内真实存在的声音。排除音乐、BGM、旁白、画外音。
    - dialogue：{speaker, line} 数组。包含角色对话。speaker 必须来自 characters_in_scene。
@@ -143,7 +143,7 @@ d. **video_prompt**：生成包含以下字段的对象：
     }
   },
   "video_prompt": {
-    "action": "镜头快速在几个场景切换：被推开的奏折、假山上晃动的枝叶、偏殿凌乱的床褥。"
+    "action": "镜头快速在几個场景切换：被推开的奏折、假山上晃动的枝叶、偏殿凌乱的床褥。"
   }
 }
 ```
@@ -170,7 +170,7 @@ d. **video_prompt**：生成包含以下字段的对象：
 
 1. 修改 `lib/prompt_builders_script.py` 中的 `build_narration_prompt()` 函数
 2. 修改 `lib/prompt_builders_script.py` 中的 `build_drama_prompt()` 函数
-3. 使用现有测试项目重新生成剧本，验证效果
+3. 使用現有测试项目重新生成剧本，验证效果
 
 ---
 

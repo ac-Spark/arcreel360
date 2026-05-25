@@ -2,19 +2,19 @@
 
 ## 背景
 
-当前视频时长硬编码为 `[4, 6, 8]` 秒三个选项，横竖屏与 `content_mode` 强绑定（说书=竖屏，剧集=横屏）。随着多供应商视频模型接入，不同模型支持的时长各不相同，需要将这两项配置从硬编码改为动态可配置。
+当前视频时长硬编码为 `[4, 6, 8]` 秒三個选项，横竖屏与 `content_mode` 强绑定（说书=竖屏，剧集=横屏）。随着多供应商视频模型接入，不同模型支持的时长各不相同，需要将这两项配置从硬编码改为动态可配置。
 
 ## 设计目标
 
 1. 视频时长由视频模型的能力决定，精确到模型级别
 2. 横竖屏（aspect_ratio）与 content_mode 完全解耦，项目创建时独立选择
 3. 用户可设置项目默认时长偏好，也可选择"自动"让 AI 根据内容决定
-4. 分镜级别仍可在模型支持范围内逐个选择时长
+4. 分镜级别仍可在模型支持范围内逐個选择时长
 5. 向后兼容已有项目数据
 
 ## 方案：扩展 ModelInfo + 运行时解析
 
-在现有 `ModelInfo` 和 `CustomProviderModel` 上扩展 `supported_durations` 字段，复用现有 Registry/ConfigService 体系。
+在現有 `ModelInfo` 和 `CustomProviderModel` 上扩展 `supported_durations` 字段，复用現有 Registry/ConfigService 体系。
 
 ---
 
@@ -67,7 +67,7 @@ supported_durations: Mapped[str | None] = mapped_column(Text, nullable=True)
 # null 表示使用按 api_format 的保守预设
 ```
 
-需一个 Alembic 迁移。
+需一個 Alembic 迁移。
 
 ### 1.3 保守预设
 
@@ -306,4 +306,4 @@ def build_drama_prompt(
 - 项目创建/设置相关组件 — 新增选择器
 
 ### 数据库
-- 1 个 Alembic 迁移（CustomProviderModel.supported_durations）
+- 1 個 Alembic 迁移（CustomProviderModel.supported_durations）

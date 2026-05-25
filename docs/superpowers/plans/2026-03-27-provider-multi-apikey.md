@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 为每个供应商支持配置多个 API Key / Vertex 凭证，手动切换活跃 Key，连接测试可针对任意 Key 进行。
+**Goal:** 为每個供应商支持配置多個 API Key / Vertex 凭证，手动切换活跃 Key，连接测试可针对任意 Key 进行。
 
-**Architecture:** 新建 `provider_credential` 表存储凭证（名称、密钥、base_url、活跃状态），与现有 `provider_config` 表（RPM/workers 共享配置）分离。`ConfigResolver.provider_config()` 在返回时合并活跃凭证信息，使下游消费方无感知。前端 `ProviderDetail` 拆分为凭证管理区 + 共享配置区。
+**Architecture:** 新建 `provider_credential` 表存储凭证（名称、密钥、base_url、活跃状态），与現有 `provider_config` 表（RPM/workers 共享配置）分离。`ConfigResolver.provider_config()` 在返回时合并活跃凭证信息，使下游消费方无感知。前端 `ProviderDetail` 拆分为凭证管理区 + 共享配置区。
 
 **Tech Stack:** Python 3.12, SQLAlchemy async ORM, Alembic, FastAPI, React 19, TypeScript, Tailwind CSS 4
 
@@ -198,7 +198,7 @@ from lib.db.base import Base, TimestampMixin
 
 
 class ProviderCredential(TimestampMixin, Base):
-    """供应商凭证。每个供应商可有多条凭证，其中最多一条 is_active=True。"""
+    """供应商凭证。每個供应商可有多条凭证，其中最多一条 is_active=True。"""
 
     __tablename__ = "provider_credential"
     __table_args__ = (
@@ -218,7 +218,7 @@ class ProviderCredential(TimestampMixin, Base):
 
 修改 `lib/db/models/__init__.py`，添加导入和导出：
 
-在现有导入后添加：
+在現有导入后添加：
 ```python
 from lib.db.models.credential import ProviderCredential
 ```
@@ -258,7 +258,7 @@ git commit -m "feat: 新增 ProviderCredential ORM 模型"
     # 数据迁移：将 provider_config 中的凭证行迁入 provider_credential
     conn = op.get_bind()
 
-    # 读出所有现有的凭证相关配置
+    # 读出所有現有的凭证相关配置
     rows = conn.execute(
         sa.text(
             "SELECT provider, key, value FROM provider_config "
@@ -272,7 +272,7 @@ git commit -m "feat: 新增 ProviderCredential ORM 模型"
     for provider, key, value in rows:
         provider_data[provider][key] = value
 
-    # 为每个 provider 创建凭证记录
+    # 为每個 provider 创建凭证记录
     now = sa.func.now()
     cred_table = sa.table(
         "provider_credential",
@@ -412,21 +412,21 @@ class TestCredentialRepository:
 
     async def test_first_credential_is_active(self, session: AsyncSession):
         repo = CredentialRepository(session)
-        cred = await repo.create(provider="gemini-aistudio", name="第一个", api_key="AIza-1")
+        cred = await repo.create(provider="gemini-aistudio", name="第一個", api_key="AIza-1")
         await session.flush()
         assert cred.is_active is True
 
     async def test_second_credential_is_not_active(self, session: AsyncSession):
         repo = CredentialRepository(session)
-        await repo.create(provider="gemini-aistudio", name="第一个", api_key="AIza-1")
-        cred2 = await repo.create(provider="gemini-aistudio", name="第二个", api_key="AIza-2")
+        await repo.create(provider="gemini-aistudio", name="第一個", api_key="AIza-1")
+        cred2 = await repo.create(provider="gemini-aistudio", name="第二個", api_key="AIza-2")
         await session.flush()
         assert cred2.is_active is False
 
     async def test_activate(self, session: AsyncSession):
         repo = CredentialRepository(session)
-        c1 = await repo.create(provider="gemini-aistudio", name="第一个", api_key="AIza-1")
-        c2 = await repo.create(provider="gemini-aistudio", name="第二个", api_key="AIza-2")
+        c1 = await repo.create(provider="gemini-aistudio", name="第一個", api_key="AIza-1")
+        c2 = await repo.create(provider="gemini-aistudio", name="第二個", api_key="AIza-2")
         await session.flush()
 
         await repo.activate(c2.id, "gemini-aistudio")
@@ -1658,7 +1658,7 @@ function CredentialRow({ cred, providerId, isVertex, onChanged }: RowProps) {
             />
           </div>
           <div>
-            <label className="text-xs text-gray-500">API Key（留空保留现有值）</label>
+            <label className="text-xs text-gray-500">API Key（留空保留現有值）</label>
             <input
               type="password"
               value={draft.api_key}
@@ -1748,7 +1748,7 @@ function AddCredentialForm({ providerId, isVertex, onCreated, onCancel }: AddFor
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="例如：个人账号"
+          placeholder="例如：個人账号"
           className="mt-0.5 w-full rounded border border-gray-700 bg-gray-900 px-2 py-1 text-sm text-gray-100 placeholder-gray-600"
         />
       </div>
@@ -1924,7 +1924,7 @@ git commit -m "feat: CredentialList 凭证管理前端组件"
 import { CredentialList } from "@/components/pages/CredentialList";
 ```
 
-2. 移除 `CredentialsUploadField` 组件（整个函数和接口定义）
+2. 移除 `CredentialsUploadField` 组件（整個函数和接口定义）
 
 3. 在主组件的 JSX 中，将 `basicFields` 区域替换为 `CredentialList`：
 
@@ -1950,7 +1950,7 @@ import { CredentialList } from "@/components/pages/CredentialList";
 
 4. `basicFields` 过滤逻辑不再需要（因为 config 端点已不返回凭证字段，fields 里只剩高级配置）。简化为：所有 fields 都放在高级配置区。
 
-5. 移除顶部的「测试连接」按钮（测试功能已移到每个凭证行内）。保留 handleSave 逻辑用于高级配置保存。
+5. 移除顶部的「测试连接」按钮（测试功能已移到每個凭证行内）。保留 handleSave 逻辑用于高级配置保存。
 
 最终组件结构：
 

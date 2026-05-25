@@ -198,7 +198,7 @@ def _get_step_title(filename: str) -> str:
 
 - [ ] **Step 4: 更新 helper 函数测试**
 
-在 `tests/test_files_router.py` 的 `test_files_helper_functions` 中，替换整个方法体：
+在 `tests/test_files_router.py` 的 `test_files_helper_functions` 中，替换整個方法体：
 
 ```python
     def test_files_helper_functions(self, tmp_path):
@@ -327,7 +327,7 @@ export interface ProjectChangeFocus {
 - [ ] **Step 3: 构建检查**
 
 Run: `cd frontend && pnpm build`
-Expected: 成功（新联合成员仅扩展类型，不破坏现有代码）
+Expected: 成功（新联合成员仅扩展类型，不破坏現有代码）
 
 - [ ] **Step 4: 提交**
 
@@ -399,7 +399,7 @@ const CHANGE_PRIORITY: Record<string, number> = {
 
 - [ ] **Step 2: 在 onChanges 回调中添加 draft 自动导航**
 
-在 `frontend/src/hooks/useProjectEventsSSE.ts` 的 `onChanges` 回调中（约第246行），在 `groupedChanges` 循环（非 webui 的 toast 推送）之后、现有 `nextFocusTarget` 逻辑之前，插入 draft 导航逻辑：
+在 `frontend/src/hooks/useProjectEventsSSE.ts` 的 `onChanges` 回调中（约第246行），在 `groupedChanges` 循环（非 webui 的 toast 推送）之后、現有 `nextFocusTarget` 逻辑之前，插入 draft 导航逻辑：
 
 将第246-263行的代码块替换为：
 

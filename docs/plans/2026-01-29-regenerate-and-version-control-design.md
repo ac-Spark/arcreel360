@@ -211,7 +211,7 @@ async def generate_storyboard(name, segment_id, prompt, script_file):
     current_file = f"storyboards/scene_{segment_id}.png"
 
     if current_file exists:
-        # 有现有文件 → 备份到版本目录
+        # 有現有文件 → 备份到版本目录
         backup_to_versions(current_file, prompt)
 
     # 调用 GeminiClient 生成新图片
@@ -365,4 +365,4 @@ class VersionManager:
 2. **参考图传递**：生成分镜图/视频时，自动获取 segment/scene 中的 `characters_in_segment` 和 `clues_in_segment`，传递对应的设计图作为参考
 3. **画面比例**：根据 `content_mode` 自动选择（narration: 9:16, drama: 16:9）
 4. **并发安全**：`versions.json` 读写需要加锁，防止并发冲突
-5. **错误处理**：API 调用失败时保留原文件，不影响现有版本
+5. **错误处理**：API 调用失败时保留原文件，不影响現有版本

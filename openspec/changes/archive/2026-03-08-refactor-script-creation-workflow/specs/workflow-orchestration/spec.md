@@ -22,7 +22,7 @@ manga-workflow skill 被加载后，SHALL 自动检测当前项目的工作流�
 
 ### Requirement: 编排 skill 须定义阶段间的 dispatch 和确认协议
 
-每个阶段的 subagent 返回后，主 agent SHALL 向用户展示结果摘要并等待确认，确认后才进入下一阶段。
+每個阶段的 subagent 返回后，主 agent SHALL 向用户展示结果摘要并等待确认，确认后才进入下一阶段。
 
 #### Scenario: subagent 返回角色/线索提取结果
 - **WHEN** `analyze-characters-clues` subagent 完成并返回

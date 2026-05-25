@@ -45,8 +45,8 @@
 | `composition.ambiance` | string | 氛围描述（色调、情绪、环境效果） |
 
 > **注意**：
-> - **Style（风格）** 由项目级 `project.json` 的 `style` 字段统一决定，不在每个 segment 中重复
-> - **角色和线索** 通过现有的 `characters_in_segment` / `clues_in_segment` 字段引用，不在 imagePrompt 中重复
+> - **Style（风格）** 由项目级 `project.json` 的 `style` 字段统一决定，不在每個 segment 中重复
+> - **角色和线索** 通过現有的 `characters_in_segment` / `clues_in_segment` 字段引用，不在 imagePrompt 中重复
 
 ### 1.2 videoPrompt 结构
 
@@ -98,7 +98,7 @@
 | `Medium Long Shot` | 中远景 | 头部到膝盖 |
 | `Long Shot` | 远景 | 全身可见 |
 | `Extreme Long Shot` | 大远景 | 角色在环境中很小 |
-| `Over-the-shoulder` | 过肩镜头 | 从一个角色肩后看另一个角色 |
+| `Over-the-shoulder` | 过肩镜头 | 从一個角色肩后看另一個角色 |
 | `Point-of-view` | 主观镜头 | 从角色视角看 |
 
 ### 2.3 camera_motion（摄像机运动）
@@ -365,7 +365,7 @@ For each segment, generate a video_prompt object with the following structure:
 
 1. 更新 Agent System Prompt，输出结构化格式
 2. 更新分镜/视频生成脚本，解析结构化 Prompt 并转换为 YAML
-3. 现有项目剧本需重新生成或手动迁移
+3. 現有项目剧本需重新生成或手动迁移
 
 ---
 

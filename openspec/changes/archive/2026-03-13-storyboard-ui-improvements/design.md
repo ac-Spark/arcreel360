@@ -18,13 +18,13 @@ SegmentCard 是分镜板的核心卡片组件，渲染于 TimelineCanvas 的虚�
 
 ### 决策 1：时长选择器使用 Popover 而非点击循环
 
-**选择**：点击时长徽章弹出 Popover，列出 4s / 6s / 8s 三个按钮，当前值高亮。
+**选择**：点击时长徽章弹出 Popover，列出 4s / 6s / 8s 三個按钮，当前值高亮。
 
 **理由**：直接循环切换（4→6→8→4）不直观，用户无法一次看到全部选项。Popover 复用已有的 `Popover` 组件，实现代价低，且与项目中其他弹出交互风格一致。
 
 **备选方案**：行内三段 Segmented Control（始终可见）——占用水平空间，在头部宽度有限时会挤压 ID 徽章和头像区。
 
-### 决策 2：时长变更通过现有 onUpdatePrompt 通道传递
+### 决策 2：时长变更通过現有 onUpdatePrompt 通道传递
 
 **选择**：调用 `onUpdatePrompt(segmentId, "duration_seconds", newValue)`，复用 `StudioCanvasRouter` → `API.updateSegment` / `API.updateScene` → `refreshProject()` 的完整链路。
 

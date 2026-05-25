@@ -83,7 +83,7 @@
 
 ### Requirement: run_subagent 工具契约
 
-`run_subagent(skill: str, args: dict) -> {"result": <serializable>, "error": str | null}`：dispatch 一个 skill subagent 并同步等待返回。`skill` MUST 是 `manga-workflow` / `generate-script` / `generate-storyboard` / `generate-characters` / `generate-clues` / `generate-video` / `compose-video` 之一。skill 实际行为由 `skill_function_declarations.py` 注册的 handler 决定。
+`run_subagent(skill: str, args: dict) -> {"result": <serializable>, "error": str | null}`：dispatch 一個 skill subagent 并同步等待返回。`skill` MUST 是 `manga-workflow` / `generate-script` / `generate-storyboard` / `generate-characters` / `generate-clues` / `generate-video` / `compose-video` 之一。skill 实际行为由 `skill_function_declarations.py` 注册的 handler 决定。
 
 #### Scenario: 合法 skill 调用
 - **WHEN** 工具调用 `run_subagent("generate_script", {"episode": 1, "source_files": ["chapter1.txt"]})`

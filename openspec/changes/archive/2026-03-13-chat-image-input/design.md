@@ -61,4 +61,4 @@ AgentCopilot 对话框当前只支持纯文本输入。Claude Agent SDK 的 `Cla
 
 ## Open Questions
 
-- 是否需要在 `normalize_block` 中显式注册 `"image"` type（加 `elif block_type == "image": pass`），还是依赖现有 deepcopy 透传即可？建议显式注册以提高可读性，但不影响功能。
+- 是否需要在 `normalize_block` 中显式注册 `"image"` type（加 `elif block_type == "image": pass`），还是依赖現有 deepcopy 透传即可？建议显式注册以提高可读性，但不影响功能。

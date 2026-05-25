@@ -4,7 +4,7 @@
 
 **Goal:** 在 Web UI 中展示每集的预估费用和实际费用，支持项目概览→分镜板→分镜卡片三级展示。
 
-**Architecture:** 后端新增 `segment_id` 字段贯穿 API 调用追踪链路，新建 `cost_estimation` 服务读取剧本 + 模型配置计算预估、查询 ApiCall 累计实际费用。前端新增 cost store，三个组件层级各自从 store 读取对应粒度数据。
+**Architecture:** 后端新增 `segment_id` 字段贯穿 API 调用追踪链路，新建 `cost_estimation` 服务读取剧本 + 模型配置计算预估、查询 ApiCall 累计实际费用。前端新增 cost store，三個组件层级各自从 store 读取对应粒度数据。
 
 **Tech Stack:** Python/FastAPI/SQLAlchemy (后端), React 19/TypeScript/Zustand/Tailwind CSS 4 (前端)
 
@@ -192,7 +192,7 @@ Expected: FAIL — `start_call()` 不接受 `segment_id` 参数
 - [ ] **Step 5: 运行测试确认通过**
 
 Run: `uv run python -m pytest tests/test_usage_tracker.py -v`
-Expected: 全部 PASS（含新增的两个测试）
+Expected: 全部 PASS（含新增的两個测试）
 
 - [ ] **Step 6: Commit**
 
@@ -247,7 +247,7 @@ git commit -m "feat: UsageTracker/Repository 支持 segment_id 参数"
         )
 ```
 
-- [ ] **Step 3: 运行现有测试确保无回归**
+- [ ] **Step 3: 运行現有测试确保无回归**
 
 Run: `uv run python -m pytest tests/test_usage_tracker.py -v`
 Expected: 全部 PASS
@@ -531,7 +531,7 @@ def _add_cost(target: CostBreakdown, amount: float, currency: str) -> None:
 
 
 def _merge_breakdowns(a: CostBreakdown, b: CostBreakdown) -> CostBreakdown:
-    """合并两个 CostBreakdown。"""
+    """合并两個 CostBreakdown。"""
     merged = dict(a)
     for cur, amt in b.items():
         merged[cur] = round(merged.get(cur, 0) + amt, 6)
@@ -552,7 +552,7 @@ class CostEstimationService:
         *,
         project_name: str,
     ) -> dict[str, Any]:
-        """计算整个项目的预估 + 实际费用。
+        """计算整個项目的预估 + 实际费用。
 
         Args:
             project_data: project.json 内容
@@ -863,7 +863,7 @@ export interface CostByType {
   character_and_clue?: CostBreakdown;
 }
 
-/** 单个 segment 的费用 */
+/** 单個 segment 的费用 */
 export interface SegmentCost {
   segment_id: string;
   duration_seconds: number;
@@ -1113,7 +1113,7 @@ function totalBreakdown(byType: CostByType): CostBreakdown {
 
 - [ ] **Step 4: 修改剧集列表行，添加费用列**
 
-修改 `OverviewCanvas.tsx:361-374`，给每个剧集行添加费用信息：
+修改 `OverviewCanvas.tsx:361-374`，给每個剧集行添加费用信息：
 
 ```typescript
                 (projectData.episodes ?? []).map((ep) => {
@@ -1408,7 +1408,7 @@ export function totalBreakdown(byType: CostByType): CostBreakdown {
 }
 ```
 
-- [ ] **Step 2: 替换三个组件中的内联定义**
+- [ ] **Step 2: 替换三個组件中的内联定义**
 
 将 `OverviewCanvas.tsx`、`TimelineCanvas.tsx`、`SegmentCard.tsx` 中的内联 `formatCost`/`totalBreakdown` 函数替换为从 `@/utils/cost-format` 导入。
 

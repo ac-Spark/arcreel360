@@ -29,13 +29,13 @@
 - **后端核心改动**：`server/agent_runtime/session_manager.py`、`server/agent_runtime/service.py`、`server/routers/assistant.py`、`server/routers/agent_chat.py`
 - **配置与状态改动**：`server/routers/system_config.py`、`lib/config/service.py`、`frontend/src/stores/config-status-store.ts`
 - **前端交互改动**：`frontend/src/components/pages/AgentConfigTab.tsx`、`frontend/src/components/pages/SystemConfigPage.tsx`、助手面板相关状态与类型定义
-- **复用资产**：`lib/text_backends/gemini.py`、现有 Gemini provider 配置体系、现有 OpenAI 兼容 provider / backend 封装、现有项目上下文构建与消息流 UI
+- **复用资产**：`lib/text_backends/gemini.py`、現有 Gemini provider 配置体系、現有 OpenAI 兼容 provider / backend 封装、現有项目上下文构建与消息流 UI
 - **首期目标**：Gemini 与 OpenAI/ChatGPT 的 lite assistant；Claude 保留 full runtime
 - **后续阶段目标**：按本项目的小说转短视频工作流需要，逐步补齐 workflow-grade 能力，而不是复制 Claude SDK 全部协议
 
 ## Migration Notes
 
-- `assistant_provider=claude` 仍是默认行为，现有 Anthropic 用户不需要修改配置
+- `assistant_provider=claude` 仍是默认行为，現有 Anthropic 用户不需要修改配置
 - `assistant_provider=gemini-lite` 或 `assistant_provider=openai-lite` 后，系统配置完整性检查将改为对应 provider-specific requirement，不再把 Anthropic 视为全局必填
 - Gemini-lite 与 OpenAI-lite 首期定位是项目内 copilot，不承诺 Claude full runtime 的 resume、subagent、permission hook 等能力
 - 若前端检测到 capability 不支持，应显示结构化降级提示，而不是继续暴露 Claude-only 入口

@@ -2,7 +2,7 @@
 
 ## 概述
 
-为 ArcReel 新增单集费用估算功能，在 Web UI 中展示每集的**预估费用**（基于当前模型配置）和**实际费用**（基于历史 API 调用累计），支持从项目总览到单个分镜卡片的三级费用展示。
+为 ArcReel 新增单集费用估算功能，在 Web UI 中展示每集的**预估费用**（基于当前模型配置）和**实际费用**（基于历史 API 调用累计），支持从项目总览到单個分镜卡片的三级费用展示。
 
 ## 需求
 
@@ -28,7 +28,7 @@
 
 ### `GET /api/v1/projects/{project_name}/cost-estimate`
 
-一次返回整个项目所有集的预估 + 实际费用。
+一次返回整個项目所有集的预估 + 实际费用。
 
 **请求参数**：无（从项目当前剧本和模型配置自动计算）
 
@@ -101,7 +101,7 @@
 **预估**：
 1. 读取每集剧本 → 遍历 segments
 2. 通过 ConfigResolver 解析当前 image/video 模型 + 参数（resolution、audio、duration）
-3. 调用 CostCalculator 计算单个 segment 的 image + video 费用
+3. 调用 CostCalculator 计算单個 segment 的 image + video 费用
 
 **实际**：
 1. 从 UsageRepository 按 `project_name` + `segment_id` 查询所有成功的 ApiCall 记录
@@ -199,4 +199,4 @@
 - `test_cost_estimation_service.py`：预估计算逻辑（单货币、混合货币、无剧本、空 segment）
 - `test_cost_estimation_router.py`：API 端点（正常响应、项目不存在、无剧本）
 - `test_usage_repo.py`：新增按 segment_id 汇总查询的测试
-- 现有 `test_usage_tracker.py`：更新 start_call 签名适配
+- 現有 `test_usage_tracker.py`：更新 start_call 签名适配

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 修复 Grok 供应商的四个问题：上传图片过大导致 gRPC 4MB 报错、图片并发异常、参考图只用第一张、drama 模式比例不对。
+**Goal:** 修复 Grok 供应商的四個问题：上传图片过大导致 gRPC 4MB 报错、图片并发异常、参考图只用第一张、drama 模式比例不对。
 
 **Architecture:** 在上传入口压缩用户图片（JPEG + 限分辨率），Grok 图片后端改用多图编辑 API（`image_urls`）以同时支持多参考图和 aspect_ratio 生效，并在 worker 中增加 pool 配置日志以排查并发问题。
 
@@ -278,7 +278,7 @@ _COMPRESS_THRESHOLD = 2 * 1024 * 1024  # 2MB
 
 `server/services/project_archive.py` line 492 — 归档修复逻辑需同时处理两种后缀。将 `canonical_rel` 改为检查实际存在的文件：先查 `.jpg`，不存在则查 `.png`。如果修改 `_repair_path_to_canonical` 逻辑过于侵入，可保持现状不改此文件（旧项目仍为 `.png`，新项目的 `style_image` 字段已正确指向实际文件）。
 
-- [ ] **Step 4: 运行现有测试确认无回归**
+- [ ] **Step 4: 运行現有测试确认无回归**
 
 Run: `uv run python -m pytest tests/ -v -k "upload or style or archive or validator or fingerprint" --no-header`
 Expected: 全部 PASS（部分测试可能需要适配后缀变化）

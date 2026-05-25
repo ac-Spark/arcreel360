@@ -207,7 +207,7 @@ def extend_video(
     ...
 ) -> tuple:
     """
-    扩展现有视频（每次 +7 秒，最多扩展 20 次）
+    扩展現有视频（每次 +7 秒，最多扩展 20 次）
 
     ...
 
@@ -247,7 +247,7 @@ git commit -m "feat: return video_uri from extend_video for persistence"
 
 try:
     if video_ref is None:
-        # 第一个场景：使用 image-to-video
+        # 第一個场景：使用 image-to-video
         print(f"    🎥 生成初始视频（{duration}秒）...")
         output_path, video_ref, video_uri = client.generate_video_with_ref(
             prompt=prompt,
@@ -467,7 +467,7 @@ for i, seg in enumerate(segments):
     print(f'  片段 {i+1}: {len(seg)} 场景')
 "
 ```
-Expected: 显示 22 个场景，4 个片段
+Expected: 显示 22 個场景，4 個片段
 
 **Step 4: 最终 Commit**
 
@@ -482,7 +482,7 @@ git commit -m "feat: complete video reference persistence implementation"
 
 **注意：此任务需要消耗 API 配额，可选执行**
 
-**Step 1: 生成第一个视频并保存 checkpoint**
+**Step 1: 生成第一個视频并保存 checkpoint**
 
 ```bash
 PYTHONPATH=. python -c "
@@ -533,7 +533,7 @@ print('视频引用已恢复')
 # 扩展视频
 path, ref, new_uri = client.extend_video(
     video_ref=video_ref,
-    prompt='继续：酒店大厅内部，水晶吊灯，猩红地毯，一个穿黑色皮夹克的男子走入。',
+    prompt='继续：酒店大厅内部，水晶吊灯，猩红地毯，一個穿黑色皮夹克的男子走入。',
     output_path=project_dir / 'videos/test_persist_extended.mp4'
 )
 
@@ -541,7 +541,7 @@ print(f'扩展成功: {path}')
 "
 ```
 
-Expected: 两个视频文件生成成功，扩展后的视频时长约 13 秒
+Expected: 两個视频文件生成成功，扩展后的视频时长约 13 秒
 
 ---
 

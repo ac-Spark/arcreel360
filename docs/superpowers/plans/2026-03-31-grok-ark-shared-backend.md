@@ -4,7 +4,7 @@
 
 **Goal:** 为 Grok 和 Ark 创建共享模块（`grok_shared.py` / `ark_shared.py`），统一客户端创建逻辑，消除三处后端中的重复代码。
 
-**Architecture:** 新增两个共享模块 `lib/grok_shared.py` 和 `lib/ark_shared.py`，提供工厂函数。各后端改为调用共享工厂。Grok 文本后端额外从同步 Client 迁移到 AsyncClient。
+**Architecture:** 新增两個共享模块 `lib/grok_shared.py` 和 `lib/ark_shared.py`，提供工厂函数。各后端改为调用共享工厂。Grok 文本后端额外从同步 Client 迁移到 AsyncClient。
 
 **Tech Stack:** Python, xai_sdk, volcenginesdkarkruntime, pytest
 
@@ -691,7 +691,7 @@ class TestGenerate:
 ```python
     @pytest.fixture
     def backend_no_structured(self, mock_ark):
-        """创建一个模型不支持原生 structured_output 的 backend。"""
+        """创建一個模型不支持原生 structured_output 的 backend。"""
         mock_client = MagicMock()
         mock_ark.return_value = mock_client
         b = ArkTextBackend(api_key="k")
@@ -700,7 +700,7 @@ class TestGenerate:
 
     @pytest.fixture
     def backend_with_structured(self, mock_ark):
-        """创建一个模型支持原生 structured_output 的 backend（模拟）。"""
+        """创建一個模型支持原生 structured_output 的 backend（模拟）。"""
         mock_client = MagicMock()
         mock_ark.return_value = mock_client
         b = ArkTextBackend(api_key="k", model="mock-model-with-structured")
@@ -713,7 +713,7 @@ class TestGenerate:
 ```python
     @pytest.fixture
     def backend_no_structured(self, mock_ark):
-        """创建一个模型不支持原生 structured_output 的 backend。"""
+        """创建一個模型不支持原生 structured_output 的 backend。"""
         _, mock_client = mock_ark
         b = ArkTextBackend(api_key="k")
         b._test_client = mock_client
@@ -721,7 +721,7 @@ class TestGenerate:
 
     @pytest.fixture
     def backend_with_structured(self, mock_ark):
-        """创建一个模型支持原生 structured_output 的 backend（模拟）。"""
+        """创建一個模型支持原生 structured_output 的 backend（模拟）。"""
         _, mock_client = mock_ark
         b = ArkTextBackend(api_key="k", model="mock-model-with-structured")
         b._test_client = mock_client
@@ -952,7 +952,7 @@ class GrokImageBackend:
 
 - [ ] **Step 3: 适配测试 `tests/test_image_backends/test_grok.py`**
 
-当前测试通过 `patch.dict("sys.modules", {"xai_sdk": mock_sdk})` mock 整个 xai_sdk 模块。由于 `grok_shared.py` 在模块级别 `import xai_sdk`，需要改为 mock `lib.grok_shared.create_grok_client`。
+当前测试通过 `patch.dict("sys.modules", {"xai_sdk": mock_sdk})` mock 整個 xai_sdk 模块。由于 `grok_shared.py` 在模块级别 `import xai_sdk`，需要改为 mock `lib.grok_shared.create_grok_client`。
 
 改动前（fixture，第 16-23 行）：
 ```python

@@ -4,7 +4,7 @@
 
 **Goal:** 支持用户通过 base_url + api_key 接入任意 OpenAI/Google 兼容服务，同时修复 #189 中 3 项 OpenAI 预置供应商改进。
 
-**Architecture:** 平行轨道 — 自定义供应商有独立的 DB 表、Service、API 路由和前端区域，与预置供应商仅在 ConfigResolver（backend 选择）、system-config/options（模型下拉框）、UsageTracker（费用记录）三处汇合。Backend 层使用轻量包装类委托给现有 OpenAI/Gemini 后端。
+**Architecture:** 平行轨道 — 自定义供应商有独立的 DB 表、Service、API 路由和前端区域，与预置供应商仅在 ConfigResolver（backend 选择）、system-config/options（模型下拉框）、UsageTracker（费用记录）三处汇合。Backend 层使用轻量包装类委托给現有 OpenAI/Gemini 后端。
 
 **Tech Stack:** Python 3.12, SQLAlchemy Async ORM, FastAPI, Alembic, React 19, TypeScript, Tailwind CSS 4, Zustand
 
@@ -340,10 +340,10 @@ Expected: FAIL — `_resolve_size` 不存在
 
 - [ ] **Step 3: 实现 resolution 映射**
 
-在 `lib/video_backends/openai.py` 中替换现有的 `_SIZE_MAP` 和 `generate()` 中的 size 逻辑：
+在 `lib/video_backends/openai.py` 中替换現有的 `_SIZE_MAP` 和 `generate()` 中的 size 逻辑：
 
 ```python
-# 替换现有的 _SIZE_MAP
+# 替换現有的 _SIZE_MAP
 _SIZE_MAP: dict[tuple[str, str], str] = {
     # (resolution, aspect_ratio) → size
     ("720p", "9:16"): "720x1280",
@@ -498,7 +498,7 @@ from lib.db.base import Base, TimestampMixin
 
 
 class CustomProvider(TimestampMixin, Base):
-    """自定义供应商。每条记录代表用户添加的一个自定义供应商。"""
+    """自定义供应商。每条记录代表用户添加的一個自定义供应商。"""
 
     __tablename__ = "custom_provider"
 
@@ -1466,7 +1466,7 @@ def _calculate_custom_cost(
 
 ```python
 async def _auto_resolve_backend(self, svc, media_type):
-    # ... 现有预置供应商查询 ...
+    # ... 現有预置供应商查询 ...
 
     # 查询自定义供应商
     from lib.db.repositories.custom_provider_repo import CustomProviderRepository
@@ -1479,10 +1479,10 @@ async def _auto_resolve_backend(self, svc, media_type):
                 if provider:
                     return f"custom-{provider.id}", model.model_id
 
-    raise ValueError(f"未找到可用的 {media_type} 供应商。请在「全局设置 → 供应商」页面配置至少一个供应商。")
+    raise ValueError(f"未找到可用的 {media_type} 供应商。请在「全局设置 → 供应商」页面配置至少一個供应商。")
 ```
 
-在 `lib/text_backends/factory.py` 中扩展 `create_text_backend_for_task`，在现有逻辑前添加自定义供应商处理：
+在 `lib/text_backends/factory.py` 中扩展 `create_text_backend_for_task`，在現有逻辑前添加自定义供应商处理：
 
 ```python
 async def create_text_backend_for_task(task_type, project_name=None):
@@ -1502,7 +1502,7 @@ async def create_text_backend_for_task(task_type, project_name=None):
                 raise ValueError(f"自定义供应商 {provider_id} 不存在")
             return create_custom_backend(provider=provider, model_id=model_id, media_type="text")
 
-    # ... 现有预置供应商逻辑 ...
+    # ... 現有预置供应商逻辑 ...
 ```
 
 - [ ] **Step 5: 运行测试确认通过**
@@ -1571,7 +1571,7 @@ async def app_with_db():
 
 
 def test_create_custom_provider(app_with_db):
-    # 这个测试验证 POST /api/v1/custom-providers 能创建供应商
+    # 这個测试验证 POST /api/v1/custom-providers 能创建供应商
     pass  # 将在 Step 3 后填充完整的 API 测试
 
 
@@ -1691,7 +1691,7 @@ async def test_build_options_includes_custom_models(session):
 
 ```python
 async def _build_options(svc: ConfigService) -> dict[str, list[str]]:
-    # ... 现有代码 ...
+    # ... 現有代码 ...
 
     # 追加自定义供应商的模型
     from lib.db import async_session_factory

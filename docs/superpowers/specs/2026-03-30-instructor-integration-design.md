@@ -59,7 +59,7 @@ ArkTextBackend.generate(request)
   ▼
 _generate_structured(request)
   │  检查 self._supports_native_structured
-  ├─ True  → 原生 response_format（现有逻辑不变）
+  ├─ True  → 原生 response_format（現有逻辑不变）
   └─ False → instructor_support.generate_structured_via_instructor()
   ▼
 TextGenerationResult
@@ -67,7 +67,7 @@ TextGenerationResult
 
 ### 新模块：`lib/text_backends/instructor_support.py`
 
-提供一个纯函数：
+提供一個纯函数：
 
 ```python
 def generate_structured_via_instructor(
@@ -96,7 +96,7 @@ def generate_structured_via_instructor(
 1. **构造时判断能力**：新增 `_supports_native_structured` 属性，从 `PROVIDER_REGISTRY` 查询模型是否有 `structured_output` 能力。未注册模型保守降级为 Instructor（宁可多走 prompt 注入也不调用会报错的原生 API）。
 
 2. **`_generate_structured()` 分流**：
-   - `_supports_native_structured=True`：走现有原生 `response_format` 路径（零改动）
+   - `_supports_native_structured=True`：走現有原生 `response_format` 路径（零改动）
    - `_supports_native_structured=False`：调用 `generate_structured_via_instructor()`，组装 `TextGenerationResult` 返回
 
 3. **`generate()` 路由逻辑不变**：images → vision, response_schema → structured, else → plain
@@ -127,4 +127,4 @@ def generate_structured_via_instructor(
 |------|------|
 | `test_instructor_support.py` | mock Instructor patched client，验证 `create_with_completion()` 调用、JSON 序列化、token 统计提取 |
 | `test_ark.py` 扩展 | 验证模型无 `structured_output` 能力时走 Instructor 路径，有能力时走原生路径 |
-| 现有测试回归 | Gemini/Grok Backend 不受影响，ProjectManager 传 Pydantic 类兼容所有后端 |
+| 現有测试回归 | Gemini/Grok Backend 不受影响，ProjectManager 传 Pydantic 类兼容所有后端 |

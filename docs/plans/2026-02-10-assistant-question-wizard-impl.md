@@ -24,10 +24,10 @@
 Run: `pwd && git branch --show-current && git status --short`  
 Expected: 位于仓库根目录；识别当前分支；只存在预期未跟踪文件（如本地配置文件）。
 
-**Step 2: 运行现有前端基线测试**
+**Step 2: 运行現有前端基线测试**
 
 Run: `node frontend/tests/landing-page.test.mjs && node frontend/tests/app-shell-floating-button.test.mjs`  
-Expected: 两个测试均 PASS。
+Expected: 两個测试均 PASS。
 
 **Step 3: 记录本次改造边界**
 
@@ -64,7 +64,7 @@ import {
 const questions = [
     {
         header: "选择项目",
-        question: "你想基于哪个项目继续？",
+        question: "你想基于哪個项目继续？",
         multiSelect: false,
         options: [{ label: "test" }, { label: "创建新项目" }, { label: "其他" }],
     },
@@ -113,7 +113,7 @@ test("buildAnswersPayload should map other values to custom text", () => {
     const payload = buildAnswersPayload(questions, questionAnswers, customAnswers);
 
     assert.deepEqual(payload, {
-        "你想基于哪个项目继续？": "我的旧项目",
+        "你想基于哪個项目继续？": "我的旧项目",
         "你想制作什么内容？": "使用已有素材, 补充镜头需求",
     });
 });

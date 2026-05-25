@@ -1,7 +1,7 @@
 ## 1. 分镜时长选择器（DurationSelector）
 
 - [x] 1.1 将 `SegmentCard.tsx` 中的 `DurationBadge` 改造为 `DurationSelector`：`onUpdatePrompt` 存在时可点击，点击弹出 Popover；无 `onUpdatePrompt` 时保持只读外观
-- [x] 1.2 在 Popover 中渲染 4s / 6s / 8s 三个选项按钮，当前值高亮
+- [x] 1.2 在 Popover 中渲染 4s / 6s / 8s 三個选项按钮，当前值高亮
 - [x] 1.3 选中新值后调用 `onUpdatePrompt(segmentId, "duration_seconds", newValue)` 并关闭 Popover
 - [x] 1.4 点击 Popover 外部时关闭 Popover，时长值不变
 
@@ -10,7 +10,7 @@
 - [x] 2.1 新建 `frontend/src/components/ui/ClueStack.tsx`，参照 AvatarStack 结构实现线索缩略图叠放展示
 - [x] 2.2 线索图片形状使用圆角方形（`rounded`），尺寸与角色头像一致（`h-7 w-7`），叠放间距使用 `-space-x-2`
 - [x] 2.3 无 `clue_sheet` 时展示首字母色块（圆角方形），颜色由名称哈希值确定
-- [x] 2.4 超过 4 个线索时显示 `+n` 溢出徽章
+- [x] 2.4 超过 4 個线索时显示 `+n` 溢出徽章
 - [x] 2.5 分镜无关联线索时 ClueStack 不渲染
 
 ## 3. 线索悬停浮窗（CluePopover）

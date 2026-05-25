@@ -530,7 +530,7 @@ def group_messages_into_turns(raw_messages: list[dict[str, Any]]) -> list[dict[s
             continue  # Ignore other system subtypes
 
         if msg_type == "tool_use":
-            # gemini-full provider 把每个 functionCall 写为独立 top-level message。
+            # gemini-full provider 把每個 functionCall 写为独立 top-level message。
             # 在 turn 视角下应作为 assistant turn 的 content block 显示。
             tool_use_block = {
                 "type": "tool_use",

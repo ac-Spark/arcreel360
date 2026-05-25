@@ -338,7 +338,7 @@ _TASK_MESSAGE_SUBTYPES = {
 
 **Step 4: 更新 _message_to_dict 注入 subtype**
 
-在 `_message_to_dict` 方法中，现有逻辑之后添加 subtype 注入：
+在 `_message_to_dict` 方法中，現有逻辑之后添加 subtype 注入：
 
 ```python
 def _message_to_dict(self, message: Any) -> dict[str, Any]:

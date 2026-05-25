@@ -5,7 +5,7 @@
 
 行为：
 1. 创建临时 demo 项目（如不存在）
-2. 用 GeminiFullRuntimeProvider 跑一个对话，让模型必须调用 manga_workflow_status 工具
+2. 用 GeminiFullRuntimeProvider 跑一個对话，让模型必须调用 manga_workflow_status 工具
 3. 验证返回了 stage 信息
 """
 
@@ -95,7 +95,7 @@ async def main() -> int:
     log.info("=" * 60)
     sid = await provider.send_new_session(
         project_name,
-        "请用 manga_workflow_status 工具检查当前项目处于哪个阶段，然后告诉我下一步该做什么。",
+        "请用 manga_workflow_status 工具检查当前项目处于哪個阶段，然后告诉我下一步该做什么。",
         echo_text="请检查项目状态",
     )
     managed = provider._sessions[sid]

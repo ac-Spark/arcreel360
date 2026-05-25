@@ -16,7 +16,7 @@
 
 ### 1.1 供应商注册表（静态，代码维护）
 
-每个供应商的元数据在代码中定义，不存数据库：
+每個供应商的元数据在代码中定义，不存数据库：
 
 ```python
 PROVIDER_REGISTRY = {
@@ -51,7 +51,7 @@ PROVIDER_REGISTRY = {
 }
 ```
 
-每个 `ProviderMeta` 还包含 `capabilities` 字段，静态定义该供应商支持的能力列表（如 `text_to_video`, `image_to_video`, `generate_audio` 等）。这些值直接对应 `VideoBackend.capabilities` / `ImageBackend` 的能力枚举，但在 registry 中静态维护，无需实例化后端即可获取。
+每個 `ProviderMeta` 还包含 `capabilities` 字段，静态定义该供应商支持的能力列表（如 `text_to_video`, `image_to_video`, `generate_audio` 等）。这些值直接对应 `VideoBackend.capabilities` / `ImageBackend` 的能力枚举，但在 registry 中静态维护，无需实例化后端即可获取。
 
 ```python
 # capabilities 示例（包含在 ProviderMeta 中）
@@ -202,7 +202,7 @@ class ProviderStatus:
 
 **GET /api/v1/providers/{id}/config**
 
-返回单个供应商的配置字段详情。
+返回单個供应商的配置字段详情。
 
 ```json
 {
@@ -249,13 +249,13 @@ class ProviderStatus:
 {
   "success": true,
   "available_models": ["veo-3.1-generate-001", "veo-3.1-fast-generate-001"],
-  "message": "连接成功，发现 2 个可用模型"
+  "message": "连接成功，发现 2 個可用模型"
 }
 ```
 
 **POST /api/v1/providers/gemini-vertex/credentials**
 
-Vertex AI 凭证文件上传（特殊端点），保持现有上传逻辑。
+Vertex AI 凭证文件上传（特殊端点），保持現有上传逻辑。
 
 ### 3.2 `/api/v1/system/config` — 全局设置
 
@@ -299,7 +299,7 @@ Vertex AI 凭证文件上传（特殊端点），保持现有上传逻辑。
 
 ### 3.3 `/api/v1/usage/stats` — 用量统计
 
-扩展现有 usage API，增加筛选和分组。
+扩展現有 usage API，增加筛选和分组。
 
 **GET /api/v1/usage/stats?provider=gemini-vertex&start=2026-03-01&end=2026-03-18&group_by=provider**
 
@@ -371,7 +371,7 @@ Vertex AI 凭证文件上传（特殊端点），保持现有上传逻辑。
 
 ### 4.3 图片/视频栏位 — 分组下拉选择
 
-两个选择器：默认视频模型、默认图片模型。
+两個选择器：默认视频模型、默认图片模型。
 
 下拉列表按供应商分组显示（仅 status=ready 的供应商）：
 
@@ -397,7 +397,7 @@ Vertex AI 凭证文件上传（特殊端点），保持现有上传逻辑。
 
 ### 4.5 智能体栏位
 
-保留现有 `AgentConfigTab` 内容（Anthropic API Key、Base URL），适配新的 API 响应结构（从 system_setting 读取）。
+保留現有 `AgentConfigTab` 内容（Anthropic API Key、Base URL），适配新的 API 响应结构（从 system_setting 读取）。
 
 ### 4.6 通用组件
 
@@ -454,7 +454,7 @@ Vertex AI 凭证文件上传（特殊端点），保持现有上传逻辑。
 | `server/routers/generate.py` | 生成入队时的配置读取改走 ConfigService |
 | `server/auth.py` | 认证相关配置改走 ConfigService |
 | `server/agent_runtime/session_manager.py` | Agent 相关配置改走 ConfigService |
-| `lib/generation_worker.py` | **架构重构**：从全局 2 通道（image/video 各 N workers）改为按供应商分池调度，每个供应商独立并发数和限流。任务入队时携带 provider_id，Worker 根据 provider 分配到对应池 |
+| `lib/generation_worker.py` | **架构重构**：从全局 2 通道（image/video 各 N workers）改为按供应商分池调度，每個供应商独立并发数和限流。任务入队时携带 provider_id，Worker 根据 provider 分配到对应池 |
 | `lib/usage_tracker.py` / `server/routers/usage.py` | 扩展筛选参数 |
 
 ### 6.2 前端

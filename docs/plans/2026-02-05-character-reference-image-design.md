@@ -123,7 +123,7 @@ reference_image: Optional[str] = None
    - 若有新选择的参考图文件 → 先调用 `upload/character_ref` API
    - 再保存角色数据（包含 `reference_image` 路径）
 3. **生成设计图**：调用 `generate/character` API，后端自动读取参考图
-4. **版本控制**：设计图支持版本管理（现有功能）
+4. **版本控制**：设计图支持版本管理（現有功能）
 
 ### 涉及文件
 

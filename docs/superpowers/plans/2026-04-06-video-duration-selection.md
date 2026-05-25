@@ -4,7 +4,7 @@
 
 **Goal:** 将视频时长和横竖屏从硬编码改为动态可配置，时长由视频模型能力决定，横竖屏与 content_mode 完全解耦。
 
-**Architecture:** 在现有 `ModelInfo` 上扩展 `supported_durations` 和 `duration_resolution_constraints` 字段，`CustomProviderModel` ORM 新增 `supported_durations` 列。项目级新增 `aspect_ratio`（顶层字符串）和 `default_duration` 字段。Prompt 构建器和 Agent 脚本动态注入时长/横竖屏参数。
+**Architecture:** 在現有 `ModelInfo` 上扩展 `supported_durations` 和 `duration_resolution_constraints` 字段，`CustomProviderModel` ORM 新增 `supported_durations` 列。项目级新增 `aspect_ratio`（顶层字符串）和 `default_duration` 字段。Prompt 构建器和 Agent 脚本动态注入时长/横竖屏参数。
 
 **Tech Stack:** Python (Pydantic, SQLAlchemy, FastAPI, Alembic), TypeScript (React, Tailwind)
 
@@ -109,7 +109,7 @@ Expected: FAIL（ModelInfo 没有 supported_durations 字段）
 
 在 `lib/config/registry.py` 中：
 
-1. `ModelInfo` dataclass 新增两个字段：
+1. `ModelInfo` dataclass 新增两個字段：
 
 ```python
 @dataclass(frozen=True)
@@ -124,13 +124,13 @@ class ModelInfo:
 
 2. 为所有视频模型添加 `supported_durations` 和 `duration_resolution_constraints`：
 
-AI Studio 视频模型（3 个）:
+AI Studio 视频模型（3 個）:
 ```python
 supported_durations=[4, 6, 8],
 duration_resolution_constraints={"1080p": [8]},
 ```
 
-Vertex 视频模型（2 个）:
+Vertex 视频模型（2 個）:
 ```python
 supported_durations=[4, 6, 8],
 ```
@@ -213,7 +213,7 @@ def _model_to_response(m) -> ModelResponse:
         import json
         durations = json.loads(m.supported_durations)
     return ModelResponse(
-        ...,  # 现有字段保持不变
+        ...,  # 現有字段保持不变
         supported_durations=durations,
     )
 ```
@@ -329,7 +329,7 @@ Expected: `test_duration_accepts_any_positive_int_within_range` FAIL（DurationS
 
 在 `lib/script_models.py` 中：
 
-1. 删除整个 `DurationSeconds` 类（第 16-38 行）
+1. 删除整個 `DurationSeconds` 类（第 16-38 行）
 2. 移除不再需要的 import：`GetCoreSchemaHandler`, `GetJsonSchemaHandler`, `JsonSchemaValue`, `core_schema`
 3. 修改 `NarrationSegment.duration_seconds`:
 ```python
@@ -723,7 +723,7 @@ def build_drama_prompt(
 
 - [ ] **Step 5: 更新 script_generator.py 调用方**
 
-在 `lib/script_generator.py` 中，`generate` 和 `build_prompt` 方法里两处调用 `build_narration_prompt` / `build_drama_prompt` 的地方，都新增三个参数：
+在 `lib/script_generator.py` 中，`generate` 和 `build_prompt` 方法里两处调用 `build_narration_prompt` / `build_drama_prompt` 的地方，都新增三個参数：
 
 ```python
 supported_durations=self.project_json.get("_supported_durations"),
@@ -740,7 +740,7 @@ def _resolve_aspect_ratio(self) -> str:
     return "9:16" if self.content_mode == "narration" else "16:9"
 ```
 
-注意：`_supported_durations` 是一个由调用方注入的临时字段（由 generation_tasks 服务在调用脚本生成前设置），或者 ScriptGenerator 在 `__init__` 中从全局配置中解析。这里先用项目字段，如果不存在则传 `None`（Prompt 构建器会 fallback 到 `[4, 6, 8]`）。
+注意：`_supported_durations` 是一個由调用方注入的临时字段（由 generation_tasks 服务在调用脚本生成前设置），或者 ScriptGenerator 在 `__init__` 中从全局配置中解析。这里先用项目字段，如果不存在则传 `None`（Prompt 构建器会 fallback 到 `[4, 6, 8]`）。
 
 - [ ] **Step 6: 运行测试确认通过**
 

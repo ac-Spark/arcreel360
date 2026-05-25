@@ -1,8 +1,8 @@
 ## ADDED Requirements
 
-### Requirement: 每个 subagent 模板须定义清晰的输入/输出契约
+### Requirement: 每個 subagent 模板须定义清晰的输入/输出契约
 
-每个 subagent 定义文件（`.claude/agents/*.md`）SHALL 在 description 和 system prompt 中明确声明其输入参数、输出格式和内部调用的 skill/脚本。
+每個 subagent 定义文件（`.claude/agents/*.md`）SHALL 在 description 和 system prompt 中明确声明其输入参数、输出格式和内部调用的 skill/脚本。
 
 #### Scenario: analyze-characters-clues subagent 契约
 - **WHEN** 该 subagent 被 dispatch
@@ -20,9 +20,9 @@
 - **WHEN** 该 subagent 被 dispatch
 - **THEN** 它接收项目名称和集数作为输入，预加载 generate-script skill，调用 generate_script.py 脚本生成 JSON，验证输出，返回生成结果摘要
 
-### Requirement: 每个 subagent 须为单任务聚焦设计
+### Requirement: 每個 subagent 须为单任务聚焦设计
 
-每个 subagent SHALL 只完成一个聚焦的任务并返回，不得在内部包含需要用户确认的多步工作流。
+每個 subagent SHALL 只完成一個聚焦的任务并返回，不得在内部包含需要用户确认的多步工作流。
 
 #### Scenario: subagent 内部不得使用 AskUserQuestion 进行步骤间确认
 - **WHEN** subagent 执行其聚焦任务
@@ -34,7 +34,7 @@
 
 ### Requirement: 预处理 subagent 须按内容模式独立定义
 
-说书模式和剧集动画模式 SHALL 使用各自独立的 subagent 定义，而非共用一个带参数切换的 subagent。
+说书模式和剧集动画模式 SHALL 使用各自独立的 subagent 定义，而非共用一個带参数切换的 subagent。
 
 #### Scenario: narration 模式使用 split-narration-segments
 - **WHEN** project 的 content_mode 为 "narration"
@@ -66,7 +66,7 @@
 
 #### Scenario: 新 agent 文件就位
 - **WHEN** 重构完成
-- **THEN** `agent_runtime_profile/.claude/agents/` 目录中包含 `analyze-characters-clues.md`、`split-narration-segments.md`、`normalize-drama-script.md`、`create-episode-script.md` 四个聚焦 subagent 定义
+- **THEN** `agent_runtime_profile/.claude/agents/` 目录中包含 `analyze-characters-clues.md`、`split-narration-segments.md`、`normalize-drama-script.md`、`create-episode-script.md` 四個聚焦 subagent 定义
 
 ### Requirement: 须提供角色/线索写入的 CLI 脚本
 
@@ -94,7 +94,7 @@ SHALL 提供 `normalize_drama_script.py` 脚本，使用 `gemini-3.1-pro-preview
 
 #### Scenario: 输出格式与 script_generator 兼容
 - **WHEN** 规范化剧本生成完成
-- **THEN** 输出的 `step1_normalized_script.md` 格式与现有 `ScriptGenerator.build_drama_prompt()` 所期望的输入格式一致，确保 `generate_script.py` 可无缝消费
+- **THEN** 输出的 `step1_normalized_script.md` 格式与現有 `ScriptGenerator.build_drama_prompt()` 所期望的输入格式一致，确保 `generate_script.py` 可无缝消费
 
 #### Scenario: 脚本在 settings.json 中被放行
 - **WHEN** 重构完成

@@ -405,7 +405,7 @@ class SessionManager:
         """Load configuration from environment."""
         self.system_prompt = os.environ.get(
             "ASSISTANT_SYSTEM_PROMPT",
-            "你是视频项目协作助手。优先复用项目中的 Skills 与现有文件结构，避免擅自改写数据格式。"
+            "你是视频项目协作助手。优先复用项目中的 Skills 与現有文件结构，避免擅自改写数据格式。"
         ).strip()
         self.max_turns = int(os.environ.get("ASSISTANT_MAX_TURNS", "8"))
         self.cli_path = os.environ.get("ASSISTANT_CLAUDE_CLI_PATH", "").strip() or None
@@ -1353,7 +1353,7 @@ export function useAssistantState({
         if (assistantCurrentSessionId) return assistantCurrentSessionId;
 
         const projectName = currentAssistantProject || projects[0]?.name;
-        if (!projectName) throw new Error("请先创建至少一个项目");
+        if (!projectName) throw new Error("请先创建至少一個项目");
 
         const data = await window.API.createAssistantSession(projectName, "");
         setAssistantSessions((prev) => [{ id: data.id, ...data }, ...prev]);

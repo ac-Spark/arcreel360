@@ -161,7 +161,7 @@ Expected: ImportError 或 AttributeError（ConfigResolver 还不存在）
 # lib/config/resolver.py
 """统一运行时配置解析器。
 
-将散落在多个文件中的配置读取和默认值定义集中到一处。
+将散落在多個文件中的配置读取和默认值定义集中到一处。
 每次调用从 DB 读取，不缓存（本地 SQLite 开销可忽略）。
 """
 
@@ -225,7 +225,7 @@ class ConfigResolver:
             return await self._resolve_default_image_backend(svc)
 
     async def provider_config(self, provider_id: str) -> dict[str, str]:
-        """获取单个供应商配置。"""
+        """获取单個供应商配置。"""
         async with self._session_factory() as session:
             svc = ConfigService(session)
             return await self._resolve_provider_config(svc, provider_id)
@@ -322,7 +322,7 @@ class _FakeConfigResolver:
 - 移除 `gen._video_generate_audio = None`
 - 添加 `gen._config = _FakeConfigResolver()`
 
-- [ ] **Step 2: 运行现有测试确认仍通过**
+- [ ] **Step 2: 运行現有测试确认仍通过**
 
 Run: `uv run python -m pytest tests/test_media_generator_module.py -v`
 Expected: PASS（因为 `_build_generator` 用 `object.__new__` 手动设置属性，改属性名后需要对应修改）
@@ -417,7 +417,7 @@ git commit -m "refactor: replace video_generate_audio param with ConfigResolver 
 - Modify: `server/services/generation_tasks.py:68-248` (移除 `_BulkConfig`/`_load_all_config()`，改造辅助函数)
 - Modify: `tests/test_generation_tasks_service.py` (适配新接口)
 
-- [ ] **Step 1: 运行现有测试确认基线**
+- [ ] **Step 1: 运行現有测试确认基线**
 
 Run: `uv run python -m pytest tests/test_generation_tasks_service.py -v`
 Expected: 全部 PASS

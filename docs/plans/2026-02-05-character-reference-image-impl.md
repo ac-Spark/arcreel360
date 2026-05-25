@@ -79,7 +79,7 @@ git commit -m "feat(files): add character_ref upload type"
 
 **Step 1: 添加 update_character_reference_image 方法**
 
-在 `ProjectManager` 类中添加方法（参考现有的 `update_project_character_sheet`）：
+在 `ProjectManager` 类中添加方法（参考現有的 `update_project_character_sheet`）：
 
 ```python
 def update_character_reference_image(self, project_name: str, char_name: str, ref_path: str) -> dict:
@@ -413,12 +413,12 @@ document.getElementById("char-ref-preview").classList.add("hidden");
 document.getElementById("char-ref-placeholder").classList.remove("hidden");
 document.getElementById("char-ref-input").value = "";
 
-// ... 现有代码 ...
+// ... 現有代码 ...
 
 // 在编辑模式下显示已有参考图
 if (charName && state.currentProject.characters[charName]) {
     const char = state.currentProject.characters[charName];
-    // ... 现有代码 ...
+    // ... 現有代码 ...
     
     // 显示参考图（如果有）
     if (char.reference_image) {
@@ -610,7 +610,7 @@ Run: `cd /Users/pollochen/Documents/ai-anime/.worktrees/character-reference-imag
 **Step 2: 手动测试流程**
 
 1. 打开浏览器访问 http://localhost:8000
-2. 选择或创建一个测试项目
+2. 选择或创建一個测试项目
 3. 添加新角色，上传参考图
 4. 保存角色
 5. 点击"生成设计图"

@@ -4,7 +4,7 @@
 
 ## What Changes
 
-- **DurationBadge → DurationSelector**：分镜时长标签由只读改为可交互，点击后弹出 Popover 选择 4s / 6s / 8s，选中后通过现有 `onUpdatePrompt` 通道写入后端；剧集 header 的总时长随数据刷新自动联动。
+- **DurationBadge → DurationSelector**：分镜时长标签由只读改为可交互，点击后弹出 Popover 选择 4s / 6s / 8s，选中后通过現有 `onUpdatePrompt` 通道写入后端；剧集 header 的总时长随数据刷新自动联动。
 - **新增 ClueStack 组件**：在 SegmentCard 头部右侧展示关联线索缩略图（圆角方形，与左侧 Lorebook 图片风格一致），悬停时弹出浮窗，显示线索名称、图片及类型标签（场景 / 道具）。
 - **角色浮窗增加"角色"标签**：AvatarPopover 在角色名旁新增 `角色` 类型标签，与线索浮窗风格统一，方便区分。
 
@@ -17,7 +17,7 @@
 
 ### Modified Capabilities
 
-（无现有 spec 需要变更）
+（无現有 spec 需要变更）
 
 ## Impact
 

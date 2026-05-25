@@ -95,7 +95,7 @@ git commit -m "refactor: migrate business skills/agents to agent_runtime_profile
 ```markdown
 # AI 视频生成工作空间
 
-你是一个专业的 AI 视频内容创作助手，帮助用户将小说转化为可发布的短视频内容。
+你是一個专业的 AI 视频内容创作助手，帮助用户将小说转化为可发布的短视频内容。
 
 ## 语言规范
 - **回答用户必须使用中文**
@@ -110,7 +110,7 @@ git commit -m "refactor: migrate business skills/agents to agent_runtime_profile
 与开发态 `.claude/` 物理分离。详见 `docs/plans/2026-03-06-agent-runtime-isolation-design.md`。
 ```
 
-**Step 3: 验证两个 CLAUDE.md 内容不重叠**
+**Step 3: 验证两個 CLAUDE.md 内容不重叠**
 
 手动检查：root CLAUDE.md 不包含视频规格、Skill 触发表、工作流程等业务内容。
 
@@ -243,7 +243,7 @@ python -m pytest tests/test_project_manager_symlink.py -v
 
 Expected: 3 PASS
 
-**Step 5: 运行现有 project_manager 测试确保无回归**
+**Step 5: 运行現有 project_manager 测试确保无回归**
 
 ```bash
 python -m pytest tests/test_project_manager.py -v
@@ -451,7 +451,7 @@ Expected: FAIL（当前从环境变量加载，不从文件加载）
 
 ```python
 FALLBACK_SYSTEM_PROMPT = (
-    "你是视频项目协作助手。优先复用项目中的 Skills 与现有文件结构，避免擅自改写数据格式。"
+    "你是视频项目协作助手。优先复用项目中的 Skills 与現有文件结构，避免擅自改写数据格式。"
 )
 
 def _load_config(self) -> None:

@@ -5,17 +5,17 @@
 
 ## 背景
 
-#168 完成通用文本生成服务层提取后，文本生成（小说总结、剧本生成、风格分析）支持多供应商调用，但这些调用未纳入费用计算和使用记录。本设计将文本生成的用量追踪集成到现有体系中。
+#168 完成通用文本生成服务层提取后，文本生成（小说总结、剧本生成、风格分析）支持多供应商调用，但这些调用未纳入费用计算和使用记录。本设计将文本生成的用量追踪集成到現有体系中。
 
 ## 设计决策
 
 | 决策点 | 选择 | 理由 |
 |--------|------|------|
-| token 字段 | 新增 `input_tokens` + `output_tokens`，保留 `usage_tokens` | 文本生成 input/output 定价不同；`usage_tokens` 仅 Ark 视频在用，不破坏现有数据 |
+| token 字段 | 新增 `input_tokens` + `output_tokens`，保留 `usage_tokens` | 文本生成 input/output 定价不同；`usage_tokens` 仅 Ark 视频在用，不破坏現有数据 |
 | 集成层 | 创建 `TextGenerator` 包装层 | 与 `MediaGenerator` 模式一致，集中管理，调用方无需关心 tracking |
 | project_name | 可选参数 | 未来可能有非项目级别的工具箱功能 |
 | call_type | 统一 `"text"` | 与 image/video 平级，不按任务细分；未来需要可加 `task_type` 正交字段 |
-| 前端展示 | 绿色 FileText 图标，token 信息替代分辨率/时长 | 与现有 image（蓝色）/ video（紫色）视觉体系一致 |
+| 前端展示 | 绿色 FileText 图标，token 信息替代分辨率/时长 | 与現有 image（蓝色）/ video（紫色）视觉体系一致 |
 
 ## 改动范围
 
@@ -104,7 +104,7 @@ class TextGenerator:
 ```
 
 设计要点：
-- `backend.model` / `backend.provider`：三个 TextBackend 实现都已有这两个属性
+- `backend.model` / `backend.provider`：三個 TextBackend 实现都已有这两個属性
 - `project_name` 在 `generate()` 时传入（可选），而非构造时绑定
 - 不引入 VersionManager——文本生成没有文件产出
 
@@ -149,5 +149,5 @@ output_tokens: number | null;
 
 - 不纳入 GenerationQueue 任务队列——文本生成频次低，保持直接调用
 - 不细分 `call_type`（如 `text_script` / `text_overview`）——统一 `"text"` 即可
-- 不迁移现有 `usage_tokens` 数据——Ark 视频继续使用该字段
+- 不迁移現有 `usage_tokens` 数据——Ark 视频继续使用该字段
 - 不新增 `task_type` 字段——当前无需求，未来按需添加

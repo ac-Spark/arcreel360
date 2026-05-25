@@ -2,7 +2,7 @@
 
 ### Requirement: ASSISTANT_PROVIDER 环境变量与 system_setting.assistant_provider 必须接受新值 gemini_full
 
-系统 SHALL 在 `_resolve_active_provider_id` 中接受 `gemini_full`、`gemini_lite`、`openai_lite`、`claude` 四个合法值。未设置或为空时 MUST fallback 到 `gemini_lite`。环境变量优先于 DB 设定。无效值 MUST 记录 warning 并 fallback 到 `gemini_lite`。
+系统 SHALL 在 `_resolve_active_provider_id` 中接受 `gemini_full`、`gemini_lite`、`openai_lite`、`claude` 四個合法值。未设置或为空时 MUST fallback 到 `gemini_lite`。环境变量优先于 DB 设定。无效值 MUST 记录 warning 并 fallback 到 `gemini_lite`。
 
 #### Scenario: 环境变量设定 gemini_full
 - **WHEN** 容器启动时 `ASSISTANT_PROVIDER=gemini_full`

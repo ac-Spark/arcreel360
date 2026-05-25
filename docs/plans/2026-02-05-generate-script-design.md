@@ -2,18 +2,18 @@
 
 ## 概述
 
-创建一个脚本，使用 `gemini-3-flash-preview` 生成 JSON 剧本，替代现有 Agent 流程的最后一步（Step 3）。
+创建一個脚本，使用 `gemini-3.1-flash-lite-preview` 生成 JSON 剧本，替代現有 Agent 流程的最后一步（Step 3）。
 
 ### 背景
 
-现有的 `novel-to-narration-script` 和 `novel-to-storyboard-script` Agent 使用三步流程：
+現有的 `novel-to-narration-script` 和 `novel-to-storyboard-script` Agent 使用三步流程：
 1. **Step 1**: 拆分片段/场景（输出 `step1_segments.md`）
 2. **Step 2**: 角色表/线索表（输出 `step2_character_clue_tables.md`）
 3. **Step 3**: 生成 JSON 剧本 ← **本脚本替代此步骤**
 
 ### 目标
 
-- 使用 Gemini-3-Flash-Preview 生成 JSON 剧本
+- 使用 gemini-3.1-flash-lite-preview 生成 JSON 剧本
 - 借鉴 Storycraft 的 Prompt 工程技巧
 - 使用 Pydantic 确保输出格式符合规范
 - 支持说书模式（narration）和剧集动画模式（drama）
@@ -27,7 +27,7 @@
 ```
 lib/
 ├── script_generator.py      # 核心逻辑：Prompt 构建 + Gemini 调用 + Pydantic 模型
-├── gemini_client.py         # 现有：已有 generate_text() 方法
+├── gemini_client.py         # 現有：已有 generate_text() 方法
 └── ...
 
 .claude/skills/
@@ -46,7 +46,7 @@ step1_segments.md + step2_character_clue_tables.md + project.json
                             ↓
                     构建 Prompt
                             ↓
-              Gemini API (gemini-3-flash-preview)
+              Gemini API (gemini-3.1-flash-lite-preview)
                             ↓
                     Pydantic 验证
                             ↓
@@ -180,7 +180,7 @@ def build_narration_prompt(
 
 1. 你将获得故事概述、视觉风格、角色列表、线索列表，以及已拆分的小说片段。
 
-2. 为每个片段生成：
+2. 为每個片段生成：
    - image_prompt：第一帧的图像生成提示词
    - video_prompt：动作和音效的视频生成提示词
 
@@ -209,14 +209,14 @@ def build_narration_prompt(
 {segments_md}
 </segments>
 
-segments 为片段拆分表，每行是一个片段，包含：
+segments 为片段拆分表，每行是一個片段，包含：
 - 片段 ID：格式为 E{{集数}}S{{序号}}
 - 小说原文：必须原样保留到 novel_text 字段
 - 时长：4、6 或 8 秒
 - 是否有对话：用于判断是否需要填写 video_prompt.dialogue
 - 是否为 segment_break：场景切换点，需设置 segment_break 为 true
 
-3. 为每个片段生成时，遵循以下规则：
+3. 为每個片段生成时，遵循以下规则：
 
 a. **novel_text**：原样复制小说原文，不做任何修改。
 
@@ -273,7 +273,7 @@ def build_drama_prompt(
 
 1. 你将获得故事概述、视觉风格、角色列表、线索列表，以及已拆分的场景列表。
 
-2. 为每个场景生成：
+2. 为每個场景生成：
    - image_prompt：第一帧的图像生成提示词
    - video_prompt：动作和音效的视频生成提示词
 
@@ -302,14 +302,14 @@ def build_drama_prompt(
 {scenes_md}
 </scenes>
 
-scenes 为场景拆分表，每行是一个场景，包含：
+scenes 为场景拆分表，每行是一個场景，包含：
 - 场景 ID：格式为 E{{集数}}S{{序号}}
 - 场景描述：剧本改编后的场景内容
 - 时长：4、6 或 8 秒（默认 8 秒）
 - 场景类型：剧情、动作、对话等
 - 是否为 segment_break：场景切换点，需设置 segment_break 为 true
 
-3. 为每个场景生成时，遵循以下规则：
+3. 为每個场景生成时，遵循以下规则：
 
 a. **characters_in_scene**：列出本场景中出场的角色名称。
    - 可选值：[{', '.join(character_names)}]
@@ -359,7 +359,7 @@ class ScriptGenerator:
     读取 Step 1/2 的 Markdown 中间文件，调用 Gemini 生成最终 JSON 剧本
     """
     
-    MODEL = "gemini-3-flash-preview"
+    MODEL = "gemini-3.1-flash-lite-preview"
     
     def __init__(self, project_path: Union[str, Path]):
         """
@@ -454,4 +454,4 @@ python .claude/skills/generate-script/scripts/generate_script.py <project> --epi
    - Prompt 构建函数
    - ScriptGenerator 类
 3. **实现 CLI 入口**：`.claude/skills/generate-script/scripts/generate_script.py`
-4. **测试验证**：使用现有项目 `test0205` 进行测试
+4. **测试验证**：使用現有项目 `test0205` 进行测试

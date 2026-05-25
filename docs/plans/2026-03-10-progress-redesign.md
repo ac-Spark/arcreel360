@@ -20,7 +20,7 @@
 
 **Step 1: 写失败测试（新返回结构）**
 
-在 `tests/test_status_calculator.py` 的 `TestStatusCalculator` 类中，将现有的 `test_calculate_episode_stats_statuses` 替换为：
+在 `tests/test_status_calculator.py` 的 `TestStatusCalculator` 类中，将現有的 `test_calculate_episode_stats_statuses` 替换为：
 
 ```python
 def test_calculate_episode_stats_statuses(self, tmp_path):
@@ -147,7 +147,7 @@ git commit -m "refactor(status): calculate_episode_stats returns storyboards/vid
 - Modify: `lib/status_calculator.py`
 - Test: `tests/test_status_calculator.py`
 
-新增三个方法，替换 `calculate_project_progress()` 和旧的 `calculate_current_phase()`。
+新增三個方法，替换 `calculate_project_progress()` 和旧的 `calculate_current_phase()`。
 
 **Step 1: 写失败测试（新阶段枚举 + script_status）**
 

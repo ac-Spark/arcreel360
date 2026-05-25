@@ -5,22 +5,22 @@
 
 ## 概述
 
-为每个供应商支持配置多个 API Key / Vertex 凭证，用户手动切换当前活跃 Key，连接测试可针对任意单个 Key 进行。
+为每個供应商支持配置多個 API Key / Vertex 凭证，用户手动切换当前活跃 Key，连接测试可针对任意单個 Key 进行。
 
 ## 需求
 
-1. 同一供应商可配置多个凭证（API Key 或 Vertex 服务账号 JSON）
-2. 每个凭证有：自定义名称、密钥值、可选的自定义 base_url（AI Studio）
+1. 同一供应商可配置多個凭证（API Key 或 Vertex 服务账号 JSON）
+2. 每個凭证有：自定义名称、密钥值、可选的自定义 base_url（AI Studio）
 3. RPM / max_workers / request_gap 等配置跟供应商走，所有凭证共享
-4. 每个供应商有一个「当前活跃凭证」，在供应商配置页手动切换，全局生效
-5. 连接测试可针对任意一个凭证单独进行
+4. 每個供应商有一個「当前活跃凭证」，在供应商配置页手动切换，全局生效
+5. 连接测试可针对任意一個凭证单独进行
 6. Bug fix：base_url 尾部 `/` 归一化
 
 ## 方案选择
 
 **方案 A（采用）：新建 `provider_credential` 表**
 
-凭证是独立的结构化实体（名称、密钥、URL、活跃状态），用专用表建模最自然。与现有 `provider_config`（共享配置 KV）职责分离，不污染现有逻辑。
+凭证是独立的结构化实体（名称、密钥、URL、活跃状态），用专用表建模最自然。与現有 `provider_config`（共享配置 KV）职责分离，不污染現有逻辑。
 
 淘汰方案：
 - 方案 B（KV 表 slot 前缀）：命名约定脆弱，查询别扭
@@ -51,8 +51,8 @@ class ProviderCredential(TimestampMixin, Base):
 
 **设计要点：**
 - `api_key` 和 `credentials_path` 互斥：api_key 类供应商用 `api_key`，Vertex 用 `credentials_path`
-- 每个供应商最多一条 `is_active=True`（应用层保证）
-- `api_key` 明文存储（与现有 `provider_config` 表一致），API 响应时脱敏
+- 每個供应商最多一条 `is_active=True`（应用层保证）
+- `api_key` 明文存储（与現有 `provider_config` 表一致），API 响应时脱敏
 - `base_url` 存储时做尾部 `/` 归一化
 - `provider_config` 表不变，继续存 RPM / workers 等共享配置
 
@@ -60,7 +60,7 @@ class ProviderCredential(TimestampMixin, Base):
 
 Alembic 迁移脚本：
 1. 创建 `provider_credential` 表
-2. 将 `provider_config` 中现有的 `api_key` / `credentials_path` / `base_url` 行迁入 `provider_credential`，设 `is_active=True`，名称为「默认密钥」
+2. 将 `provider_config` 中現有的 `api_key` / `credentials_path` / `base_url` 行迁入 `provider_credential`，设 `is_active=True`，名称为「默认密钥」
 3. 从 `provider_config` 中删除这些已迁移的行
 
 ---
@@ -82,7 +82,7 @@ Alembic 迁移脚本：
     {
       "id": 1,
       "provider": "gemini-aistudio",
-      "name": "个人账号",
+      "name": "個人账号",
       "api_key_masked": "AIza…xY2d",
       "credentials_filename": null,
       "base_url": "https://proxy.example.com/v1/",
@@ -162,7 +162,7 @@ POST /api/v1/providers/gemini-vertex/credentials
 
 ### ProviderDetail 页面重构
 
-分为两个区域：
+分为两個区域：
 
 **区域一：凭证管理（取代原有的 api_key / credentials_path / base_url 字段）**
 
@@ -170,7 +170,7 @@ POST /api/v1/providers/gemini-vertex/credentials
 ┌──────────────────────────────────────────────────┐
 │  密钥管理                           [+ 添加密钥]  │
 ├──────────────────────────────────────────────────┤
-│  ● 个人账号        AIza…xY2d                     │
+│  ● 個人账号        AIza…xY2d                     │
 │    https://proxy.example.com/v1/                 │
 │                    [测试] [编辑] [删除]            │
 │──────────────────────────────────────────────────│
@@ -186,7 +186,7 @@ POST /api/v1/providers/gemini-vertex/credentials
 - 「添加密钥」打开内联表单
 - Vertex 供应商的「添加」包含文件上传 + 名称输入
 
-**区域二：共享配置（保持现有逻辑）**
+**区域二：共享配置（保持現有逻辑）**
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -262,5 +262,5 @@ def normalize_base_url(url: str | None) -> str | None:
 ## 不做的事
 
 - 自动轮换 / 负载均衡 — 仅手动切换
-- api_key 加密存储 — 与现有 `provider_config` 表保持一致
+- api_key 加密存储 — 与現有 `provider_config` 表保持一致
 - 凭证使用统计 — 超出当前范围

@@ -26,10 +26,10 @@
 
 ### Requirement: 工具循环必须以 Gemini 原生 function calling 实现，并支持流式输出
 
-系统 SHALL 用 `google-genai` SDK 的 `Tool(function_declarations=[...])` 配合 `generate_content_stream` 实现工具循环：模型每轮可吐零个、一个或多个 `functionCall`，系统执行对应工具后构造 `functionResponse` 喂回模型，循环直至模型给出无 functionCall 的纯文本响应或主动 stop。
+系统 SHALL 用 `google-genai` SDK 的 `Tool(function_declarations=[...])` 配合 `generate_content_stream` 实现工具循环：模型每轮可吐零個、一個或多個 `functionCall`，系统执行对应工具后构造 `functionResponse` 喂回模型，循环直至模型给出无 functionCall 的纯文本响应或主动 stop。
 
 #### Scenario: 单轮工具调用
-- **WHEN** 用户消息触发模型返回单个 `functionCall(name="generate_script", args=...)`
+- **WHEN** 用户消息触发模型返回单個 `functionCall(name="generate_script", args=...)`
 - **THEN** 系统执行 generate_script，把结果以 `functionResponse(name="generate_script", response=<result>)` 喂回模型，模型继续生成最终回复
 
 #### Scenario: 多轮工具调用
@@ -77,5 +77,5 @@
 `gemini-full` provider MUST NOT 处理 `gemini:` 前缀的 session（属于 lite）；反之 `gemini-lite` MUST NOT 处理 `gemini-full:` 前缀。两条 provider 共享同一组底层模型与 API key，但 capabilities 与工具循环行为独立。
 
 #### Scenario: 用户在 settings 切换模式不影响旧 session
-- **WHEN** 用户原有一个 `gemini:` lite session，把默认 provider 切到 `gemini-full`
+- **WHEN** 用户原有一個 `gemini:` lite session，把默认 provider 切到 `gemini-full`
 - **THEN** 旧 lite session MUST 仍可继续在 lite provider 上读历史；新对话才走 full provider 创建 `gemini-full:` session

@@ -490,7 +490,7 @@ _BACKEND_FACTORIES: dict[str, Callable[..., ImageBackend]] = {}
 
 
 def register_backend(name: str, factory: Callable[..., ImageBackend]) -> None:
-    """注册一个图片后端工厂函数。"""
+    """注册一個图片后端工厂函数。"""
     _BACKEND_FACTORIES[name] = factory
 
 
@@ -568,7 +568,7 @@ class FakeImageBackend:
         return {ImageCapability.TEXT_TO_IMAGE, ImageCapability.IMAGE_TO_IMAGE}
 
     async def generate(self, request: ImageGenerationRequest) -> ImageGenerationResult:
-        # 写一个 1x1 PNG 到 output_path
+        # 写一個 1x1 PNG 到 output_path
         request.output_path.parent.mkdir(parents=True, exist_ok=True)
         request.output_path.write_bytes(
             b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
@@ -1130,7 +1130,7 @@ async def get_media_generator(project_name: str, payload: dict | None = None, *,
         image_provider_id, {}, resolver, default_image_model=image_model,
     )
 
-    # 解析 video backend（保持现有逻辑）
+    # 解析 video backend（保持現有逻辑）
     video_backend, video_backend_type, video_model = await _resolve_video_backend(
         project_name, resolver, payload,
     )
@@ -1255,7 +1255,7 @@ git commit -m "feat: integrate ImageBackend into generation pipeline"
 
 - [ ] **Step 2: 迁移 `ReferenceImageInput` / `ReferenceImageValue` 类型别名**
 
-在 `lib/image_backends/base.py` 中，`ReferenceImage` dataclass 已替代这两个类型别名。在 `lib/gemini_client.py` 中删除 `ReferenceImageValue` 和 `ReferenceImageInput` 定义。更新所有使用 `ReferenceImageInput` 的 import 站点：
+在 `lib/image_backends/base.py` 中，`ReferenceImage` dataclass 已替代这两個类型别名。在 `lib/gemini_client.py` 中删除 `ReferenceImageValue` 和 `ReferenceImageInput` 定义。更新所有使用 `ReferenceImageInput` 的 import 站点：
 - `lib/media_generator.py` — 不再需要此类型（内部已使用 `ReferenceImage`）
 - 其他通过 `lib/__init__.py` 导出的引用也需清理
 

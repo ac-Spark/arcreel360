@@ -66,10 +66,10 @@
 Run: `uv sync`
 Expected: 成功安装 instructor 及其依赖
 
-- [ ] **Step 4: 验证现有测试不受影响**
+- [ ] **Step 4: 验证現有测试不受影响**
 
 Run: `uv run python -m pytest tests/test_text_backends/ -v`
-Expected: 全部 PASS（registry 改动不影响现有测试，因为测试 mock 了 Ark 客户端）
+Expected: 全部 PASS（registry 改动不影响現有测试，因为测试 mock 了 Ark 客户端）
 
 - [ ] **Step 5: 提交**
 
@@ -275,7 +275,7 @@ class TestCapabilityAwareStructured:
 
     @pytest.fixture
     def backend_no_structured(self, mock_ark):
-        """创建一个模型不支持原生 structured_output 的 backend。"""
+        """创建一個模型不支持原生 structured_output 的 backend。"""
         mock_client = MagicMock()
         mock_ark.return_value = mock_client
         # 使用默认模型 doubao-seed-2-0-lite-260215，registry 中已移除 structured_output
@@ -285,7 +285,7 @@ class TestCapabilityAwareStructured:
 
     @pytest.fixture
     def backend_with_structured(self, mock_ark):
-        """创建一个模型支持原生 structured_output 的 backend（模拟）。"""
+        """创建一個模型支持原生 structured_output 的 backend（模拟）。"""
         mock_client = MagicMock()
         mock_ark.return_value = mock_client
         b = ArkTextBackend(api_key="k", model="mock-model-with-structured")
@@ -482,7 +482,7 @@ class ArkTextBackend:
 
 注意：`_generate_vision`（lines 86-119）、`_build_messages`（lines 121-126）、`_parse_chat_response`（lines 128-138）保持不变，不在此处重复。
 
-- [ ] **Step 4: 更新现有 capabilities 测试**
+- [ ] **Step 4: 更新現有 capabilities 测试**
 
 `tests/test_text_backends/test_ark.py` 中的 `TestProperties.test_capabilities` 需要更新，因为默认模型不再有 `STRUCTURED_OUTPUT`：
 

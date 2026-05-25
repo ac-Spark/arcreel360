@@ -16,7 +16,7 @@
 - Modify: `lib/status_calculator.py:93-107`
 - Test: `tests/test_status_calculator.py`
 
-### Step 1：在现有测试文件末尾写失败测试
+### Step 1：在現有测试文件末尾写失败测试
 
 在 `tests/test_status_calculator.py` 的 `TestStatusCalculator` 类末尾添加：
 
@@ -252,7 +252,7 @@ def _build_json_validation_hook(self) -> Callable[..., Any]:
 uv run pytest tests/test_session_manager_more.py::TestJsonValidationHook -v
 ```
 
-预期：5 个测试全部 PASS。
+预期：5 個测试全部 PASS。
 
 ### Step 6：运行全量测试确认无回归
 
@@ -260,7 +260,7 @@ uv run pytest tests/test_session_manager_more.py::TestJsonValidationHook -v
 uv run pytest --tb=short -q
 ```
 
-预期：全部 PASS（498 个 + 新增 6 个）。
+预期：全部 PASS（498 個 + 新增 6 個）。
 
 ### Step 7：提交
 
@@ -315,7 +315,7 @@ with tempfile.TemporaryDirectory() as d:
 git log --oneline -5
 ```
 
-预期看到两个 fix commit：
+预期看到两個 fix commit：
 ```
 feat(agent): add PostToolUse JSON validation hook to self-correct invalid edits
 fix(status): catch JSONDecodeError in _load_episode_script to prevent cascade failure

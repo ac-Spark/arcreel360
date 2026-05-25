@@ -1,6 +1,6 @@
 """``turn_grouper`` 对 gemini-full 独立 ``tool_use`` / ``tool_result`` message 的处理。
 
-gemini-full provider 与 Claude SDK 不同：每个 functionCall / functionResponse 是一条
+gemini-full provider 与 Claude SDK 不同：每個 functionCall / functionResponse 是一条
 独立的 top-level message（``type=tool_use`` / ``type=tool_result``），而不是嵌入在
 assistant message 的 content blocks 里。本测试覆盖 turn_grouper 把它们正确合并到
 assistant turn 的行为。
@@ -106,7 +106,7 @@ def test_orphan_tool_result_is_dropped() -> None:
 
 
 def test_multiple_tool_uses_in_one_round() -> None:
-    """模型一轮吐两个 functionCall：都应附在同一 assistant turn。"""
+    """模型一轮吐两個 functionCall：都应附在同一 assistant turn。"""
     raw = [
         {"type": "user", "content": "go"},
         {"type": "assistant", "content": [{"type": "text", "text": "处理中"}]},
@@ -123,7 +123,7 @@ def test_multiple_tool_uses_in_one_round() -> None:
     assert len(tool_uses) == 2
     ids = {b["id"] for b in tool_uses}
     assert ids == {"a", "b"}
-    # 两个 result 都应回写到对应 tool_use
+    # 两個 result 都应回写到对应 tool_use
     by_id = {b["id"]: b for b in tool_uses}
     assert by_id["a"]["result"] == '{"entries": []}'
     assert by_id["b"]["result"] == '{"content": "{}"}'

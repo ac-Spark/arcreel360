@@ -22,7 +22,7 @@ Agent Edit episode_2.json
               → pm.load_script() → json.JSONDecodeError
               → 只 catch FileNotFoundError，JSON 错误上抛！
       → 宽泛 except Exception 捕获 → "加载项目元数据失败"
-  → 项目大厅整个项目显示为损坏/不可用 ✗
+  → 项目大厅整個项目显示为损坏/不可用 ✗
 ```
 
 ### 受影响代码
@@ -49,7 +49,7 @@ Agent Edit episode_2.json
 - 解析失败时返回 `{"systemMessage": "⚠️ 警告：{file_path} 包含无效 JSON，错误：{e}，请立即 Read 该文件，定位问题（如多余逗号 ,,）并 Edit 修复。"}`
 - `FileNotFoundError` / `PermissionError` 静默跳过（不干扰正常流程）
 - 封装为独立方法 `_build_json_validation_hook()` 返回 async callable
-- 追加到现有 `hook_callbacks` 列表末尾（链式 hook，不影响已有文件访问控制 hook）
+- 追加到現有 `hook_callbacks` 列表末尾（链式 hook，不影响已有文件访问控制 hook）
 
 **效果**：Agent 完成写操作后，若产生了无效 JSON，模型立即收到上下文警告，可在下一轮自动修复，不需要人工介入。
 
@@ -72,7 +72,7 @@ except (json.JSONDecodeError, ValueError) as e:
 - 返回 `'generated'` 而非 `'none'`：文件存在说明剧本已生成过，只是当前损坏
 - 下游调用者对 `script=None` 的处理需确认兼容（已确认：`enrich_project` 和 `calculate_project_status` 的调用链对 `None` 安全）
 
-**效果**：单个 episode JSON 文件损坏，不再导致整个项目在大厅崩溃，影响范围收缩到该集的状态计算字段。
+**效果**：单個 episode JSON 文件损坏，不再导致整個项目在大厅崩溃，影响范围收缩到该集的状态计算字段。
 
 ---
 

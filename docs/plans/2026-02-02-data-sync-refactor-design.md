@@ -128,7 +128,7 @@ def sync_episode_from_script(self, project_name: str, script_filename: str) -> D
 # lib/project_manager.py
 
 def save_script(self, project_name: str, script: Dict, filename: str) -> Path:
-    # ... 现有保存逻辑 ...
+    # ... 現有保存逻辑 ...
 
     # 新增：自动同步到 project.json
     if self.project_exists(project_name):
@@ -155,7 +155,7 @@ class StatusCalculator:
         self.pm = project_manager
 
     def calculate_episode_stats(self, project_name: str, script: Dict) -> Dict:
-        """计算单个剧集的统计信息"""
+        """计算单個剧集的统计信息"""
         content_mode = script.get('content_mode', 'narration')
         items = script.get('segments' if content_mode == 'narration' else 'scenes', [])
 
@@ -270,7 +270,7 @@ class StatusCalculator:
             'current_phase': current_phase
         }
 
-        # 为每个 episode 注入计算字段
+        # 为每個 episode 注入计算字段
         for ep in project.get('episodes', []):
             script_file = ep.get('script_file', '').replace('scripts/', '')
             if script_file:
@@ -377,7 +377,7 @@ async def get_project(name: str):
 # lib/data_validator.py - 修改验证逻辑
 
 def validate_episode(self, project_name: str, episode_file: str) -> ValidationResult:
-    # ... 现有代码 ...
+    # ... 現有代码 ...
 
     # 删除 characters_in_episode 和 clues_in_episode 验证
     # 改为直接验证 scene/segment 级别引用
@@ -508,7 +508,7 @@ pm.sync_episode_from_script('{project_name}', 'episode_{n}.json')
 ```python
 # scripts/migrate_clean_redundant_fields.py
 
-"""清理现有项目中的冗余字段"""
+"""清理現有项目中的冗余字段"""
 
 import json
 from pathlib import Path
@@ -565,6 +565,6 @@ if __name__ == "__main__":
 2. **修改 `lib/project_manager.py`** - 添加同步方法
 3. **修改 `webui/server/routers/projects.py`** - 使用计算器
 4. **修改 Agent 指令** - 添加同步步骤
-5. **运行迁移脚本** - 清理现有数据
+5. **运行迁移脚本** - 清理現有数据
 6. **修改 `lib/data_validator.py`** - 简化验证逻辑
 7. **更新 `CLAUDE.md`** - 文档同步

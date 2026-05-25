@@ -4,7 +4,7 @@
 
 **Goal:** 接入 xAI Grok 的 grok-imagine-video 作为视频生成备选后端
 
-**Architecture:** 新增 `GrokVideoBackend` 实现 `VideoBackend` 协议，通过 `xai_sdk.AsyncClient` 调用 Grok API。分辨率改为模型级子配置（`video_model_settings.{model}.resolution`）。沿用现有注册、计费、配置管理模式。
+**Architecture:** 新增 `GrokVideoBackend` 实现 `VideoBackend` 协议，通过 `xai_sdk.AsyncClient` 调用 Grok API。分辨率改为模型级子配置（`video_model_settings.{model}.resolution`）。沿用現有注册、计费、配置管理模式。
 
 **Tech Stack:** xai_sdk（Python SDK）、httpx（视频下载）、pytest（测试）
 

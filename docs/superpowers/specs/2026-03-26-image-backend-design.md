@@ -5,11 +5,11 @@
 
 ## 概述
 
-提取通用 `ImageBackend` 抽象接口，使图片供应商可插拔接入。镜像现有 `VideoBackend` 模式，接入四个供应商：Gemini AI Studio、Gemini Vertex AI、Ark（火山方舟 Seedream）、Grok（xAI Aurora）。同时将现有 `seedance` provider 重命名为 `ark`，统一 Seedance 视频 + Seedream 图片。
+提取通用 `ImageBackend` 抽象接口，使图片供应商可插拔接入。镜像現有 `VideoBackend` 模式，接入四個供应商：Gemini AI Studio、Gemini Vertex AI、Ark（火山方舟 Seedream）、Grok（xAI Aurora）。同时将現有 `seedance` provider 重命名为 `ark`，统一 Seedance 视频 + Seedream 图片。
 
 ## 背景
 
-当前图片生成直接耦合 `GeminiClient`，无法接入其他供应商。视频侧已有完整的 `VideoBackend` Protocol + Registry + 3 个实现（Gemini/Seedance/Grok）。本次为图片侧复制这一模式，并借机统一 Ark 供应商命名。
+当前图片生成直接耦合 `GeminiClient`，无法接入其他供应商。视频侧已有完整的 `VideoBackend` Protocol + Registry + 3 個实现（Gemini/Seedance/Grok）。本次为图片侧复制这一模式，并借机统一 Ark 供应商命名。
 
 ## 设计
 
@@ -83,7 +83,7 @@ class ImageBackend(Protocol):
 - `create_backend(name, **kwargs)` — 创建实例
 - `get_registered_backends()` — 列出已注册后端
 
-### 2. 四个具体实现
+### 2. 四個具体实现
 
 #### 2.1 GeminiImageBackend (`gemini.py`)
 
@@ -129,13 +129,13 @@ class ImageBackend(Protocol):
 | Ark | base64 字符串列表传入 `image` 参数 |
 | Grok | 第一张转 base64 data URI 传入 `image_url`，多张通过 `images` 数组 |
 
-不支持 `IMAGE_TO_IMAGE` 时（不会发生，因为四个后端都支持），忽略 reference_images 并 log warning。
+不支持 `IMAGE_TO_IMAGE` 时（不会发生，因为四個后端都支持），忽略 reference_images 并 log warning。
 
 ### 3. 集成层变更
 
 #### 3.1 GenerationWorker (`lib/generation_worker.py`)
 
-- 现有 `_extract_provider()` 已支持 image 任务的 provider 解析，**无需修改**
+- 現有 `_extract_provider()` 已支持 image 任务的 provider 解析，**无需修改**
 - `_normalize_provider_id()` 新增 `"seedance": "ark"` 映射，确保历史队列中的任务正确路由
 - 优先级链：payload 显式指定 > project.json `image_backend` > 全局 `default_image_backend` > 硬编码默认值
 
@@ -245,7 +245,7 @@ def calculate_grok_image_cost(self, model: str | None = None, n: int = 1) -> flo
     # grok-imagine-image: $0.02, grok-imagine-image-pro: $0.07
 ```
 
-**返回类型说明**: 保持与现有模式一致（Ark 返回 `tuple[float, str]` 含 currency，Grok/Gemini 返回 `float` 默认 USD）。UsageRepository 根据 provider 类型决定 currency：Ark 系列设 `currency = "CNY"`，其余默认 `"USD"`。
+**返回类型说明**: 保持与現有模式一致（Ark 返回 `tuple[float, str]` 含 currency，Grok/Gemini 返回 `float` 默认 USD）。UsageRepository 根据 provider 类型决定 currency：Ark 系列设 `currency = "CNY"`，其余默认 `"USD"`。
 
 #### 5.2 UsageRepository 成本路由扩展
 
@@ -259,7 +259,7 @@ if status == "success":
         else:  # gemini
             cost_amount = cost_calculator.calculate_image_cost(...)
     elif row.call_type == "video":
-        ...  # 现有逻辑，seedance → ark 重命名
+        ...  # 現有逻辑，seedance → ark 重命名
 ```
 
 #### 5.3 UsageTracker
@@ -298,14 +298,14 @@ if status == "success":
 
 - **网络/API 错误**: 直接抛出，Worker 记录 `status=failed` + `error_message`
 - **审核拒绝**: Grok `respect_moderation=False`、Ark 特定错误码 → 统一抛出描述性异常
-- **能力不匹配**: 传了 `reference_images` 但后端不支持 `IMAGE_TO_IMAGE` → 忽略参考图退回 T2I，log warning（不中断，四个后端均支持 I2I，此分支为防御性代码）
+- **能力不匹配**: 传了 `reference_images` 但后端不支持 `IMAGE_TO_IMAGE` → 忽略参考图退回 T2I，log warning（不中断，四個后端均支持 I2I，此分支为防御性代码）
 - **重试**: SDK 层通过 `@with_retry_async` 处理瞬态 API 错误（429/503，backoff 2-32s）；持久性失败直接标记 `failed` 终态，由用户决定是否重试
 
 ### 8. 测试策略
 
 #### 单元测试 (`tests/test_image_backends/`)
 
-- 每个 backend 一个测试文件，mock SDK 调用
+- 每個 backend 一個测试文件，mock SDK 调用
 - 验证 `ImageGenerationRequest` → SDK 参数转换
 - 验证 reference_images 的格式转换（base64、PIL、data URI）
 - 验证 capabilities 声明与行为一致

@@ -183,7 +183,7 @@ def _is_path_allowed(self, file_path: str, tool_name: str, project_cwd: Path) ->
 ```
 
 **变化**：
-- 移除 `_READONLY_DIRS` 循环 → 改为允许读取整个 `project_root`（`/app/`）
+- 移除 `_READONLY_DIRS` 循环 → 改为允许读取整個 `project_root`（`/app/`）
 - 敏感文件由 settings.json deny 规则保护（deny 在权限评估中优先于 Hook 的 allow）
 - 写操作仍严格限制在 `project_cwd` 内
 

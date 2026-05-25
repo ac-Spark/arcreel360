@@ -472,7 +472,7 @@ async def test_manga_workflow_status_complete_with_flat_generated_assets(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("skill", ["generate_storyboard", "generate_video", "compose_video"])
 async def test_asset_skills_require_script_file(context: SkillCallContext, skill: str) -> None:
-    """没有 scripts/episode_1.json 时，三个资产 skill 都应返回 missing_prerequisite。"""
+    """没有 scripts/episode_1.json 时，三個资产 skill 都应返回 missing_prerequisite。"""
     result = await run_subagent(context, skill, {"episode": 1})
     assert result["error"] == "missing_prerequisite"
 
@@ -533,7 +533,7 @@ async def test_generate_storyboard_enqueues_each_segment(
     project_root: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """有劇本时 generate_storyboard 应为每个 segment 入队一个 storyboard task。"""
+    """有劇本时 generate_storyboard 应为每個 segment 入队一個 storyboard task。"""
     # 構造假劇本（narration 模式：用 segments + segment_id + image_prompt）
     pdir = project_root / project_name
     (pdir / "scripts").mkdir(parents=True, exist_ok=True)

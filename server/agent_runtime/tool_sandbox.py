@@ -52,7 +52,7 @@ class SandboxViolationError(Exception):
 
 @dataclass(frozen=True)
 class ToolSandbox:
-    """单个 session 的沙盒上下文。
+    """单個 session 的沙盒上下文。
 
     Attributes:
         project_root: 所有项目所在的根目录（如 ``/app/projects``）。
@@ -127,7 +127,7 @@ class ToolSandbox:
 
 
 # ---------------------------------------------------------------------------
-# 工具函数：每个都返回结构化 dict，供 functionResponse 直接序列化
+# 工具函数：每個都返回结构化 dict，供 functionResponse 直接序列化
 # ---------------------------------------------------------------------------
 
 

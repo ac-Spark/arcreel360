@@ -8,7 +8,7 @@ GEMINI_FULL_PROVIDER_ID = "gemini-full"
 OPENAI_LITE_PROVIDER_ID = "openai-lite"
 OPENAI_FULL_PROVIDER_ID = "openai-full"
 
-# 前缀越长越要先匹配（split 时按 ":" 第一个段命中），
+# 前缀越长越要先匹配（split 时按 ":" 第一個段命中），
 # 因此 `gemini-full` 必须在 `gemini` 之前，否则 `gemini-full:xxx` 会被误识为 lite。
 _PROVIDER_TO_PREFIX = {
     GEMINI_FULL_PROVIDER_ID: "gemini-full",

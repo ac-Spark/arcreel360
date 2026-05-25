@@ -14,7 +14,7 @@
 - 按集导出，视频素材在时间线上顺序排列
 - 说书模式附带字幕轨（`novel_text`）
 - 素材自包含：ZIP 内含草稿 JSON + 视频文件
-- 复用现有下载 token + 浏览器原生下载机制
+- 复用現有下载 token + 浏览器原生下载机制
 - 用户通过弹窗填写剪映草稿目录，后端生成路径正确的 `draft_content.json`
 
 ### 非目标
@@ -37,13 +37,13 @@
 
 ### 端点
 
-#### 1. 签发 token — 复用现有端点
+#### 1. 签发 token — 复用現有端点
 
 ```
 POST /api/v1/projects/{name}/export/token
 ```
 
-直接复用现有导出 token 端点（`create_download_token`，`purpose="download"`）。前端获取 token 后构造剪映草稿专用的下载 URL 即可，无需新增 token 端点。
+直接复用現有导出 token 端点（`create_download_token`，`purpose="download"`）。前端获取 token 后构造剪映草稿专用的下载 URL 即可，无需新增 token 端点。
 
 #### 2. 导出草稿 ZIP（新增端点）
 
@@ -68,7 +68,7 @@ GET /api/v1/projects/{name}/export/jianying-draft
 | 401 | token 过期或无效 |
 | 403 | token 与项目不匹配 |
 
-认证方式：GET 端点**不加** `Depends(get_current_user)`，在函数体内手动验证 `download_token` 参数（与现有 `export_project_archive` 相同模式）。
+认证方式：GET 端点**不加** `Depends(get_current_user)`，在函数体内手动验证 `download_token` 参数（与現有 `export_project_archive` 相同模式）。
 
 ---
 
@@ -128,7 +128,7 @@ if content_mode == "narration":
 
 ### 入口
 
-在现有 `ExportScopeDialog` 弹窗中新增第三个选项：**"导出为剪映草稿"**。
+在現有 `ExportScopeDialog` 弹窗中新增第三個选项：**"导出为剪映草稿"**。
 
 选择后展开额外表单：
 
@@ -153,7 +153,7 @@ if content_mode == "narration":
 
 ### ExportScopeDialog 改造
 
-现有组件是简单的两按钮选择器（"仅当前版本"/"全部数据"），选择即触发 `onSelect(scope)`。改造为：
+現有组件是简单的两按钮选择器（"仅当前版本"/"全部数据"），选择即触发 `onSelect(scope)`。改造为：
 
 1. 扩展 `ExportScope` 类型：新增 `"jianying-draft"` 值
 2. 选择"导出为剪映草稿"后，弹窗从"选择模式"切换到"表单模式"，展开集数下拉 + 草稿目录输入框
@@ -166,7 +166,7 @@ if content_mode == "narration":
 在 `frontend/src/api.ts` 新增：
 
 ```typescript
-// 复用现有 requestExportToken，无需新方法
+// 复用現有 requestExportToken，无需新方法
 getJianyingDraftDownloadUrl(projectName: string, episode: number, draftPath: string, token: string): string
 ```
 
@@ -256,7 +256,7 @@ RUN apt-get update && apt-get install -y mediainfo && rm -rf /var/lib/apt/lists/
 ## 测试策略
 
 - **单元测试**：mock 视频文件（用 `imageio` 生成短视频），验证 `draft_content.json` 结构正确、路径替换正确、字幕轨存在（narration 模式）
-- **路由集成测试**：复用现有 `test_projects_archive_routes.py` 模式，测试 token 签发 + ZIP 下载 + 错误码
+- **路由集成测试**：复用現有 `test_projects_archive_routes.py` 模式，测试 token 签发 + ZIP 下载 + 错误码
 
 ---
 
@@ -266,7 +266,7 @@ RUN apt-get update && apt-get install -y mediainfo && rm -rf /var/lib/apt/lists/
 |------|------|
 | 剪映格式无官方文档，更新可能不兼容 | pyJianYingDraft 社区活跃，通常数周内跟进；锁定版本号 |
 | 剪映 6+ 草稿加密 | 仅影响读取已有草稿，创建新草稿不受影响 |
-| ZIP 体积大（数十个视频片段） | 浏览器原生下载支持进度显示；硬链接避免实际复制 |
+| ZIP 体积大（数十個视频片段） | 浏览器原生下载支持进度显示；硬链接避免实际复制 |
 | 临时目录堆积 | `BackgroundTask` 响应完成后立即清理 |
 | pymediainfo 需系统 mediainfo | Docker 中一行 apt-get 即可 |
 

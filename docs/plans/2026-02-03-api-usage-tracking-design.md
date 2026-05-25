@@ -98,8 +98,8 @@ CREATE INDEX idx_created_at ON api_calls(created_at);
 
 ```
 lib/
-├── gemini_client.py      # 现有：API 调用
-├── media_generator.py    # 现有：媒体生成中间层
+├── gemini_client.py      # 現有：API 调用
+├── media_generator.py    # 現有：媒体生成中间层
 ├── usage_tracker.py      # 新增：调用记录与费用追踪
 └── cost_calculator.py    # 新增：费用计算器
 ```
@@ -476,7 +476,7 @@ app.include_router(usage.router, prefix="/api/v1", tags=["费用统计"])
     <a href="/usage.html" class="text-gray-400 hover:text-white transition-colors">
         费用统计
     </a>
-    <!-- 现有的刷新和新建按钮 -->
+    <!-- 現有的刷新和新建按钮 -->
 </div>
 ```
 

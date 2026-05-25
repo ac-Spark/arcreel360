@@ -40,7 +40,7 @@
 ```
 
 实现：扫描项目目录下 `storyboards/`、`videos/`、`thumbnails/`、`characters/`、`clues/`，
-用 `int(file.stat().st_mtime)` 生成指纹 map。~50 个文件耗时 <1ms。
+用 `int(file.stat().st_mtime)` 生成指纹 map。~50 個文件耗时 <1ms。
 
 **2) SSE 事件携带 `asset_fingerprints`**
 

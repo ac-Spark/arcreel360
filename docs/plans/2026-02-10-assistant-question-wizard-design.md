@@ -11,7 +11,7 @@
 - 最后一题动作：显示“完成并提交”按钮。
 
 ## 现状与约束
-- 现有后端接口 `POST /assistant/sessions/{session_id}/questions/{question_id}/answer` 接收整批 `answers`，不支持逐题提交。
+- 現有后端接口 `POST /assistant/sessions/{session_id}/questions/{question_id}/answer` 接收整批 `answers`，不支持逐题提交。
 - 前端当前实现位于 `frontend/src/react/pages/assistant-page.js`，已具备：
   - 单选/多选答案状态管理。
   - “其他”选项补充输入。
@@ -43,7 +43,7 @@
 
 ### 当前题卡片
 - 每次仅渲染一题。
-- 保持现有视觉风格：题干、单/多选标记、选项描述、“其他”输入。
+- 保持現有视觉风格：题干、单/多选标记、选项描述、“其他”输入。
 - 底部操作区固定：
   - 左侧 `上一步`（首题禁用）。
   - 右侧 `下一题`；到末题切换为 `完成并提交`。
@@ -60,7 +60,7 @@
 1. 收到新的 `assistantPendingQuestion`（或 `question_id` 变化）后重置状态，定位到第 1 题。
 2. 用户在当前题选择后，`下一题` 才可用；点击后仅推进 index，不调用提交 API。
 3. 用户可通过 `上一步` 或步骤条回退修改，已填答案保持。
-4. 在最后一题点击 `完成并提交` 时，才触发现有批量组装与提交逻辑。
+4. 在最后一题点击 `完成并提交` 时，才触发現有批量组装与提交逻辑。
 
 ## 提交与错误处理
 - `完成并提交` 前做全量校验：
@@ -73,7 +73,7 @@
   - 保留当前题与全部答案，不清空状态。
   - 展示错误信息，允许原位重试。
 - 提交成功：
-  - 复用现有行为清除 pending question，问答区收起。
+  - 复用現有行为清除 pending question，问答区收起。
 
 ## 测试策略
 新增前端测试文件：`frontend/tests/assistant-question-wizard.test.mjs`，覆盖：
@@ -82,17 +82,17 @@
 3. 点击“下一题”不触发 API 提交。
 4. “上一步”可回退且答案保留。
 5. 末题按钮文案为“完成并提交”。
-6. 最终仅调用一次提交 API，payload 与现有格式一致。
+6. 最终仅调用一次提交 API，payload 与現有格式一致。
 7. 提交失败不丢答案，提交成功清除 pending。
 8. 小屏下步骤条可横向滚动。
 
 ## 实施范围
 - 主要修改：`frontend/src/react/pages/assistant-page.js`
 - 可能微调：`frontend/src/css/app.css`（若步骤条样式需补充）
-- 状态 hook：`frontend/src/react/hooks/use-assistant-state.js` 保持现有批量提交协议，不做接口变更
+- 状态 hook：`frontend/src/react/hooks/use-assistant-state.js` 保持現有批量提交协议，不做接口变更
 
 ## 验收标准
 - 用户能清楚识别当前题号、总题数和最终提交时机。
 - 不再出现“已选项但是否已提交不明确”的体验。
-- 保持现有后端问答接口兼容，无额外协议变更。
+- 保持現有后端问答接口兼容，无额外协议变更。
 - 不影响普通聊天发送、会话切换、会话中断等既有功能。

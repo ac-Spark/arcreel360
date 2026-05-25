@@ -19,7 +19,7 @@
 - 自定义供应商的 CRUD
 - 动态模型列表管理（自动发现 + 手动添加）
 - 用户自定义定价
-- 轻量 Backend 包装类（复用现有 OpenAI/Gemini 后端）
+- 轻量 Backend 包装类（复用現有 OpenAI/Gemini 后端）
 - 与 ConfigResolver、CostCalculator、用量统计的集成
 - 完整前端 UI
 
@@ -38,7 +38,7 @@
 
 ## 架构方案：平行轨道
 
-预置供应商保持现有 `PROVIDER_REGISTRY` 不变。自定义供应商有独立的 API 端点、Service、前端区域。两者在以下节点汇合：
+预置供应商保持現有 `PROVIDER_REGISTRY` 不变。自定义供应商有独立的 API 端点、Service、前端区域。两者在以下节点汇合：
 
 1. **Backend 选择** — ConfigResolver 解析默认 backend 时同时查询预置和自定义供应商
 2. **模型选择下拉框** — `/api/v1/system-config/options` 合并两者的可用模型
@@ -57,10 +57,10 @@
 | `display_name` | str | 用户可见名称，如「我的 NewAPI」 |
 | `api_format` | str | `"openai"` 或 `"google"` |
 | `base_url` | str | API 基础地址 |
-| `api_key` | str | 敏感字段，DB 存原文，API 响应时掩蔽（复用现有 `mask_secret()`） |
+| `api_key` | str | 敏感字段，DB 存原文，API 响应时掩蔽（复用現有 `mask_secret()`） |
 | `created_at` / `updated_at` | datetime | 时间戳 |
 
-设计选择：`api_key` 和 `base_url` 直接存在供应商表中，不复用 `provider_credential` 表。自定义供应商是「一个供应商 = 一个中转站地址 + 一个 key」的简单模型，不需要多凭证切换。
+设计选择：`api_key` 和 `base_url` 直接存在供应商表中，不复用 `provider_credential` 表。自定义供应商是「一個供应商 = 一個中转站地址 + 一個 key」的简单模型，不需要多凭证切换。
 
 ### 新增表 `custom_provider_model`
 
@@ -81,7 +81,7 @@
 
 唯一约束：`(provider_id, model_id)`。
 
-`is_default` 约束：每个 `(provider_id, media_type)` 组合最多一个 `is_default=True`，应用层保证。
+`is_default` 约束：每個 `(provider_id, media_type)` 组合最多一個 `is_default=True`，应用层保证。
 
 价格可选：全部 NULL 表示不计费（Ollama 等本地场景）。
 
@@ -91,7 +91,7 @@
 
 ### 轻量包装类
 
-三个包装类（`CustomTextBackend`、`CustomImageBackend`、`CustomVideoBackend`），每个约 30 行。持有一个内部 delegate（现有的 OpenAI/Gemini Backend 实例），覆盖 `name` 和 `model` 属性：
+三個包装类（`CustomTextBackend`、`CustomImageBackend`、`CustomVideoBackend`），每個约 30 行。持有一個内部 delegate（現有的 OpenAI/Gemini Backend 实例），覆盖 `name` 和 `model` 属性：
 
 ```python
 # lib/custom_provider/backends.py
@@ -148,7 +148,7 @@ async def create_custom_backend(provider_id: str, model_id: str, media_type: str
 def calculate_cost(self, provider, call_type, *, model, ...):
     if provider.startswith("custom-"):
         return self._calculate_custom_cost(provider, call_type, model=model, ...)
-    # ... 现有预置供应商逻辑不变
+    # ... 現有预置供应商逻辑不变
 ```
 
 `_calculate_custom_cost()` 从 DB 查询 `custom_provider_model` 的价格字段：
@@ -177,7 +177,7 @@ ApiCall 记录中 `provider` 存 `custom-{id}`，`model` 存实际模型 ID。�
 - `update_provider(provider_id, ...)` → 更新配置
 - `delete_provider(provider_id)` → 级联删除关联模型
 - `list_providers()` → 返回所有自定义供应商及其状态
-- `get_provider(provider_id)` → 单个供应商详情（含模型列表）
+- `get_provider(provider_id)` → 单個供应商详情（含模型列表）
 
 **模型管理：**
 
@@ -205,7 +205,7 @@ discover_models(api_format, base_url, api_key):
   3. Google 格式：从模型 supported_generation_methods 推断
      （含 generateContent → text，含 generateImages → image，含 predictVideo → video），
      无法获取则回退关键词推断
-  4. 每个媒体类型的第一个模型标记为 is_default
+  4. 每個媒体类型的第一個模型标记为 is_default
   5. 返回推断结果（不写 DB），前端展示后用户确认再保存
 ```
 
@@ -221,7 +221,7 @@ discover_models(api_format, base_url, api_key):
 |------|------|------|
 | GET | `/` | 列出所有自定义供应商（含模型列表和状态） |
 | POST | `/` | 创建供应商 + 模型列表（一次性） |
-| GET | `/{id}` | 单个供应商详情 |
+| GET | `/{id}` | 单個供应商详情 |
 | PATCH | `/{id}` | 更新供应商配置 |
 | DELETE | `/{id}` | 删除供应商（级联删除模型） |
 
@@ -229,10 +229,10 @@ discover_models(api_format, base_url, api_key):
 
 | 方法 | 端点 | 说明 |
 |------|------|------|
-| PUT | `/{id}/models` | 批量替换整个模型列表（删除旧列表，写入新列表） |
-| POST | `/{id}/models` | 添加单个模型 |
-| PATCH | `/{id}/models/{model_id}` | 更新单个模型 |
-| DELETE | `/{id}/models/{model_id}` | 删除单个模型 |
+| PUT | `/{id}/models` | 批量替换整個模型列表（删除旧列表，写入新列表） |
+| POST | `/{id}/models` | 添加单個模型 |
+| PATCH | `/{id}/models/{model_id}` | 更新单個模型 |
+| DELETE | `/{id}/models/{model_id}` | 删除单個模型 |
 
 **无状态操作：**
 

@@ -420,7 +420,7 @@ async def send_or_create(
         return {"status": "accepted", "session_id": sdk_session_id}
 ```
 
-提取 `_prepare_prompt` 私有方法，复用现有 `send_message` 中构建 multimodal prompt 的逻辑。
+提取 `_prepare_prompt` 私有方法，复用現有 `send_message` 中构建 multimodal prompt 的逻辑。
 
 - [ ] **Step 3: 重构 `list_sessions` — 合并 SDK summary**
 
@@ -457,7 +457,7 @@ async def list_sessions(
 
 - [ ] **Step 4: 简化 `_resolve_sdk_session_id` → 移除**
 
-`_resolve_sdk_session_id` (lines 691-720) — 整个方法移除。所有调用点改为直接使用 `session_id`（已经就是 sdk_session_id）。
+`_resolve_sdk_session_id` (lines 691-720) — 整個方法移除。所有调用点改为直接使用 `session_id`（已经就是 sdk_session_id）。
 
 `_build_status_event_payload` (lines 631-666) — 移除双 ID 区分逻辑，简化为直接使用 `session_id`。
 
@@ -726,8 +726,8 @@ const imagePayload = images?.map((img) => ({
 }));
 
 // 乐观更新 UI
-const optimisticContent = [/* ... 同现有逻辑 ... */];
-const optimisticTurn = { /* ... 同现有逻辑 ... */ };
+const optimisticContent = [/* ... 同現有逻辑 ... */];
+const optimisticTurn = { /* ... 同現有逻辑 ... */ };
 store.getState().setTurns([...store.getState().turns, optimisticTurn]);
 statusRef.current = "running";
 store.getState().setSessionStatus("running");

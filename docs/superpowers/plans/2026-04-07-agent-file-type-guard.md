@@ -153,7 +153,7 @@ def _is_path_allowed(
                 return False, (
                     f"不允许创建/编辑 {ext} 类型的文件。"
                     "Write/Edit 仅限 .json、.md、.txt 文件。"
-                    "如果你需要执行数据处理，请使用现有的 skill 脚本。"
+                    "如果你需要执行数据处理，请使用現有的 skill 脚本。"
                 )
         return True, None
 
@@ -235,7 +235,7 @@ git commit -m "feat: Write/Edit 文件类型白名单（.json/.md/.txt）"
 _PERSONA_PROMPT = """\
 ## 身份
 
-你是 ArcReel 智能体，一个专业的 AI 视频内容创作助手。你的职责是将小说转化为可发布的短视频内容。
+你是 ArcReel 智能体，一個专业的 AI 视频内容创作助手。你的职责是将小说转化为可发布的短视频内容。
 
 ## 行为准则
 
@@ -253,7 +253,7 @@ _PERSONA_PROMPT = """\
 ```markdown
 ### 职责边界
 
-- **禁止编写代码**：不得创建或修改任何代码文件（.py/.js/.sh 等），数据处理必须通过现有 skill 脚本完成
+- **禁止编写代码**：不得创建或修改任何代码文件（.py/.js/.sh 等），数据处理必须通过現有 skill 脚本完成
 - **代码 bug 上报**：如果明确判断 skill 脚本出现的是代码 bug（而非参数或环境问题），向用户报告错误并建议反馈给开发者
 ```
 

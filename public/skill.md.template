@@ -1,6 +1,6 @@
 # ArcReel Skill
 
-ArcReel 是一个 AI 视频生成平台，将小说转化为短视频。通过此 Skill，你可以使用自然语言对话来调用 ArcReel 的项目管理和内容创作能力。
+ArcReel 是一個 AI 视频生成平台，将小说转化为短视频。通过此 Skill，你可以使用自然语言对话来调用 ArcReel 的项目管理和内容创作能力。
 
 ## 认证
 
@@ -25,7 +25,7 @@ API Key 可从 ArcReel 设置页面的「API Keys」管理区获取。
 
 ### 1. 项目列表
 
-列出所有现有项目。
+列出所有現有项目。
 
 - **端点**：`GET {{BASE_URL}}/api/v1/projects`
 - **认证**：需要 Bearer Token
@@ -105,7 +105,7 @@ curl -X POST {{BASE_URL}}/api/v1/projects/my-novel/source \
   "filename": "my-novel.txt",
   "chars": 12345,
   "overview": {
-    "synopsis": "一个关于……的故事",
+    "synopsis": "一個关于……的故事",
     "genre": "悬疑",
     "theme": "人性与救赎",
     "world_setting": "现代都市"
@@ -212,7 +212,7 @@ curl -X POST {{BASE_URL}}/api/v1/projects/ghost-story/source \
 curl -X POST {{BASE_URL}}/api/v1/agent/chat \
   -H "Authorization: Bearer <API_KEY>" \
   -H "Content-Type: application/json" \
-  -d '{"project_name": "ghost-story", "message": "请为这个故事生成第一集的分镜剧本，大约5个场景"}'
+  -d '{"project_name": "ghost-story", "message": "请为这個故事生成第一集的分镜剧本，大约5個场景"}'
 
 # 4. 查看生成结果
 curl {{BASE_URL}}/api/v1/projects/ghost-story \

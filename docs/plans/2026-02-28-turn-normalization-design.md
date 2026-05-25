@@ -90,7 +90,7 @@ def normalize_turns(turns: list[dict]) -> list[dict]:
 ### Step 2: 重构 `turn_grouper.py`
 - 删除本地的 `_infer_block_type()`、`_normalize_block()`、`_normalize_content()`
 - 改为 `from turn_schema import` 调用
-- `group_messages_into_turns()` 输出前对每个 turn 调用 `normalize_turn()`
+- `group_messages_into_turns()` 输出前对每個 turn 调用 `normalize_turn()`
 
 ### Step 3: 重构 `stream_projector.py`
 - `DraftAssistantProjector._normalize_block()` 替换为共享实现
@@ -122,6 +122,6 @@ def normalize_turns(turns: list[dict]) -> list[dict]:
 
 ## 测试策略
 
-- 现有 turn_grouper 测试应继续通过（行为不变，代码位置迁移）
+- 現有 turn_grouper 测试应继续通过（行为不变，代码位置迁移）
 - 新增 `test_turn_schema.py` 覆盖各种输入格式的规范化
 - 手动验证三种场景：历史加载、实时流、重连
