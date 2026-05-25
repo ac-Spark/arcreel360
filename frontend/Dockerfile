@@ -39,8 +39,7 @@ COPY --from=builder /usr/local/lib/node_modules/pnpm /usr/local/lib/node_modules
 RUN printf '#!/bin/sh\nexec node /usr/local/lib/node_modules/pnpm/bin/pnpm.cjs "$@"\n' > /usr/local/bin/pnpm \
     && chmod 0755 /usr/local/bin/pnpm
 
-COPY docker-entrypoint.sh /usr/local/bin/arcreel-frontend-entrypoint
-RUN chmod +x /usr/local/bin/arcreel-frontend-entrypoint
+COPY --chmod=0755 docker-entrypoint.sh /usr/local/bin/arcreel-frontend-entrypoint
 
 WORKDIR /build
 
