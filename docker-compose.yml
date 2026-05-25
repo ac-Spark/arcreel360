@@ -17,39 +17,12 @@ services:
       timeout: 5s
       retries: 5
 
-  # 前端構建：每次 `docker compose up` 都會跑一次，產物寫入 ./frontend/dist
-  # 用 host uid:gid 執行，避免產生 root 擁有的檔案與主機許可權打架。
-  frontend-builder:
-    image: node:22-slim
-    user: "1000:1000"
-    working_dir: /build
-    environment:
-      TZ: Asia/Taipei
-      HOME: /tmp
-      COREPACK_HOME: /tmp/.corepack
-      npm_config_cache: /tmp/.npm
-      PNPM_HOME: /tmp/.pnpm
-    volumes:
-      - ./frontend:/build
-      - ./tests:/tests:ro
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        set -e
-        mkdir -p /tmp/bin /tmp/.corepack /tmp/.npm /tmp/.pnpm
-        export PATH="/tmp/.pnpm:/tmp/bin:$$PATH"
-        corepack enable --install-directory /tmp/bin
-        corepack prepare pnpm@latest --activate
-        pnpm install --frozen-lockfile
-        pnpm build
-    restart: "no"
-
   arcreel:
     # image: ghcr.io/arcreel/arcreel:latest
     build: ./
     user: "1000:1000"
-    ports:
-      - "${PORT:-1241}:${PORT:-1241}"
+    expose:
+      - "${PORT:-1241}"
     env_file: .env
     environment:
       TZ: Asia/Taipei
@@ -61,7 +34,7 @@ services:
       - ./projects:/app/projects
       - ./vertex_keys:/app/vertex_keys
       - ./claude_data:/app/.home/.claude
-      # 應用程式碼與前端產物掛載（不再 COPY 進映象）
+      # 應用程式碼掛載（不再 COPY 進映象）
       - ./lib:/app/lib
       - ./server:/app/server
       - ./alembic:/app/alembic
@@ -69,15 +42,47 @@ services:
       - ./scripts:/app/scripts
       - ./agent_runtime_profile:/app/agent_runtime_profile
       - ./public:/app/public
-      - ./frontend/dist:/app/frontend/dist
     depends_on:
       postgres:
         condition: service_healthy
-      frontend-builder:
-        condition: service_completed_successfully
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:${PORT:-1241}/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: arcreel360-frontend
+    environment:
+      ARCREEL_UPSTREAM_HOST: ${ARCREEL_UPSTREAM_HOST:-arcreel}
+      ARCREEL_UPSTREAM_PORT: ${PORT:-1241}
+      ARCREEL_UPSTREAM_SCHEME: ${ARCREEL_UPSTREAM_SCHEME:-http}
+      HOME: /tmp
+      NGINX_ASSET_CACHE_CONTROL: ${NGINX_ASSET_CACHE_CONTROL:-public, max-age=31536000, immutable}
+      NGINX_CLIENT_MAX_BODY_SIZE: ${NGINX_CLIENT_MAX_BODY_SIZE:-2g}
+      NGINX_PROXY_READ_TIMEOUT: ${NGINX_PROXY_READ_TIMEOUT:-3600s}
+      NGINX_PROXY_SEND_TIMEOUT: ${NGINX_PROXY_SEND_TIMEOUT:-3600s}
+      NGINX_ROOT: ${NGINX_ROOT:-/build/dist}
+      NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-_}
+      PNPM_HOME: /tmp/.pnpm
+      PORT: ${PORT:-1241}
+      npm_config_cache: /tmp/.npm
+    ports:
+      - "${PORT:-1241}:${PORT:-1241}"
+    volumes:
+      - ./frontend:/build
+      - ./tests:/tests:ro
+      - ./nginx/templates/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      arcreel:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:${PORT:-1241}/health >/dev/null"]
       interval: 30s
       timeout: 5s
       retries: 3
