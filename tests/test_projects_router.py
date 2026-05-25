@@ -1,5 +1,8 @@
+import os
 import re
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -568,3 +571,44 @@ class TestProjectsRouter:
             r_empty = client.post("/api/v1/projects/ready/episodes/2/preprocess")
             assert r_empty.status_code == 200
             assert captured_kwargs.get("source") is None
+
+    def test_compose_episode_sets_pythonpath_for_skill_script(self, tmp_path, monkeypatch):
+        fake_pm = _FakePM(tmp_path)
+        project_dir = fake_pm.get_project_path("ready")
+        (project_dir / "scripts").mkdir(parents=True, exist_ok=True)
+        (project_dir / "scripts" / "episode_1.json").write_text("{}", encoding="utf-8")
+        captured = {}
+
+        def fake_run(cmd, *, cwd, capture_output, text, timeout, env):
+            captured["cmd"] = cmd
+            captured["cwd"] = cwd
+            captured["env"] = env
+            return SimpleNamespace(returncode=0, stdout="✅ 影片合成完成: output/episode_1_final.mp4\n", stderr="")
+
+        monkeypatch.setattr("subprocess.run", fake_run)
+        client = _client(monkeypatch, fake_pm, _FakeCalc())
+        with client:
+            r = client.post("/api/v1/projects/ready/episodes/1/compose")
+
+        assert r.status_code == 200
+        assert captured["cmd"][0] == sys.executable
+        assert captured["cwd"] == str(project_dir)
+        pythonpath_entries = captured["env"]["PYTHONPATH"].split(os.pathsep)
+        assert str(projects.PROJECT_ROOT) in pythonpath_entries
+
+    def test_compose_episode_missing_video_returns_actionable_400(self, tmp_path, monkeypatch):
+        fake_pm = _FakePM(tmp_path)
+        project_dir = fake_pm.get_project_path("ready")
+        (project_dir / "scripts").mkdir(parents=True, exist_ok=True)
+        (project_dir / "scripts" / "episode_1.json").write_text("{}", encoding="utf-8")
+
+        def fake_run(*args, **kwargs):
+            return SimpleNamespace(returncode=1, stdout="❌ 錯誤: 場景 E1S2 缺少影片片段\n", stderr="")
+
+        monkeypatch.setattr("subprocess.run", fake_run)
+        client = _client(monkeypatch, fake_pm, _FakeCalc())
+        with client:
+            r = client.post("/api/v1/projects/ready/episodes/1/compose")
+
+        assert r.status_code == 400
+        assert r.json()["detail"] == "場景 E1S2 缺少影片片段，請先生成影片後再合成成片。"

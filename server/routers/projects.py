@@ -39,6 +39,10 @@ from server.services.project_archive import (
 
 router = APIRouter()
 
+_COMPOSE_ERROR_PREFIX = "❌ 錯誤:"
+_COMPOSE_GENERIC_FAILURE_DETAIL = "合成成片失敗，請查看後端日誌。"
+_MISSING_VIDEO_ERROR_FRAGMENTS = ("缺少影片片段", "影片檔案不存在", "沒有可用的影片片段")
+
 # 初始化專案管理器和狀態計算器
 pm = ProjectManager(PROJECT_ROOT / "projects")
 calc = StatusCalculator(pm)
@@ -1219,6 +1223,40 @@ def _find_episode_script_file(project: dict, episode: int) -> str | None:
     return None
 
 
+def _compose_subprocess_env() -> dict[str, str]:
+    env = os.environ.copy()
+    existing_pythonpath = env.get("PYTHONPATH", "")
+    if existing_pythonpath:
+        env["PYTHONPATH"] = f"{PROJECT_ROOT}{os.pathsep}{existing_pythonpath}"
+    else:
+        env["PYTHONPATH"] = str(PROJECT_ROOT)
+    return env
+
+
+def _extract_compose_error(stdout: str, stderr: str) -> str:
+    lines = [line.strip() for line in [*stdout.splitlines(), *stderr.splitlines()] if line.strip()]
+
+    for line in reversed(lines):
+        if _COMPOSE_ERROR_PREFIX in line:
+            return line.split(_COMPOSE_ERROR_PREFIX, 1)[1].strip()
+
+    for line in reversed(lines):
+        if not line.startswith("Traceback "):
+            return line[-500:]
+
+    return ""
+
+
+def _is_missing_video_compose_error(message: str) -> bool:
+    return any(fragment in message for fragment in _MISSING_VIDEO_ERROR_FRAGMENTS)
+
+
+def _compose_failure_detail(message: str) -> str:
+    if not message or "ModuleNotFoundError" in message:
+        return _COMPOSE_GENERIC_FAILURE_DETAIL
+    return f"合成成片失敗：{message}"
+
+
 @router.post("/projects/{name}/episodes/{episode}/compose")
 async def compose_episode_video(name: str, episode: int, _user: CurrentUser):
     """呼叫 compose-video skill 腳本拼接最終影片。阻塞執行，最長 30 分鐘。"""
@@ -1256,15 +1294,23 @@ async def compose_episode_video(name: str, episode: int, _user: CurrentUser):
                 capture_output=True,
                 text=True,
                 timeout=1800,
+                env=_compose_subprocess_env(),
             )
             return proc, time.monotonic() - start
 
         proc, elapsed = await asyncio.to_thread(_run)
         if proc.returncode != 0:
-            raise HTTPException(
-                status_code=500,
-                detail=f"compose_video 執行失敗 (rc={proc.returncode}): {proc.stderr[-2000:]}",
+            message = _extract_compose_error(proc.stdout, proc.stderr)
+            logger.error(
+                "compose_video failed rc=%s stdout=%s stderr=%s",
+                proc.returncode,
+                proc.stdout[-4000:],
+                proc.stderr[-4000:],
             )
+            if _is_missing_video_compose_error(message):
+                detail = f"{message.rstrip('。')}，請先生成影片後再合成成片。"
+                raise HTTPException(status_code=400, detail=detail)
+            raise HTTPException(status_code=500, detail=_compose_failure_detail(message))
 
         output_path = ""
         for line in reversed(proc.stdout.splitlines()):
