@@ -122,6 +122,18 @@ describe("useEntityMentionInput", () => {
     expect(inputElement().selectionStart).toBe(1 + item.name.length + 1);
   });
 
+  it("does not overwrite or clear subsequent characters when inserting mention at the beginning", () => {
+    render(<HookHarness initialValue="原本有一些文字" />);
+    changeInput("@錦原本有一些文字", 2);
+
+    const item: EntityMentionItem = { name: "錦衣衛", kind: "character" };
+    act(() => {
+      latest!.selectItem(item);
+    });
+
+    expect(latest!.value).toBe("@錦衣衛 原本有一些文字");
+  });
+
   it("offers scene mentions in the same menu", () => {
     render(<HookHarness />);
 

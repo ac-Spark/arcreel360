@@ -97,12 +97,7 @@ export function useEntityMentionInput(opts: {
     if (atPos < 0) return;
 
     const before = value.slice(0, atPos);
-    const tokenTail = value.slice(atPos + 1);
-    const whitespaceIndex = tokenTail.search(/\s/);
-    const afterTokenEnd = whitespaceIndex >= 0
-      ? atPos + 1 + whitespaceIndex
-      : value.length;
-    const after = value.slice(afterTokenEnd);
+    const after = value.slice(atPos + 1 + filter.length);
     const next = `${before}@${item.name} ${after.trimStart()}`;
     const cursor = before.length + 1 + item.name.length + 1;
 
@@ -121,7 +116,7 @@ export function useEntityMentionInput(opts: {
     } else {
       moveCursor();
     }
-  }, [closeMenu, onChange, textareaRef, value]);
+  }, [closeMenu, filter, onChange, textareaRef, value]);
 
   const handleBlur = useCallback(() => {
     // 失焦延遲關閉, 避免 mousedown 選項時就立刻關掉。
