@@ -194,9 +194,7 @@ def _quote_depth_at(text: str, offset: int) -> int:
     return pair_depth + straight_open
 
 
-def _adjust_out_of_quotes(
-    text: str, offset: int, depth_prefix: list[int] | None = None
-) -> int:
+def _adjust_out_of_quotes(text: str, offset: int, depth_prefix: list[int] | None = None) -> int:
     """若 offset 落在成對引號內部，調整到引號外最近的安全點。
 
     優先往後移到對話結束（閉引號之後）；找不到閉引號（未閉合引號）時，
@@ -353,9 +351,7 @@ def split_into_n_episodes(text: str, total_episodes: int) -> list[str]:
         # 優先句末標點，其次段落邊界；引號外的斷點優先（避免對話中間）。
         sentence_bps = [bp for bp in breakpoints if bp["type"] == "sentence"]
         chosen = sentence_bps or breakpoints
-        safe_bp = next(
-            (bp for bp in chosen if depth_prefix[bp["offset"]] == 0), None
-        )
+        safe_bp = next((bp for bp in chosen if depth_prefix[bp["offset"]] == 0), None)
         if safe_bp is not None:
             offset = safe_bp["offset"]
         elif chosen:

@@ -183,11 +183,7 @@ def test_split_into_n_episodes_no_dangling_close_quote_at_start():
     from lib.episode_splitter import split_into_n_episodes
 
     # 三段對話相連，目標切點落在中段對話內。
-    text = (
-        "敘述文字。" * 10
-        + "「碎片自然不夠。」" * 6
-        + "赫爾曼將木盒收好。" * 10
-    )
+    text = "敘述文字。" * 10 + "「碎片自然不夠。」" * 6 + "赫爾曼將木盒收好。" * 10
     parts = split_into_n_episodes(text, 2)
     assert "".join(parts) == text
     after = parts[1].lstrip()

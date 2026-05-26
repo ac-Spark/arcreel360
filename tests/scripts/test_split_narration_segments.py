@@ -332,6 +332,7 @@ def test_filter_by_names_preserves_comma_and_whitespace_in_names():
     """
     items = {"史密斯, 約翰": 1, " 拉拉布 ": 2, "正常名": 3}
     # 用 U+001F 分隔,名字內含的逗號與空白都應保留。
-    assert split_narration_segments._filter_by_names(
-        items, "史密斯, 約翰\x1f 拉拉布 "
-    ) == {"史密斯, 約翰": 1, " 拉拉布 ": 2}
+    assert split_narration_segments._filter_by_names(items, "史密斯, 約翰\x1f 拉拉布 ") == {
+        "史密斯, 約翰": 1,
+        " 拉拉布 ": 2,
+    }

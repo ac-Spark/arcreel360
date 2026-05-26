@@ -369,8 +369,7 @@ class ProjectEventService:
             if filename_episode is not None and filename_episode != episode:
                 # 檔名與內容不一致時跳過，避免同一集被不同劇本輪流改寫索引。
                 logger.warning(
-                    "劇本檔名集數與內容 episode 不一致，跳過索引同步 "
-                    "project=%s file=%s 檔名集數=%s 內容episode=%s",
+                    "劇本檔名集數與內容 episode 不一致，跳過索引同步 project=%s file=%s 檔名集數=%s 內容episode=%s",
                     project_name,
                     script_path.name,
                     filename_episode,
