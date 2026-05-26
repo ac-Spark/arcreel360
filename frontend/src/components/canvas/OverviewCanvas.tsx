@@ -61,8 +61,12 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
 
   const handleUpload = useCallback(
     async (file: File) => {
-      await API.uploadFile(projectName, "source", file);
-      useAppStore.getState().pushToast(`來源檔案「${file.name}」上傳成功`, "success");
+      try {
+        await API.uploadFile(projectName, "source", file);
+        useAppStore.getState().pushToast(`來源檔案「${file.name}」上傳成功`, "success");
+      } catch (err) {
+        useAppStore.getState().pushToast(`上傳失敗: ${(err as Error).message}`, "error");
+      }
     },
     [projectName],
   );

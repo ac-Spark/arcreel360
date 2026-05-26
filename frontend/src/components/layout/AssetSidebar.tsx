@@ -324,8 +324,8 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
       await API.uploadFile(projectName, "source", file);
       loadSourceFiles();
       useAppStore.getState().invalidateSourceFiles();
-    } catch {
-      // 靜默失敗
+    } catch (err) {
+      useAppStore.getState().pushToast(`上傳失敗: ${(err as Error).message}`, "error");
     }
     // 重置 input 以允許再次選擇同一檔案
     e.target.value = "";
