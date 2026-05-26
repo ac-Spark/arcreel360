@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 from fastapi import APIRouter, Body, File, Form, HTTPException, Query, UploadFile
 from fastapi import Path as FastAPIPath
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 
 logger = logging.getLogger(__name__)
@@ -735,7 +735,7 @@ class PreprocessRefs(BaseModel):
 class PreprocessEpisodeRequest(BaseModel):
     source: str | None = None
     refs: PreprocessRefs | None = None
-    num_segments: int | None = None
+    num_segments: int | None = Field(default=None, ge=1, le=100)
 
 
 def _resolve_source_file_for_split(manager: ProjectManager, project_name: str, source: str) -> Path:

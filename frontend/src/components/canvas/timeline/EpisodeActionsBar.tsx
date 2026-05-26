@@ -47,8 +47,8 @@ function hasProjectOverview(overview: ProjectOverview | undefined): boolean {
   return !!overview && OVERVIEW_FIELDS.some((field) => ((overview[field] ?? "").trim().length > 0));
 }
 
-function numSegmentsStorageKey(projectName: string): string {
-  return `${NUM_SEGMENTS_STORAGE_PREFIX}:${projectName}`;
+function numSegmentsStorageKey(projectName: string, episode: number): string {
+  return `${NUM_SEGMENTS_STORAGE_PREFIX}:${projectName}:${episode}`;
 }
 
 function readStoredNumSegments(storageKey: string): number | undefined {
@@ -147,7 +147,7 @@ export function EpisodeActionsBar({
   const [loadingSources, setLoadingSources] = useState(false);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [numSegments, setNumSegments] = useState<number | undefined>(undefined);
-  const numSegmentsKey = numSegmentsStorageKey(projectName);
+  const numSegmentsKey = numSegmentsStorageKey(projectName, episode);
 
   useEffect(() => {
     setNumSegments(readStoredNumSegments(numSegmentsKey));
@@ -353,7 +353,10 @@ export function EpisodeActionsBar({
                       />
                       <div className="my-1.5 h-px bg-gray-800" />
                       <div className="px-2.5 py-1">
-                        <label className="block text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500 mb-1">
+                        <label
+                          title="留空 = LLM 自動判斷"
+                          className="block text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500 mb-1 cursor-help"
+                        >
                           指定生成段數 / 場景數
                         </label>
                         <input

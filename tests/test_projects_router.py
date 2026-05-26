@@ -581,6 +581,26 @@ class TestProjectsRouter:
             assert r_empty.status_code == 200
             assert captured_kwargs.get("source") is None
 
+    def test_preprocess_episode_num_segments_validation(self, tmp_path, monkeypatch):
+        """測試 num_segments 只接受 1 到 100 的整數。"""
+        import lib.episode_preprocess as ep
+
+        def _mock_preprocess(*args, **kwargs):
+            return {"step1_path": "...", "content_mode": "narration"}
+
+        monkeypatch.setattr(ep, "run_preprocess", _mock_preprocess)
+        client = _client(monkeypatch, _FakePM(tmp_path), _FakeCalc())
+        with client:
+            for num_segments in (0, 101):
+                r = client.post(
+                    "/api/v1/projects/ready/episodes/2/preprocess",
+                    json={"num_segments": num_segments},
+                )
+                assert r.status_code == 422
+
+            r = client.post("/api/v1/projects/ready/episodes/2/preprocess", json={"num_segments": 10})
+            assert r.status_code == 200
+
     def test_compose_episode_sets_pythonpath_for_skill_script(self, tmp_path, monkeypatch):
         fake_pm = _FakePM(tmp_path)
         project_dir = fake_pm.get_project_path("ready")
