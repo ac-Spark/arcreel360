@@ -102,6 +102,7 @@ class CostCalculator:
     }
 
     DEFAULT_ARK_VIDEO_MODEL = "doubao-seedance-1-5-pro-251215"
+    DEFAULT_ARK_ENDPOINT_VIDEO_MODEL = "doubao-seedance-2-0-260128"
 
     # Grok 影片費用（美元/秒），不區分解析度
     # 來源：docs/grok-docs/models.md — $0.050/sec
@@ -129,7 +130,7 @@ class CostCalculator:
 
     # Gemini 文字 token 費率（美元/百萬 token）
     GEMINI_TEXT_COST = {
-        "gemini-3.1-flash-lite-preview": {"input": 0.10, "output": 0.40},
+        "gemini-3.1-flash-lite": {"input": 0.10, "output": 0.40},
     }
 
     # BytePlus ModelArk 文字 token 費率（元/百萬 token）
@@ -194,7 +195,7 @@ class CostCalculator:
         Returns:
             (amount, currency) — 金額和幣種 (CNY)
         """
-        model = model or self.DEFAULT_ARK_VIDEO_MODEL
+        model = self._resolve_ark_video_cost_model(model)
         model_costs = self.ARK_VIDEO_COST.get(model, self.ARK_VIDEO_COST[self.DEFAULT_ARK_VIDEO_MODEL])
         key = (service_tier, generate_audio)
         price_per_million = model_costs.get(
@@ -203,6 +204,11 @@ class CostCalculator:
         )
         amount = usage_tokens / 1_000_000 * price_per_million
         return amount, "CNY"
+
+    def _resolve_ark_video_cost_model(self, model: str | None) -> str:
+        if model and model.startswith("ep-"):
+            return self.DEFAULT_ARK_ENDPOINT_VIDEO_MODEL
+        return model or self.DEFAULT_ARK_VIDEO_MODEL
 
     def calculate_image_cost(self, resolution: str = "1K", model: str = None) -> float:
         """
@@ -342,7 +348,7 @@ class CostCalculator:
         PROVIDER_GROK: ("GROK_TEXT_COST", "grok-4-1-fast-reasoning", "USD"),
         PROVIDER_OPENAI: ("OPENAI_TEXT_COST", "gpt-5.4-mini", "USD"),
     }
-    _TEXT_COST_DEFAULT = ("GEMINI_TEXT_COST", "gemini-3.1-flash-lite-preview", "USD")
+    _TEXT_COST_DEFAULT = ("GEMINI_TEXT_COST", "gemini-3.1-flash-lite", "USD")
 
     def calculate_text_cost(
         self,

@@ -127,6 +127,17 @@ class TestArkCost:
         )
         assert amount == pytest.approx(46.00)
 
+    def test_modelark_endpoint_id_uses_seedance_2_cost(self):
+        calculator = CostCalculator()
+        amount, currency = calculator.calculate_ark_video_cost(
+            usage_tokens=1_000_000,
+            service_tier="default",
+            generate_audio=True,
+            model="ep-20260508120826-lkcjf",
+        )
+        assert currency == "CNY"
+        assert amount == pytest.approx(46.00)
+
     def test_seedance_2_fast_cost(self):
         calculator = CostCalculator()
         amount, currency = calculator.calculate_ark_video_cost(

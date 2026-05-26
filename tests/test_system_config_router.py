@@ -155,6 +155,7 @@ class TestGetSystemConfig:
             "text_backend_overview",
             "text_backend_style",
             "assistant_provider",
+            "byteplus_video_endpoint_id",
         }
         assert set(settings.keys()) == expected_keys
 
@@ -183,6 +184,17 @@ class TestGetSystemConfig:
         options = res.json()["options"]
         assert "gemini-aistudio/veo-3.1-generate-preview" in options["video_backends"]
         assert "byteplus/doubao-seedance-1-5-pro-251215" in options["video_backends"]
+
+    def test_options_include_byteplus_endpoint_when_ready(self):
+        mock_svc = _make_mock_svc(
+            settings={"byteplus_video_endpoint_id": "ep-20260508120826-lkcjf"},
+            ready_providers=["byteplus"],
+        )
+        with TestClient(_make_app_with_mock(mock_svc)) as client:
+            res = client.get("/api/v1/system/config")
+        body = res.json()
+        assert body["settings"]["byteplus_video_endpoint_id"] == "ep-20260508120826-lkcjf"
+        assert "byteplus/ep-20260508120826-lkcjf" in body["options"]["video_backends"]
 
     def test_anthropic_key_masked(self):
         mock_svc = _make_mock_svc(settings={"anthropic_api_key": "sk-ant-test-secret-123456"})
@@ -311,6 +323,28 @@ class TestPatchSystemConfig:
             )
         assert res.status_code == 200
         assert res.json()["settings"]["video_generate_audio"] is False
+
+    def test_patch_sets_byteplus_video_endpoint_id(self):
+        mock_svc = _make_mock_svc(ready_providers=["byteplus"])
+        with TestClient(self._make_patch_app(mock_svc)) as client:
+            res = client.patch(
+                "/api/v1/system/config",
+                json={"byteplus_video_endpoint_id": " ep-20260508120826-\nlkcjf "},
+            )
+        assert res.status_code == 200
+        body = res.json()
+        assert body["settings"]["byteplus_video_endpoint_id"] == "ep-20260508120826-lkcjf"
+        assert "byteplus/ep-20260508120826-lkcjf" in body["options"]["video_backends"]
+        mock_svc.set_setting.assert_any_await("byteplus_video_endpoint_id", "ep-20260508120826-lkcjf")
+
+    def test_patch_rejects_invalid_byteplus_video_endpoint_id(self):
+        mock_svc = _make_mock_svc()
+        with TestClient(self._make_patch_app(mock_svc)) as client:
+            res = client.patch(
+                "/api/v1/system/config",
+                json={"byteplus_video_endpoint_id": "doubao-seedance-2-0-260128"},
+            )
+        assert res.status_code == 422
 
     def test_patch_accepts_assistant_provider_alias(self):
         mock_svc = _make_mock_svc()

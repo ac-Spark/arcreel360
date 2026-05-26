@@ -307,6 +307,13 @@ class TestArkModelCapabilities:
         assert VideoCapability.FLEX_TIER not in caps
         assert VideoCapability.VIDEO_EXTEND not in caps
 
+    def test_modelark_endpoint_id_uses_seedance_2_capabilities(self):
+        with patch("lib.video_backends.ark.create_ark_client", return_value=MagicMock()):
+            b = ArkVideoBackend(api_key="test", model="ep-20260508120826-lkcjf")
+        caps = b.capabilities
+        assert VideoCapability.FLEX_TIER not in caps
+        assert VideoCapability.SEED_CONTROL in caps
+
     def test_seedance_1_5_has_flex_tier(self):
         with patch("lib.video_backends.ark.create_ark_client", return_value=MagicMock()):
             b = ArkVideoBackend(api_key="test", model="doubao-seedance-1-5-pro-251215")

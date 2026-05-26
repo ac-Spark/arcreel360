@@ -20,6 +20,7 @@ function makeConfigResponse(
       default_video_backend: "gemini/veo-3",
       default_image_backend: "gemini/imagen-4",
       default_text_backend: "",
+      byteplus_video_endpoint_id: "",
       text_backend_script: "",
       text_backend_overview: "",
       text_backend_style: "",
@@ -158,6 +159,25 @@ describe("SystemConfigPage", () => {
     fireEvent.click(mediaButton);
     await waitFor(() => {
       expect(mediaButton.className).toContain("workbench-panel-strong");
+    });
+  });
+
+  it("saves BytePlus video endpoint id from the model section", async () => {
+    const updateSpy = vi
+      .spyOn(API, "updateSystemConfig")
+      .mockResolvedValue(makeConfigResponse({ byteplus_video_endpoint_id: "ep-20260508120826-lkcjf" }));
+
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /模型選擇/ }));
+
+    const endpointInput = await screen.findByLabelText("BytePlus ModelArk Endpoint ID");
+    fireEvent.change(endpointInput, { target: { value: "ep-20260508120826-lkcjf" } });
+    fireEvent.click(screen.getByRole("button", { name: "儲存" }));
+
+    await waitFor(() => {
+      expect(updateSpy).toHaveBeenCalledWith({
+        byteplus_video_endpoint_id: "ep-20260508120826-lkcjf",
+      });
     });
   });
 

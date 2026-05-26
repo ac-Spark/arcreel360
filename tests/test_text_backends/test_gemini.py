@@ -26,7 +26,7 @@ class TestProperties:
 
     def test_default_model(self, mock_genai):
         b = GeminiTextBackend(api_key="k")
-        assert b.model == "gemini-3.1-flash-lite-preview"
+        assert b.model == "gemini-3.1-flash-lite"
 
     def test_custom_model(self, mock_genai):
         b = GeminiTextBackend(api_key="k", model="custom")

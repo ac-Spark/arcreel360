@@ -14,6 +14,23 @@ const TEXT_MODEL_FIELDS = [
   ["text_backend_style", "風格分析"],
 ] as const;
 
+const BYTEPLUS_PROVIDER_ID = "byteplus";
+
+function compactEndpointId(value: string): string {
+  return value.replace(/\s+/g, "");
+}
+
+function buildBytePlusVideoBackend(endpointId: string): string | null {
+  const compact = compactEndpointId(endpointId);
+  return compact ? `${BYTEPLUS_PROVIDER_ID}/${compact}` : null;
+}
+
+function withBytePlusEndpointOption(backends: string[], endpointId: string): string[] {
+  const endpointBackend = buildBytePlusVideoBackend(endpointId);
+  if (!endpointBackend) return backends;
+  return backends.includes(endpointBackend) ? backends : [...backends, endpointBackend];
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -58,13 +75,17 @@ export function MediaModelSection() {
     }
   }, [draft, fetchConfig]);
 
+  const currentBytePlusEndpoint = draft.byteplus_video_endpoint_id ?? settings?.byteplus_video_endpoint_id ?? "";
+  const videoBackends = useMemo(
+    () => withBytePlusEndpointOption(options?.video_backends ?? [], currentBytePlusEndpoint),
+    [currentBytePlusEndpoint, options?.video_backends],
+  );
+  const imageBackends: string[] = options?.image_backends ?? [];
+  const textBackends: string[] = options?.text_backends ?? [];
+
   if (!settings || !options) {
     return <div className="p-6 text-sm text-gray-500">載入中…</div>;
   }
-
-  const videoBackends: string[] = options.video_backends ?? [];
-  const imageBackends: string[] = options.image_backends ?? [];
-  const textBackends: string[] = options.text_backends ?? [];
 
   const currentVideo = draft.default_video_backend ?? settings.default_video_backend ?? "";
   const currentImage = draft.default_image_backend ?? settings.default_image_backend ?? "";
@@ -109,6 +130,25 @@ export function MediaModelSection() {
           />
           生成音訊
           <span className="text-xs text-gray-500">（僅部分供應商支援）</span>
+        </label>
+
+        <label className="mt-4 block text-sm font-medium text-gray-100">
+          BytePlus ModelArk Endpoint ID
+          <input
+            type="text"
+            value={currentBytePlusEndpoint}
+            onChange={(e) =>
+              setDraft((prev) => ({
+                ...prev,
+                byteplus_video_endpoint_id: e.target.value,
+              }))
+            }
+            placeholder="ep-..."
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            className="mt-2 w-full rounded-lg border border-gray-700 bg-gray-900/80 px-3 py-2 font-mono text-sm text-gray-200 transition-colors placeholder:text-gray-600 hover:border-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900"
+          />
         </label>
       </div>
 

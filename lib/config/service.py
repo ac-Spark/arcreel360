@@ -13,7 +13,7 @@ from lib.providers import normalize_provider_id
 
 _DEFAULT_VIDEO_BACKEND = "gemini-aistudio/veo-3.1-lite-generate-preview"
 _DEFAULT_IMAGE_BACKEND = "gemini-aistudio/gemini-3.1-flash-image-preview"
-_DEFAULT_TEXT_BACKEND = "gemini-aistudio/gemini-3.1-flash-lite-preview"
+_DEFAULT_TEXT_BACKEND = "gemini-aistudio/gemini-3.1-flash-lite"
 
 # DB setting key → environment variable name
 _ANTHROPIC_ENV_MAP: dict[str, str] = {

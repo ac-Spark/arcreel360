@@ -46,7 +46,7 @@ python .claude/skills/generate-script/scripts/generate_script.py --episode {N} -
 1. **載入 project.json** — 讀取 content_mode、characters、clues、overview、style
 2. **載入 Step 1 中間檔案** — 根據 content_mode 選擇 `step1_segments.md`（narration）或 `step1_normalized_script.md`（drama）
 3. **構建 Prompt** — 將專案概述、風格、角色、線索和中間檔案內容組合成完整 prompt
-4. **呼叫 Gemini API** — 使用 `gemini-3.1-flash-lite-preview` 模型，傳入 Pydantic schema 作為 `response_schema` 約束輸出格式
+4. **呼叫 Gemini API** — 使用 `gemini-3.1-flash-lite` 模型，傳入 Pydantic schema 作為 `response_schema` 約束輸出格式
 5. **Pydantic 驗證** — 用 `NarrationEpisodeScript`（narration）或 `DramaEpisodeScript`（drama）校驗返回 JSON
 6. **補充後設資料** — 寫入 episode、content_mode、統計資訊（片段/場景數、總時長）、時間戳
 

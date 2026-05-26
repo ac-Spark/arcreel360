@@ -47,7 +47,7 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
                 media_type="text",
                 capabilities=["text_generation", "structured_output", "vision"],
             ),
-            "gemini-3.1-flash-lite-preview": ModelInfo(
+            "gemini-3.1-flash-lite": ModelInfo(
                 display_name="Gemini 3.1 Flash Lite",
                 media_type="text",
                 capabilities=["text_generation", "structured_output", "vision"],
@@ -109,7 +109,7 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
                 media_type="text",
                 capabilities=["text_generation", "structured_output", "vision"],
             ),
-            "gemini-3.1-flash-lite-preview": ModelInfo(
+            "gemini-3.1-flash-lite": ModelInfo(
                 display_name="Gemini 3.1 Flash Lite",
                 media_type="text",
                 capabilities=["text_generation", "structured_output", "vision"],
@@ -207,18 +207,21 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
                 capabilities=["text_to_video", "image_to_video", "generate_audio", "seed_control", "flex_tier"],
                 default=True,
                 supported_durations=list(range(4, 13)),
+                supported_resolutions=["720p", "1080p"],
             ),
             "doubao-seedance-2-0-260128": ModelInfo(
                 display_name="Seedance 2.0",
                 media_type="video",
                 capabilities=["text_to_video", "image_to_video", "generate_audio", "seed_control", "video_extend"],
                 supported_durations=list(range(4, 16)),
+                supported_resolutions=["480p", "720p", "1080p"],
             ),
             "doubao-seedance-2-0-fast-260128": ModelInfo(
                 display_name="Seedance 2.0 Fast",
                 media_type="video",
                 capabilities=["text_to_video", "image_to_video", "generate_audio", "seed_control", "video_extend"],
                 supported_durations=list(range(4, 16)),
+                supported_resolutions=["480p", "720p", "1080p"],
             ),
         },
     ),
