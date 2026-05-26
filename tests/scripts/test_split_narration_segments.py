@@ -331,8 +331,21 @@ def test_filter_by_names_preserves_comma_and_whitespace_in_names():
       - 名字「 拉拉布 」會被 strip 成「拉拉布」→ name in items 對不上
     """
     items = {"史密斯, 約翰": 1, " 拉拉布 ": 2, "正常名": 3}
-    # 用 U+001F 分隔,名字內含的逗號與空白都應保留。
     assert split_narration_segments._filter_by_names(items, "史密斯, 約翰\x1f 拉拉布 ") == {
         "史密斯, 約翰": 1,
         " 拉拉布 ": 2,
     }
+
+
+def test_build_split_prompt_with_num_segments():
+    prompt = split_narration_segments.build_split_prompt(
+        novel_text="原文",
+        project_overview=_sample_overview(),
+        style="動漫風",
+        characters=_sample_characters(),
+        clues=_sample_clues(),
+        num_segments=5,
+    )
+    assert "指定片段數量" in prompt
+    assert "拆分為**剛好 5** 個片段" in prompt
+    assert "G01 到 G05" in prompt

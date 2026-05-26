@@ -294,3 +294,32 @@ def test_handle_preprocess_episode_with_source(tmp_path, monkeypatch):
     assert res.get("ok") is True
     assert res.get("step1_path") == "drafts/episode_1/step1_segments.md"
     assert captured_kwargs.get("source") == "source/custom.txt"
+
+
+def test_explicit_source_json_validation_fails(tmp_path):
+    import sys
+    from pathlib import Path
+    import pytest
+
+    scripts_dir = Path(__file__).resolve().parents[1] / "agent_runtime_profile" / ".claude" / "skills" / "generate-script" / "scripts"
+    sys.path.insert(0, str(scripts_dir))
+
+    try:
+        import split_narration_segments
+        import normalize_drama_script
+
+        project_path = tmp_path / "project"
+        source_dir = project_path / "source"
+        source_dir.mkdir(parents=True)
+
+        json_file = source_dir / "invalid.json"
+        json_file.write_text("{}", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="不支援的原始檔格式"):
+            split_narration_segments._read_explicit_sources(project_path, "source/invalid.json")
+
+        with pytest.raises(ValueError, match="不支援的原始檔格式"):
+            normalize_drama_script._read_explicit_sources(project_path, "source/invalid.json")
+    finally:
+        if str(scripts_dir) in sys.path:
+            sys.path.remove(str(scripts_dir))

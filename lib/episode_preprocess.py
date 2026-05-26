@@ -59,6 +59,7 @@ def run_preprocess(
     repo_root: Path | None = None,
     source: str | None = None,
     refs: dict | None = None,
+    num_segments: int | None = None,
 ) -> dict:
     """執行某集的 Step 1 預處理。
 
@@ -69,6 +70,7 @@ def run_preprocess(
             - ``characters`` / ``clues`` / ``scenes`` (list[str] | None):
               ``None`` 代表「全帶」(等同省略),``[]`` 代表「都不帶」,
               字串陣列代表「只帶這些名字」(不存在的名字靜默忽略)。
+        num_segments: 指定生成的片段數量或場景數量。
 
     Returns:
         {step1_path, content_mode}
@@ -101,6 +103,8 @@ def run_preprocess(
     cmd = [sys.executable, str(skill_script), "--episode", str(episode)]
     if source is not None:
         cmd.extend(["--source", source])
+    if num_segments is not None:
+        cmd.extend(["--num-segments", str(num_segments)])
 
     if refs:
         _append_ref_flags(cmd, refs)

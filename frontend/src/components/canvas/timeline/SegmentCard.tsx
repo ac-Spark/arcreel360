@@ -472,6 +472,18 @@ function TextColumn({
     sourceCommittedRef.current = sourceFromSegment;
   }, [sourceFromSegment]);
 
+  const resizeTextarea = useCallback(() => {
+    const el = textareaRef.current;
+    if (el) {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  }, []);
+
+  useEffect(() => {
+    resizeTextarea();
+  }, [sourceDraft, resizeTextarea]);
+
   const handleNoteBlur = () => {
     if (noteDraft !== committedRef.current) {
       committedRef.current = noteDraft;
@@ -517,16 +529,16 @@ function TextColumn({
         <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
           原文
         </span>
-        <div className="relative">
+        <div className="relative rounded-lg border border-gray-800 bg-gray-900/30 hover:border-gray-700/60 focus-within:border-indigo-500/80 focus-within:bg-gray-800/20 transition-all duration-200">
           <MentionHighlightOverlay
             value={sourceDraft}
             entities={mentionContext.entities}
             linkedNames={mentionContext.currentNames}
-            className="min-h-[8rem] px-2 py-1.5 text-sm leading-relaxed whitespace-pre-wrap break-words border border-transparent"
+            className="font-sans min-h-[8rem] px-3.5 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words border border-transparent"
           />
           <textarea
             ref={textareaRef}
-            className="relative min-h-[8rem] w-full resize-y whitespace-pre-wrap rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm leading-relaxed placeholder-gray-600 focus:border-indigo-500 focus:bg-gray-800/50 focus:outline-none"
+            className="font-sans relative min-h-[8rem] w-full resize-none overflow-hidden bg-transparent px-3.5 py-3 text-sm leading-relaxed placeholder-gray-600 border border-transparent focus:outline-none"
             style={{ color: "transparent", caretColor: "#d1d5db" }}
             value={sourceDraft}
             placeholder="（暫無原文）"

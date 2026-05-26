@@ -41,6 +41,7 @@ def build_normalize_prompt(
     include_overview: bool = True,
     include_style: bool = True,
     scenes: dict | None = None,
+    num_segments: int | None = None,
 ) -> str:
     """構建規範化劇本的 Prompt。
 
@@ -49,6 +50,7 @@ def build_normalize_prompt(
             傳空 dict `{}` 代表「不帶該區塊」（整段 `<...>` 標籤省略）；
             scenes=None 跟 `{}` 等價（都不帶，維持向後相容）。
         include_overview / include_style：False 代表完全省略該區塊。
+        num_segments: 指定生成的場景數量。
     """
 
     def _name_only(items: dict) -> str:
@@ -80,13 +82,18 @@ def build_normalize_prompt(
         sections.append(f"<style>\n{style}\n</style>")
     # characters / clues / scenes：空 dict → 完全省略該 <...> 區塊。
     if characters:
-        sections.append(f"<characters>\n{_name_only(characters)}\n</characters>")
+        sections.append(f"<characters>\n{_name_with_desc(characters)}\n</characters>")
     if clues:
-        sections.append(f"<clues>\n{_name_only(clues)}\n</clues>")
+        sections.append(f"<clues>\n{_name_with_desc(clues)}\n</clues>")
     if scenes:
         sections.append(f"<scenes>\n{_name_with_desc(scenes)}\n</scenes>")
 
     info_block = ("## 專案資訊\n\n" + "\n\n".join(sections) + "\n\n") if sections else ""
+
+    if num_segments is not None:
+        rule_num_segments = f"\n- **指定場景數量**：必須將小說原文合理且均勻地改編並拆分為**剛好 {num_segments}** 個場景（輸出 {num_segments} 列 Markdown 表格，場景 ID 從 E{{集數}}S01 到 E{{集數}}S{num_segments:02d}）。"
+    else:
+        rule_num_segments = ""
 
     return f"""你的任務是將小說原文改編為結構化的分鏡場景表（Markdown 格式），用於後續 AI 影片生成。
 
@@ -106,13 +113,18 @@ def build_normalize_prompt(
 | E{{N}}S02 | 詳細的場景描述... | 8 | 對話 | 否 |
 
 規則：
-- 場景 ID 格式：E{{集數}}S{{兩位序號}}（如 E1S01, E1S02）
+- 場景 ID 格式：E{{集數}}S{{兩位序號}}（如 E1S01, E1S02）{rule_num_segments}
 - 場景描述：改編後的劇本化描述，包含角色動作、對話、環境，適合視覺化呈現
 - 時長：4、6 或 8 秒（預設 8 秒，簡單畫面可用 4 或 6 秒）
 - 場景型別：劇情、動作、對話、過渡、空鏡
 - segment_break：場景切換點標記"是"，同一連續場景標"否"
 - 每個場景應為一個獨立的視覺畫面，可以在指定時長內完成
 - 避免一個場景包含多個不同的動作或畫面切換
+- **標準名稱套用與改寫（關鍵）**：
+  在改寫小說原文編寫「場景描述」時，**必須主動對照並套用**角色、線索與場景清單中所列的標準名稱。
+  - 如果小說原文中使用了人物的代稱或別名（例如「老人」、「老法師」），必須主動映射並直接改寫替換為專案定義的標準角色名稱。
+  - 如果小說原文中提到道具或線索的略稱，必須主動替換為對應的標準線索名稱。
+  - 若該場景發生的空間地點對應了專案已設定的標準場景，必須在描述中明確寫出該標準場景名稱，並儘量融入其在場景清單中的描述特徵，以保持影片前後場景環境的一致性。
 
 ### 嚴禁標記符號
 「場景描述」欄位是給後續 AI 讀的自然語言，**不得**自行添加 `@xxx`、`#xxx`、`[xxx]`、`{{xxx}}` 等任何引用標記。
@@ -197,6 +209,8 @@ def _read_explicit_sources(project_path: Path, source: str) -> str:
             raise ValueError(f"路徑超出 source/ 目錄: {source_path}")
         if not source_path.exists() or source_path.is_dir():
             raise FileNotFoundError(f"未找到原始檔: {source_path}")
+        if source_path.suffix.lower() not in _SOURCE_SUFFIXES:
+            raise ValueError(f"不支援的原始檔格式: {source_path.suffix}，僅支援: {', '.join(_SOURCE_SUFFIXES)}")
         texts.append(source_path.read_text(encoding="utf-8"))
     return "\n\n".join(texts)
 
@@ -279,6 +293,12 @@ def main():
         default=None,
         help="指定小說原始檔路徑，可用逗號分隔多檔（預設讀 source/episode_{N}.txt）",
     )
+    parser.add_argument(
+        "--num-segments",
+        type=int,
+        default=None,
+        help="指定生成的場景數量",
+    )
     parser.add_argument("--dry-run", action="store_true", help="僅顯示 Prompt，不實際呼叫 API")
     parser.add_argument(
         "--no-overview",
@@ -346,6 +366,7 @@ def main():
         include_overview=not args.no_overview,
         include_style=not args.no_style,
         scenes=scenes,
+        num_segments=args.num_segments,
     )
 
     if args.dry_run:

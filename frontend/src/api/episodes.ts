@@ -141,9 +141,11 @@ export const episodesApi = {
     episode: number,
     source?: string,
     refs?: PreprocessRefs,
+    numSegments?: number,
   ): Promise<{ step1_path: string; content_mode: string }> {
     const body: Record<string, unknown> = { source };
     if (refs !== undefined) body.refs = refs;
+    if (numSegments !== undefined) body.num_segments = numSegments;
     return getApi().request(
       `/projects/${encodeURIComponent(name)}/episodes/${episode}/preprocess`,
       { method: "POST", body: JSON.stringify(body) },

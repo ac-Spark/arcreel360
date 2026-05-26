@@ -735,6 +735,7 @@ class PreprocessRefs(BaseModel):
 class PreprocessEpisodeRequest(BaseModel):
     source: str | None = None
     refs: PreprocessRefs | None = None
+    num_segments: int | None = None
 
 
 def _resolve_source_file_for_split(manager: ProjectManager, project_name: str, source: str) -> Path:
@@ -1414,6 +1415,7 @@ async def preprocess_episode(
         project = await asyncio.to_thread(manager.load_project, name)
         project_path = manager.get_project_path(name)
         source = req.source if req else None
+        num_segments = req.num_segments if req else None
         refs_dict: dict | None = None
         if req and req.refs is not None:
             # 用 mode="json" 把空陣列保留為 [],None 仍為 None,避免被 exclude_none 吃掉。
@@ -1427,6 +1429,7 @@ async def preprocess_episode(
                 repo_root=PROJECT_ROOT,
                 source=source,
                 refs=refs_dict,
+                num_segments=num_segments,
             )
 
     except SourceNotReadyError as e:

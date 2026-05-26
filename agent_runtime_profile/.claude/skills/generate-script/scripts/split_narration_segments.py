@@ -37,6 +37,7 @@ def build_split_prompt(
     include_overview: bool = True,
     include_style: bool = True,
     scenes: dict | None = None,
+    num_segments: int | None = None,
 ) -> str:
     """構建說書片段拆分的 Prompt。
 
@@ -45,6 +46,7 @@ def build_split_prompt(
             傳空 dict `{}` 代表「不帶該區塊」(整段 `<...>` 標籤省略);
             scenes=None 跟 `{}` 等價(都不帶,維持向後相容)。
         include_overview / include_style:False 代表完全省略該區塊。
+        num_segments: 指定生成的片段數量。
     """
 
     def _format(items: dict) -> str:
@@ -81,13 +83,18 @@ def build_split_prompt(
 
     info_block = ("## 專案資訊\n\n" + "\n\n".join(sections) + "\n\n") if sections else ""
 
+    if num_segments is not None:
+        rule_num_segments = f"\n4. **指定片段數量**：必須將輸入的小說原文合理且均勻地拆分為**剛好 {num_segments}** 個片段（輸出 {num_segments} 列 Markdown 表格，序號從 G01 到 G{num_segments:02d}）。確保不丟失、不重複原文內容。"
+    else:
+        rule_num_segments = ""
+
     return f"""你的任務是將中文小說原文按朗讀節奏拆分為適合短影片配音的片段，輸出 Markdown 表格。
 
 ## 核心原則
 
 1. **保留原文**：不改編、不刪減、不新增小說原文內容；每個片段的「原文」欄位必須是小說中的連續一段文字。
 2. **朗讀節奏**：每片段約 4 秒（約 20-24 個中文字），在自然斷句處拆分。
-3. **片段拼接後等於原文**：把所有片段「原文」依序串起，應與輸入小說（去除前後空白）等價。
+3. **片段拼接後等於原文**：把所有片段「原文」依序串起，應與輸入小說（去除前後空白）等價。{rule_num_segments}
 
 ## 拆分規則
 
@@ -218,6 +225,8 @@ def _read_explicit_sources(project_path: Path, source: str) -> str:
             raise ValueError(f"路徑超出 source/ 目錄: {source_path}")
         if not source_path.exists() or source_path.is_dir():
             raise FileNotFoundError(f"未找到原始檔: {source_path}")
+        if source_path.suffix.lower() not in _SOURCE_SUFFIXES:
+            raise ValueError(f"不支援的原始檔格式: {source_path.suffix}，僅支援: {', '.join(_SOURCE_SUFFIXES)}")
         texts.append(source_path.read_text(encoding="utf-8"))
     return "\n\n".join(texts)
 
@@ -298,6 +307,12 @@ def main():
         default=None,
         help="指定小說原始檔路徑，可用逗號分隔多檔（預設讀 source/episode_{N}.txt）",
     )
+    parser.add_argument(
+        "--num-segments",
+        type=int,
+        default=None,
+        help="指定生成的片段數量",
+    )
     parser.add_argument("--dry-run", action="store_true", help="僅顯示 Prompt，不實際呼叫 API")
     parser.add_argument(
         "--no-overview",
@@ -363,6 +378,7 @@ def main():
         include_overview=not args.no_overview,
         include_style=not args.no_style,
         scenes=scenes,
+        num_segments=args.num_segments,
     )
 
     if args.dry_run:

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FileText, Film, Image as ImageIcon, RotateCcw, Scissors, Wand2 } from "lucide-react";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
@@ -36,6 +36,7 @@ type SourceFile = { name: string; size: number; url?: string };
 
 const SOURCE_TEXT_SUFFIXES = [".txt", ".md", ".text"];
 const OVERVIEW_FIELDS = ["synopsis", "genre", "theme", "world_setting"] as const;
+const NUM_SEGMENTS_STORAGE_PREFIX = "arcreel:num_segments";
 
 function isSourceTextFile(file: SourceFile) {
   const lower = file.name.toLowerCase();
@@ -44,6 +45,23 @@ function isSourceTextFile(file: SourceFile) {
 
 function hasProjectOverview(overview: ProjectOverview | undefined): boolean {
   return !!overview && OVERVIEW_FIELDS.some((field) => ((overview[field] ?? "").trim().length > 0));
+}
+
+function numSegmentsStorageKey(projectName: string): string {
+  return `${NUM_SEGMENTS_STORAGE_PREFIX}:${projectName}`;
+}
+
+function readStoredNumSegments(storageKey: string): number | undefined {
+  const saved = localStorage.getItem(storageKey);
+  return saved ? parseInt(saved, 10) : undefined;
+}
+
+function persistNumSegments(storageKey: string, value: number | undefined): void {
+  if (value !== undefined && !Number.isNaN(value)) {
+    localStorage.setItem(storageKey, value.toString());
+    return;
+  }
+  localStorage.removeItem(storageKey);
 }
 
 /**
@@ -128,6 +146,12 @@ export function EpisodeActionsBar({
   const [sources, setSources] = useState<{ name: string; size: number }[]>([]);
   const [loadingSources, setLoadingSources] = useState(false);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [numSegments, setNumSegments] = useState<number | undefined>(undefined);
+  const numSegmentsKey = numSegmentsStorageKey(projectName);
+
+  useEffect(() => {
+    setNumSegments(readStoredNumSegments(numSegmentsKey));
+  }, [numSegmentsKey]);
 
   // 拆段時可勾選的「參考來源」清單,來自當前 project。
   const currentProjectData = useProjectsStore((s) => s.currentProjectData);
@@ -180,6 +204,12 @@ export function EpisodeActionsBar({
     );
   };
 
+  const updateNumSegments = (value: string) => {
+    const parsed = value ? parseInt(value, 10) : undefined;
+    setNumSegments(parsed);
+    persistNumSegments(numSegmentsKey, parsed);
+  };
+
   const handleMultiSourceConfirm = async () => {
     setDropdownOpen(false);
     const hasSelectedSources = selectedSources.length > 0;
@@ -196,6 +226,7 @@ export function EpisodeActionsBar({
         episode,
         source,
         refsDirty ? refs : undefined,
+        numSegments,
       );
       useAppStore.getState().invalidateEntities([`draft:episode_${episode}_step1`]);
       return res.step1_path;
@@ -321,6 +352,21 @@ export function EpisodeActionsBar({
                         onChange={setRefs}
                       />
                       <div className="my-1.5 h-px bg-gray-800" />
+                      <div className="px-2.5 py-1">
+                        <label className="block text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500 mb-1">
+                          指定生成段數 / 場景數
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={100}
+                          placeholder="預設自動控制"
+                          value={numSegments ?? ""}
+                          onChange={(e) => updateNumSegments(e.target.value)}
+                          className="w-full rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-gray-300 placeholder-gray-600 outline-none focus:border-indigo-500 focus:ring-0"
+                        />
+                      </div>
+                      <div className="my-1.5 h-px bg-gray-800" />
                       <div className="p-1">
                         <button
                           type="button"
@@ -381,7 +427,11 @@ export function EpisodeActionsBar({
               label="合成成片"
               loading={busy === "compose"}
               disabled={!hasScript || busy !== null}
-              onClick={() => void handleCompose()}
+              onClick={async () => {
+                if (await confirm({ message: "確定要合成成片嗎？（此操作會覆寫之前的成片）" })) {
+                  void handleCompose();
+                }
+              }}
               tone="success"
             />
           </>
@@ -408,6 +458,18 @@ function BatchGenerationDialog({
   onSelect: (force: boolean) => void;
   onCancel: () => void;
 }) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onCancel();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onCancel]);
+
   const config =
     kind === "storyboards"
       ? {

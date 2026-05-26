@@ -265,6 +265,19 @@ def test_filter_by_names_normalize_helper():
     assert normalize_drama_script._filter_by_names({"A": 1, "B": 2}, "A") == {"A": 1}
     # 不存在的名字靜默忽略(用 U+001F 分隔)
     assert normalize_drama_script._filter_by_names({"A": 1}, "A\x1fX") == {"A": 1}
-    # 名字內含逗號或前後空白不會被誤拆/strip
     items = {"史密斯, 約翰": 1, " 拉拉布 ": 2}
     assert normalize_drama_script._filter_by_names(items, "史密斯, 約翰\x1f 拉拉布 ") == items
+
+
+def test_build_normalize_prompt_with_num_segments():
+    prompt = normalize_drama_script.build_normalize_prompt(
+        novel_text="原文",
+        project_overview=_sample_overview(),
+        style="動漫風",
+        characters=_sample_characters(),
+        clues=_sample_clues(),
+        num_segments=8,
+    )
+    assert "指定場景數量" in prompt
+    assert "改編並拆分為**剛好 8** 個場景" in prompt
+    assert "E{集數}S01 到 E{集數}S08" in prompt

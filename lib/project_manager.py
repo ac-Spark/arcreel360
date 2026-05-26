@@ -436,11 +436,11 @@ class ProjectManager:
         total_duration = sum(item.get("duration_seconds", default_duration) for item in items)
         metadata["estimated_duration_seconds"] = total_duration
 
-        # 儲存檔案（含路徑遍歷防護）
+        # 儲存檔案（含路徑遍歷防護），使用原子寫入避免併發讀取讀到半寫狀態
         real = self._safe_subpath(scripts_dir, filename)
-        with open(real, "w", encoding="utf-8") as f:  # noqa: PTH123
-            json.dump(script, f, ensure_ascii=False, indent=2)
         output_path = Path(real)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        self._atomic_write_json(output_path, script)
 
         emit_project_change_hint(
             project_name,

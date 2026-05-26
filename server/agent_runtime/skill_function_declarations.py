@@ -337,6 +337,7 @@ PREPROCESS_EPISODE_DECL = FunctionDeclaration(
         "properties": {
             "episode": {"type": "integer", "description": "集數編號"},
             "source": {"type": "string", "description": "可選的指定原文相對路徑，若不指定則自動均分"},
+            "num_segments": {"type": "integer", "description": "可選的指定生成段數或場景數，若不指定則由 LLM 自動判定"},
         },
         "required": ["episode"],
     },
@@ -348,6 +349,7 @@ async def _handle_preprocess_episode(ctx: SkillCallContext, args: dict[str, Any]
 
     episode = args.get("episode")
     source = args.get("source")
+    num_segments = args.get("num_segments")
     if not isinstance(episode, int) or episode < 1:
         return {"ok": False, "error": "invalid_argument", "reason": "需要 episode(int>=1)"}
     project_path = ctx.project_manager.get_project_path(ctx.project_name)
@@ -358,6 +360,7 @@ async def _handle_preprocess_episode(ctx: SkillCallContext, args: dict[str, Any]
             episode,
             repo_root=ctx.project_manager.projects_root.parent,
             source=source,
+            num_segments=num_segments,
         )
         return {"ok": True, **result}
     except SourceNotReadyError as exc:
