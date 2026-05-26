@@ -2,7 +2,7 @@ from lib.config.registry import PROVIDER_REGISTRY, ModelInfo, ProviderMeta
 
 
 def test_all_providers_registered():
-    assert set(PROVIDER_REGISTRY.keys()) == {"gemini-aistudio", "gemini-vertex", "ark", "grok", "openai"}
+    assert set(PROVIDER_REGISTRY.keys()) == {"gemini-aistudio", "gemini-vertex", "byteplus", "grok", "openai"}
 
 
 def test_provider_meta_fields():
@@ -16,10 +16,11 @@ def test_provider_meta_fields():
     assert "text_to_video" in meta.capabilities
 
 
-def test_ark_supports_video_and_image():
-    meta = PROVIDER_REGISTRY["ark"]
+def test_byteplus_supports_video_and_image():
+    meta = PROVIDER_REGISTRY["byteplus"]
     assert "video" in meta.media_types
     assert "image" in meta.media_types
+    assert meta.display_name == "BytePlus ModelArk"
 
 
 def test_required_keys_are_subset_of_all_keys():

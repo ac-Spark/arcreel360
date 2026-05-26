@@ -45,9 +45,9 @@ async def test_creates_gemini_aistudio_backend():
         assert result is mock_backend
 
 
-async def test_creates_ark_backend():
+async def test_creates_byteplus_backend():
     mock_resolver = _make_mock_resolver(
-        text_backend_for_task=("ark", "doubao-seed-2-0-lite-260215"),
+        text_backend_for_task=("byteplus", "doubao-seed-2-0-lite-260215"),
         provider_config={"api_key": "ark-key"},
     )
 
@@ -61,7 +61,7 @@ async def test_creates_ark_backend():
         result = await create_text_backend_for_task(TextTaskType.OVERVIEW, "my-project")
 
         mock_create.assert_called_once_with(
-            "ark",
+            "byteplus",
             api_key="ark-key",
             model="doubao-seed-2-0-lite-260215",
         )

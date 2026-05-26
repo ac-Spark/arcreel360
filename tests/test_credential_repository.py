@@ -119,11 +119,11 @@ class TestCredentialRepository:
     async def test_get_active_credentials_bulk(self, session: AsyncSession):
         repo = CredentialRepository(session)
         await repo.create(provider="gemini-aistudio", name="K1", api_key="AIza-1")
-        await repo.create(provider="ark", name="K2", api_key="ark-key")
+        await repo.create(provider="byteplus", name="K2", api_key="byteplus-key")
         await session.flush()
         bulk = await repo.get_active_credentials_bulk()
         assert "gemini-aistudio" in bulk
-        assert "ark" in bulk
+        assert "byteplus" in bulk
 
     async def test_base_url_normalized_on_create(self, session: AsyncSession):
         repo = CredentialRepository(session)

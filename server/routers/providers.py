@@ -545,8 +545,8 @@ def _extract_gemini_models(pager) -> list[str]:
     return sorted(models)
 
 
-def _test_ark(config: dict[str, str]) -> ConnectionTestResponse:
-    """透過 tasks.list 驗證 Ark API Key。"""
+def _test_byteplus(config: dict[str, str]) -> ConnectionTestResponse:
+    """透過 tasks.list 驗證 BytePlus ModelArk API Key。"""
     from lib.ark_shared import create_ark_client
 
     client = create_ark_client(api_key=config["api_key"])
@@ -599,7 +599,7 @@ def _test_openai(config: dict[str, str]) -> ConnectionTestResponse:
 _TEST_DISPATCH: dict[str, Callable[[dict[str, str]], ConnectionTestResponse]] = {
     "gemini-aistudio": _test_gemini_aistudio,
     "gemini-vertex": _test_gemini_vertex,
-    "ark": _test_ark,
+    "byteplus": _test_byteplus,
     "grok": _test_grok,
     "openai": _test_openai,
 }

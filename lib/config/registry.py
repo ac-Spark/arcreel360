@@ -135,9 +135,9 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
             ),
         },
     ),
-    "ark": ProviderMeta(
-        display_name="火山方舟",
-        description="位元組跳動火山方舟 AI 平臺，支援 Seedance 影片生成和 Seedream 圖片生成，具備音訊生成和種子控制能力。",
+    "byteplus": ProviderMeta(
+        display_name="BytePlus ModelArk",
+        description="BytePlus ModelArk AI 平臺，支援 Seedance 影片生成和 Seedream 圖片生成，具備音訊生成和種子控制能力。",
         required_keys=["api_key"],
         optional_keys=["video_max_workers", "image_max_workers"],
         secret_keys=["api_key"],

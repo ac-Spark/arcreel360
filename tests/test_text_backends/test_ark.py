@@ -19,7 +19,7 @@ def mock_ark():
 class TestProperties:
     def test_name(self, mock_ark):
         b = ArkTextBackend(api_key="k")
-        assert b.name == "ark"
+        assert b.name == "byteplus"
 
     def test_default_model(self, mock_ark):
         b = ArkTextBackend(api_key="k")
@@ -57,7 +57,7 @@ class TestGenerate:
 
         assert isinstance(result, TextGenerationResult)
         assert result.text == "ark output"
-        assert result.provider == "ark"
+        assert result.provider == "byteplus"
         assert result.input_tokens == 15
         assert result.output_tokens == 8
 

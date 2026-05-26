@@ -1,4 +1,4 @@
-"""ArkTextBackend — 火山方舟文字生成後端。"""
+"""ArkTextBackend — BytePlus ModelArk 文字生成後端。"""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import logging
 from typing import Any
 
 from lib.ark_shared import ARK_BASE_URL, create_ark_client, resolve_ark_api_key
-from lib.providers import PROVIDER_ARK
+from lib.providers import PROVIDER_BYTEPLUS
 from lib.retry import with_retry_async
 from lib.text_backends.base import (
     TextCapability,
@@ -21,7 +21,7 @@ DEFAULT_MODEL = "doubao-seed-2-0-lite-260215"
 
 
 class ArkTextBackend:
-    """Ark (火山方舟) 文字生成後端。"""
+    """BytePlus ModelArk 文字生成後端。"""
 
     def __init__(self, *, api_key: str | None = None, model: str | None = None):
         self._client = create_ark_client(api_key=api_key)
@@ -38,7 +38,7 @@ class ArkTextBackend:
         from lib.config.registry import PROVIDER_REGISTRY
 
         base = {TextCapability.TEXT_GENERATION, TextCapability.VISION}
-        provider_meta = PROVIDER_REGISTRY.get("ark")
+        provider_meta = PROVIDER_REGISTRY.get(PROVIDER_BYTEPLUS)
         if provider_meta:
             model_info = provider_meta.models.get(self._model)
             if model_info and TextCapability.STRUCTURED_OUTPUT in model_info.capabilities:
@@ -48,7 +48,7 @@ class ArkTextBackend:
 
     @property
     def name(self) -> str:
-        return PROVIDER_ARK
+        return PROVIDER_BYTEPLUS
 
     @property
     def model(self) -> str:
@@ -123,7 +123,7 @@ class ArkTextBackend:
             model=self._model,
             messages=messages,
             response_schema=request.response_schema,
-            provider=PROVIDER_ARK,
+            provider=PROVIDER_BYTEPLUS,
             max_output_tokens=request.max_output_tokens,
         )
 
@@ -163,7 +163,7 @@ class ArkTextBackend:
 
         return TextGenerationResult(
             text=text.strip() if isinstance(text, str) else str(text),
-            provider=PROVIDER_ARK,
+            provider=PROVIDER_BYTEPLUS,
             model=self._model,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
@@ -189,7 +189,7 @@ class ArkTextBackend:
         output_tokens = getattr(getattr(response, "usage", None), "completion_tokens", None)
         return TextGenerationResult(
             text=text.strip() if isinstance(text, str) else str(text),
-            provider=PROVIDER_ARK,
+            provider=PROVIDER_BYTEPLUS,
             model=self._model,
             input_tokens=input_tokens,
             output_tokens=output_tokens,

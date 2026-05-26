@@ -12,7 +12,13 @@ from lib.custom_provider import is_custom_provider, parse_provider_id
 from lib.db.base import DEFAULT_USER_ID, dt_to_iso, utc_now
 from lib.db.models.api_call import ApiCall
 from lib.db.repositories.base import BaseRepository
-from lib.providers import PROVIDER_GEMINI, CallType
+from lib.providers import PROVIDER_BYTEPLUS, PROVIDER_GEMINI, CallType, normalize_provider_id
+
+
+def _normalize_usage_provider_id(provider: str) -> str:
+    if provider in {"ark", "seedance"}:
+        return PROVIDER_BYTEPLUS
+    return provider
 
 
 def _row_to_dict(row: ApiCall) -> dict[str, Any]:
@@ -74,7 +80,7 @@ class UsageRepository(BaseRepository):
             generate_audio=generate_audio,
             status="pending",
             started_at=now,
-            provider=provider,
+            provider=_normalize_usage_provider_id(provider),
             user_id=user_id,
             segment_id=segment_id,
         )
@@ -332,7 +338,7 @@ class UsageRepository(BaseRepository):
                 except ValueError:
                     stat["display_name"] = provider_str
             else:
-                meta = PROVIDER_REGISTRY.get(provider_str or "")
+                meta = PROVIDER_REGISTRY.get(normalize_provider_id(provider_str or ""))
                 stat["display_name"] = meta.display_name if meta else provider_str
 
         period_start: str | None = None

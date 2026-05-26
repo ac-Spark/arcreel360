@@ -1,4 +1,4 @@
-"""ArkVideoBackend — 火山方舟 Ark 影片生成後端。"""
+"""ArkVideoBackend — BytePlus ModelArk 影片生成後端。"""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import asyncio
 import logging
 
 from lib.ark_shared import create_ark_client
-from lib.providers import PROVIDER_ARK
+from lib.providers import PROVIDER_BYTEPLUS
 from lib.retry import BASE_RETRYABLE_ERRORS, _should_retry, with_retry_async
 from lib.video_backends.base import (
     VideoCapability,
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class ArkVideoBackend:
-    """Ark (火山方舟) 影片生成後端。"""
+    """BytePlus ModelArk 影片生成後端。"""
 
     DEFAULT_MODEL = "doubao-seedance-1-5-pro-251215"
 
@@ -58,7 +58,7 @@ class ArkVideoBackend:
 
     @property
     def name(self) -> str:
-        return PROVIDER_ARK
+        return PROVIDER_BYTEPLUS
 
     @property
     def model(self) -> str:
@@ -163,7 +163,7 @@ class ArkVideoBackend:
 
         return VideoGenerationResult(
             video_path=request.output_path,
-            provider=PROVIDER_ARK,
+            provider=PROVIDER_BYTEPLUS,
             model=self._model,
             duration_seconds=request.duration_seconds,
             video_uri=video_url,

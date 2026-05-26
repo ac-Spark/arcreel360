@@ -58,13 +58,13 @@ class TestProviderRegistry:
             assert len(text_models) > 0, f"{provider_id} has no text models"
 
     def test_all_providers_have_image_models(self):
-        for provider_id in ("gemini-aistudio", "gemini-vertex", "ark", "grok"):
+        for provider_id in ("gemini-aistudio", "gemini-vertex", "byteplus", "grok"):
             meta = PROVIDER_REGISTRY[provider_id]
             image_models = [mid for mid, m in meta.models.items() if m.media_type == "image"]
             assert len(image_models) > 0, f"{provider_id} has no image models"
 
     def test_all_providers_have_video_models(self):
-        for provider_id in ("gemini-aistudio", "gemini-vertex", "ark", "grok"):
+        for provider_id in ("gemini-aistudio", "gemini-vertex", "byteplus", "grok"):
             meta = PROVIDER_REGISTRY[provider_id]
             video_models = [mid for mid, m in meta.models.items() if m.media_type == "video"]
             assert len(video_models) > 0, f"{provider_id} has no video models"
@@ -82,8 +82,9 @@ class TestProviderRegistry:
         for provider_id, meta in PROVIDER_REGISTRY.items():
             assert "text" in meta.media_types, f"{provider_id} missing 'text'"
 
-    def test_ark_video_models_include_seedance_2(self):
-        meta = PROVIDER_REGISTRY["ark"]
+    def test_byteplus_video_models_include_seedance_2(self):
+        assert "ark" not in PROVIDER_REGISTRY
+        meta = PROVIDER_REGISTRY["byteplus"]
         video_models = {mid: m for mid, m in meta.models.items() if m.media_type == "video"}
         assert len(video_models) == 3
         assert "doubao-seedance-2-0-260128" in video_models

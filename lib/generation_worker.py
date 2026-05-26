@@ -119,12 +119,9 @@ async def _extract_provider(task: dict[str, Any]) -> str:
 
 def _normalize_provider_id(raw: str) -> str:
     """Normalize old-style provider names to registry provider_id."""
-    mapping = {
-        "gemini": "gemini-aistudio",
-        "vertex": "gemini-vertex",
-        "seedance": "ark",
-    }
-    return mapping.get(raw, raw)
+    from lib.providers import normalize_provider_id
+
+    return normalize_provider_id(raw)
 
 
 async def _load_pools_from_db() -> dict[str, ProviderPool]:

@@ -15,7 +15,6 @@ from lib.image_backends.base import (
     ImageGenerationResult,
     ReferenceImage,
 )
-from lib.providers import PROVIDER_ARK
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -64,7 +63,7 @@ class TestArkImageBackendInit:
 
             backend = ArkImageBackend()
             mock_create.assert_called_once_with(api_key=None)
-            assert backend.name == PROVIDER_ARK
+            assert backend.name == "byteplus"
 
     def test_api_key_from_param(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.delenv("ARK_API_KEY", raising=False)
@@ -73,6 +72,11 @@ class TestArkImageBackendInit:
 
             ArkImageBackend(api_key="my-key")
             mock_create.assert_called_once_with(api_key="my-key")
+
+    def test_uses_byteplus_base_url(self):
+        from lib.ark_shared import ARK_BASE_URL
+
+        assert ARK_BASE_URL == "https://ark.ap-southeast.bytepluses.com/api/v3"
 
 
 class TestArkImageBackendProperties:
@@ -87,7 +91,7 @@ class TestArkImageBackendProperties:
             return ArkImageBackend(api_key="test-key")
 
     def test_name(self, backend):
-        assert backend.name == PROVIDER_ARK
+        assert backend.name == "byteplus"
 
     def test_default_model(self, backend):
         assert backend.model == "doubao-seedream-5-0-lite-260128"
@@ -136,7 +140,7 @@ class TestArkImageBackendGenerate:
 
         # Result
         assert isinstance(result, ImageGenerationResult)
-        assert result.provider == PROVIDER_ARK
+        assert result.provider == "byteplus"
         assert result.image_path == output
         assert output.exists()
         assert output.read_bytes() == base64.b64decode(FAKE_B64)

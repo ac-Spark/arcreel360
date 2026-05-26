@@ -57,7 +57,7 @@ def _mock_httpx_stream(data: bytes = b"fake-mp4-data"):
 
 class TestArkProperties:
     def test_name(self, backend):
-        assert backend.name == "ark"
+        assert backend.name == "byteplus"
 
     def test_capabilities(self, backend):
         caps = backend.capabilities
@@ -99,7 +99,7 @@ class TestArkGenerate:
             patcher.stop()
 
         assert isinstance(result, VideoGenerationResult)
-        assert result.provider == "ark"
+        assert result.provider == "byteplus"
         assert result.model == "doubao-seedance-1-5-pro-251215"
         assert result.seed == 58944
         assert result.usage_tokens == 246840
@@ -136,7 +136,7 @@ class TestArkGenerate:
         finally:
             patcher.stop()
 
-        assert result.provider == "ark"
+        assert result.provider == "byteplus"
         create_call = backend._client.content_generation.tasks.create
         call_kwargs = create_call.call_args
         content_arg = call_kwargs.kwargs.get("content") or call_kwargs[1].get("content")

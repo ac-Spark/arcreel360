@@ -1,4 +1,4 @@
-"""ArkImageBackend — 火山方舟 Seedream 圖片生成後端。"""
+"""ArkImageBackend — BytePlus ModelArk Seedream 圖片生成後端。"""
 
 from __future__ import annotations
 
@@ -14,14 +14,14 @@ from lib.image_backends.base import (
     ImageGenerationResult,
     image_to_base64_data_uri,
 )
-from lib.providers import PROVIDER_ARK
+from lib.providers import PROVIDER_BYTEPLUS
 from lib.retry import with_retry_async
 
 logger = logging.getLogger(__name__)
 
 
 class ArkImageBackend:
-    """Ark (火山方舟) Seedream 圖片生成後端。"""
+    """BytePlus ModelArk Seedream 圖片生成後端。"""
 
     DEFAULT_MODEL = "doubao-seedream-5-0-lite-260128"
 
@@ -40,7 +40,7 @@ class ArkImageBackend:
 
     @property
     def name(self) -> str:
-        return PROVIDER_ARK
+        return PROVIDER_BYTEPLUS
 
     @property
     def model(self) -> str:
@@ -82,6 +82,6 @@ class ArkImageBackend:
 
         return ImageGenerationResult(
             image_path=request.output_path,
-            provider=PROVIDER_ARK,
+            provider=PROVIDER_BYTEPLUS,
             model=self._model,
         )

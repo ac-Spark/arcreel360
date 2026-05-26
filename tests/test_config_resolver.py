@@ -141,7 +141,7 @@ class TestDefaultBackends:
             settings={"default_video_backend": "ark/doubao-seedance-1-5-pro"},
         )
         result = await resolver._resolve_default_video_backend(fake_svc, None)
-        assert result == ("ark", "doubao-seedance-1-5-pro")
+        assert result == ("byteplus", "doubao-seedance-1-5-pro")
 
     async def test_video_backend_auto_resolve(self):
         """DB 無值時走 auto-resolve，選第一個 ready 供應商的預設 video 模型。"""
@@ -152,7 +152,7 @@ class TestDefaultBackends:
         try:
             async with factory() as session:
                 result = await resolver._resolve_default_video_backend(fake_svc, session)
-            assert result[0] in ("gemini-aistudio", "gemini-vertex", "ark", "grok")
+            assert result[0] in ("gemini-aistudio", "gemini-vertex", "byteplus", "grok")
         finally:
             await engine.dispose()
 
@@ -185,7 +185,7 @@ class TestDefaultBackends:
         try:
             async with factory() as session:
                 result = await resolver._resolve_default_image_backend(fake_svc, session)
-            assert result[0] in ("gemini-aistudio", "gemini-vertex", "ark", "grok")
+            assert result[0] in ("gemini-aistudio", "gemini-vertex", "byteplus", "grok")
         finally:
             await engine.dispose()
 

@@ -98,7 +98,7 @@ class TestProviderPool:
 class TestExtractProvider:
     async def test_video_provider_in_payload(self):
         task = {"payload": {"video_provider": "ark"}}
-        assert await _extract_provider(task) == "ark"
+        assert await _extract_provider(task) == "byteplus"
 
     async def test_image_provider_in_payload(self):
         task = {"payload": {"image_provider": "gemini-vertex"}}
@@ -165,7 +165,7 @@ class TestExtractProvider:
             lambda: type("PM", (), {"load_project": lambda self, name: {"video_backend": "ark"}})(),
         )
         task = {"payload": {}, "project_name": "test", "task_type": "video"}
-        assert await _extract_provider(task) == "ark"
+        assert await _extract_provider(task) == "byteplus"
 
     async def test_project_level_image_backend_takes_precedence(self, monkeypatch):
         """專案級 image_backend 優先於全域性預設。"""
@@ -195,12 +195,12 @@ class TestExtractProvider:
             should_not_be_called,
         )
         task = {"payload": {"video_provider": "ark"}, "project_name": "test", "task_type": "video"}
-        assert await _extract_provider(task) == "ark"
+        assert await _extract_provider(task) == "byteplus"
 
 
 class TestProjectLevelProvider:
     def test_video_provider(self):
-        assert _project_level_provider({"video_backend": "ark"}, "video") == "ark"
+        assert _project_level_provider({"video_backend": "byteplus"}, "video") == "byteplus"
 
     def test_video_backend_with_slash(self):
         assert _project_level_provider({"video_backend": "grok/grok-imagine-video"}, "video") == "grok"
@@ -224,11 +224,12 @@ class TestNormalizeProviderId:
         assert _normalize_provider_id("vertex") == "gemini-vertex"
 
     def test_already_new(self):
-        assert _normalize_provider_id("ark") == "ark"
+        assert _normalize_provider_id("byteplus") == "byteplus"
         assert _normalize_provider_id("grok") == "grok"
 
-    def test_seedance_to_ark(self):
-        assert _normalize_provider_id("seedance") == "ark"
+    def test_legacy_ark_and_seedance_to_byteplus(self):
+        assert _normalize_provider_id("ark") == "byteplus"
+        assert _normalize_provider_id("seedance") == "byteplus"
 
 
 class TestBuildDefaultPools:
@@ -344,7 +345,7 @@ class TestGenerationWorker:
                         "task_id": "vid1",
                         "task_type": "gen_video",
                         "media_type": "video",
-                        "payload": {"video_provider": "ark"},
+                        "payload": {"video_provider": "byteplus"},
                     },
                 ]
 
@@ -357,7 +358,7 @@ class TestGenerationWorker:
         queue = _ClaimableQueue()
         pools = {
             "gemini-aistudio": ProviderPool(provider_id="gemini-aistudio", image_max=3, video_max=2),
-            "ark": ProviderPool(provider_id="ark", image_max=0, video_max=2),
+            "byteplus": ProviderPool(provider_id="byteplus", image_max=0, video_max=2),
         }
         worker = GenerationWorker(queue=queue, pools=pools)
 
@@ -372,13 +373,13 @@ class TestGenerationWorker:
         claimed = await worker._claim_tasks()
         assert claimed
         assert "img1" in pools["gemini-aistudio"].image_inflight
-        assert "vid1" in pools["ark"].video_inflight
+        assert "vid1" in pools["byteplus"].video_inflight
 
         # Wait for tasks to complete
         await asyncio.gather(
             *[
                 *pools["gemini-aistudio"].image_inflight.values(),
-                *pools["ark"].video_inflight.values(),
+                *pools["byteplus"].video_inflight.values(),
             ],
             return_exceptions=True,
         )

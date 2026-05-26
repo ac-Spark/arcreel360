@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from lib.custom_provider import is_custom_provider
-from lib.providers import PROVIDER_ARK, PROVIDER_GROK, PROVIDER_OPENAI, CallType
+from lib.providers import PROVIDER_BYTEPLUS, PROVIDER_GROK, PROVIDER_OPENAI, CallType, normalize_provider_id
 
 
 class CostCalculator:
@@ -83,7 +83,7 @@ class CostCalculator:
 
     DEFAULT_VIDEO_MODEL = "veo-3.1-lite-generate-preview"
 
-    # Ark 影片費用（元/百萬 token），按 (service_tier, generate_audio) 查表
+    # BytePlus ModelArk 影片費用（元/百萬 token），按 (service_tier, generate_audio) 查表
     ARK_VIDEO_COST = {
         "doubao-seedance-1-5-pro-251215": {
             ("default", True): 16.00,
@@ -111,7 +111,7 @@ class CostCalculator:
 
     DEFAULT_GROK_MODEL = "grok-imagine-video"
 
-    # Ark 圖片費用（元/張）
+    # BytePlus ModelArk 圖片費用（元/張）
     ARK_IMAGE_COST = {
         "doubao-seedream-5-0-260128": 0.22,
         "doubao-seedream-5-0-lite-260128": 0.22,
@@ -132,7 +132,7 @@ class CostCalculator:
         "gemini-3.1-flash-lite-preview": {"input": 0.10, "output": 0.40},
     }
 
-    # Ark 文字 token 費率（元/百萬 token）
+    # BytePlus ModelArk 文字 token 費率（元/百萬 token）
     ARK_TEXT_COST = {
         "doubao-seed-2-0-lite-260215": {"input": 0.30, "output": 0.60},
     }
@@ -338,7 +338,7 @@ class CostCalculator:
 
     _TEXT_COST_TABLES: dict[str, tuple[dict, str, str]] = {
         # provider -> (cost_table_attr, default_model, currency)
-        PROVIDER_ARK: ("ARK_TEXT_COST", "doubao-seed-2-0-lite-260215", "CNY"),
+        PROVIDER_BYTEPLUS: ("ARK_TEXT_COST", "doubao-seed-2-0-lite-260215", "CNY"),
         PROVIDER_GROK: ("GROK_TEXT_COST", "grok-4-1-fast-reasoning", "USD"),
         PROVIDER_OPENAI: ("OPENAI_TEXT_COST", "gpt-5.4-mini", "USD"),
     }
@@ -352,6 +352,7 @@ class CostCalculator:
         model: str | None = None,
     ) -> tuple[float, str]:
         """計算文字生成費用。返回 (amount, currency)。"""
+        provider = normalize_provider_id(provider)
         table_attr, default_model, currency = self._TEXT_COST_TABLES.get(provider, self._TEXT_COST_DEFAULT)
         cost_table = getattr(self, table_attr)
         model = model or default_model
@@ -382,6 +383,7 @@ class CostCalculator:
 
         自定義供應商的價格資訊透過 custom_price_* 引數傳入（呼叫方需預先查詢 DB）。
         """
+        provider = normalize_provider_id(provider)
         if is_custom_provider(provider):
             return self._calculate_custom_cost(
                 call_type,
@@ -404,7 +406,7 @@ class CostCalculator:
             )
 
         if call_type == "image":
-            if provider == PROVIDER_ARK:
+            if provider == PROVIDER_BYTEPLUS:
                 return self.calculate_ark_image_cost(model=model)
             if provider == PROVIDER_GROK:
                 return self.calculate_grok_image_cost(model=model)
@@ -413,7 +415,7 @@ class CostCalculator:
             return self.calculate_image_cost(resolution or "1K", model=model), "USD"
 
         if call_type == "video":
-            if provider == PROVIDER_ARK:
+            if provider == PROVIDER_BYTEPLUS:
                 return self.calculate_ark_video_cost(
                     usage_tokens=usage_tokens or 0,
                     service_tier=service_tier,

@@ -72,7 +72,7 @@ class TestTextGenerationResult:
     def test_with_tokens(self):
         result = TextGenerationResult(
             text="output",
-            provider="ark",
+            provider="byteplus",
             model="seed",
             input_tokens=100,
             output_tokens=50,

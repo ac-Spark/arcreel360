@@ -27,7 +27,7 @@ from lib.prompt_utils import (
     is_structured_video_prompt,
     video_prompt_to_yaml,
 )
-from lib.providers import PROVIDER_ARK, PROVIDER_GEMINI, PROVIDER_GROK, PROVIDER_OPENAI
+from lib.providers import PROVIDER_BYTEPLUS, PROVIDER_GEMINI, PROVIDER_GROK, PROVIDER_OPENAI, normalize_provider_id
 from lib.storyboard_sequence import (
     build_previous_storyboard_reference,
     find_storyboard_item,
@@ -46,17 +46,19 @@ _backend_cache: dict[tuple[str, ...], Any] = {}
 # 各供應商預設影片解析度
 DEFAULT_VIDEO_RESOLUTION: dict[str, str] = {
     PROVIDER_GEMINI: "1080p",
-    PROVIDER_ARK: "720p",
+    PROVIDER_BYTEPLUS: "720p",
     PROVIDER_GROK: "720p",
     PROVIDER_OPENAI: "720p",
 }
 
-# 新 provider_id → 舊 backend registry name 的對映
+# provider_id → backend registry name 的對映
 _PROVIDER_ID_TO_BACKEND: dict[str, str] = {
     "gemini-aistudio": PROVIDER_GEMINI,
     "gemini-vertex": PROVIDER_GEMINI,
     PROVIDER_GEMINI: PROVIDER_GEMINI,
-    PROVIDER_ARK: PROVIDER_ARK,
+    "ark": PROVIDER_BYTEPLUS,
+    "seedance": PROVIDER_BYTEPLUS,
+    PROVIDER_BYTEPLUS: PROVIDER_BYTEPLUS,
     PROVIDER_GROK: PROVIDER_GROK,
     PROVIDER_OPENAI: PROVIDER_OPENAI,
 }
@@ -129,12 +131,13 @@ async def _get_or_create_video_backend(
 ):
     """獲取或建立 VideoBackend 例項（帶快取）。
 
-    provider_name 可以是舊格式（gemini/seedance/grok）或新格式（gemini-aistudio/gemini-vertex）。
+    provider_name 可以是舊格式（gemini/seedance/ark/grok）或新格式（gemini-aistudio/gemini-vertex/byteplus）。
     透過 resolver 按需載入供應商配置。
     default_video_model: 全域性預設影片模型，當 provider_settings 中無 model 時作為 fallback。
     """
     from lib.video_backends import create_backend
 
+    provider_name = normalize_provider_id(provider_name)
     effective_model = provider_settings.get("model") or default_video_model or None
     cache_key = ("video", provider_name, effective_model)
     if cache_key in _backend_cache:
@@ -178,7 +181,7 @@ async def _fill_simple_provider_kwargs(
     kwargs: dict,
     effective_model: str | None,
 ) -> None:
-    """Ark/Grok/OpenAI 等簡單供應商的通用配置填充。"""
+    """BytePlus/Grok/OpenAI 等簡單供應商的通用配置填充。"""
     db_config = await resolver.provider_config(backend_name)
     kwargs["api_key"] = db_config.get("api_key")
     kwargs["model"] = effective_model
@@ -196,6 +199,7 @@ async def _get_or_create_image_backend(
     """獲取或建立 ImageBackend 例項（帶快取）。"""
     from lib.image_backends import create_backend
 
+    provider_name = normalize_provider_id(provider_name)
     effective_model = provider_settings.get("model") or default_image_model or None
     cache_key = ("image", provider_name, effective_model)
     if cache_key in _backend_cache:

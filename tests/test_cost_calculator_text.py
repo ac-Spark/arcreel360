@@ -10,7 +10,12 @@ class TestTextCost:
         assert currency == "USD"
         assert amount == (1000 * 0.10 + 500 * 0.40) / 1_000_000
 
-    def test_ark_cost(self):
+    def test_byteplus_cost(self):
+        amount, currency = self.calc.calculate_text_cost(1000, 500, "byteplus")
+        assert currency == "CNY"
+        assert amount == (1000 * 0.30 + 500 * 0.60) / 1_000_000
+
+    def test_legacy_ark_cost_normalizes_to_byteplus(self):
         amount, currency = self.calc.calculate_text_cost(1000, 500, "ark")
         assert currency == "CNY"
         assert amount == (1000 * 0.30 + 500 * 0.60) / 1_000_000

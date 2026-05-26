@@ -60,9 +60,9 @@ class TestListProviders:
                     missing_keys=[],
                 ),
                 ProviderStatus(
-                    name="ark",
-                    display_name="火山方舟",
-                    description="Ark video and image",
+                    name="byteplus",
+                    display_name="BytePlus ModelArk",
+                    description="BytePlus ModelArk video and image",
                     status="unconfigured",
                     media_types=["video", "image"],
                     capabilities=["text_to_video"],

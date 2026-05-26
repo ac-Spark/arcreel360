@@ -5,14 +5,16 @@ from __future__ import annotations
 from lib.config.resolver import ConfigResolver
 from lib.custom_provider import is_custom_provider, parse_provider_id
 from lib.db import async_session_factory
-from lib.providers import PROVIDER_OPENAI
+from lib.providers import PROVIDER_BYTEPLUS, PROVIDER_OPENAI, normalize_provider_id
 from lib.text_backends.base import TextBackend, TextTaskType
 from lib.text_backends.registry import create_backend
 
 PROVIDER_ID_TO_BACKEND: dict[str, str] = {
     "gemini-aistudio": "gemini",
     "gemini-vertex": "gemini",
-    "ark": "ark",
+    "ark": PROVIDER_BYTEPLUS,
+    "seedance": PROVIDER_BYTEPLUS,
+    PROVIDER_BYTEPLUS: PROVIDER_BYTEPLUS,
     "grok": "grok",
     "openai": "openai",
 }
@@ -27,6 +29,7 @@ async def create_text_backend_for_task(
 
     async with resolver.session() as r:
         provider_id, model_id = await r.text_backend_for_task(task_type, project_name)
+        provider_id = normalize_provider_id(provider_id)
 
         # Custom providers use a separate factory path
         if is_custom_provider(provider_id):

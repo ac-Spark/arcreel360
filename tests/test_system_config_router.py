@@ -177,12 +177,12 @@ class TestGetSystemConfig:
         assert options["image_backends"] == []
 
     def test_options_include_multiple_ready_providers(self):
-        mock_svc = _make_mock_svc(ready_providers=["gemini-aistudio", "ark"])
+        mock_svc = _make_mock_svc(ready_providers=["gemini-aistudio", "byteplus"])
         with TestClient(_make_app_with_mock(mock_svc)) as client:
             res = client.get("/api/v1/system/config")
         options = res.json()["options"]
         assert "gemini-aistudio/veo-3.1-generate-preview" in options["video_backends"]
-        assert "ark/doubao-seedance-1-5-pro-251215" in options["video_backends"]
+        assert "byteplus/doubao-seedance-1-5-pro-251215" in options["video_backends"]
 
     def test_anthropic_key_masked(self):
         mock_svc = _make_mock_svc(settings={"anthropic_api_key": "sk-ant-test-secret-123456"})
@@ -254,11 +254,11 @@ class TestPatchSystemConfig:
         with TestClient(self._make_patch_app(mock_svc)) as client:
             res = client.patch(
                 "/api/v1/system/config",
-                json={"default_video_backend": "ark/doubao-seedance-1-5-pro-251215"},
+                json={"default_video_backend": "byteplus/doubao-seedance-1-5-pro-251215"},
             )
         assert res.status_code == 200
         settings = res.json()["settings"]
-        assert settings["default_video_backend"] == "ark/doubao-seedance-1-5-pro-251215"
+        assert settings["default_video_backend"] == "byteplus/doubao-seedance-1-5-pro-251215"
 
     def test_patch_rejects_invalid_backend_format(self):
         mock_svc = _make_mock_svc()
