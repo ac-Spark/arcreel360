@@ -125,7 +125,8 @@ function TaskRow({
         : "";
 
   const isErrorExpanded = expandedErrorId === task.task_id;
-  const hasError = task.status === "failed" && task.error_message;
+  const errorDetail = readErrorDetail(task);
+  const hasError = task.status === "failed" && Boolean(task.error_message || errorDetail);
 
   return (
     <motion.div
@@ -198,7 +199,7 @@ function TaskRow({
             className="overflow-hidden"
           >
             <div className="mx-3 mb-1.5 rounded bg-red-500/5 px-2 py-1.5 text-xs text-red-300/80">
-              {task.error_message}
+              <TaskErrorDetail detail={errorDetail} fallback={task.error_message} />
             </div>
           </motion.div>
         )}
@@ -489,4 +490,42 @@ export function TaskHud({ anchorRef }: { anchorRef: RefObject<HTMLElement | null
     </AnimatePresence>,
     document.body,
   );
+}
+
+interface TaskErrorDetailData {
+  code?: string;
+  message?: string;
+  model?: string;
+  hint?: string;
+}
+
+function readErrorDetail(task: TaskItem): TaskErrorDetailData | null {
+  const result = task.result;
+  if (!result || typeof result !== "object") return null;
+  const detail = (result as Record<string, unknown>).error_detail;
+  if (!detail || typeof detail !== "object") return null;
+  return detail as TaskErrorDetailData;
+}
+
+function TaskErrorDetail({
+  detail,
+  fallback,
+}: {
+  detail: TaskErrorDetailData | null;
+  fallback?: string | null;
+}) {
+  if (detail?.code === "veo_invalid_combination") {
+    return (
+      <div className="flex flex-col gap-1">
+        <div>{detail.message ?? fallback}</div>
+        {detail.hint && <div className="text-red-300/60">{detail.hint}</div>}
+        {detail.model && (
+          <div className="font-mono text-[10px] text-red-300/40">
+            model: {detail.model}
+          </div>
+        )}
+      </div>
+    );
+  }
+  return <>{fallback}</>;
 }

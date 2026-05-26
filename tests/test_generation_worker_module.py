@@ -37,8 +37,8 @@ class _FakeQueue:
     async def mark_task_succeeded(self, task_id, result):
         self.succeeded.append((task_id, result))
 
-    async def mark_task_failed(self, task_id, error):
-        self.failed.append((task_id, error))
+    async def mark_task_failed(self, task_id, error, *, error_detail=None):
+        self.failed.append((task_id, error, error_detail))
 
 
 class TestReadIntEnv:
@@ -271,6 +271,26 @@ class TestGenerationWorker:
         monkeypatch.setattr("server.services.generation_tasks.execute_generation_task", _raise)
         await worker._process_task({"task_id": "t2"})
         assert queue.failed and queue.failed[0][0] == "t2"
+        assert queue.failed[0][2] is None
+
+    @pytest.mark.asyncio
+    async def test_process_task_forwards_structured_detail(self, monkeypatch):
+        from lib.video_backends.gemini import VeoInvalidCombinationError
+
+        queue = _FakeQueue()
+        worker = GenerationWorker(queue=queue)
+
+        async def _raise_veo(_task):
+            raise VeoInvalidCombinationError("veo-3.1-lite-generate-preview")
+
+        monkeypatch.setattr("server.services.generation_tasks.execute_generation_task", _raise_veo)
+        await worker._process_task({"task_id": "t3"})
+        assert queue.failed and queue.failed[0][0] == "t3"
+        detail = queue.failed[0][2]
+        assert isinstance(detail, dict)
+        assert detail["code"] == "veo_invalid_combination"
+        assert detail["model"] == "veo-3.1-lite-generate-preview"
+        assert "hint" in detail
 
     @pytest.mark.asyncio
     async def test_start_stop_run_loop_releases_lease(self):

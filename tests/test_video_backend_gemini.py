@@ -132,6 +132,7 @@ class TestGeminiVideoBackendGenerate:
             prompt="cat moves forward",
             output_path=output,
             start_image=frame,
+            duration_seconds=8,
         )
 
         result = await backend.generate(request)
@@ -154,6 +155,7 @@ class TestGeminiVideoBackendGenerate:
         request = VideoGenerationRequest(
             prompt="a sunset",
             output_path=output,
+            duration_seconds=8,
         )
 
         # patch asyncio.sleep 以避免實際等待
@@ -177,6 +179,7 @@ class TestGeminiVideoBackendGenerate:
         request = VideoGenerationRequest(
             prompt="test",
             output_path=output,
+            duration_seconds=8,
         )
 
         with pytest.raises(RuntimeError, match="API 返回空結果"):
@@ -196,6 +199,7 @@ class TestGeminiVideoBackendGenerate:
         request = VideoGenerationRequest(
             prompt="test",
             output_path=output,
+            duration_seconds=8,
         )
 
         with pytest.raises(RuntimeError, match="影片生成失敗"):
@@ -211,6 +215,7 @@ class TestGeminiVideoBackendGenerate:
         request = VideoGenerationRequest(
             prompt="test",
             output_path=output,
+            duration_seconds=8,
         )
 
         await backend.generate(request)
@@ -249,6 +254,7 @@ class TestGeminiVideoBackendGenerate:
             prompt="test",
             output_path=output,
             negative_prompt="some custom negative",
+            duration_seconds=8,
         )
 
         await backend.generate(request)
@@ -273,7 +279,7 @@ class TestGeminiRetryBehavior:
         # 第一次輪詢拋 ConnectionError，第二次返回完成
         backend._client.aio.operations.get = AsyncMock(side_effect=[ConnectionError("connection reset"), done_op])
 
-        request = VideoGenerationRequest(prompt="test", output_path=output)
+        request = VideoGenerationRequest(prompt="test", output_path=output, duration_seconds=8)
         with patch("lib.video_backends.gemini.asyncio.sleep", new_callable=AsyncMock):
             result = await backend.generate(request)
 
@@ -293,7 +299,7 @@ class TestGeminiRetryBehavior:
             side_effect=[ConnectionError("connection reset"), done_op]
         )
 
-        request = VideoGenerationRequest(prompt="test", output_path=output)
+        request = VideoGenerationRequest(prompt="test", output_path=output, duration_seconds=8)
         with (
             patch("lib.video_backends.gemini.asyncio.sleep", new_callable=AsyncMock),
             patch("lib.retry.asyncio.sleep", new_callable=AsyncMock),
@@ -314,7 +320,7 @@ class TestGeminiRetryBehavior:
         backend._client.aio.models.generate_videos = AsyncMock(return_value=pending_op)
         backend._client.aio.operations.get = AsyncMock(side_effect=ValueError("invalid response"))
 
-        request = VideoGenerationRequest(prompt="test", output_path=output)
+        request = VideoGenerationRequest(prompt="test", output_path=output, duration_seconds=8)
         with pytest.raises(ValueError, match="invalid response"):
             with patch("lib.video_backends.gemini.asyncio.sleep", new_callable=AsyncMock):
                 await backend.generate(request)

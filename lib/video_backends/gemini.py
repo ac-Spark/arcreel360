@@ -151,70 +151,12 @@ class GeminiVideoBackend:
         return 8
 
     @staticmethod
-    def _coerce_to_supported(value: int, supported: list[int]) -> int:
-        """對齊到最近的、不超過上限的支援值；都不到就取最小。"""
-        valid = sorted(supported)
-        if not valid:
-            return value
-        for candidate in reversed(valid):
-            if candidate <= value:
-                return candidate
-        return valid[0]
-
-    @staticmethod
-    def _original_if_adjusted(original: int, resolved: int) -> int | None:
-        return original if original != resolved else None
-
-    @staticmethod
     def _is_bad_request_error(exc: Exception) -> bool:
         status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
         if status == 400:
             return True
         message = str(exc).lower()
         return "400" in message and ("invalid" in message or "unsupported" in message or "not supported" in message)
-
-    def _resolve_duration(
-        self,
-        request: VideoGenerationRequest,
-        *,
-        model_meta: ModelInfo,
-    ) -> tuple[int, int | None]:
-        """回傳 (使用值, 原始值若被調整)。"""
-        requested = request.duration_seconds
-
-        if request.start_image and model_meta.reference_image_force_duration:
-            forced = model_meta.reference_image_force_duration
-            return forced, self._original_if_adjusted(requested, forced)
-
-        if request.resolution in model_meta.duration_resolution_constraints:
-            allowed = model_meta.duration_resolution_constraints[request.resolution]
-            coerced = self._coerce_to_supported(requested, allowed)
-            return coerced, self._original_if_adjusted(requested, coerced)
-
-        supported = model_meta.supported_durations or [4, 6, 8]
-        coerced = self._coerce_to_supported(requested, supported)
-        return coerced, self._original_if_adjusted(requested, coerced)
-
-    def _resolve_resolution(
-        self,
-        request: VideoGenerationRequest,
-        *,
-        model_meta: ModelInfo,
-    ) -> tuple[str, str | None]:
-        if not model_meta.supported_resolutions:
-            return request.resolution, None
-        if request.resolution in model_meta.supported_resolutions:
-            return request.resolution, None
-
-        requested_idx = (
-            _RESOLUTION_ORDER.index(request.resolution)
-            if request.resolution in _RESOLUTION_ORDER
-            else len(_RESOLUTION_ORDER) - 1
-        )
-        for candidate in reversed(_RESOLUTION_ORDER[: requested_idx + 1]):
-            if candidate in model_meta.supported_resolutions:
-                return candidate, request.resolution
-        return model_meta.supported_resolutions[0], request.resolution
 
     def _resolve_request(
         self,
@@ -230,30 +172,24 @@ class GeminiVideoBackend:
                 adjusted["duration_seconds"] = (request.duration_seconds, duration)
             return replace(request, duration_seconds=duration), adjusted
 
-        resolution, original_resolution = self._resolve_resolution(request, model_meta=model_meta)
-        if original_resolution:
-            adjusted["resolution"] = (original_resolution, resolution)
-            logger.warning(
-                "Veo 解析度自動調整: %s -> %s (model=%s)",
-                original_resolution,
-                resolution,
-                self._video_model,
-            )
+        if model_meta.supported_resolutions and request.resolution not in model_meta.supported_resolutions:
+            raise VeoInvalidCombinationError(self._video_model)
 
-        request_for_duration = replace(request, resolution=resolution)
-        duration, original_duration = self._resolve_duration(request_for_duration, model_meta=model_meta)
-        if original_duration is not None:
-            adjusted["duration_seconds"] = (original_duration, duration)
-            logger.warning(
-                "Veo 秒數自動調整: %ds -> %ds (model=%s, resolution=%s, has_reference=%s)",
-                original_duration,
-                duration,
-                self._video_model,
-                resolution,
-                bool(request.start_image),
-            )
+        if (
+            request.start_image
+            and model_meta.reference_image_force_duration is not None
+            and request.duration_seconds != model_meta.reference_image_force_duration
+        ):
+            raise VeoInvalidCombinationError(self._video_model)
 
-        return replace(request, resolution=resolution, duration_seconds=duration), adjusted
+        allowed_durations = model_meta.duration_resolution_constraints.get(request.resolution)
+        if allowed_durations is not None and request.duration_seconds not in allowed_durations:
+            raise VeoInvalidCombinationError(self._video_model)
+
+        if model_meta.supported_durations and request.duration_seconds not in model_meta.supported_durations:
+            raise VeoInvalidCombinationError(self._video_model)
+
+        return request, {}
 
     async def generate(self, request: VideoGenerationRequest) -> VideoGenerationResult:
         """生成影片。任務建立和輪詢階段分離重試，避免瞬態錯誤導致重建任務。"""

@@ -100,11 +100,17 @@ class GenerationQueue:
             logger.info("任務成功 task_id=%s", task_id)
         return task
 
-    async def mark_task_failed(self, task_id: str, error_message: str) -> dict[str, Any] | None:
+    async def mark_task_failed(
+        self,
+        task_id: str,
+        error_message: str,
+        *,
+        error_detail: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
 
         async with self._session_factory() as session:
             repo = TaskRepository(session)
-            task = await repo.mark_failed(task_id, error_message)
+            task = await repo.mark_failed(task_id, error_message, error_detail=error_detail)
         if task:
             logger.warning("任務失敗 task_id=%s error=%s", task_id, error_message[:200])
         return task

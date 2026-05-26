@@ -14,56 +14,22 @@ def make_backend(model: str, backend_type: str = "aistudio") -> GeminiVideoBacke
 
 
 @pytest.mark.parametrize(
-    ("model", "resolution", "duration", "has_ref", "expect_duration", "expect_resolution", "expect_adjusted"),
+    ("model", "resolution", "duration", "has_ref", "expect_duration", "expect_resolution"),
     [
-        ("veo-3.1-generate-preview", "720p", 4, False, 4, "720p", {}),
-        ("veo-3.1-generate-preview", "720p", 6, False, 6, "720p", {}),
-        (
-            "veo-3.1-generate-preview",
-            "1080p",
-            4,
-            False,
-            8,
-            "1080p",
-            {"duration_seconds": (4, 8)},
-        ),
-        (
-            "veo-3.1-generate-preview",
-            "4k",
-            4,
-            False,
-            8,
-            "4k",
-            {"duration_seconds": (4, 8)},
-        ),
-        (
-            "veo-3.1-generate-preview",
-            "720p",
-            4,
-            True,
-            8,
-            "720p",
-            {"duration_seconds": (4, 8)},
-        ),
-        (
-            "veo-3.1-lite-generate-preview",
-            "4k",
-            4,
-            False,
-            8,
-            "1080p",
-            {"resolution": ("4k", "1080p"), "duration_seconds": (4, 8)},
-        ),
+        ("veo-3.1-generate-preview", "720p", 4, False, 4, "720p"),
+        ("veo-3.1-generate-preview", "720p", 6, False, 6, "720p"),
+        ("veo-3.1-generate-preview", "1080p", 8, False, 8, "1080p"),
+        ("veo-3.1-generate-preview", "4k", 8, False, 8, "4k"),
+        ("veo-3.1-generate-preview", "720p", 8, True, 8, "720p"),
     ],
 )
-def test_resolve_request_coerces_veo_duration_and_resolution(
+def test_resolve_request_valid_combinations(
     model: str,
     resolution: str,
     duration: int,
     has_ref: bool,
     expect_duration: int,
     expect_resolution: str,
-    expect_adjusted: dict[str, tuple[object, object]],
     tmp_path: Path,
 ):
     backend = make_backend(model)
@@ -79,7 +45,36 @@ def test_resolve_request_coerces_veo_duration_and_resolution(
 
     assert resolved.duration_seconds == expect_duration
     assert resolved.resolution == expect_resolution
-    assert adjusted == expect_adjusted
+    assert adjusted == {}
+
+
+@pytest.mark.parametrize(
+    ("model", "resolution", "duration", "has_ref"),
+    [
+        ("veo-3.1-generate-preview", "1080p", 4, False),
+        ("veo-3.1-generate-preview", "4k", 4, False),
+        ("veo-3.1-generate-preview", "720p", 4, True),
+        ("veo-3.1-lite-generate-preview", "4k", 4, False),
+    ],
+)
+def test_resolve_request_invalid_combinations_raise_error(
+    model: str,
+    resolution: str,
+    duration: int,
+    has_ref: bool,
+    tmp_path: Path,
+):
+    backend = make_backend(model)
+    request = VideoGenerationRequest(
+        prompt="鏡頭緩慢推進",
+        output_path=tmp_path / "out.mp4",
+        duration_seconds=duration,
+        resolution=resolution,
+        start_image=tmp_path / "start.png" if has_ref else None,
+    )
+
+    with pytest.raises(VeoInvalidCombinationError):
+        backend._resolve_request(request)
 
 
 def test_unknown_model_keeps_legacy_duration_normalization(tmp_path: Path):

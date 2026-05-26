@@ -516,4 +516,6 @@ class GenerationWorker:
             logger.info("任務完成 %s (type=%s, provider=%s)", task_id, task_type, provider_id)
         except Exception as exc:
             logger.exception("任務失敗 %s (type=%s, provider=%s)", task_id, task_type, provider_id)
-            await self.queue.mark_task_failed(task_id, str(exc))
+            detail = getattr(exc, "detail", None)
+            error_detail = detail if isinstance(detail, dict) else None
+            await self.queue.mark_task_failed(task_id, str(exc), error_detail=error_detail)

@@ -265,10 +265,17 @@ class TaskRepository(BaseRepository):
         await self.session.commit()
         return task_data
 
-    async def mark_failed(self, task_id: str, error_message: str) -> dict[str, Any] | None:
+    async def mark_failed(
+        self,
+        task_id: str,
+        error_message: str,
+        *,
+        error_detail: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
         failed_task, changed = await self._mark_failed_internal(
             task_id=task_id,
             error_message=error_message,
+            error_detail=error_detail,
             allowed_statuses=ACTIVE_TASK_STATUSES,
         )
         if failed_task is None:
@@ -289,6 +296,7 @@ class TaskRepository(BaseRepository):
         task_id: str,
         error_message: str,
         allowed_statuses: tuple[str, ...],
+        error_detail: dict[str, Any] | None = None,
     ) -> tuple[dict[str, Any] | None, bool]:
         result = await self.session.execute(select(Task).where(Task.task_id == task_id))
         task = result.scalar_one_or_none()
@@ -299,16 +307,17 @@ class TaskRepository(BaseRepository):
             return _task_to_dict(task), False
 
         now = utc_now()
-        await self.session.execute(
-            update(Task)
-            .where(Task.task_id == task_id)
-            .values(
-                status="failed",
-                error_message=error_message[:2000],
-                finished_at=now,
-                updated_at=now,
-            )
-        )
+        values: dict[str, Any] = {
+            "status": "failed",
+            "error_message": error_message[:2000],
+            "finished_at": now,
+            "updated_at": now,
+        }
+        if error_detail is not None:
+            existing = _json_loads(task.result_json, {}) or {}
+            existing["error_detail"] = error_detail
+            values["result_json"] = _json_dumps(existing)
+        await self.session.execute(update(Task).where(Task.task_id == task_id).values(**values))
         await self.session.flush()
 
         res = await self.session.execute(select(Task).where(Task.task_id == task_id))
