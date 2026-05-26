@@ -104,6 +104,7 @@ export interface ProjectData {
   /** Injected by StatusCalculator.enrich_project at read time */
   status?: ProjectStatus;
   video_backend?: string | null;
+  video_model_settings?: Record<string, { resolution?: string | null }>;
   image_backend?: string | null;
   video_generate_audio?: boolean | null;
   text_backend_script?: string | null;

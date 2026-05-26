@@ -11,7 +11,7 @@ import { AddCharacterForm } from "./lorebook/AddCharacterForm";
 import { AddClueForm } from "./lorebook/AddClueForm";
 import { AddSceneForm } from "./lorebook/AddSceneForm";
 import { API } from "@/api";
-import { useVideoDurationOptions } from "@/hooks/useVideoDurationOptions";
+import { lookupDefaultResolution } from "@/utils/provider-models";
 import { resolveEpisodeContentMode } from "@/utils/content-mode";
 import { buildEntityRevisionKey } from "@/utils/project-changes";
 import type { Clue, TaskItem } from "@/types";
@@ -90,7 +90,14 @@ export function StudioCanvasRouter() {
   const [addingClue, setAddingClue] = useState(false);
   const [addingScene, setAddingScene] = useState(false);
 
-  const durationOptions = useVideoDurationOptions(currentProjectData?.video_backend);
+  const currentVideoResolution = useMemo(() => {
+    const backend = currentProjectData?.video_backend;
+    if (!backend || !backend.includes("/")) return null;
+    const modelId = backend.split("/")[1];
+    return currentProjectData?.video_model_settings?.[modelId]?.resolution ??
+      lookupDefaultResolution(backend) ??
+      null;
+  }, [currentProjectData?.video_backend, currentProjectData?.video_model_settings]);
 
   // 從任務佇列派生 loading 狀態（替代本地 state）
   const tasks = useTasksStore((s) => s.tasks);
@@ -595,7 +602,8 @@ export function StudioCanvasRouter() {
               episodeScript={script}
               scriptFile={scriptFile ?? undefined}
               projectData={currentProjectData}
-              durationOptions={durationOptions}
+              videoBackend={currentProjectData?.video_backend}
+              currentVideoResolution={currentVideoResolution}
               onUpdatePrompt={handleUpdatePrompt}
               onGenerateStoryboard={handleGenerateStoryboard}
               onGenerateVideo={handleGenerateVideo}

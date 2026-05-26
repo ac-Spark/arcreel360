@@ -59,17 +59,19 @@ class TestModelInfoDurations:
     def test_aistudio_veo_has_resolution_constraints(self):
         """AI Studio Veo 模型在 1080p 下只支援 8s。"""
         meta = PROVIDER_REGISTRY["gemini-aistudio"]
-        for model_id, model_info in meta.models.items():
+        for _model_id, model_info in meta.models.items():
             if model_info.media_type == "video":
                 assert "1080p" in model_info.duration_resolution_constraints
                 assert model_info.duration_resolution_constraints["1080p"] == [8]
 
-    def test_vertex_veo_has_no_resolution_constraints(self):
-        """Vertex Veo 模型無解析度約束。"""
+    def test_vertex_veo_has_resolution_constraints(self):
+        """Vertex Veo 模型在 1080p / 4k 下強制 8 秒，與 AI Studio 規則一致。"""
         meta = PROVIDER_REGISTRY["gemini-vertex"]
-        for model_id, model_info in meta.models.items():
+        for _model_id, model_info in meta.models.items():
             if model_info.media_type == "video":
-                assert model_info.duration_resolution_constraints == {}
+                assert model_info.duration_resolution_constraints.get("1080p") == [8]
+                assert model_info.duration_resolution_constraints.get("4k") == [8]
+                assert model_info.reference_image_force_duration == 8
 
     def test_model_info_default_values(self):
         """ModelInfo 新欄位的預設值。"""

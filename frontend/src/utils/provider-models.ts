@@ -1,9 +1,24 @@
 import { API } from "@/api";
-import type { CustomProviderInfo, ProviderInfo } from "@/types";
+import type { CustomProviderInfo, ModelInfoResponse, ProviderInfo } from "@/types";
 
 export const DEFAULT_DURATIONS: readonly number[] = [4, 6, 8];
+export const DEFAULT_RESOLUTIONS: readonly string[] = ["720p", "1080p", "4k"];
 
 const CUSTOM_PREFIX = "custom-";
+const LEGACY_PROVIDER_IDS: Record<string, string> = {
+  ark: "byteplus",
+  seedance: "byteplus",
+};
+const DEFAULT_VIDEO_RESOLUTION_BY_PROVIDER: Record<string, string> = {
+  gemini: "1080p",
+  "gemini-aistudio": "1080p",
+  "gemini-vertex": "1080p",
+  byteplus: "720p",
+  ark: "720p",
+  seedance: "720p",
+  grok: "720p",
+  openai: "720p",
+};
 
 // ---------------------------------------------------------------------------
 // Built-in providers cache
@@ -81,10 +96,9 @@ export function lookupSupportedDurations(
   videoBackend: string,
   customProviders?: CustomProviderInfo[],
 ): number[] | undefined {
-  const slashIdx = videoBackend.indexOf("/");
-  if (slashIdx === -1) return undefined;
-  const providerId = videoBackend.slice(0, slashIdx);
-  const modelId = videoBackend.slice(slashIdx + 1);
+  const parsed = parseVideoBackend(videoBackend);
+  if (!parsed) return undefined;
+  const { providerId, modelId } = parsed;
 
   // Custom provider: "custom-{db_id}/{model_id}"
   if (providerId.startsWith(CUSTOM_PREFIX) && customProviders) {
@@ -103,4 +117,86 @@ export function lookupSupportedDurations(
   return model?.supported_durations?.length
     ? model.supported_durations
     : undefined;
+}
+
+export function lookupVideoModelInfo(
+  providers: ProviderInfo[],
+  videoBackend: string,
+): ModelInfoResponse | undefined {
+  const parsed = parseVideoBackend(videoBackend);
+  if (!parsed || parsed.providerId.startsWith(CUSTOM_PREFIX)) return undefined;
+
+  const provider = providers.find((p) => p.id === parsed.providerId);
+  return provider?.models?.[parsed.modelId];
+}
+
+export function lookupSupportedResolutions(
+  providers: ProviderInfo[],
+  videoBackend: string,
+): string[] | undefined {
+  const model = lookupVideoModelInfo(providers, videoBackend);
+  return model?.supported_resolutions?.length ? model.supported_resolutions : undefined;
+}
+
+export function lookupDefaultResolution(videoBackend: string): string | undefined {
+  const parsed = parseVideoBackend(videoBackend);
+  if (!parsed) return undefined;
+  return DEFAULT_VIDEO_RESOLUTION_BY_PROVIDER[parsed.providerId];
+}
+
+export function resolveVideoDurationOptions(
+  model: ModelInfoResponse | undefined,
+  fallbackDurations: number[] | undefined,
+  options: {
+    currentResolution?: string | null;
+    hasReferenceImage?: boolean;
+  } = {},
+): number[] | undefined {
+  if (!model) {
+    return fallbackDurations;
+  }
+
+  if (options.hasReferenceImage && model.reference_image_force_duration) {
+    return [model.reference_image_force_duration];
+  }
+
+  const resolution = options.currentResolution;
+  if (resolution && model.duration_resolution_constraints?.[resolution]?.length) {
+    return model.duration_resolution_constraints[resolution];
+  }
+
+  return model.supported_durations?.length
+    ? model.supported_durations
+    : fallbackDurations;
+}
+
+export function getDurationConstraintReason(
+  options: {
+    currentResolution?: string | null;
+    hasReferenceImage?: boolean;
+  },
+): string | undefined {
+  if (options.hasReferenceImage) return "參考圖強制 8 秒";
+  if (options.currentResolution === "1080p") return "1080p 限制";
+  if (options.currentResolution === "4k") return "4k 限制";
+  return undefined;
+}
+
+export function coerceDurationToOptions(duration: number, options: readonly number[]): number {
+  const valid = [...options].sort((a, b) => a - b);
+  if (valid.length === 0) return duration;
+  for (let i = valid.length - 1; i >= 0; i -= 1) {
+    if (valid[i] <= duration) return valid[i];
+  }
+  return valid[0];
+}
+
+function parseVideoBackend(videoBackend: string): { providerId: string; modelId: string } | null {
+  const slashIdx = videoBackend.indexOf("/");
+  if (slashIdx === -1) return null;
+  const providerId = videoBackend.slice(0, slashIdx);
+  return {
+    providerId: LEGACY_PROVIDER_IDS[providerId] ?? providerId,
+    modelId: videoBackend.slice(slashIdx + 1),
+  };
 }

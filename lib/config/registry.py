@@ -11,6 +11,8 @@ class ModelInfo:
     default: bool = False
     supported_durations: list[int] = field(default_factory=list)
     duration_resolution_constraints: dict[str, list[int]] = field(default_factory=dict)
+    supported_resolutions: list[str] = field(default_factory=list)
+    reference_image_force_duration: int | None = None
 
 
 @dataclass(frozen=True)
@@ -69,14 +71,18 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
                 media_type="video",
                 capabilities=["text_to_video", "image_to_video", "negative_prompt", "video_extend"],
                 supported_durations=[4, 6, 8],
-                duration_resolution_constraints={"1080p": [8]},
+                supported_resolutions=["720p", "1080p", "4k"],
+                duration_resolution_constraints={"1080p": [8], "4k": [8]},
+                reference_image_force_duration=8,
             ),
             "veo-3.1-fast-generate-preview": ModelInfo(
                 display_name="Veo 3.1 Fast",
                 media_type="video",
                 capabilities=["text_to_video", "image_to_video", "negative_prompt", "video_extend"],
                 supported_durations=[4, 6, 8],
-                duration_resolution_constraints={"1080p": [8]},
+                supported_resolutions=["720p", "1080p", "4k"],
+                duration_resolution_constraints={"1080p": [8], "4k": [8]},
+                reference_image_force_duration=8,
             ),
             "veo-3.1-lite-generate-preview": ModelInfo(
                 display_name="Veo 3.1 Lite",
@@ -84,7 +90,9 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
                 capabilities=["text_to_video", "image_to_video", "video_extend"],
                 default=True,
                 supported_durations=[4, 6, 8],
+                supported_resolutions=["720p", "1080p"],
                 duration_resolution_constraints={"1080p": [8]},
+                reference_image_force_duration=8,
             ),
         },
     ),
@@ -125,6 +133,9 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
                 media_type="video",
                 capabilities=["text_to_video", "image_to_video", "generate_audio", "negative_prompt", "video_extend"],
                 supported_durations=[4, 6, 8],
+                supported_resolutions=["720p", "1080p", "4k"],
+                duration_resolution_constraints={"1080p": [8], "4k": [8]},
+                reference_image_force_duration=8,
             ),
             "veo-3.1-fast-generate-001": ModelInfo(
                 display_name="Veo 3.1 Fast",
@@ -132,6 +143,9 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
                 capabilities=["text_to_video", "image_to_video", "generate_audio", "negative_prompt", "video_extend"],
                 default=True,
                 supported_durations=[4, 6, 8],
+                supported_resolutions=["720p", "1080p", "4k"],
+                duration_resolution_constraints={"1080p": [8], "4k": [8]},
+                reference_image_force_duration=8,
             ),
         },
     ),

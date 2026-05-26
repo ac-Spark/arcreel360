@@ -263,6 +263,15 @@ class TestProjectsRouter:
             assert updated_ratio.status_code == 200
             assert updated_ratio.json()["project"]["aspect_ratio"] == "16:9"
 
+            updated_video_settings = client.patch(
+                "/api/v1/projects/ready",
+                json={"video_model_settings": {"veo-3.1-lite-generate-preview": {"resolution": "1080p"}}},
+            )
+            assert updated_video_settings.status_code == 200
+            assert updated_video_settings.json()["project"]["video_model_settings"] == {
+                "veo-3.1-lite-generate-preview": {"resolution": "1080p"}
+            }
+
             get_script = client.get("/api/v1/projects/ready/scripts/episode_1.json")
             assert get_script.status_code == 200
 

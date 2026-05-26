@@ -70,6 +70,8 @@ class ModelInfoResponse(BaseModel):
     default: bool
     supported_durations: list[int] = []
     duration_resolution_constraints: dict[str, list[int]] = {}
+    supported_resolutions: list[str] = []
+    reference_image_force_duration: int | None = None
 
 
 class ProviderSummary(BaseModel):

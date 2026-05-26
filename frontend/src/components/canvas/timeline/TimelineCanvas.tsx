@@ -57,6 +57,8 @@ interface TimelineCanvasProps {
   ) => void;
   onGenerateStoryboard?: (segmentId: string, scriptFile?: string) => void;
   onGenerateVideo?: (segmentId: string, scriptFile?: string) => void;
+  videoBackend?: string | null;
+  currentVideoResolution?: string | null;
   durationOptions?: number[];
   onRestoreStoryboard?: () => Promise<void> | void;
   onRestoreVideo?: () => Promise<void> | void;
@@ -87,6 +89,8 @@ export function TimelineCanvas({
   onUpdatePrompt,
   onGenerateStoryboard,
   onGenerateVideo,
+  videoBackend,
+  currentVideoResolution,
   onRestoreStoryboard,
   onRestoreVideo,
   generatingStoryboardIds,
@@ -429,6 +433,8 @@ export function TimelineCanvas({
                       clues={projectData.clues}
                       scenes={projectData.scenes ?? {}}
                       projectName={projectName}
+                      videoBackend={videoBackend}
+                      currentResolution={currentVideoResolution}
                       durationOptions={durationOptions}
                       onUpdatePrompt={updatePromptForScript}
                       onGenerateStoryboard={generateStoryboardForScript}

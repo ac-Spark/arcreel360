@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ImageIcon, Film, Clock, Trash2 } from "lucide-react";
 import { API } from "@/api";
-import { DEFAULT_DURATIONS } from "@/utils/provider-models";
+import {
+  coerceDurationToOptions,
+  DEFAULT_DURATIONS,
+  getDurationConstraintReason,
+} from "@/utils/provider-models";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
 import { AvatarStack } from "@/components/ui/AvatarStack";
 import { ClueStack } from "@/components/ui/ClueStack";
@@ -11,6 +15,8 @@ import { GenerateButton } from "@/components/ui/GenerateButton";
 import { ImageFlipReveal } from "@/components/ui/ImageFlipReveal";
 import { Popover } from "@/components/ui/Popover";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
+import { useVideoDurationOptions } from "@/hooks/useVideoDurationOptions";
+import { useAppStore } from "@/stores/app-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useCostStore } from "@/stores/cost-store";
 import { EntityMentionMenu } from "./EntityMentionMenu";
@@ -261,7 +267,10 @@ interface SegmentCardProps {
   clues: Record<string, Clue>;
   scenes?: Record<string, Scene>;
   projectName: string;
+  videoBackend?: string | null;
+  currentResolution?: string | null;
   durationOptions?: number[];
+  durationConstraintReason?: string;
   onUpdatePrompt?: SegmentUpdateHandler;
   onGenerateStoryboard?: (segmentId: string) => void;
   onGenerateVideo?: (segmentId: string) => void;
@@ -276,20 +285,50 @@ interface SegmentCardProps {
 // Sub-components
 // ---------------------------------------------------------------------------
 
+function getDurationDisplayOptions(seconds: number, durationOptions: readonly number[]): number[] {
+  const options =
+    durationOptions.length === 1
+      ? [...DEFAULT_DURATIONS, seconds]
+      : [...durationOptions, seconds];
+  return Array.from(new Set(options)).sort((a, b) => a - b);
+}
+
+function getDurationOptionClassName(active: boolean, disabled: boolean): string {
+  const base =
+    "rounded px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500";
+  if (active) return `${base} bg-indigo-600 text-white`;
+  if (disabled) return `${base} cursor-not-allowed text-gray-600`;
+  return `${base} text-gray-300 hover:bg-gray-700`;
+}
+
+function pushDurationAdjustmentToast(previous: number, next: number, reason?: string) {
+  if (!reason) return;
+  useAppStore
+    .getState()
+    .pushToast(`已自動將秒數從 ${previous} 調整為 ${next}（${reason}）`, "warning");
+}
+
 /** Duration selector — clickable when onUpdatePrompt is provided, read-only otherwise. */
 function DurationSelector({
   seconds,
   segmentId,
   onUpdatePrompt,
   durationOptions = DEFAULT_DURATIONS as number[],
+  durationConstraintReason,
 }: {
   seconds: number;
   segmentId: string;
   onUpdatePrompt?: SegmentUpdateHandler;
   durationOptions?: number[];
+  durationConstraintReason?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
+  const displayOptions = useMemo(
+    () => getDurationDisplayOptions(seconds, durationOptions),
+    [durationOptions, seconds],
+  );
+  const allowedOptions = useMemo(() => new Set(durationOptions), [durationOptions]);
 
   if (!onUpdatePrompt) {
     return (
@@ -320,24 +359,26 @@ function DurationSelector({
         sideOffset={6}
       >
         <div className="flex gap-1" role="radiogroup" aria-label="時長選擇">
-          {durationOptions.map((d) => (
-            <button
-              key={d}
-              role="radio"
-              aria-checked={d === seconds}
-              onClick={() => {
-                onUpdatePrompt(segmentId, "duration_seconds", d);
-                setOpen(false);
-              }}
-              className={`rounded px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                d === seconds
-                  ? "bg-indigo-600 text-white"
-                  : "text-gray-300 hover:bg-gray-700"
-              }`}
-            >
-              {d}s
-            </button>
-          ))}
+          {displayOptions.map((d) => {
+            const disabled = !allowedOptions.has(d);
+            return (
+              <button
+                key={d}
+                role="radio"
+                aria-checked={d === seconds}
+                disabled={disabled}
+                title={disabled ? durationConstraintReason : undefined}
+                onClick={() => {
+                  if (disabled) return;
+                  onUpdatePrompt(segmentId, "duration_seconds", d);
+                  setOpen(false);
+                }}
+                className={getDurationOptionClassName(d === seconds, disabled)}
+              >
+                {d}s
+              </button>
+            );
+          })}
         </div>
       </Popover>
     </>
@@ -917,7 +958,10 @@ export function SegmentCard({
   clues,
   scenes = {},
   projectName,
+  videoBackend,
+  currentResolution,
   durationOptions,
+  durationConstraintReason,
   onUpdatePrompt,
   onGenerateStoryboard,
   onGenerateVideo,
@@ -987,6 +1031,29 @@ export function SegmentCard({
     () => extractEntityMentionsFromValue(getMentionDraftValues(mentionDrafts), mentionEntities),
     [mentionDrafts, mentionEntities],
   );
+  const hasReferenceImage = Boolean(segment.generated_assets?.storyboard_image);
+  const dynamicDurationOptions = useVideoDurationOptions(videoBackend, {
+    currentResolution,
+    hasReferenceImage,
+  });
+  const effectiveDurationOptions = durationOptions ?? dynamicDurationOptions ?? (DEFAULT_DURATIONS as number[]);
+  const effectiveDurationReason =
+    durationConstraintReason ?? getDurationConstraintReason({ currentResolution, hasReferenceImage });
+
+  useEffect(() => {
+    if (!onUpdatePrompt || effectiveDurationOptions.includes(segment.duration_seconds)) return;
+    const nextDuration = coerceDurationToOptions(segment.duration_seconds, effectiveDurationOptions);
+    if (nextDuration === segment.duration_seconds) return;
+
+    onUpdatePrompt(segmentId, "duration_seconds", nextDuration);
+    pushDurationAdjustmentToast(segment.duration_seconds, nextDuration, effectiveDurationReason);
+  }, [
+    effectiveDurationOptions,
+    effectiveDurationReason,
+    onUpdatePrompt,
+    segment.duration_seconds,
+    segmentId,
+  ]);
 
   return (
     <div>
@@ -1006,7 +1073,8 @@ export function SegmentCard({
               seconds={segment.duration_seconds}
               segmentId={segmentId}
               onUpdatePrompt={onUpdatePrompt}
-              durationOptions={durationOptions}
+              durationOptions={effectiveDurationOptions}
+              durationConstraintReason={effectiveDurationReason}
             />
             {segCost && (
               <span className="tabular-nums contents">

@@ -6,7 +6,18 @@ import { useAppStore } from "@/stores/app-store";
 import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import { PROVIDER_NAMES } from "@/components/ui/ProviderIcon";
 import { useConfirm } from "@/hooks/useConfirm";
-import { getProviderModels, getCustomProviderModels, lookupSupportedDurations, DEFAULT_DURATIONS } from "@/utils/provider-models";
+import {
+  coerceDurationToOptions,
+  DEFAULT_DURATIONS,
+  DEFAULT_RESOLUTIONS,
+  getProviderModels,
+  getCustomProviderModels,
+  lookupDefaultResolution,
+  lookupSupportedDurations,
+  lookupSupportedResolutions,
+  lookupVideoModelInfo,
+  resolveVideoDurationOptions,
+} from "@/utils/provider-models";
 import { UI_LAYERS } from "@/utils/ui-layers";
 import type { CustomProviderInfo, ProviderInfo } from "@/types";
 
@@ -42,6 +53,7 @@ export function ProjectSettingsPage() {
   const [textStyle, setTextStyle] = useState<string>("");
   const [aspectRatio, setAspectRatio] = useState<string>("");
   const [defaultDuration, setDefaultDuration] = useState<number | null>(null);
+  const [videoModelSettings, setVideoModelSettings] = useState<Record<string, { resolution?: string | null }>>({});
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [customProviders, setCustomProviders] = useState<CustomProviderInfo[]>([]);
   const [saving, setSaving] = useState(false);
@@ -49,6 +61,7 @@ export function ProjectSettingsPage() {
     videoBackend: "", imageBackend: "", audioOverride: null as boolean | null,
     textScript: "", textOverview: "", textStyle: "",
     aspectRatio: "", defaultDuration: null as number | null,
+    videoModelSettings: {} as Record<string, { resolution?: string | null }>,
   });
 
   useEffect(() => {
@@ -88,6 +101,7 @@ export function ProjectSettingsPage() {
         ? project.aspect_ratio
         : "";
       const dd = project.default_duration != null ? (project.default_duration as number) : null;
+      const vms = (project.video_model_settings as Record<string, { resolution?: string | null }> | undefined) ?? {};
 
       setVideoBackend(vb);
       setImageBackend(ib);
@@ -97,10 +111,12 @@ export function ProjectSettingsPage() {
       setTextStyle(tst);
       setAspectRatio(ar);
       setDefaultDuration(dd);
+      setVideoModelSettings(vms);
       initialRef.current = {
         videoBackend: vb, imageBackend: ib, audioOverride: ao,
         textScript: ts, textOverview: to, textStyle: tst,
         aspectRatio: ar, defaultDuration: dd,
+        videoModelSettings: vms,
       };
     });
 
@@ -108,15 +124,41 @@ export function ProjectSettingsPage() {
   }, [projectName]);
 
   const effectiveVideoBackend = videoBackend || globalDefaults.video;
+  const effectiveVideoModelId = effectiveVideoBackend.includes("/")
+    ? effectiveVideoBackend.split("/")[1]
+    : "";
   const supportedDurations = useMemo(
     () => lookupSupportedDurations(providers, effectiveVideoBackend, customProviders),
     [providers, effectiveVideoBackend, customProviders],
+  );
+  const supportedResolutions = useMemo(
+    () => lookupSupportedResolutions(providers, effectiveVideoBackend),
+    [providers, effectiveVideoBackend],
+  );
+  const resolutionOptions = supportedResolutions ?? (DEFAULT_RESOLUTIONS as string[]);
+  const modelResolution = effectiveVideoModelId
+    ? videoModelSettings[effectiveVideoModelId]?.resolution
+    : null;
+  const effectiveResolution =
+    modelResolution && resolutionOptions.includes(modelResolution)
+      ? modelResolution
+      : (lookupDefaultResolution(effectiveVideoBackend) ?? resolutionOptions[0] ?? "1080p");
+  const effectiveVideoModel = useMemo(
+    () => lookupVideoModelInfo(providers, effectiveVideoBackend),
+    [providers, effectiveVideoBackend],
+  );
+  const defaultDurationOptions = useMemo(
+    () =>
+      resolveVideoDurationOptions(effectiveVideoModel, supportedDurations, {
+        currentResolution: effectiveResolution,
+      }),
+    [effectiveResolution, effectiveVideoModel, supportedDurations],
   );
 
   // Derive effective default duration during render — if current value
   // is not in the model's supported list, treat it as "auto" (null).
   const effectiveDefaultDuration =
-    supportedDurations && defaultDuration !== null && !supportedDurations.includes(defaultDuration)
+    defaultDurationOptions && defaultDuration !== null && !defaultDurationOptions.includes(defaultDuration)
       ? null
       : defaultDuration;
 
@@ -131,6 +173,36 @@ export function ProjectSettingsPage() {
     }
   }, [globalDefaults.video, providers, customProviders, defaultDuration]);
 
+  const handleResolutionChange = useCallback((resolution: string) => {
+    if (!effectiveVideoModelId) return;
+    setVideoModelSettings((prev) => ({
+      ...prev,
+      [effectiveVideoModelId]: {
+        ...(prev[effectiveVideoModelId] ?? {}),
+        resolution,
+      },
+    }));
+
+    const allowedDurations = resolveVideoDurationOptions(effectiveVideoModel, supportedDurations, {
+      currentResolution: resolution,
+    });
+    if (defaultDuration !== null && allowedDurations?.length && !allowedDurations.includes(defaultDuration)) {
+      const nextDuration = coerceDurationToOptions(defaultDuration, allowedDurations);
+      setDefaultDuration(nextDuration);
+      useAppStore
+        .getState()
+        .pushToast(
+          `已自動將秒數從 ${defaultDuration} 調整為 ${nextDuration}（${resolution} 限制）`,
+          "warning",
+        );
+    }
+  }, [
+    defaultDuration,
+    effectiveVideoModel,
+    effectiveVideoModelId,
+    supportedDurations,
+  ]);
+
   const isDirty =
     videoBackend !== initialRef.current.videoBackend ||
     imageBackend !== initialRef.current.imageBackend ||
@@ -139,7 +211,8 @@ export function ProjectSettingsPage() {
     textOverview !== initialRef.current.textOverview ||
     textStyle !== initialRef.current.textStyle ||
     aspectRatio !== initialRef.current.aspectRatio ||
-    defaultDuration !== initialRef.current.defaultDuration;
+    defaultDuration !== initialRef.current.defaultDuration ||
+    JSON.stringify(videoModelSettings) !== JSON.stringify(initialRef.current.videoModelSettings);
 
   useEffect(() => {
     if (!isDirty) return;
@@ -171,11 +244,13 @@ export function ProjectSettingsPage() {
         text_backend_style: textStyle || null,
         aspect_ratio: aspectRatio || undefined,
         default_duration: defaultDuration,
+        video_model_settings: videoModelSettings,
       } as Record<string, unknown>);
       initialRef.current = {
         videoBackend, imageBackend, audioOverride,
         textScript, textOverview, textStyle,
         aspectRatio, defaultDuration,
+        videoModelSettings,
       };
       useAppStore.getState().pushToast("已儲存", "success");
     } catch (e: unknown) {
@@ -183,7 +258,18 @@ export function ProjectSettingsPage() {
     } finally {
       setSaving(false);
     }
-  }, [videoBackend, imageBackend, audioOverride, textScript, textOverview, textStyle, aspectRatio, defaultDuration, projectName]);
+  }, [
+    videoBackend,
+    imageBackend,
+    audioOverride,
+    textScript,
+    textOverview,
+    textStyle,
+    aspectRatio,
+    defaultDuration,
+    videoModelSettings,
+    projectName,
+  ]);
 
   return (
     <div className={`fixed inset-0 ${UI_LAYERS.modal} bg-gray-950 overflow-y-auto`}>
@@ -224,6 +310,36 @@ export function ProjectSettingsPage() {
                 }
               />
             </div>
+
+            {effectiveVideoBackend && (
+              <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">
+                <fieldset>
+                  <legend className="mb-3 text-sm font-medium text-gray-100">影片解析度</legend>
+                  <div className="flex flex-wrap gap-2">
+                    {resolutionOptions.map((resolution) => (
+                      <label
+                        key={resolution}
+                        className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 ${
+                          effectiveResolution === resolution
+                            ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
+                            : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="videoResolution"
+                          value={resolution}
+                          checked={effectiveResolution === resolution}
+                          onChange={() => handleResolutionChange(resolution)}
+                          className="sr-only"
+                        />
+                        {resolution}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              </div>
+            )}
 
             {/* Aspect ratio */}
             <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">
@@ -282,7 +398,7 @@ export function ProjectSettingsPage() {
                 >
                   自動
                 </button>
-                {(supportedDurations ?? DEFAULT_DURATIONS).map((d) => (
+                {(defaultDurationOptions ?? DEFAULT_DURATIONS).map((d) => (
                   <button
                     key={d}
                     type="button"

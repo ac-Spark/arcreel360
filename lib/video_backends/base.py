@@ -82,6 +82,7 @@ class VideoGenerationResult:
     usage_tokens: int | None = None
     task_id: str | None = None
     generate_audio: bool | None = None
+    adjusted: dict[str, tuple[object, object]] | None = None
 
 
 class VideoBackend(Protocol):

@@ -430,6 +430,8 @@ class MediaGenerator:
             result = await self._video_backend.generate(request)
             video_ref = None
             video_uri = result.video_uri
+            actual_duration_seconds = result.duration_seconds
+            adjusted = result.adjusted
 
             # Track usage with provider info
             await self.usage_tracker.finish_call(
@@ -451,12 +453,15 @@ class MediaGenerator:
             raise
 
         # 5. 記錄新版本
+        if adjusted:
+            version_metadata["adjusted"] = adjusted
+
         new_version = self.versions.add_version(
             resource_type=resource_type,
             resource_id=resource_id,
             prompt=prompt,
             source_file=output_path,
-            duration_seconds=duration_seconds,
+            duration_seconds=actual_duration_seconds,
             **version_metadata,
         )
 

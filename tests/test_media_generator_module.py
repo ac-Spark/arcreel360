@@ -27,6 +27,8 @@ class _FakeVideoResult:
         self.video_uri = "video-uri"
         self.usage_tokens = 0
         self.generate_audio = True
+        self.duration_seconds = 8
+        self.adjusted = None
 
 
 class _FakeVideoBackend:
@@ -185,3 +187,28 @@ class TestMediaGenerator:
             resource_id="E1S04",
         )
         assert gen.usage_tracker.started[-1]["generate_audio"] is True
+
+    @pytest.mark.asyncio
+    async def test_generate_video_records_backend_adjustments_in_version_metadata(self, tmp_path):
+        gen = _build_generator(tmp_path)
+        result = _FakeVideoResult()
+        result.duration_seconds = 8
+        result.adjusted = {"duration_seconds": (4, 8), "resolution": ("4k", "1080p")}
+
+        async def _generate(_request):
+            _request.output_path.parent.mkdir(parents=True, exist_ok=True)
+            _request.output_path.write_bytes(b"fake-video-data")
+            return result
+
+        gen._video_backend.generate = _generate
+
+        await gen.generate_video_async(
+            prompt="p",
+            resource_type="videos",
+            resource_id="E1S05",
+            duration_seconds="4",
+            resolution="4k",
+        )
+
+        assert gen.versions.add_calls[-1]["duration_seconds"] == 8
+        assert gen.versions.add_calls[-1]["adjusted"] == result.adjusted

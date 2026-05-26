@@ -811,18 +811,21 @@ async def execute_video_task(
     else:
         thumbnail_file.unlink(missing_ok=True)
 
-    created_at = await asyncio.to_thread(
-        lambda: generator.versions.get_versions("videos", resource_id)["versions"][-1]["created_at"]
+    latest_version = await asyncio.to_thread(
+        lambda: generator.versions.get_versions("videos", resource_id)["versions"][-1]
     )
 
-    return {
+    result = {
         "version": version,
         "file_path": f"videos/scene_{resource_id}.mp4",
-        "created_at": created_at,
+        "created_at": latest_version["created_at"],
         "resource_type": "videos",
         "resource_id": resource_id,
         "video_uri": video_uri,
     }
+    if latest_version.get("adjusted"):
+        result["adjusted"] = latest_version["adjusted"]
+    return result
 
 
 async def _finalize_generated_sheet(

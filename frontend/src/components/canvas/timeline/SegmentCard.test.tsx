@@ -258,4 +258,39 @@ describe("SegmentCard", () => {
     expect(screen.getByText("@古城")).toHaveClass("text-emerald-300");
     expect(screen.getByText("@Key")).toHaveClass("text-yellow-300");
   });
+
+  it("disables unavailable duration choices when Veo constraints leave only 8 seconds", () => {
+    const onUpdatePrompt = vi.fn();
+    renderSegmentCard({
+      segment: makeSegment({ duration_seconds: 8 }),
+      durationOptions: [8],
+      durationConstraintReason: "1080p/4k/參考圖強制 8 秒",
+      onUpdatePrompt,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /8s/i }));
+
+    expect(screen.getByRole("radio", { name: "4s" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "6s" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "8s" })).not.toBeDisabled();
+    expect(screen.getByRole("radio", { name: "4s" })).toHaveAttribute(
+      "title",
+      "1080p/4k/參考圖強制 8 秒",
+    );
+  });
+
+  it("auto-adjusts an invalid segment duration to the nearest allowed option", () => {
+    const onUpdatePrompt = vi.fn();
+    renderSegmentCard({
+      segment: makeSegment({ duration_seconds: 4 }),
+      durationOptions: [8],
+      durationConstraintReason: "1080p 限制",
+      onUpdatePrompt,
+    });
+
+    expect(onUpdatePrompt).toHaveBeenCalledWith("SEG-1", "duration_seconds", 8);
+    expect(useAppStore.getState().toast?.text).toBe(
+      "已自動將秒數從 4 調整為 8（1080p 限制）",
+    );
+  });
 });
