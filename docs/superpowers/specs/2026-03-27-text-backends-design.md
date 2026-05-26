@@ -227,8 +227,8 @@ class ProviderMeta:
 
 | 供应商 | 文本默认模型 | 能力 |
 |--------|-------------|------|
-| gemini-aistudio | gemini-3.1-flash-lite-preview | text_generation, structured_output, vision |
-| gemini-vertex | gemini-3.1-flash-lite-preview | text_generation, structured_output, vision |
+| gemini-aistudio | gemini-3.1-flash-lite | text_generation, structured_output, vision |
+| gemini-vertex | gemini-3.1-flash-lite | text_generation, structured_output, vision |
 | ark | doubao-seed-2-0-lite-260215 | text_generation, structured_output, vision |
 | grok | grok-4-1-fast-reasoning | text_generation, structured_output, vision |
 
@@ -236,7 +236,7 @@ class ProviderMeta:
 
 新增：
 ```python
-_DEFAULT_TEXT_BACKEND = "gemini-aistudio/gemini-3.1-flash-lite-preview"
+_DEFAULT_TEXT_BACKEND = "gemini-aistudio/gemini-3.1-flash-lite"
 
 async def get_default_text_backend(self) -> tuple[str, str]:
     raw = await self._setting_repo.get("default_text_backend", _DEFAULT_TEXT_BACKEND)
@@ -380,7 +380,7 @@ interface SystemSettings {
 
 ```python
 GEMINI_TEXT_COST = {
-    "gemini-3.1-flash-lite-preview": {"input": 0.10, "output": 0.40},
+    "gemini-3.1-flash-lite": {"input": 0.10, "output": 0.40},
 }
 
 ARK_TEXT_COST = {

@@ -22,7 +22,7 @@ interface ClueCardProps {
   name: string;
   clue: Clue;
   projectName: string;
-  onSave: (name: string, payload: ClueSavePayload) => Promise<void> | void;
+  onSave: (name: string, payload: ClueSavePayload) => Promise<void>;
   onGenerate: (name: string) => void;
   /** 上傳參考圖（multipart）。提供時才顯示參考圖上傳入口。 */
   onUploadReference?: (name: string, file: File) => Promise<void> | void;

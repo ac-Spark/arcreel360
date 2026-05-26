@@ -694,7 +694,7 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
         optional_keys=["base_url", "image_rpm", "video_rpm", "request_gap", "image_max_workers", "video_max_workers"],
         secret_keys=["api_key"],
         models={
-            "gemini-3.1-flash-lite-preview": ModelInfo(
+            "gemini-3.1-flash-lite": ModelInfo(
                 "Gemini 3.1 Flash Lite", "text",
                 ["text_generation", "structured_output", "vision"],
                 default=True,
@@ -722,7 +722,7 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
         optional_keys=["gcs_bucket", "image_rpm", "video_rpm", "request_gap", "image_max_workers", "video_max_workers"],
         secret_keys=[],
         models={
-            "gemini-3.1-flash-lite-preview": ModelInfo(
+            "gemini-3.1-flash-lite": ModelInfo(
                 "Gemini 3.1 Flash Lite", "text",
                 ["text_generation", "structured_output", "vision"],
                 default=True,
@@ -880,7 +880,7 @@ class TestGeminiTextBackendProperties:
     def test_default_model(self):
         with patch("lib.text_backends.gemini.genai"):
             backend = GeminiTextBackend(api_key="test-key")
-        assert backend.model == "gemini-3.1-flash-lite-preview"
+        assert backend.model == "gemini-3.1-flash-lite"
 
     def test_custom_model(self):
         with patch("lib.text_backends.gemini.genai"):
@@ -971,7 +971,7 @@ from lib.text_backends.base import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "gemini-3.1-flash-lite-preview"
+DEFAULT_MODEL = "gemini-3.1-flash-lite"
 
 
 class GeminiTextBackend:
@@ -1620,7 +1620,7 @@ git commit -m "feat: auto-register text backends"
 
 In `lib/config/service.py`, add after the `_DEFAULT_IMAGE_BACKEND` line:
 ```python
-_DEFAULT_TEXT_BACKEND = "gemini-aistudio/gemini-3.1-flash-lite-preview"
+_DEFAULT_TEXT_BACKEND = "gemini-aistudio/gemini-3.1-flash-lite"
 ```
 
 Add method to `ConfigService`:
@@ -1759,7 +1759,7 @@ from lib.text_backends.factory import create_text_backend_for_task
 async def test_creates_backend_from_config():
     """Factory should resolve config and create the right backend."""
     mock_resolver = MagicMock()
-    mock_resolver.text_backend_for_task = AsyncMock(return_value=("gemini-aistudio", "gemini-3.1-flash-lite-preview"))
+    mock_resolver.text_backend_for_task = AsyncMock(return_value=("gemini-aistudio", "gemini-3.1-flash-lite"))
     mock_resolver.provider_config = AsyncMock(return_value={"api_key": "test-key"})
 
     with patch("lib.text_backends.factory.ConfigResolver", return_value=mock_resolver), \
@@ -1770,7 +1770,7 @@ async def test_creates_backend_from_config():
         result = await create_text_backend_for_task(TextTaskType.SCRIPT)
 
         mock_create.assert_called_once_with(
-            "gemini", api_key="test-key", model="gemini-3.1-flash-lite-preview",
+            "gemini", api_key="test-key", model="gemini-3.1-flash-lite",
         )
         assert result is mock_backend
 ```
@@ -1851,7 +1851,7 @@ Replace `GeminiClient` dependency with `TextBackend`:
 from lib.gemini_client import GeminiClient
 
 class ScriptGenerator:
-    MODEL = "gemini-3.1-flash-lite-preview"
+    MODEL = "gemini-3.1-flash-lite"
 
     def __init__(self, project_path, client: Optional[GeminiClient] = None):
         self.client = client
@@ -1919,7 +1919,7 @@ git commit -m "refactor: ScriptGenerator uses TextBackend"
 # Before:
 from .text_client import create_text_client
 client = await create_text_client()
-response_text = await client.generate_text_async(prompt=prompt, model="gemini-3.1-flash-lite-preview", response_schema=schema)
+response_text = await client.generate_text_async(prompt=prompt, model="gemini-3.1-flash-lite", response_schema=schema)
 
 # After:
 from .text_backends.factory import create_text_backend_for_task
@@ -2043,7 +2043,7 @@ Add to `CostCalculator` class:
 ```python
 # Gemini 文本 token 费率（美元/百万 token）
 GEMINI_TEXT_COST = {
-    "gemini-3.1-flash-lite-preview": {"input": 0.10, "output": 0.40},
+    "gemini-3.1-flash-lite": {"input": 0.10, "output": 0.40},
 }
 
 # Ark 文本 token 费率（元/百万 token）
@@ -2075,7 +2075,7 @@ def calculate_text_cost(
         amount = (input_tokens * rates["input"] + output_tokens * rates["output"]) / 1_000_000
         return amount, "USD"
     else:
-        model = model or "gemini-3.1-flash-lite-preview"
+        model = model or "gemini-3.1-flash-lite"
         rates = self.GEMINI_TEXT_COST.get(model, {"input": 0.10, "output": 0.40})
         amount = (input_tokens * rates["input"] + output_tokens * rates["output"]) / 1_000_000
         return amount, "USD"

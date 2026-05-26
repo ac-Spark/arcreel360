@@ -84,7 +84,7 @@ git commit -m "feat: add input_tokens and output_tokens columns to api_calls"
         call_id = await repo.start_call(
             project_name="demo",
             call_type="text",
-            model="gemini-3.1-flash-lite-preview",
+            model="gemini-3.1-flash-lite",
             prompt="分析小说内容",
             provider="gemini",
         )
@@ -133,7 +133,7 @@ git commit -m "feat: add input_tokens and output_tokens columns to api_calls"
         call_id = await repo.start_call(
             project_name="demo",
             call_type="text",
-            model="gemini-3.1-flash-lite-preview",
+            model="gemini-3.1-flash-lite",
             provider="gemini",
         )
 
@@ -300,7 +300,7 @@ git commit -m "feat: UsageRepository 支持 text call_type 成本计算和 text_
         call_id = await tracker.start_call(
             project_name="demo",
             call_type="text",
-            model="gemini-3.1-flash-lite-preview",
+            model="gemini-3.1-flash-lite",
             prompt="测试 prompt",
             provider="gemini",
         )
@@ -415,7 +415,7 @@ async def tracker():
     await engine.dispose()
 
 
-def _make_backend(provider="gemini", model="gemini-3.1-flash-lite-preview"):
+def _make_backend(provider="gemini", model="gemini-3.1-flash-lite"):
     backend = AsyncMock()
     backend.name = provider
     backend.model = model

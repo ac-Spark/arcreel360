@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** 使用 gemini-3.1-flash-lite-preview 生成 JSON 剧本，替代現有 Agent 流程的 Step 3
+**Goal:** 使用 gemini-3.1-flash-lite 生成 JSON 剧本，替代現有 Agent 流程的 Step 3
 
 **Architecture:** 核心逻辑在 `lib/script_generator.py`，CLI 入口在 `.claude/skills/generate-script/scripts/generate_script.py`。使用 Pydantic 定义数据模型并验证输出，借鉴 Storycraft 的 Prompt 工程技巧。
 

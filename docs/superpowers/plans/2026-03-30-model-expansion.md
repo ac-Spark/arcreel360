@@ -29,7 +29,7 @@ models={
         media_type="text",
         capabilities=["text_generation", "structured_output", "vision"],
     ),
-    "gemini-3.1-flash-lite-preview": ModelInfo(
+    "gemini-3.1-flash-lite": ModelInfo(
         display_name="Gemini 3.1 Flash Lite",
         media_type="text",
         capabilities=["text_generation", "structured_output", "vision"],
@@ -86,7 +86,7 @@ models={
         media_type="text",
         capabilities=["text_generation", "structured_output", "vision"],
     ),
-    "gemini-3.1-flash-lite-preview": ModelInfo(
+    "gemini-3.1-flash-lite": ModelInfo(
         display_name="Gemini 3.1 Flash Lite",
         media_type="text",
         capabilities=["text_generation", "structured_output", "vision"],

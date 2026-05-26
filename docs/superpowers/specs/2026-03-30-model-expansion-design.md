@@ -32,7 +32,7 @@ gemini-vertex 与其完全镜像（模型 ID 相同），下方仅列一次。
 | 顺序 | 模型 ID | 显示名 | media_type | capabilities | default | 变更 |
 |------|---------|--------|-----------|-------------|---------|------|
 | 1 | `gemini-3.1-pro-preview` | Gemini 3.1 Pro | text | text_generation, structured_output, vision | false | **新增** |
-| 2 | `gemini-3.1-flash-lite-preview` | Gemini 3.1 Flash Lite | text | text_generation, structured_output, vision | **true** | 現有 |
+| 2 | `gemini-3.1-flash-lite` | Gemini 3.1 Flash Lite | text | text_generation, structured_output, vision | **true** | 現有 |
 | 3 | `gemini-3-pro-image-preview` | Gemini 3 Pro Image | image | text_to_image, image_to_image | false | **新增** |
 | 4 | `gemini-3.1-flash-image-preview` | Gemini 3.1 Flash Image | image | text_to_image, image_to_image | **true** | 現有 |
 | 5 | `veo-3.1-generate-preview` | Veo 3.1 | video | 同現有 | false | 現有 |

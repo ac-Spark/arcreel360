@@ -2,7 +2,7 @@
 
 ## 概述
 
-创建一個脚本，使用 `gemini-3.1-flash-lite-preview` 生成 JSON 剧本，替代現有 Agent 流程的最后一步（Step 3）。
+创建一個脚本，使用 `gemini-3.1-flash-lite` 生成 JSON 剧本，替代現有 Agent 流程的最后一步（Step 3）。
 
 ### 背景
 
@@ -13,7 +13,7 @@
 
 ### 目标
 
-- 使用 gemini-3.1-flash-lite-preview 生成 JSON 剧本
+- 使用 gemini-3.1-flash-lite 生成 JSON 剧本
 - 借鉴 Storycraft 的 Prompt 工程技巧
 - 使用 Pydantic 确保输出格式符合规范
 - 支持说书模式（narration）和剧集动画模式（drama）
@@ -46,7 +46,7 @@ step1_segments.md + step2_character_clue_tables.md + project.json
                             ↓
                     构建 Prompt
                             ↓
-              Gemini API (gemini-3.1-flash-lite-preview)
+              Gemini API (gemini-3.1-flash-lite)
                             ↓
                     Pydantic 验证
                             ↓
@@ -359,7 +359,7 @@ class ScriptGenerator:
     读取 Step 1/2 的 Markdown 中间文件，调用 Gemini 生成最终 JSON 剧本
     """
     
-    MODEL = "gemini-3.1-flash-lite-preview"
+    MODEL = "gemini-3.1-flash-lite"
     
     def __init__(self, project_path: Union[str, Path]):
         """

@@ -62,7 +62,7 @@ vi.mock("./lorebook/LorebookGallery", () => ({
         referenceFile?: File | null;
       },
     ) => Promise<void>;
-    onUpdateClue: (name: string, updates: Record<string, unknown>) => void;
+    onUpdateClue: (name: string, updates: Record<string, unknown>) => Promise<void>;
     onGenerateCharacter: (name: string) => void;
     onGenerateClue: (name: string) => void;
     onAddCharacter?: () => void;
@@ -81,7 +81,7 @@ vi.mock("./lorebook/LorebookGallery", () => ({
         update-character
       </button>
       <button onClick={() => onGenerateCharacter("Hero")}>generate-character</button>
-      <button onClick={() => onUpdateClue("Key", { description: "new clue" })}>
+      <button onClick={() => void onUpdateClue("Key", { description: "new clue" })}>
         update-clue
       </button>
       <button onClick={() => onGenerateClue("Key")}>generate-clue</button>
@@ -397,6 +397,32 @@ describe("StudioCanvasRouter", () => {
         "desc",
         "major",
       );
+    });
+  });
+
+  it("shows a success toast after saving a clue description", async () => {
+    useProjectsStore.setState({
+      currentProjectName: "demo",
+      currentProjectData: makeProjectData(),
+      currentScripts: { "episode_1.json": makeScript() },
+    });
+
+    vi.spyOn(API, "getProject").mockResolvedValue({
+      project: makeProjectData(),
+      scripts: { "episode_1.json": makeScript() },
+    });
+    vi.spyOn(API, "updateClue").mockResolvedValue({ success: true });
+
+    renderWithNav("/clues");
+
+    fireEvent.click(screen.getByText("update-clue"));
+
+    await waitFor(() => {
+      expect(API.updateClue).toHaveBeenCalledWith("demo", "Key", {
+        description: "new clue",
+      });
+      expect(useAppStore.getState().toast?.text).toContain("道具「Key」已更新");
+      expect(useAppStore.getState().toast?.tone).toBe("success");
     });
   });
 

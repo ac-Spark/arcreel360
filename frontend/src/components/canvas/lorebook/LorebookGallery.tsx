@@ -29,7 +29,7 @@ interface LorebookGalleryProps {
       referenceFile?: File | null;
     }
   ) => Promise<void>;
-  onUpdateClue: (name: string, updates: Partial<Clue>) => void;
+  onUpdateClue: (name: string, updates: Partial<Clue>) => Promise<void>;
   onGenerateCharacter: (name: string) => void;
   onGenerateClue: (name: string) => void;
   onGenerateScene: (name: string) => void;

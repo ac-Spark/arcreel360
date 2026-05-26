@@ -280,6 +280,7 @@ export function StudioCanvasRouter() {
     try {
       await API.updateClue(currentProjectName, name, updates);
       await refreshProject();
+      useAppStore.getState().pushToast(`道具「${name}」已更新`, "success");
     } catch (err) {
       useAppStore.getState().pushToast(`更新道具失敗: ${(err as Error).message}`, "error");
     }

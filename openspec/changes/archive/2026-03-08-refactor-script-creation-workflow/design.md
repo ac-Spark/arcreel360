@@ -169,7 +169,7 @@ Step 1（normalize-drama-script subagent）
 Step 2（create-episode-script subagent — 已有实现）
   ├─ 调用已有的 generate_script.py
   ├─ script_generator 读取 step1_normalized_script.md
-  ├─ 使用 gemini-3.1-flash-lite-preview 生成 JSON
+  ├─ 使用 gemini-3.1-flash-lite 生成 JSON
   └─ 输出：scripts/episode_{N}.json
 ```
 
