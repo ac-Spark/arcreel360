@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Mountain, Pencil, Trash2, Upload } from "lucide-react";
 import { API } from "@/api";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
@@ -8,6 +8,7 @@ import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useConfirm } from "@/hooks/useConfirm";
 import type { Scene } from "@/types";
+import { LorebookDescriptionField } from "./LorebookDescriptionField";
 
 interface SceneSavePayload {
   description: string;
@@ -71,7 +72,6 @@ export function SceneCard({
   const [savingReference, setSavingReference] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setDescription(scene.description);
@@ -96,18 +96,6 @@ export function SceneCard({
       }
     };
   }, [referencePreview]);
-
-  const autoResize = useCallback(() => {
-    const el = textareaRef.current;
-    if (el) {
-      el.style.height = "auto";
-      el.style.height = `${el.scrollHeight}px`;
-    }
-  }, []);
-
-  useEffect(() => {
-    autoResize();
-  }, [autoResize, description]);
 
   const isDirty = description !== scene.description;
 
@@ -147,6 +135,7 @@ export function SceneCard({
     : null;
 
   const displayedReferenceUrl = referencePreview ?? savedReferenceUrl;
+  const openReferencePicker = () => fileInputRef.current?.click();
   let referenceStatusLabel = "已儲存參考圖";
   if (savingReference) {
     referenceStatusLabel = "上傳中...";
@@ -266,7 +255,7 @@ export function SceneCard({
               {displayedReferenceUrl && (
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={openReferencePicker}
                   className="text-xs text-gray-400 transition-colors hover:text-gray-200"
                 >
                   替換
@@ -293,7 +282,7 @@ export function SceneCard({
                     </span>
                     <button
                       type="button"
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={openReferencePicker}
                       className="rounded bg-black/40 px-2 py-1 text-xs text-gray-200 transition-colors hover:bg-black/60"
                     >
                       更換
@@ -304,7 +293,7 @@ export function SceneCard({
             ) : (
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={openReferencePicker}
                 className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-700 bg-gray-800/50 px-3 py-4 text-sm text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-300"
               >
                 <Upload className="h-4 w-4" />
@@ -322,15 +311,9 @@ export function SceneCard({
         )}
       </div>
 
-      {/* ---- Description ---- */}
-      <label className="block text-xs font-medium text-gray-400">描述</label>
-      <textarea
-        ref={textareaRef}
+      <LorebookDescriptionField
         value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        onInput={autoResize}
-        rows={3}
-        className="mt-1 w-full resize-none overflow-hidden rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-indigo-500 focus:outline-none"
+        onChange={setDescription}
         placeholder="輸入場景描述..."
       />
 

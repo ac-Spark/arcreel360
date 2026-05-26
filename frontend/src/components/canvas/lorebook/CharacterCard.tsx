@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Pencil, Trash2, Upload, User } from "lucide-react";
 import { API } from "@/api";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
@@ -9,6 +9,7 @@ import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useConfirm } from "@/hooks/useConfirm";
 import type { Character } from "@/types";
+import { LorebookDescriptionField } from "./LorebookDescriptionField";
 
 interface CharacterSavePayload {
   description: string;
@@ -70,7 +71,6 @@ export function CharacterCard({
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setDescription(character.description);
@@ -96,18 +96,6 @@ export function CharacterCard({
       }
     };
   }, [referencePreview]);
-
-  const autoResize = useCallback(() => {
-    const el = textareaRef.current;
-    if (el) {
-      el.style.height = "auto";
-      el.style.height = `${el.scrollHeight}px`;
-    }
-  }, []);
-
-  useEffect(() => {
-    autoResize();
-  }, [autoResize, description]);
 
   const isDirty =
     description !== character.description ||
@@ -160,6 +148,16 @@ export function CharacterCard({
 
   const displayedReferenceUrl = referencePreview ?? savedReferenceUrl;
   const hasSavedReference = Boolean(savedReferenceUrl) && !referencePreview;
+  const openReferencePicker = () => fileInputRef.current?.click();
+  const handleReferenceAction = () => {
+    if (referenceFile) {
+      clearPendingReference();
+      return;
+    }
+    openReferencePicker();
+  };
+  const referenceActionLabel = referenceFile ? "取消待上傳" : "替換";
+  const referenceStatusLabel = referenceFile ? "待儲存參考圖" : "已儲存參考圖";
 
   return (
     <div
@@ -269,14 +267,10 @@ export function CharacterCard({
             {(referenceFile || hasSavedReference) && (
               <button
                 type="button"
-                onClick={() =>
-                  referenceFile
-                    ? clearPendingReference()
-                    : fileInputRef.current?.click()
-                }
+                onClick={handleReferenceAction}
                 className="text-xs text-gray-400 transition-colors hover:text-gray-200"
               >
-                {referenceFile ? "取消待上傳" : "替換"}
+                {referenceActionLabel}
               </button>
             )}
           </div>
@@ -296,11 +290,11 @@ export function CharacterCard({
                 <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-3 py-2">
                   <span className="flex items-center gap-1.5 text-xs text-gray-200">
                     <ImagePlus className="h-3.5 w-3.5" />
-                    {referenceFile ? "待儲存參考圖" : "已儲存參考圖"}
+                    {referenceStatusLabel}
                   </span>
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={openReferencePicker}
                     className="rounded bg-black/40 px-2 py-1 text-xs text-gray-200 transition-colors hover:bg-black/60"
                   >
                     更換
@@ -311,7 +305,7 @@ export function CharacterCard({
           ) : (
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={openReferencePicker}
               className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-700 bg-gray-800/50 px-3 py-4 text-sm text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-300"
             >
               <Upload className="h-4 w-4" />
@@ -328,14 +322,9 @@ export function CharacterCard({
         </div>
       </div>
 
-      <label className="text-xs font-medium text-gray-400">描述</label>
-      <textarea
-        ref={textareaRef}
+      <LorebookDescriptionField
         value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        onInput={autoResize}
-        rows={3}
-        className="mt-1 w-full resize-none overflow-hidden rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-indigo-500 focus:outline-none"
+        onChange={setDescription}
         placeholder="輸入角色描述..."
       />
 

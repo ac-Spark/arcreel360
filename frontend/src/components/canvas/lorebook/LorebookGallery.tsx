@@ -287,7 +287,7 @@ export function LorebookGallery({
                     name={clueName}
                     clue={clue}
                     projectName={projectName}
-                    onUpdate={onUpdateClue}
+                    onSave={(n, payload) => onUpdateClue(n, payload)}
                     onGenerate={onGenerateClue}
                     onUploadReference={onUploadClueReference}
                     onDelete={onDeleteClue}

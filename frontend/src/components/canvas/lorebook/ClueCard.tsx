@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Pencil, Puzzle, Trash2, Upload } from "lucide-react";
 import { API } from "@/api";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
@@ -8,16 +8,21 @@ import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useConfirm } from "@/hooks/useConfirm";
 import type { Clue } from "@/types";
+import { LorebookDescriptionField } from "./LorebookDescriptionField";
 
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
+interface ClueSavePayload {
+  description: string;
+}
+
 interface ClueCardProps {
   name: string;
   clue: Clue;
   projectName: string;
-  onUpdate: (name: string, updates: Partial<Clue>) => void;
+  onSave: (name: string, payload: ClueSavePayload) => Promise<void> | void;
   onGenerate: (name: string) => void;
   /** 上傳參考圖（multipart）。提供時才顯示參考圖上傳入口。 */
   onUploadReference?: (name: string, file: File) => Promise<void> | void;
@@ -35,7 +40,7 @@ export function ClueCard({
   name,
   clue,
   projectName,
-  onUpdate,
+  onSave,
   onGenerate,
   onUploadReference,
   onDelete,
@@ -71,6 +76,7 @@ export function ClueCard({
   const [isEditing, setIsEditing] = useState(false);
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [referencePreview, setReferencePreview] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [savingReference, setSavingReference] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -100,23 +106,13 @@ export function ClueCard({
     };
   }, [referencePreview]);
 
-  // Auto-resize textarea.
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const autoResize = useCallback(() => {
-    const el = textareaRef.current;
-    if (el) {
-      el.style.height = "auto";
-      el.style.height = `${el.scrollHeight}px`;
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave(name, { description });
+    } finally {
+      setSaving(false);
     }
-  }, []);
-
-  useEffect(() => {
-    autoResize();
-  }, [description, autoResize]);
-
-  const handleSave = () => {
-    onUpdate(name, { description });
   };
 
   const handleReferenceChange = async (
@@ -148,10 +144,17 @@ export function ClueCard({
     : null;
 
   const displayedReferenceUrl = referencePreview ?? savedReferenceUrl;
+  const openReferencePicker = () => fileInputRef.current?.click();
+  let referenceStatusLabel = "已儲存參考圖";
+  if (savingReference) {
+    referenceStatusLabel = "上傳中...";
+  } else if (referenceFile) {
+    referenceStatusLabel = "已上傳參考圖";
+  }
 
   return (
     <div
-      className="bg-gray-900 border border-gray-800 rounded-xl p-5"
+      className="rounded-xl border border-gray-800 bg-gray-900 p-5"
       data-workspace-editing={isEditing || isDirty ? "true" : undefined}
       onFocusCapture={() => setIsEditing(true)}
       onBlurCapture={(event) => {
@@ -188,10 +191,10 @@ export function ClueCard({
             type="button"
             onClick={() => onRename && setRenaming(true)}
             disabled={!onRename}
-            className="group flex min-w-0 items-center gap-1.5 text-left disabled:cursor-default"
+            className="group flex min-w-0 flex-1 items-center gap-1.5 text-left disabled:cursor-default"
             title={onRename ? "點擊改名" : undefined}
           >
-            <h3 className="text-lg font-bold text-white truncate">{name}</h3>
+            <h3 className="truncate text-lg font-bold text-white">{name}</h3>
             {onRename && (
               <Pencil className="h-3 w-3 shrink-0 text-gray-600 opacity-0 transition-opacity group-hover:opacity-100" />
             )}
@@ -220,145 +223,139 @@ export function ClueCard({
             }}
             className="ml-auto shrink-0 rounded p-1.5 text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60"
             title="刪除"
-            aria-label={`刪除 ${name}`}
+            aria-label={`刪除道具 ${name}`}
           >
             <Trash2 className="h-4 w-4" />
           </button>
         )}
       </div>
 
-      {/* ---- Image area ---- */}
-      <div className="mb-4">
-        <div className="mb-1.5 flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-            道具設計圖
-          </span>
-          <VersionTimeMachine
-            projectName={projectName}
-            resourceType="clues"
-            resourceId={name}
-            onRestore={onRestoreVersion}
-          />
-        </div>
-        <PreviewableImageFrame
-          src={sheetUrl && !imgError ? sheetUrl : null}
-          alt={`${name} 設計圖`}
-        >
-          <AspectFrame ratio="16:9">
-            {sheetUrl && !imgError ? (
-              <img
-                src={sheetUrl}
-                alt={`${name} 設計圖`}
-                className="h-full w-full object-cover"
-                onError={() => setImgError(true)}
-              />
-            ) : (
-              <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-500">
-                <Puzzle className="h-10 w-10" />
-                <span className="text-xs">暫無道具圖片</span>
-              </div>
-            )}
-          </AspectFrame>
-        </PreviewableImageFrame>
-      </div>
-
-      {/* ---- Reference image upload ---- */}
-      {onUploadReference && (
-        <div className="mb-4">
+      <div className="mb-4 space-y-3">
+        <div>
           <div className="mb-1.5 flex items-center justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-              參考圖
+              道具設計圖
             </span>
-            {displayedReferenceUrl && (
+            <VersionTimeMachine
+              projectName={projectName}
+              resourceType="clues"
+              resourceId={name}
+              onRestore={onRestoreVersion}
+            />
+          </div>
+          <PreviewableImageFrame
+            src={sheetUrl && !imgError ? sheetUrl : null}
+            alt={`${name} 設計圖`}
+          >
+            <AspectFrame ratio="16:9">
+              {sheetUrl && !imgError ? (
+                <img
+                  src={sheetUrl}
+                  alt={`${name} 設計圖`}
+                  className="h-full w-full object-cover"
+                  onError={() => setImgError(true)}
+                />
+              ) : (
+                <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-500">
+                  <Puzzle className="h-10 w-10" />
+                  <span className="text-xs">暫無道具圖片</span>
+                </div>
+              )}
+            </AspectFrame>
+          </PreviewableImageFrame>
+        </div>
+
+        {onUploadReference && (
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                參考圖
+              </span>
+              {displayedReferenceUrl && (
+                <button
+                  type="button"
+                  onClick={openReferencePicker}
+                  className="text-xs text-gray-400 transition-colors hover:text-gray-200"
+                >
+                  替換
+                </button>
+              )}
+            </div>
+
+            {displayedReferenceUrl ? (
+              <PreviewableImageFrame
+                src={displayedReferenceUrl}
+                alt={`${name} 參考圖`}
+                buttonClassName="right-2.5 top-2.5"
+              >
+                <div className="relative overflow-hidden rounded-lg border border-gray-700 bg-gray-800">
+                  <img
+                    src={displayedReferenceUrl}
+                    alt={`${name} 參考圖`}
+                    className="h-28 w-full object-cover"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-3 py-2">
+                    <span className="flex items-center gap-1.5 text-xs text-gray-200">
+                      <ImagePlus className="h-3.5 w-3.5" />
+                      {referenceStatusLabel}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={openReferencePicker}
+                      className="rounded bg-black/40 px-2 py-1 text-xs text-gray-200 transition-colors hover:bg-black/60"
+                    >
+                      更換
+                    </button>
+                  </div>
+                </div>
+              </PreviewableImageFrame>
+            ) : (
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="text-xs text-gray-400 transition-colors hover:text-gray-200"
+                onClick={openReferencePicker}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-700 bg-gray-800/50 px-3 py-4 text-sm text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-300"
               >
-                替換
+                <Upload className="h-4 w-4" />
+                上傳參考圖
               </button>
             )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".png,.jpg,.jpeg,.webp"
+              onChange={handleReferenceChange}
+              className="hidden"
+            />
           </div>
+        )}
+      </div>
 
-          {displayedReferenceUrl ? (
-            <PreviewableImageFrame
-              src={displayedReferenceUrl}
-              alt={`${name} 參考圖`}
-              buttonClassName="right-2.5 top-2.5"
-            >
-              <div className="relative overflow-hidden rounded-lg border border-gray-700 bg-gray-800">
-                <img
-                  src={displayedReferenceUrl}
-                  alt={`${name} 參考圖`}
-                  className="h-28 w-full object-cover"
-                />
-                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-3 py-2">
-                  <span className="flex items-center gap-1.5 text-xs text-gray-200">
-                    <ImagePlus className="h-3.5 w-3.5" />
-                    {savingReference
-                      ? "上傳中..."
-                      : referenceFile
-                        ? "已上傳參考圖"
-                        : "已儲存參考圖"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="rounded bg-black/40 px-2 py-1 text-xs text-gray-200 transition-colors hover:bg-black/60"
-                  >
-                    更換
-                  </button>
-                </div>
-              </div>
-            </PreviewableImageFrame>
-          ) : (
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-700 bg-gray-800/50 px-3 py-4 text-sm text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-300"
-            >
-              <Upload className="h-4 w-4" />
-              上傳參考圖
-            </button>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".png,.jpg,.jpeg,.webp"
-            onChange={handleReferenceChange}
-            className="hidden"
-          />
-        </div>
-      )}
-
-      {/* ---- Description ---- */}
-      <textarea
-        ref={textareaRef}
+      <LorebookDescriptionField
         value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        onInput={autoResize}
-        rows={2}
-        className="mb-3 w-full resize-none overflow-hidden bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-indigo-500 focus:outline-none"
+        onChange={setDescription}
         placeholder="輸入道具描述..."
       />
 
       {isDirty && (
         <button
           type="button"
-          onClick={handleSave}
-          className="mb-3 rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 transition-colors"
+          onClick={() => void handleSave()}
+          disabled={saving}
+          className="mt-3 rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          儲存
+          {saving ? "儲存中..." : "儲存"}
         </button>
       )}
 
       {clue.importance === "major" && (
-        <GenerateButton
-          onClick={() => onGenerate(name)}
-          loading={generating}
-          label={clue.clue_sheet ? "重新生成設計圖" : "生成設計圖"}
-          className="w-full justify-center"
-        />
+        <div className="mt-3">
+          <GenerateButton
+            onClick={() => onGenerate(name)}
+            loading={generating}
+            label={clue.clue_sheet ? "重新生成設計圖" : "生成設計圖"}
+            className="w-full justify-center"
+          />
+        </div>
       )}
     </div>
   );
