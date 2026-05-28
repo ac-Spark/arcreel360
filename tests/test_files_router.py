@@ -169,7 +169,8 @@ class TestFilesRouter:
             assert delete_draft.status_code == 200
 
             missing_draft = client.get("/api/v1/projects/demo/drafts/1/step1")
-            assert missing_draft.status_code == 404
+            assert missing_draft.status_code == 200
+            assert missing_draft.text == ""
 
             # confirm metadata updated for character/clue
             project = pm.load_project("demo")

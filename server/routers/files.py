@@ -475,8 +475,9 @@ async def get_draft_content(project_name: str, episode: int, step_num: int, _use
 
             draft_path = project_dir / "drafts" / f"episode_{episode}" / step_files[step_num]
 
+            # 草稿不存在是預期狀態（尚未生成），回空字串而非 404
             if not draft_path.exists():
-                raise HTTPException(status_code=404, detail="草稿檔案不存在")
+                return ""
 
             return draft_path.read_text(encoding="utf-8")
 
