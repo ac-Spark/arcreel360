@@ -38,6 +38,7 @@ describe("CharacterCard", () => {
         }}
         projectName="demo"
         onSave={vi.fn()}
+        onUploadReference={vi.fn()}
         onGenerate={vi.fn()}
       />,
     );
@@ -48,14 +49,16 @@ describe("CharacterCard", () => {
     );
   });
 
-  it("keeps selected reference file until save and submits it in the payload", async () => {
+  it("uploads a selected reference file immediately", async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
+    const onUploadReference = vi.fn().mockResolvedValue(undefined);
     const { container } = renderCharacterCard(
       <CharacterCard
         name="Hero"
         character={{ description: "hero desc", voice_style: "warm" }}
         projectName="demo"
         onSave={onSave}
+        onUploadReference={onUploadReference}
         onGenerate={vi.fn()}
       />,
     );
@@ -66,17 +69,12 @@ describe("CharacterCard", () => {
     const file = new File(["ref"], "hero.png", { type: "image/png" });
     fireEvent.change(fileInput as HTMLInputElement, { target: { files: [file] } });
 
-    expect(screen.getByText("待儲存參考圖")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "儲存" }));
-
     await waitFor(() => {
-      expect(onSave).toHaveBeenCalledWith("Hero", {
-        description: "hero desc",
-        voiceStyle: "warm",
-        referenceFile: file,
-      });
+      expect(onUploadReference).toHaveBeenCalledWith("Hero", file);
+      expect(screen.getByText("已上傳參考圖")).toBeInTheDocument();
     });
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "儲存" })).not.toBeInTheDocument();
   });
 
   it("auto-resizes the description textarea as content grows", async () => {
@@ -86,6 +84,7 @@ describe("CharacterCard", () => {
         character={{ description: "hero desc", voice_style: "warm" }}
         projectName="demo"
         onSave={vi.fn().mockResolvedValue(undefined)}
+        onUploadReference={vi.fn()}
         onGenerate={vi.fn()}
       />,
     );

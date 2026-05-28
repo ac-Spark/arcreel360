@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Pencil, Puzzle, Trash2, Upload } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Pencil, Puzzle, Trash2 } from "lucide-react";
 import { API } from "@/api";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
 import { AspectFrame } from "@/components/ui/AspectFrame";
@@ -9,6 +9,7 @@ import { useProjectsStore } from "@/stores/projects-store";
 import { useConfirm } from "@/hooks/useConfirm";
 import type { Clue } from "@/types";
 import { LorebookDescriptionField } from "./LorebookDescriptionField";
+import { LorebookReferenceImageField } from "./LorebookReferenceImageField";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -74,11 +75,7 @@ export function ClueCard({
   const [description, setDescription] = useState(clue.description);
   const [imgError, setImgError] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [referenceFile, setReferenceFile] = useState<File | null>(null);
-  const [referencePreview, setReferencePreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [savingReference, setSavingReference] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isDirty = description !== clue.description;
 
@@ -90,48 +87,12 @@ export function ClueCard({
     setImgError(false);
   }, [clue.clue_sheet, sheetFp]);
 
-  useEffect(() => {
-    setReferenceFile(null);
-    setReferencePreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-  }, [clue.reference_image]);
-
-  useEffect(() => {
-    return () => {
-      if (referencePreview) {
-        URL.revokeObjectURL(referencePreview);
-      }
-    };
-  }, [referencePreview]);
-
   const handleSave = async () => {
     setSaving(true);
     try {
       await onSave(name, { description });
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleReferenceChange = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file || !onUploadReference) return;
-
-    setReferenceFile(file);
-    setReferencePreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
-    });
-    setSavingReference(true);
-    try {
-      await onUploadReference(name, file);
-    } finally {
-      setSavingReference(false);
     }
   };
 
@@ -142,15 +103,6 @@ export function ClueCard({
   const savedReferenceUrl = clue.reference_image
     ? API.getFileUrl(projectName, clue.reference_image, referenceFp)
     : null;
-
-  const displayedReferenceUrl = referencePreview ?? savedReferenceUrl;
-  const openReferencePicker = () => fileInputRef.current?.click();
-  let referenceStatusLabel = "已儲存參考圖";
-  if (savingReference) {
-    referenceStatusLabel = "上傳中...";
-  } else if (referenceFile) {
-    referenceStatusLabel = "已上傳參考圖";
-  }
 
   return (
     <div
@@ -266,67 +218,12 @@ export function ClueCard({
         </div>
 
         {onUploadReference && (
-          <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                參考圖
-              </span>
-              {displayedReferenceUrl && (
-                <button
-                  type="button"
-                  onClick={openReferencePicker}
-                  className="text-xs text-gray-400 transition-colors hover:text-gray-200"
-                >
-                  替換
-                </button>
-              )}
-            </div>
-
-            {displayedReferenceUrl ? (
-              <PreviewableImageFrame
-                src={displayedReferenceUrl}
-                alt={`${name} 參考圖`}
-                buttonClassName="right-2.5 top-2.5"
-              >
-                <div className="relative overflow-hidden rounded-lg border border-gray-700 bg-gray-800">
-                  <img
-                    src={displayedReferenceUrl}
-                    alt={`${name} 參考圖`}
-                    className="h-28 w-full object-cover"
-                  />
-                  <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-3 py-2">
-                    <span className="flex items-center gap-1.5 text-xs text-gray-200">
-                      <ImagePlus className="h-3.5 w-3.5" />
-                      {referenceStatusLabel}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={openReferencePicker}
-                      className="rounded bg-black/40 px-2 py-1 text-xs text-gray-200 transition-colors hover:bg-black/60"
-                    >
-                      更換
-                    </button>
-                  </div>
-                </div>
-              </PreviewableImageFrame>
-            ) : (
-              <button
-                type="button"
-                onClick={openReferencePicker}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-700 bg-gray-800/50 px-3 py-4 text-sm text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-300"
-              >
-                <Upload className="h-4 w-4" />
-                上傳參考圖
-              </button>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".png,.jpg,.jpeg,.webp"
-              onChange={handleReferenceChange}
-              className="hidden"
-            />
-          </div>
+          <LorebookReferenceImageField
+            name={name}
+            savedUrl={savedReferenceUrl}
+            resetKey={savedReferenceUrl}
+            onUpload={(file) => onUploadReference(name, file)}
+          />
         )}
       </div>
 

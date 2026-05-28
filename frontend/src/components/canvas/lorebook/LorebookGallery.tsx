@@ -26,9 +26,9 @@ interface LorebookGalleryProps {
     payload: {
       description: string;
       voiceStyle: string;
-      referenceFile?: File | null;
     }
   ) => Promise<void>;
+  onUploadCharacterReference: (name: string, file: File) => Promise<void> | void;
   onUpdateClue: (name: string, updates: Partial<Clue>) => Promise<void>;
   onGenerateCharacter: (name: string) => void;
   onGenerateClue: (name: string) => void;
@@ -84,6 +84,7 @@ export function LorebookGallery({
   scenes,
   mode,
   onSaveCharacter,
+  onUploadCharacterReference,
   onUpdateClue,
   onGenerateCharacter,
   onGenerateClue,
@@ -222,6 +223,7 @@ export function LorebookGallery({
                     character={character}
                     projectName={projectName}
                     onSave={onSaveCharacter}
+                    onUploadReference={onUploadCharacterReference}
                     onGenerate={onGenerateCharacter}
                     onDelete={onDeleteCharacter}
                     onRename={onRenameCharacter}

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Pencil, Trash2, Upload, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Pencil, Trash2, User } from "lucide-react";
 import { API } from "@/api";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
 import { AspectFrame } from "@/components/ui/AspectFrame";
@@ -10,11 +10,11 @@ import { useProjectsStore } from "@/stores/projects-store";
 import { useConfirm } from "@/hooks/useConfirm";
 import type { Character } from "@/types";
 import { LorebookDescriptionField } from "./LorebookDescriptionField";
+import { LorebookReferenceImageField } from "./LorebookReferenceImageField";
 
 interface CharacterSavePayload {
   description: string;
   voiceStyle: string;
-  referenceFile?: File | null;
 }
 
 interface CharacterCardProps {
@@ -22,6 +22,7 @@ interface CharacterCardProps {
   character: Character;
   projectName: string;
   onSave: (name: string, payload: CharacterSavePayload) => Promise<void>;
+  onUploadReference: (name: string, file: File) => Promise<void> | void;
   onGenerate: (name: string) => void;
   onDelete?: (name: string) => Promise<void> | void;
   onRename?: (oldName: string, newName: string) => Promise<void> | void;
@@ -34,6 +35,7 @@ export function CharacterCard({
   character,
   projectName,
   onSave,
+  onUploadReference,
   onGenerate,
   onDelete,
   onRename,
@@ -66,11 +68,8 @@ export function CharacterCard({
   const [description, setDescription] = useState(character.description);
   const [voiceStyle, setVoiceStyle] = useState(character.voice_style ?? "");
   const [imgError, setImgError] = useState(false);
-  const [referenceFile, setReferenceFile] = useState<File | null>(null);
-  const [referencePreview, setReferencePreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setDescription(character.description);
@@ -81,49 +80,9 @@ export function CharacterCard({
     setImgError(false);
   }, [character.character_sheet, sheetFp]);
 
-  useEffect(() => {
-    setReferenceFile(null);
-    setReferencePreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-  }, [character.reference_image]);
-
-  useEffect(() => {
-    return () => {
-      if (referencePreview) {
-        URL.revokeObjectURL(referencePreview);
-      }
-    };
-  }, [referencePreview]);
-
   const isDirty =
     description !== character.description ||
-    voiceStyle !== (character.voice_style ?? "") ||
-    referenceFile !== null;
-
-  const handleReferenceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setReferenceFile(file);
-    setReferencePreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
-    });
-    e.target.value = "";
-  };
-
-  const clearPendingReference = () => {
-    setReferenceFile(null);
-    setReferencePreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
+    voiceStyle !== (character.voice_style ?? "");
 
   const handleSave = async () => {
     setSaving(true);
@@ -131,7 +90,6 @@ export function CharacterCard({
       await onSave(name, {
         description,
         voiceStyle,
-        referenceFile,
       });
     } finally {
       setSaving(false);
@@ -145,19 +103,6 @@ export function CharacterCard({
   const savedReferenceUrl = character.reference_image
     ? API.getFileUrl(projectName, character.reference_image, referenceFp)
     : null;
-
-  const displayedReferenceUrl = referencePreview ?? savedReferenceUrl;
-  const hasSavedReference = Boolean(savedReferenceUrl) && !referencePreview;
-  const openReferencePicker = () => fileInputRef.current?.click();
-  const handleReferenceAction = () => {
-    if (referenceFile) {
-      clearPendingReference();
-      return;
-    }
-    openReferencePicker();
-  };
-  const referenceActionLabel = referenceFile ? "取消待上傳" : "替換";
-  const referenceStatusLabel = referenceFile ? "待儲存參考圖" : "已儲存參考圖";
 
   return (
     <div
@@ -259,67 +204,12 @@ export function CharacterCard({
           </PreviewableImageFrame>
         </div>
 
-        <div>
-          <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-              參考圖
-            </span>
-            {(referenceFile || hasSavedReference) && (
-              <button
-                type="button"
-                onClick={handleReferenceAction}
-                className="text-xs text-gray-400 transition-colors hover:text-gray-200"
-              >
-                {referenceActionLabel}
-              </button>
-            )}
-          </div>
-
-          {displayedReferenceUrl ? (
-            <PreviewableImageFrame
-              src={displayedReferenceUrl}
-              alt={`${name} 參考圖`}
-              buttonClassName="right-2.5 top-2.5"
-            >
-              <div className="relative overflow-hidden rounded-lg border border-gray-700 bg-gray-800">
-                <img
-                  src={displayedReferenceUrl}
-                  alt={`${name} 參考圖`}
-                  className="h-28 w-full object-cover"
-                />
-                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-3 py-2">
-                  <span className="flex items-center gap-1.5 text-xs text-gray-200">
-                    <ImagePlus className="h-3.5 w-3.5" />
-                    {referenceStatusLabel}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={openReferencePicker}
-                    className="rounded bg-black/40 px-2 py-1 text-xs text-gray-200 transition-colors hover:bg-black/60"
-                  >
-                    更換
-                  </button>
-                </div>
-              </div>
-            </PreviewableImageFrame>
-          ) : (
-            <button
-              type="button"
-              onClick={openReferencePicker}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-700 bg-gray-800/50 px-3 py-4 text-sm text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-300"
-            >
-              <Upload className="h-4 w-4" />
-              上傳參考圖
-            </button>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".png,.jpg,.jpeg,.webp"
-            onChange={handleReferenceChange}
-            className="hidden"
-          />
-        </div>
+        <LorebookReferenceImageField
+          name={name}
+          savedUrl={savedReferenceUrl}
+          resetKey={savedReferenceUrl}
+          onUpload={(file) => onUploadReference(name, file)}
+        />
       </div>
 
       <LorebookDescriptionField
