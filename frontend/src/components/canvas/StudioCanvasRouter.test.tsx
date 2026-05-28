@@ -47,6 +47,7 @@ vi.mock("./lorebook/LorebookGallery", () => ({
   LorebookGallery: ({
     mode,
     onSaveCharacter,
+    onUploadCharacterReference,
     onUpdateClue,
     onGenerateCharacter,
     onGenerateClue,
@@ -59,9 +60,9 @@ vi.mock("./lorebook/LorebookGallery", () => ({
       payload: {
         description: string;
         voiceStyle: string;
-        referenceFile?: File | null;
       },
     ) => Promise<void>;
+    onUploadCharacterReference: (name: string, file: File) => Promise<void> | void;
     onUpdateClue: (name: string, updates: Record<string, unknown>) => Promise<void>;
     onGenerateCharacter: (name: string) => void;
     onGenerateClue: (name: string) => void;
@@ -74,11 +75,20 @@ vi.mock("./lorebook/LorebookGallery", () => ({
           void onSaveCharacter("Hero", {
             description: "new desc",
             voiceStyle: "new voice",
-            referenceFile: new File(["ref"], "hero.png", { type: "image/png" }),
           })
         }
       >
         update-character
+      </button>
+      <button
+        onClick={() =>
+          void onUploadCharacterReference(
+            "Hero",
+            new File(["ref"], "hero.png", { type: "image/png" }),
+          )
+        }
+      >
+        upload-character-reference
       </button>
       <button onClick={() => onGenerateCharacter("Hero")}>generate-character</button>
       <button onClick={() => void onUpdateClue("Key", { description: "new clue" })}>
@@ -325,6 +335,12 @@ describe("StudioCanvasRouter", () => {
         description: "new desc",
         voice_style: "new voice",
       });
+      expect(API.uploadFile).not.toHaveBeenCalled();
+      expect(API.getProject).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByText("upload-character-reference"));
+    await waitFor(() => {
       expect(API.uploadFile).toHaveBeenNthCalledWith(
         1,
         "demo",
@@ -332,7 +348,6 @@ describe("StudioCanvasRouter", () => {
         expect.any(File),
         "Hero",
       );
-      expect(API.getProject).toHaveBeenCalled();
     });
 
     fireEvent.click(screen.getByText("generate-character"));

@@ -78,6 +78,8 @@ export interface NarrationSegment {
   scene_in_segment?: string | null;
   image_prompt: ImagePrompt | string;
   video_prompt: VideoPrompt | string;
+  image_backend?: string | null;
+  video_backend?: string | null;
   transition_to_next: TransitionType;
   note?: string;
   generated_assets?: GeneratedAssets;
@@ -93,6 +95,8 @@ export interface DramaScene {
   scene_in_scene?: string | null;
   image_prompt: ImagePrompt | string;
   video_prompt: VideoPrompt | string;
+  image_backend?: string | null;
+  video_backend?: string | null;
   transition_to_next: TransitionType;
   note?: string;
   generated_assets?: GeneratedAssets;

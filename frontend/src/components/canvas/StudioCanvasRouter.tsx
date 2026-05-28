@@ -202,7 +202,6 @@ export function StudioCanvasRouter() {
     payload: {
       description: string;
       voiceStyle: string;
-      referenceFile?: File | null;
     },
   ) => {
     if (!currentProjectName) return;
@@ -212,25 +211,28 @@ export function StudioCanvasRouter() {
         voice_style: payload.voiceStyle,
       });
 
-      if (payload.referenceFile) {
-        await API.uploadFile(
-          currentProjectName,
-          "character_ref",
-          payload.referenceFile,
-          name,
-        );
-      }
-
-      await refreshProject(
-        payload.referenceFile
-          ? [buildEntityRevisionKey("character", name)]
-          : [],
-      );
+      await refreshProject();
       useAppStore.getState().pushToast(`角色「${name}」已更新`, "success");
     } catch (err) {
       useAppStore.getState().pushToast(`更新角色失敗: ${(err as Error).message}`, "error");
     }
   }, [currentProjectName, refreshProject]);
+
+  const handleUploadCharacterReference = useCallback(
+    async (name: string, file: File) => {
+      if (!currentProjectName) return;
+      try {
+        await API.uploadFile(currentProjectName, "character_ref", file, name);
+        await refreshProject([buildEntityRevisionKey("character", name)]);
+        useAppStore.getState().pushToast(`角色「${name}」參考圖已上傳`, "success");
+      } catch (err) {
+        useAppStore
+          .getState()
+          .pushToast(`上傳參考圖失敗: ${(err as Error).message}`, "error");
+      }
+    },
+    [currentProjectName, refreshProject],
+  );
 
   const handleGenerateCharacter = useCallback(async (name: string) => {
     if (!currentProjectName) return;
@@ -527,6 +529,7 @@ export function StudioCanvasRouter() {
             scenes={currentProjectData?.scenes ?? {}}
             mode={lorebookMode}
             onSaveCharacter={handleSaveCharacter}
+            onUploadCharacterReference={handleUploadCharacterReference}
             onUpdateClue={handleUpdateClue}
             onGenerateCharacter={handleGenerateCharacter}
             onGenerateClue={handleGenerateClue}

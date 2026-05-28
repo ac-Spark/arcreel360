@@ -24,12 +24,29 @@ from pydantic import BaseModel, Field
 from lib import agent_profile
 from lib.entity_reconciler import reconcile_script
 from lib.project_change_hints import emit_project_change_hint
+from lib.storyboard_sequence import find_storyboard_item, get_storyboard_items
 
 logger = logging.getLogger(__name__)
 
 PROJECT_NAME_PATTERN = re.compile(r"^[A-Za-z0-9-]+$")
 PROJECT_SLUG_SANITIZER = re.compile(r"[^a-zA-Z0-9]+")
 EPISODE_FILENAME_PATTERN = re.compile(r"episode[_\s]*(\d+)", re.IGNORECASE)
+
+
+class _BackendUnset:
+    """Sentinel for backend fields omitted from a partial update."""
+
+
+_BACKEND_UNSET = _BackendUnset()
+
+
+def _apply_scene_backend(item: dict, field: str, value: str | None | _BackendUnset) -> None:
+    if value is _BACKEND_UNSET:
+        return
+    if value is None:
+        item.pop(field, None)
+        return
+    item[field] = value
 
 
 def _episode_from_filename(filename: str) -> int | None:
@@ -861,6 +878,33 @@ class ProjectManager:
                 return script
 
         raise KeyError(f"場景 '{scene_id}' 不存在")
+
+    def update_scene_backend(
+        self,
+        project_name: str,
+        script_filename: str,
+        scene_id: str,
+        *,
+        image_backend: str | None | _BackendUnset = _BACKEND_UNSET,
+        video_backend: str | None | _BackendUnset = _BACKEND_UNSET,
+    ) -> dict:
+        """更新 scene 的 image_backend / video_backend 覆蓋設定。
+
+        - 未傳入該欄位 → 不動既有值
+        - 傳 None → 清除覆蓋（沿用上層）
+        - 傳字串 → 設為 "provider/model" 覆蓋
+        """
+        script = self.load_script(project_name, script_filename)
+        items, id_field, _, _, _ = get_storyboard_items(script)
+        resolved = find_storyboard_item(items, id_field, scene_id)
+        if resolved is None:
+            raise KeyError(f"場景 '{scene_id}' 不存在")
+
+        item, _ = resolved
+        _apply_scene_backend(item, "image_backend", image_backend)
+        _apply_scene_backend(item, "video_backend", video_backend)
+        self.save_script(project_name, script, script_filename)
+        return item
 
     def get_pending_scenes(self, project_name: str, script_filename: str, asset_type: str) -> list[dict]:
         """

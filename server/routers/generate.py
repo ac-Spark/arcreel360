@@ -75,11 +75,73 @@ def _normalize_provider_id(raw: str) -> str:
     return _LEGACY_PROVIDER_NAMES.get(raw, raw)
 
 
-def _snapshot_image_backend(project_name: str) -> dict:
+def _read_scene_backend_override(
+    project_name: str,
+    script_file: str | None,
+    resource_id: str | None,
+    field: str,
+) -> str | None:
+    """讀取 scene-level backend 覆蓋（"provider/model" 字串）。
+
+    field: "image_backend" or "video_backend"
+    回傳 None 表示該 scene 未設定覆蓋（沿用上層）。
+    """
+    if not script_file or not resource_id:
+        return None
+    try:
+        script = get_project_manager().load_script(project_name, script_file)
+    except FileNotFoundError:
+        return None
+
+    items, id_field, _, _, _ = get_storyboard_items(script)
+    resolved = find_storyboard_item(items, id_field, resource_id)
+    if resolved is None:
+        return None
+    item, _ = resolved
+    value = item.get(field)
+    return value if isinstance(value, str) and value.strip() else None
+
+
+def _split_backend_str(raw: str) -> tuple[str, str]:
+    """將 "provider/model" 解析為 (provider_id, model_id)。"""
+    if "/" in raw:
+        provider, model = raw.split("/", 1)
+        return provider, model
+    return _normalize_provider_id(raw), ""
+
+
+def _snapshot_scene_backend(
+    project_name: str,
+    *,
+    script_file: str | None,
+    resource_id: str | None,
+    field: str,
+) -> tuple[str, str] | None:
+    scene_override = _read_scene_backend_override(project_name, script_file, resource_id, field)
+    return _split_backend_str(scene_override) if scene_override else None
+
+
+def _snapshot_image_backend(
+    project_name: str,
+    *,
+    script_file: str | None = None,
+    resource_id: str | None = None,
+) -> dict:
     """快照圖片供應商配置，返回可合併到 payload 的字典。
 
-    優先順序：專案級 image_backend > 系統級 default_image_backend。
+    優先順序：scene-level image_backend > 專案級 image_backend > 系統級預設。
+    傳入 script_file + resource_id 啟用 scene-level 覆蓋查詢。
     """
+    scene_backend = _snapshot_scene_backend(
+        project_name,
+        script_file=script_file,
+        resource_id=resource_id,
+        field="image_backend",
+    )
+    if scene_backend:
+        provider, model = scene_backend
+        return {"image_provider": provider, "image_model": model}
+
     project = get_project_manager().load_project(project_name)
     project_image_backend = project.get("image_backend")  # 格式: "provider_id/model"
     if project_image_backend and "/" in project_image_backend:
@@ -93,6 +155,32 @@ def _snapshot_image_backend(project_name: str) -> dict:
         "image_provider": image_provider,
         "image_model": image_model,
     }
+
+
+def _snapshot_video_backend(
+    project_name: str,
+    *,
+    script_file: str | None = None,
+    resource_id: str | None = None,
+) -> dict:
+    """快照影片供應商配置，返回可合併到 payload 的字典。
+
+    優先順序：scene-level video_backend > 專案級 video_backend > 系統級預設。
+    """
+    scene_backend = _snapshot_scene_backend(
+        project_name,
+        script_file=script_file,
+        resource_id=resource_id,
+        field="video_backend",
+    )
+    if scene_backend:
+        provider, model = scene_backend
+        return {
+            "video_provider": provider,
+            "video_provider_settings": {"model": model} if model else {},
+        }
+    # 專案級由 _resolve_video_backend 處理，這裡不提前快照（保持原行為）
+    return {}
 
 
 # ==================== 分鏡圖生成 ====================
@@ -113,13 +201,18 @@ async def generate_storyboard(
     try:
 
         def _sync():
-            get_project_manager().load_project(project_name)
-            script = get_project_manager().load_script(project_name, req.script_file)
+            manager = get_project_manager()
+            manager.load_project(project_name)
+            script = manager.load_script(project_name, req.script_file)
             items, id_field, _, _, _ = get_storyboard_items(script)
             resolved = find_storyboard_item(items, id_field, segment_id)
             if resolved is None:
                 raise HTTPException(status_code=404, detail=f"片段/場景 '{segment_id}' 不存在")
-            return _snapshot_image_backend(project_name)
+            return _snapshot_image_backend(
+                project_name,
+                script_file=req.script_file,
+                resource_id=segment_id,
+            )
 
         image_snapshot = await asyncio.to_thread(_sync)
 
@@ -181,13 +274,19 @@ async def generate_video(project_name: str, segment_id: str, req: GenerateVideoR
     try:
 
         def _sync():
-            get_project_manager().load_project(project_name)
-            project_path = get_project_manager().get_project_path(project_name)
+            manager = get_project_manager()
+            manager.load_project(project_name)
+            project_path = manager.get_project_path(project_name)
             storyboard_file = project_path / "storyboards" / f"scene_{segment_id}.png"
             if not storyboard_file.exists():
                 raise HTTPException(status_code=400, detail=f"請先生成分鏡圖 scene_{segment_id}.png")
+            return _snapshot_video_backend(
+                project_name,
+                script_file=req.script_file,
+                resource_id=segment_id,
+            )
 
-        await asyncio.to_thread(_sync)
+        video_snapshot = await asyncio.to_thread(_sync)
 
         # 驗證 prompt 格式
         if isinstance(req.prompt, dict):
@@ -205,7 +304,7 @@ async def generate_video(project_name: str, segment_id: str, req: GenerateVideoR
         elif not isinstance(req.prompt, str):
             raise HTTPException(status_code=400, detail="prompt 必須是字串或物件")
 
-        # 入隊（provider 由服務層根據配置自動解析，呼叫方無需傳遞）
+        # 入隊（provider 由服務層根據配置自動解析，scene 覆蓋透過 video_snapshot 注入）
         queue = get_generation_queue()
         result = await queue.enqueue_task(
             project_name=project_name,
@@ -217,6 +316,7 @@ async def generate_video(project_name: str, segment_id: str, req: GenerateVideoR
                 "prompt": req.prompt,
                 "script_file": req.script_file,
                 "duration_seconds": req.duration_seconds,
+                **video_snapshot,
                 "seed": req.seed,
             },
             source="webui",
@@ -338,11 +438,11 @@ async def generate_storyboards_batch(
     try:
 
         def _sync():
-            get_project_manager().load_project(project_name)
-            script = get_project_manager().load_script(project_name, req.script_file)
+            manager = get_project_manager()
+            manager.load_project(project_name)
+            script = manager.load_script(project_name, req.script_file)
             items, id_field, _, _, _ = get_storyboard_items(script)
-            project_path = get_project_manager().get_project_path(project_name)
-            image_snapshot = _snapshot_image_backend(project_name)
+            project_path = manager.get_project_path(project_name)
 
             requested_ids: list[str]
             if req.ids is None:
@@ -362,9 +462,14 @@ async def generate_storyboards_batch(
                     skipped.append({"id": sid, "reason": "already_exists"})
                     continue
                 to_enqueue.append(sid)
-            return to_enqueue, skipped, image_snapshot
+            # 每個 scene 各自 snapshot（支援 scene-level 覆蓋）
+            snapshots: dict[str, dict] = {
+                sid: _snapshot_image_backend(project_name, script_file=req.script_file, resource_id=sid)
+                for sid in to_enqueue
+            }
+            return to_enqueue, skipped, snapshots
 
-        to_enqueue, skipped, image_snapshot = await asyncio.to_thread(_sync)
+        to_enqueue, skipped, snapshots = await asyncio.to_thread(_sync)
 
         queue = get_generation_queue()
         enqueued: list[str] = []
@@ -379,7 +484,7 @@ async def generate_storyboards_batch(
                     "prompt": "",  # worker 會從劇本讀取 prompt
                     "script_file": req.script_file,
                     "from_batch": True,
-                    **image_snapshot,
+                    **snapshots.get(sid, {}),
                 },
                 source="webui",
                 user_id=_user.id,
@@ -410,10 +515,11 @@ async def generate_videos_batch(
     try:
 
         def _sync():
-            get_project_manager().load_project(project_name)
-            script = get_project_manager().load_script(project_name, req.script_file)
+            manager = get_project_manager()
+            manager.load_project(project_name)
+            script = manager.load_script(project_name, req.script_file)
             items, id_field, _, _, _ = get_storyboard_items(script)
-            project_path = get_project_manager().get_project_path(project_name)
+            project_path = manager.get_project_path(project_name)
 
             requested_ids: list[str]
             if req.ids is None:
@@ -436,9 +542,14 @@ async def generate_videos_batch(
                     skipped.append({"id": sid, "reason": "already_exists"})
                     continue
                 to_enqueue.append(sid)
-            return to_enqueue, skipped
+            # 每個 scene 各自 snapshot（支援 scene-level 影片後端覆蓋）
+            snapshots: dict[str, dict] = {
+                sid: _snapshot_video_backend(project_name, script_file=req.script_file, resource_id=sid)
+                for sid in to_enqueue
+            }
+            return to_enqueue, skipped, snapshots
 
-        to_enqueue, skipped = await asyncio.to_thread(_sync)
+        to_enqueue, skipped, snapshots = await asyncio.to_thread(_sync)
 
         queue = get_generation_queue()
         enqueued: list[str] = []
@@ -453,6 +564,7 @@ async def generate_videos_batch(
                     "prompt": "",
                     "script_file": req.script_file,
                     "from_batch": True,
+                    **snapshots.get(sid, {}),
                 },
                 source="webui",
                 user_id=_user.id,

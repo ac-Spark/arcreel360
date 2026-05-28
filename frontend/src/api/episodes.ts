@@ -11,6 +11,56 @@ type BatchGenerateResponse = {
   skipped: { id: string; reason: string }[];
 };
 
+type SceneBackendPatch = {
+  image_backend?: string | null;
+  video_backend?: string | null;
+};
+
+type SceneBackendResponse = {
+  success: boolean;
+  scene_id: string;
+  image_backend: string | null;
+  video_backend: string | null;
+};
+
+type SceneCostDiff = {
+  current: number;
+  next: number;
+  delta: number;
+  currency: string;
+};
+
+type SceneCostEstimateRequest = {
+  project_name: string;
+  script_file: string;
+  scene_id: string;
+  image_backend?: string | null;
+  video_backend?: string | null;
+};
+
+type SceneCostEstimateResponse = {
+  scene_id: string;
+  duration_seconds: number;
+  image: SceneCostDiff;
+  video: SceneCostDiff;
+};
+
+function buildSceneBackendBody(
+  scriptFile: string,
+  patch: SceneBackendPatch,
+): Record<string, unknown> {
+  const body: Record<string, unknown> = { script_file: scriptFile };
+  if ("image_backend" in patch) {
+    body.set_image = true;
+    body.image_backend = patch.image_backend;
+  }
+  if ("video_backend" in patch) {
+    body.set_video = true;
+    body.video_backend = patch.video_backend;
+  }
+  return body;
+}
+
 /**
  * 拆段預處理參考來源設定：控制要把哪些 project context 餵給 AI。
  *
@@ -444,6 +494,33 @@ export const episodesApi = {
         body: JSON.stringify(updates),
       },
     );
+  },
+
+  // ==================== Scene-level Backend 覆蓋 ====================
+
+  /**
+   * 設定 scene 的 image_backend / video_backend 覆蓋。
+   * 傳入 undefined 表示不動該欄位；傳入 null 表示清除覆蓋（沿用上層）。
+   */
+  async updateSceneBackend(
+    projectName: string,
+    episode: number,
+    sceneId: string,
+    scriptFile: string,
+    patch: SceneBackendPatch,
+  ): Promise<SceneBackendResponse> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(projectName)}/episodes/${episode}/scenes/${encodeURIComponent(sceneId)}/backend`,
+      { method: "PATCH", body: JSON.stringify(buildSceneBackendBody(scriptFile, patch)) },
+    );
+  },
+
+  /** 計算 scene 套用候選 backend 後的費用差異。 */
+  async estimateSceneCost(payload: SceneCostEstimateRequest): Promise<SceneCostEstimateResponse> {
+    return getApi().request(`/cost-estimation/scene`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   },
 
   // ==================== 生成 API ====================

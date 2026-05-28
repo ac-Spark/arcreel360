@@ -24,6 +24,7 @@ import { MentionHighlightedText, MentionHighlightOverlay } from "./MentionHighli
 import { useEntityMentionInput } from "./useEntityMentionInput";
 import { ImagePromptEditor } from "./ImagePromptEditor";
 import { VideoPromptEditor } from "./VideoPromptEditor";
+import { SceneBackendPopover } from "./SceneBackendPopover";
 import { formatCost } from "@/utils/cost-format";
 import {
   extractEntityMentionsFromValue,
@@ -267,6 +268,8 @@ interface SegmentCardProps {
   clues: Record<string, Clue>;
   scenes?: Record<string, Scene>;
   projectName: string;
+  episode?: number;
+  scriptFile?: string;
   videoBackend?: string | null;
   currentResolution?: string | null;
   durationOptions?: number[];
@@ -970,6 +973,8 @@ export function SegmentCard({
   clues,
   scenes = {},
   projectName,
+  episode,
+  scriptFile,
   videoBackend,
   currentResolution,
   durationOptions,
@@ -1117,6 +1122,16 @@ export function SegmentCard({
               clues={clues}
               projectName={projectName}
             />
+            {episode != null && scriptFile && (
+              <SceneBackendPopover
+                projectName={projectName}
+                episode={episode}
+                sceneId={segmentId}
+                scriptFile={scriptFile}
+                sceneImageBackend={segment.image_backend ?? null}
+                sceneVideoBackend={segment.video_backend ?? null}
+              />
+            )}
             {onDelete && (
               <button
                 type="button"

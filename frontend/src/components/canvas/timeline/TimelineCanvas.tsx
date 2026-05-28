@@ -433,6 +433,8 @@ export function TimelineCanvas({
                       clues={projectData.clues}
                       scenes={projectData.scenes ?? {}}
                       projectName={projectName}
+                      episode={episode}
+                      scriptFile={scriptFile}
                       videoBackend={videoBackend}
                       currentResolution={currentVideoResolution}
                       durationOptions={durationOptions}

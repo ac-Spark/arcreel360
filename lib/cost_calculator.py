@@ -103,6 +103,13 @@ class CostCalculator:
 
     DEFAULT_ARK_VIDEO_MODEL = "doubao-seedance-1-5-pro-251215"
     DEFAULT_ARK_ENDPOINT_VIDEO_MODEL = "doubao-seedance-2-0-260128"
+    # 預估用：每秒 tokens（按解析度）。實際以 API 回傳的 completion_tokens 計費。
+    # 抓上限值，讓預估反映「最壞情況」費用。
+    ARK_EST_TOKENS_PER_SECOND: dict[str, int] = {
+        "480p": 6_000,
+        "720p": 12_000,
+        "1080p": 24_000,
+    }
 
     # Grok 影片費用（美元/秒），不區分解析度
     # 來源：docs/grok-docs/models.md — $0.050/sec
@@ -209,6 +216,28 @@ class CostCalculator:
         if model and model.startswith("ep-"):
             return self.DEFAULT_ARK_ENDPOINT_VIDEO_MODEL
         return model or self.DEFAULT_ARK_VIDEO_MODEL
+
+    def _resolve_ark_video_usage_tokens(
+        self,
+        usage_tokens: int | None,
+        *,
+        duration_seconds: int | None,
+        resolution: str | None,
+    ) -> int:
+        if usage_tokens is not None:
+            return usage_tokens
+        return self.estimate_ark_video_tokens(
+            duration_seconds=duration_seconds or 8,
+            resolution=resolution or "720p",
+        )
+
+    def estimate_ark_video_tokens(self, duration_seconds: int, resolution: str = "720p") -> int:
+        """預估 Ark 影片的 completion_tokens（上限值）。
+
+        實際以 API 回傳為準；此值僅供 UI 預估顯示。
+        """
+        per_sec = self.ARK_EST_TOKENS_PER_SECOND.get(resolution, self.ARK_EST_TOKENS_PER_SECOND["720p"])
+        return duration_seconds * per_sec
 
     def calculate_image_cost(self, resolution: str = "1K", model: str = None) -> float:
         """
@@ -422,8 +451,13 @@ class CostCalculator:
 
         if call_type == "video":
             if provider == PROVIDER_BYTEPLUS:
+                # 無實際 tokens（預估場景）時，按解析度×時長估上限
                 return self.calculate_ark_video_cost(
-                    usage_tokens=usage_tokens or 0,
+                    usage_tokens=self._resolve_ark_video_usage_tokens(
+                        usage_tokens,
+                        duration_seconds=duration_seconds,
+                        resolution=resolution,
+                    ),
                     service_tier=service_tier,
                     generate_audio=generate_audio,
                     model=model,

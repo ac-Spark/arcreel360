@@ -606,6 +606,99 @@ async def update_scene(name: str, scene_id: str, req: UpdateSceneRequest, _user:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class SceneBackendRequest(BaseModel):
+    script_file: str
+    # set_* flags 區分「不更新」與「明確設為 null」
+    image_backend: str | None = Field(default=None)
+    video_backend: str | None = Field(default=None)
+    # 兩個布林旗標：True 表示該欄位有意義（要寫入；None 代表清除）
+    set_image: bool = False
+    set_video: bool = False
+
+
+def _validate_scene_backend_request(req: SceneBackendRequest) -> None:
+    if not req.set_image and not req.set_video:
+        raise HTTPException(status_code=400, detail="至少需指定 set_image 或 set_video 其中之一")
+
+    if req.set_image and req.image_backend is not None:
+        validate_backend_value(req.image_backend, "image_backend")
+    if req.set_video and req.video_backend is not None:
+        validate_backend_value(req.video_backend, "video_backend")
+
+
+def _backend_update_kwargs(req: SceneBackendRequest) -> dict[str, str | None]:
+    kwargs: dict[str, str | None] = {}
+    if req.set_image:
+        kwargs["image_backend"] = req.image_backend
+    if req.set_video:
+        kwargs["video_backend"] = req.video_backend
+    return kwargs
+
+
+def _verify_episode_script(project: dict, episode: int, requested_script_file: str) -> None:
+    episodes = project.get("episodes", [])
+    target = next((e for e in episodes if int(e.get("episode", 0)) == episode), None)
+    if target is None:
+        raise HTTPException(status_code=404, detail=f"集 {episode} 不存在")
+
+    actual_script = target.get("script_file") or requested_script_file
+    if actual_script.removeprefix("scripts/") != requested_script_file.removeprefix("scripts/"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"script_file 與第 {episode} 集不匹配：預期 {actual_script}",
+        )
+
+
+@router.patch("/projects/{name}/episodes/{episode}/scenes/{scene_id}/backend")
+async def update_scene_backend(
+    name: str,
+    episode: int,
+    scene_id: str,
+    req: SceneBackendRequest,
+    _user: CurrentUser,
+):
+    """更新 scene 的 image_backend / video_backend 覆蓋。
+
+    set_image=True + image_backend=null  → 清除圖片覆蓋（沿用專案層級）
+    set_image=True + image_backend="..."  → 設定 scene 覆蓋
+    set_image=False                       → 不動圖片設定
+    （video 同上）
+    """
+    _validate_scene_backend_request(req)
+
+    try:
+
+        def _sync():
+            manager = get_project_manager()
+            project = manager.load_project(name)
+            _verify_episode_script(project, episode, req.script_file)
+
+            with project_change_source("webui"):
+                updated = manager.update_scene_backend(
+                    project_name=name,
+                    script_filename=req.script_file,
+                    scene_id=scene_id,
+                    **_backend_update_kwargs(req),
+                )
+            return {
+                "success": True,
+                "scene_id": scene_id,
+                "image_backend": updated.get("image_backend"),
+                "video_backend": updated.get("video_backend"),
+            }
+
+        return await asyncio.to_thread(_sync)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="劇本不存在")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("更新分鏡後端失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 class UpdateSegmentRequest(BaseModel):
     script_file: str
     duration_seconds: int | None = None
