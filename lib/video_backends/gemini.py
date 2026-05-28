@@ -26,7 +26,7 @@ from lib.video_backends.base import (
 )
 
 if TYPE_CHECKING:
-    from lib.config.registry import ModelInfo
+    pass
 
 logger = logging.getLogger(__name__)
 

@@ -299,14 +299,22 @@ def test_handle_preprocess_episode_with_source(tmp_path, monkeypatch):
 def test_explicit_source_json_validation_fails(tmp_path):
     import sys
     from pathlib import Path
+
     import pytest
 
-    scripts_dir = Path(__file__).resolve().parents[1] / "agent_runtime_profile" / ".claude" / "skills" / "generate-script" / "scripts"
+    scripts_dir = (
+        Path(__file__).resolve().parents[1]
+        / "agent_runtime_profile"
+        / ".claude"
+        / "skills"
+        / "generate-script"
+        / "scripts"
+    )
     sys.path.insert(0, str(scripts_dir))
 
     try:
-        import split_narration_segments
         import normalize_drama_script
+        import split_narration_segments
 
         project_path = tmp_path / "project"
         source_dir = project_path / "source"
