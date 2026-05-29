@@ -81,7 +81,14 @@ export function AgentCopilot() {
   const inputDisabled = Boolean(pendingQuestion) || answeringQuestion || isRunning || sending;
   const attachDisabled = inputDisabled || !providerCapabilities.supports_images || attachedImages.length >= maxImages;
   const requestRefocusAfterSend = useRefocusAfterSend(inputDisabled, textareaRef);
-  useAutoScrollOnChange(scrollRef, allTurns.length);
+  // 串流中同一則 turn 的內容會持續變長，僅靠 turn 數無法觸發捲動，
+  // 故把最後一則 turn 的 block 數與末塊文字長度納入 signal。
+  const lastTurn = allTurns[allTurns.length - 1];
+  const lastBlock = lastTurn?.content[lastTurn.content.length - 1];
+  const streamingSignal = `${allTurns.length}:${lastTurn?.content.length ?? 0}:${
+    (lastBlock?.text ?? lastBlock?.thinking ?? lastBlock?.result ?? lastBlock?.skill_content ?? "").length
+  }`;
+  useAutoScrollOnChange(scrollRef, streamingSignal);
 
   const inputPlaceholder = pendingQuestion
     ? "請先回答上方問題"
