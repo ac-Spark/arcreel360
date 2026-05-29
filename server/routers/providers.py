@@ -72,6 +72,7 @@ class ModelInfoResponse(BaseModel):
     duration_resolution_constraints: dict[str, list[int]] = {}
     supported_resolutions: list[str] = []
     reference_image_force_duration: int | None = None
+    supported_image_sizes: list[str] = []
 
 
 class ProviderSummary(BaseModel):

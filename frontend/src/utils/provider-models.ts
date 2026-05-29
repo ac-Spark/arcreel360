@@ -3,6 +3,7 @@ import type { CustomProviderInfo, ModelInfoResponse, ProviderInfo } from "@/type
 
 export const DEFAULT_DURATIONS: readonly number[] = [4, 6, 8];
 export const DEFAULT_RESOLUTIONS: readonly string[] = ["720p", "1080p", "4k"];
+export const DEFAULT_IMAGE_SIZES: readonly string[] = ["1K"];
 
 const CUSTOM_PREFIX = "custom-";
 const LEGACY_PROVIDER_IDS: Record<string, string> = {
@@ -142,6 +143,24 @@ export function lookupDefaultResolution(videoBackend: string): string | undefine
   const parsed = parseVideoBackend(videoBackend);
   if (!parsed) return undefined;
   return DEFAULT_VIDEO_RESOLUTION_BY_PROVIDER[parsed.providerId];
+}
+
+/**
+ * Given an image backend string like "gemini-aistudio/gemini-3.1-flash-image-preview",
+ * look up the model's supported_image_sizes. Returns undefined if not found or
+ * the model declares none (caller falls back to DEFAULT_IMAGE_SIZES).
+ * Custom providers have no image-size declaration yet, so they return undefined.
+ */
+export function lookupSupportedImageSizes(
+  providers: ProviderInfo[],
+  imageBackend: string,
+): string[] | undefined {
+  const parsed = parseVideoBackend(imageBackend);
+  if (!parsed || parsed.providerId.startsWith(CUSTOM_PREFIX)) return undefined;
+
+  const provider = providers.find((p) => p.id === parsed.providerId);
+  const model = provider?.models?.[parsed.modelId];
+  return model?.supported_image_sizes?.length ? model.supported_image_sizes : undefined;
 }
 
 export function resolveVideoDurationOptions(

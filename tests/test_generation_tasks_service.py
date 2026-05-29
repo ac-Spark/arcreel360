@@ -378,6 +378,42 @@ class TestGenerationTasks:
         with pytest.raises(ValueError):
             await generation_tasks.execute_clue_task("demo", "玉佩", {"prompt": ""})
 
+    async def test_resolve_video_backend_payload_override(self, monkeypatch, tmp_path):
+        """驗證 _resolve_video_backend 優先使用 payload 中的 video_provider 及 settings"""
+        project_path = _prepare_files(tmp_path)
+        fake_pm = _FakePM(project_path)
+        monkeypatch.setattr(generation_tasks, "get_project_manager", lambda: fake_pm)
+
+        # Mock resolver 與 _get_or_create_video_backend
+        class FakeResolver:
+            async def default_video_backend(self):
+                return "gemini-aistudio", "veo-3.1-lite-generate-preview"
+
+        resolved_args = []
+
+        async def fake_get_backend(provider_name, settings, resolver, default_video_model=None):
+            resolved_args.append((provider_name, settings, default_video_model))
+            return object()
+
+        monkeypatch.setattr(generation_tasks, "_get_or_create_video_backend", fake_get_backend)
+
+        # 1. 帶有 payload 覆蓋
+        payload = {
+            "video_provider": "byteplus",
+            "video_provider_settings": {"model": "doubao-seedance-2-0-260128"},
+        }
+        resolver = FakeResolver()
+        await generation_tasks._resolve_video_backend("demo", resolver, payload)
+        assert len(resolved_args) == 1
+        assert resolved_args[0][0] == "byteplus"
+        assert resolved_args[0][1] == {"model": "doubao-seedance-2-0-260128"}
+
+        # 2. 不帶 payload 覆蓋，使用 project.json (預設為 None, 走 default_video_provider_id)
+        resolved_args.clear()
+        await generation_tasks._resolve_video_backend("demo", resolver, {"script_file": "episode_1.json"})
+        assert len(resolved_args) == 1
+        assert resolved_args[0][0] == "gemini-aistudio"
+
 
 class TestGetAspectRatio:
     def test_reads_top_level_aspect_ratio(self):

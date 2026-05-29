@@ -7,6 +7,7 @@ export interface ModelInfoResponse {
   duration_resolution_constraints: Record<string, number[]>;
   supported_resolutions: string[];
   reference_image_force_duration: number | null;
+  supported_image_sizes: string[];
 }
 
 export interface ProviderInfo {

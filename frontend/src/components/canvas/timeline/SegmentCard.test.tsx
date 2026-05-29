@@ -3,7 +3,12 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SegmentCard } from "./SegmentCard";
 import { useAppStore } from "@/stores/app-store";
+import { useVideoDurationOptions } from "@/hooks/useVideoDurationOptions";
 import type { DramaScene, NarrationSegment } from "@/types";
+
+vi.mock("@/hooks/useVideoDurationOptions", () => ({
+  useVideoDurationOptions: vi.fn(),
+}));
 
 vi.mock("@/components/canvas/timeline/VersionTimeMachine", () => ({
   VersionTimeMachine: () => <div data-testid="version-time-machine">versions</div>,
@@ -104,6 +109,7 @@ describe("SegmentCard", () => {
   beforeEach(() => {
     useAppStore.setState(useAppStore.getInitialState(), true);
     vi.restoreAllMocks();
+    vi.mocked(useVideoDurationOptions).mockReturnValue(undefined);
   });
 
   it("shows an image fullscreen trigger and uses native video controls", () => {
@@ -279,6 +285,33 @@ describe("SegmentCard", () => {
     );
   });
 
+  it("updates the per-scene video resolution when a resolution option is picked", () => {
+    const onUpdatePrompt = vi.fn();
+    renderSegmentCard({
+      segment: makeSegment({ video_resolution: "720p" }),
+      onUpdatePrompt,
+    });
+
+    // Open the resolution selector (current value shown on the trigger).
+    fireEvent.click(screen.getByRole("button", { name: "影片解析度選擇" }));
+    fireEvent.click(screen.getByRole("radio", { name: "1080p" }));
+
+    expect(onUpdatePrompt).toHaveBeenCalledWith("SEG-1", "video_resolution", "1080p");
+  });
+
+  it("renders image size as a read-only chip when only one size is available", () => {
+    // With provider lookups unmocked, image sizes fall back to the single
+    // DEFAULT_IMAGE_SIZES entry, so the selector must not be interactive.
+    renderSegmentCard({
+      segment: makeSegment({ image_size: "1K" }),
+      onUpdatePrompt: vi.fn(),
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "圖片解析度選擇" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("auto-adjusts an invalid segment duration to the nearest allowed option", () => {
     const onUpdatePrompt = vi.fn();
     renderSegmentCard({
@@ -292,5 +325,22 @@ describe("SegmentCard", () => {
     expect(useAppStore.getState().toast?.text).toBe(
       "已自動將秒數從 4 調整為 8（1080p 限制）",
     );
+  });
+
+  it("prioritizes dynamicDurationOptions over project-level durationOptions", () => {
+    vi.mocked(useVideoDurationOptions).mockReturnValue([12, 15]);
+
+    const onUpdatePrompt = vi.fn();
+    renderSegmentCard({
+      segment: makeSegment({ duration_seconds: 12 }),
+      durationOptions: [4, 6, 8],
+      onUpdatePrompt,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /12s/i }));
+
+    expect(screen.getByRole("radio", { name: "12s" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "15s" })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "4s" })).not.toBeInTheDocument();
   });
 });

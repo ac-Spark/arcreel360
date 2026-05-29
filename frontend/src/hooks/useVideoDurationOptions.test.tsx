@@ -24,6 +24,7 @@ const providers: ProviderInfo[] = [
         duration_resolution_constraints: { "1080p": [8], "4k": [8] },
         supported_resolutions: ["720p", "1080p", "4k"],
         reference_image_force_duration: 8,
+        supported_image_sizes: [],
       },
       "veo-3.1-lite-generate-preview": {
         display_name: "Veo 3.1 Lite",
@@ -34,6 +35,7 @@ const providers: ProviderInfo[] = [
         duration_resolution_constraints: { "1080p": [8] },
         supported_resolutions: ["720p", "1080p"],
         reference_image_force_duration: 8,
+        supported_image_sizes: [],
       },
     },
   },

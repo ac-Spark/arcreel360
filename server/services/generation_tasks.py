@@ -249,11 +249,16 @@ async def _resolve_video_backend(
     video_backend_type = "aistudio"
 
     if payload:
-        # provider 統一從專案配置 → 全域性預設解析，呼叫方無需傳遞
-        project = await asyncio.to_thread(get_project_manager().load_project, project_name)
+        # 優先序：payload 分鏡覆蓋 > project.json > 全域性預設
+        payload_provider = payload.get("video_provider")
+        payload_model = (payload.get("video_provider_settings") or {}).get("model")
 
-        # 從 project.json 的 video_backend（"provider/model" 格式）解析
-        provider_name, project_model = _parse_project_backend(project.get("video_backend"))
+        if payload_provider:
+            provider_name = payload_provider
+            project_model = payload_model
+        else:
+            project = await asyncio.to_thread(get_project_manager().load_project, project_name)
+            provider_name, project_model = _parse_project_backend(project.get("video_backend"))
 
         if not provider_name:
             provider_name = default_video_provider_id
@@ -684,7 +689,7 @@ async def execute_storyboard_task(
         resource_id=resource_id,
         reference_images=reference_images,
         aspect_ratio=aspect_ratio,
-        image_size="1K",
+        image_size=payload.get("image_size") or "1K",
     )
 
     def _finalize():
@@ -767,7 +772,12 @@ async def execute_video_task(
     resolution_key = _PROVIDER_ID_TO_BACKEND.get(provider_name, provider_name)
     video_model_settings = project.get("video_model_settings", {})
     model_settings = video_model_settings.get(model_name, {}) if model_name else {}
-    resolution = model_settings.get("resolution") or DEFAULT_VIDEO_RESOLUTION.get(resolution_key, "1080p")
+    # 優先序：scene 覆蓋 (payload.video_resolution) > 專案級 model_settings > provider 預設
+    resolution = (
+        payload.get("video_resolution")
+        or model_settings.get("resolution")
+        or DEFAULT_VIDEO_RESOLUTION.get(resolution_key, "1080p")
+    )
 
     # duration fallback: payload > project.default_duration > supported_durations[0] > 4
     duration_seconds = payload.get("duration_seconds") or project.get("default_duration")

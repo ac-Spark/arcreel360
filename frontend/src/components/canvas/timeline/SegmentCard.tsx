@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ImageIcon, Film, Clock, Trash2 } from "lucide-react";
+import { ImageIcon, Film, Clock, Monitor, Trash2 } from "lucide-react";
 import { API } from "@/api";
 import {
   coerceDurationToOptions,
   DEFAULT_DURATIONS,
+  DEFAULT_IMAGE_SIZES,
+  DEFAULT_RESOLUTIONS,
   getDurationConstraintReason,
 } from "@/utils/provider-models";
+import { useImageSizeOptions } from "@/hooks/useImageSizeOptions";
+import { useVideoResolutionOptions } from "@/hooks/useVideoResolutionOptions";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
 import { AvatarStack } from "@/components/ui/AvatarStack";
 import { ClueStack } from "@/components/ui/ClueStack";
@@ -385,6 +389,88 @@ function DurationSelector({
               </button>
             );
           })}
+        </div>
+      </Popover>
+    </>
+  );
+}
+
+function getPillOptionClassName(active: boolean): string {
+  const base =
+    "rounded px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500";
+  return active ? `${base} bg-indigo-600 text-white` : `${base} text-gray-300 hover:bg-gray-700`;
+}
+
+/**
+ * Generic string-option pill selector (used for video resolution & image size).
+ * Read-only chip when onSelect is absent or only one option is available.
+ */
+function OptionPillSelector({
+  value,
+  options,
+  icon,
+  ariaLabel,
+  onSelect,
+}: {
+  value: string;
+  options: readonly string[];
+  icon: React.ReactNode;
+  ariaLabel: string;
+  onSelect?: (next: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLButtonElement>(null);
+  // Always include the current value so an out-of-range override is still shown.
+  const displayOptions = useMemo(
+    () => Array.from(new Set([...options, value])).filter(Boolean),
+    [options, value],
+  );
+  const interactive = Boolean(onSelect) && displayOptions.length > 1;
+
+  if (!interactive) {
+    return (
+      <span className="inline-flex items-center gap-0.5 rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">
+        {icon}
+        {value}
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <button
+        ref={ref}
+        onClick={() => setOpen((o) => !o)}
+        aria-label={ariaLabel}
+        className="inline-flex cursor-pointer items-center gap-0.5 rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300 hover:bg-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+      >
+        {icon}
+        {value}
+      </button>
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={ref}
+        width="w-auto"
+        className="rounded-lg border border-gray-700 p-1.5 shadow-xl"
+        align="start"
+        sideOffset={6}
+      >
+        <div className="flex gap-1" role="radiogroup" aria-label={ariaLabel}>
+          {displayOptions.map((opt) => (
+            <button
+              key={opt}
+              role="radio"
+              aria-checked={opt === value}
+              onClick={() => {
+                onSelect?.(opt);
+                setOpen(false);
+              }}
+              className={getPillOptionClassName(opt === value)}
+            >
+              {opt}
+            </button>
+          ))}
         </div>
       </Popover>
     </>
@@ -1074,13 +1160,26 @@ export function SegmentCard({
     [mentionDrafts, mentionEntities],
   );
   const hasReferenceImage = Boolean(segment.generated_assets?.storyboard_image);
-  const dynamicDurationOptions = useVideoDurationOptions(videoBackend, {
-    currentResolution,
+
+  // Per-scene overrides take precedence over the project-level props.
+  const effectiveVideoBackend = segment.video_backend || videoBackend;
+  const effectiveImageBackend = segment.image_backend || undefined;
+  const effectiveResolution = segment.video_resolution ?? currentResolution ?? null;
+
+  const resolutionOptions = useVideoResolutionOptions(effectiveVideoBackend) ?? DEFAULT_RESOLUTIONS;
+  const imageSizeOptions = useImageSizeOptions(effectiveImageBackend) ?? DEFAULT_IMAGE_SIZES;
+  const currentImageSize = segment.image_size ?? imageSizeOptions[0] ?? DEFAULT_IMAGE_SIZES[0];
+  const currentVideoResolution =
+    effectiveResolution ?? resolutionOptions[0] ?? DEFAULT_RESOLUTIONS[0];
+
+  const dynamicDurationOptions = useVideoDurationOptions(effectiveVideoBackend, {
+    currentResolution: effectiveResolution,
     hasReferenceImage,
   });
-  const effectiveDurationOptions = durationOptions ?? dynamicDurationOptions ?? (DEFAULT_DURATIONS as number[]);
+  const effectiveDurationOptions = dynamicDurationOptions ?? durationOptions ?? (DEFAULT_DURATIONS as number[]);
   const effectiveDurationReason =
-    durationConstraintReason ?? getDurationConstraintReason({ currentResolution, hasReferenceImage });
+    durationConstraintReason ??
+    getDurationConstraintReason({ currentResolution: effectiveResolution, hasReferenceImage });
 
   useEffect(() => {
     if (!onUpdatePrompt || effectiveDurationOptions.includes(segment.duration_seconds)) return;
@@ -1117,6 +1216,28 @@ export function SegmentCard({
               onUpdatePrompt={onUpdatePrompt}
               durationOptions={effectiveDurationOptions}
               durationConstraintReason={effectiveDurationReason}
+            />
+            <OptionPillSelector
+              value={currentVideoResolution}
+              options={resolutionOptions}
+              icon={<Monitor aria-hidden="true" className="h-3 w-3" />}
+              ariaLabel="影片解析度選擇"
+              onSelect={
+                onUpdatePrompt
+                  ? (next) => onUpdatePrompt(segmentId, "video_resolution", next)
+                  : undefined
+              }
+            />
+            <OptionPillSelector
+              value={currentImageSize}
+              options={imageSizeOptions}
+              icon={<ImageIcon aria-hidden="true" className="h-3 w-3" />}
+              ariaLabel="圖片解析度選擇"
+              onSelect={
+                onUpdatePrompt
+                  ? (next) => onUpdatePrompt(segmentId, "image_size", next)
+                  : undefined
+              }
             />
             {segCost && (
               <span className="tabular-nums contents">

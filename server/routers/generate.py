@@ -138,9 +138,13 @@ def _snapshot_image_backend(
         resource_id=resource_id,
         field="image_backend",
     )
+    # scene-level 解析度覆蓋（image_size），與 backend 覆蓋獨立
+    scene_image_size = _read_scene_backend_override(project_name, script_file, resource_id, "image_size")
+    size_patch = {"image_size": scene_image_size} if scene_image_size else {}
+
     if scene_backend:
         provider, model = scene_backend
-        return {"image_provider": provider, "image_model": model}
+        return {"image_provider": provider, "image_model": model, **size_patch}
 
     project = get_project_manager().load_project(project_name)
     project_image_backend = project.get("image_backend")  # 格式: "provider_id/model"
@@ -150,10 +154,11 @@ def _snapshot_image_backend(
         image_provider = _normalize_provider_id(project_image_backend)
         image_model = ""
     else:
-        return {}  # 無專案級覆蓋，使用全域性預設
+        return {**size_patch}  # 無專案級覆蓋，使用全域性預設
     return {
         "image_provider": image_provider,
         "image_model": image_model,
+        **size_patch,
     }
 
 
@@ -173,14 +178,19 @@ def _snapshot_video_backend(
         resource_id=resource_id,
         field="video_backend",
     )
+    # scene-level 解析度覆蓋（video_resolution），與 backend 覆蓋獨立
+    scene_resolution = _read_scene_backend_override(project_name, script_file, resource_id, "video_resolution")
+    res_patch = {"video_resolution": scene_resolution} if scene_resolution else {}
+
     if scene_backend:
         provider, model = scene_backend
         return {
             "video_provider": provider,
             "video_provider_settings": {"model": model} if model else {},
+            **res_patch,
         }
     # 專案級由 _resolve_video_backend 處理，這裡不提前快照（保持原行為）
-    return {}
+    return {**res_patch}
 
 
 # ==================== 分鏡圖生成 ====================

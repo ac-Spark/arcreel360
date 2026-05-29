@@ -9,11 +9,13 @@ import { useConfirm } from "@/hooks/useConfirm";
 import {
   coerceDurationToOptions,
   DEFAULT_DURATIONS,
+  DEFAULT_IMAGE_SIZES,
   DEFAULT_RESOLUTIONS,
   getProviderModels,
   getCustomProviderModels,
   lookupDefaultResolution,
   lookupSupportedDurations,
+  lookupSupportedImageSizes,
   lookupSupportedResolutions,
   lookupVideoModelInfo,
   resolveVideoDurationOptions,
@@ -54,6 +56,7 @@ export function ProjectSettingsPage() {
   const [aspectRatio, setAspectRatio] = useState<string>("");
   const [defaultDuration, setDefaultDuration] = useState<number | null>(null);
   const [videoModelSettings, setVideoModelSettings] = useState<Record<string, { resolution?: string | null }>>({});
+  const [imageModelSettings, setImageModelSettings] = useState<Record<string, { image_size?: string | null }>>({});
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [customProviders, setCustomProviders] = useState<CustomProviderInfo[]>([]);
   const [saving, setSaving] = useState(false);
@@ -62,6 +65,7 @@ export function ProjectSettingsPage() {
     textScript: "", textOverview: "", textStyle: "",
     aspectRatio: "", defaultDuration: null as number | null,
     videoModelSettings: {} as Record<string, { resolution?: string | null }>,
+    imageModelSettings: {} as Record<string, { image_size?: string | null }>,
   });
 
   useEffect(() => {
@@ -102,6 +106,7 @@ export function ProjectSettingsPage() {
         : "";
       const dd = project.default_duration != null ? (project.default_duration as number) : null;
       const vms = (project.video_model_settings as Record<string, { resolution?: string | null }> | undefined) ?? {};
+      const ims = (project.image_model_settings as Record<string, { image_size?: string | null }> | undefined) ?? {};
 
       setVideoBackend(vb);
       setImageBackend(ib);
@@ -112,11 +117,13 @@ export function ProjectSettingsPage() {
       setAspectRatio(ar);
       setDefaultDuration(dd);
       setVideoModelSettings(vms);
+      setImageModelSettings(ims);
       initialRef.current = {
         videoBackend: vb, imageBackend: ib, audioOverride: ao,
         textScript: ts, textOverview: to, textStyle: tst,
         aspectRatio: ar, defaultDuration: dd,
         videoModelSettings: vms,
+        imageModelSettings: ims,
       };
     });
 
@@ -147,6 +154,34 @@ export function ProjectSettingsPage() {
     () => lookupVideoModelInfo(providers, effectiveVideoBackend),
     [providers, effectiveVideoBackend],
   );
+
+  // ---- Image resolution (size) ----
+  const effectiveImageBackend = imageBackend || globalDefaults.image;
+  const effectiveImageModelId = effectiveImageBackend.includes("/")
+    ? effectiveImageBackend.split("/")[1]
+    : "";
+  const imageSizeOptions = useMemo(
+    () => lookupSupportedImageSizes(providers, effectiveImageBackend) ?? (DEFAULT_IMAGE_SIZES as string[]),
+    [providers, effectiveImageBackend],
+  );
+  const modelImageSize = effectiveImageModelId
+    ? imageModelSettings[effectiveImageModelId]?.image_size
+    : null;
+  const effectiveImageSize =
+    modelImageSize && imageSizeOptions.includes(modelImageSize)
+      ? modelImageSize
+      : (imageSizeOptions[0] ?? DEFAULT_IMAGE_SIZES[0]);
+
+  const handleImageSizeChange = useCallback((size: string) => {
+    if (!effectiveImageModelId) return;
+    setImageModelSettings((prev) => ({
+      ...prev,
+      [effectiveImageModelId]: {
+        ...(prev[effectiveImageModelId] ?? {}),
+        image_size: size,
+      },
+    }));
+  }, [effectiveImageModelId]);
   const defaultDurationOptions = useMemo(
     () =>
       resolveVideoDurationOptions(effectiveVideoModel, supportedDurations, {
@@ -212,7 +247,8 @@ export function ProjectSettingsPage() {
     textStyle !== initialRef.current.textStyle ||
     aspectRatio !== initialRef.current.aspectRatio ||
     defaultDuration !== initialRef.current.defaultDuration ||
-    JSON.stringify(videoModelSettings) !== JSON.stringify(initialRef.current.videoModelSettings);
+    JSON.stringify(videoModelSettings) !== JSON.stringify(initialRef.current.videoModelSettings) ||
+    JSON.stringify(imageModelSettings) !== JSON.stringify(initialRef.current.imageModelSettings);
 
   useEffect(() => {
     if (!isDirty) return;
@@ -245,12 +281,14 @@ export function ProjectSettingsPage() {
         aspect_ratio: aspectRatio || undefined,
         default_duration: defaultDuration,
         video_model_settings: videoModelSettings,
+        image_model_settings: imageModelSettings,
       } as Record<string, unknown>);
       initialRef.current = {
         videoBackend, imageBackend, audioOverride,
         textScript, textOverview, textStyle,
         aspectRatio, defaultDuration,
         videoModelSettings,
+        imageModelSettings,
       };
       useAppStore.getState().pushToast("已儲存", "success");
     } catch (e: unknown) {
@@ -268,6 +306,7 @@ export function ProjectSettingsPage() {
     aspectRatio,
     defaultDuration,
     videoModelSettings,
+    imageModelSettings,
     projectName,
   ]);
 
@@ -431,6 +470,36 @@ export function ProjectSettingsPage() {
                 }
               />
             </div>
+
+            {effectiveImageBackend && imageSizeOptions.length > 1 && (
+              <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">
+                <fieldset>
+                  <legend className="mb-3 text-sm font-medium text-gray-100">圖片解析度</legend>
+                  <div className="flex flex-wrap gap-2">
+                    {imageSizeOptions.map((size) => (
+                      <label
+                        key={size}
+                        className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 ${
+                          effectiveImageSize === size
+                            ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
+                            : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="imageSize"
+                          value={size}
+                          checked={effectiveImageSize === size}
+                          onChange={() => handleImageSizeChange(size)}
+                          className="sr-only"
+                        />
+                        {size}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              </div>
+            )}
 
             {/* Audio override */}
             <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">

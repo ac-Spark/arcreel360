@@ -13,6 +13,8 @@ class ModelInfo:
     duration_resolution_constraints: dict[str, list[int]] = field(default_factory=dict)
     supported_resolutions: list[str] = field(default_factory=list)
     reference_image_force_duration: int | None = None
+    # 圖片模型支援的解析度尺寸，僅對 media_type == "image" 有意義；空清單 = 沿用現狀
+    supported_image_sizes: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -57,11 +59,13 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
             "gemini-3-pro-image-preview": ModelInfo(
                 display_name="Gemini 3 Pro Image",
                 media_type="image",
+                supported_image_sizes=["1K", "2K", "4K"],
                 capabilities=["text_to_image", "image_to_image"],
             ),
             "gemini-3.1-flash-image-preview": ModelInfo(
                 display_name="Gemini 3.1 Flash Image",
                 media_type="image",
+                supported_image_sizes=["512PX", "1K", "2K", "4K"],
                 capabilities=["text_to_image", "image_to_image"],
                 default=True,
             ),
@@ -119,11 +123,13 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
             "gemini-3-pro-image-preview": ModelInfo(
                 display_name="Gemini 3 Pro Image",
                 media_type="image",
+                supported_image_sizes=["1K", "2K", "4K"],
                 capabilities=["text_to_image", "image_to_image"],
             ),
             "gemini-3.1-flash-image-preview": ModelInfo(
                 display_name="Gemini 3.1 Flash Image",
                 media_type="image",
+                supported_image_sizes=["512PX", "1K", "2K", "4K"],
                 capabilities=["text_to_image", "image_to_image"],
                 default=True,
             ),
@@ -182,22 +188,26 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
             "doubao-seedream-5-0-lite-260128": ModelInfo(
                 display_name="Seedream 5.0 Lite",
                 media_type="image",
+                supported_image_sizes=["1K"],
                 capabilities=["text_to_image", "image_to_image"],
                 default=True,
             ),
             "doubao-seedream-5-0-260128": ModelInfo(
                 display_name="Seedream 5.0",
                 media_type="image",
+                supported_image_sizes=["1K"],
                 capabilities=["text_to_image", "image_to_image"],
             ),
             "doubao-seedream-4-5-251128": ModelInfo(
                 display_name="Seedream 4.5",
                 media_type="image",
+                supported_image_sizes=["1K"],
                 capabilities=["text_to_image", "image_to_image"],
             ),
             "doubao-seedream-4-0-250828": ModelInfo(
                 display_name="Seedream 4.0",
                 media_type="image",
+                supported_image_sizes=["1K"],
                 capabilities=["text_to_image", "image_to_image"],
             ),
             # --- video ---
@@ -258,11 +268,13 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
             "grok-imagine-image-pro": ModelInfo(
                 display_name="Grok Imagine Image Pro",
                 media_type="image",
+                supported_image_sizes=["1K", "2K"],
                 capabilities=["text_to_image", "image_to_image"],
             ),
             "grok-imagine-image": ModelInfo(
                 display_name="Grok Imagine Image",
                 media_type="image",
+                supported_image_sizes=["1K", "2K"],
                 capabilities=["text_to_image", "image_to_image"],
                 default=True,
             ),
@@ -304,12 +316,14 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
             "gpt-image-1.5": ModelInfo(
                 display_name="GPT Image 1.5",
                 media_type="image",
+                supported_image_sizes=["512PX", "1K", "2K", "4K"],
                 capabilities=["text_to_image", "image_to_image"],
                 default=True,
             ),
             "gpt-image-1-mini": ModelInfo(
                 display_name="GPT Image 1 Mini",
                 media_type="image",
+                supported_image_sizes=["512PX", "1K", "2K", "4K"],
                 capabilities=["text_to_image", "image_to_image"],
             ),
             # --- video ---

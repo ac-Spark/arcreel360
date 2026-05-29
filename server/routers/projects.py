@@ -79,6 +79,7 @@ class UpdateProjectRequest(BaseModel):
     image_backend: str | None = None
     video_generate_audio: bool | None = None
     video_model_settings: dict[str, dict[str, str | None]] | None = None
+    image_model_settings: dict[str, dict[str, str | None]] | None = None
     text_backend_script: str | None = None
     text_backend_overview: str | None = None
     text_backend_style: str | None = None
@@ -496,6 +497,11 @@ async def update_project(name: str, req: UpdateProjectRequest, _user: CurrentUse
                     project["video_model_settings"] = req.video_model_settings
                 else:
                     project.pop("video_model_settings", None)
+            if "image_model_settings" in req.model_fields_set:
+                if req.image_model_settings:
+                    project["image_model_settings"] = req.image_model_settings
+                else:
+                    project.pop("image_model_settings", None)
             if "aspect_ratio" in req.model_fields_set and req.aspect_ratio is not None:
                 project["aspect_ratio"] = req.aspect_ratio
             if "default_duration" in req.model_fields_set:
