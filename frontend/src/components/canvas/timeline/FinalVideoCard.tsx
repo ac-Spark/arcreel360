@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { API } from "@/api";
+import { PreviewableVideoFrame } from "@/components/ui/PreviewableVideoFrame";
 
 interface FinalVideoCardProps {
   projectName: string;
@@ -35,6 +36,8 @@ export function FinalVideoCard({ projectName, episode }: FinalVideoCardProps) {
     void refresh();
   }, [refresh]);
 
+  const fileUrl = file ? API.getFileUrl(projectName, `output/${file.name}`) : null;
+
   return (
     <div className="mt-6 rounded-xl border border-gray-800 bg-gray-950/40 p-4">
       <div className="mb-3 flex items-center justify-between">
@@ -53,19 +56,21 @@ export function FinalVideoCard({ projectName, episode }: FinalVideoCardProps) {
 
       {loading ? (
         <div className="text-xs text-gray-500">載入中…</div>
-      ) : file ? (
+      ) : file && fileUrl ? (
         <div className="space-y-2">
-          <video
-            key={file.url}
-            controls
-            preload="metadata"
-            className="w-full rounded-lg bg-black"
-            src={API.getFileUrl(projectName, `output/${file.name}`)}
-          />
+          <PreviewableVideoFrame src={fileUrl} alt="最終成片">
+            <video
+              key={file.url}
+              controls
+              preload="metadata"
+              className="w-full rounded-lg bg-black"
+              src={fileUrl}
+            />
+          </PreviewableVideoFrame>
           <div className="flex items-center justify-between text-xs text-gray-500">
             <span>{(file.size / 1024 / 1024).toFixed(1)} MB</span>
             <a
-              href={API.getFileUrl(projectName, `output/${file.name}`)}
+              href={fileUrl}
               download={file.name}
               className="text-indigo-400 hover:text-indigo-300"
             >

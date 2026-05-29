@@ -20,6 +20,14 @@ export interface VersionInfo {
   is_current: boolean;
   file_url?: string;
   prompt?: string;
+  model?: string;
+  provider?: string;
+  aspect_ratio?: string;
+  image_size?: string;
+  resolution?: string;
+  duration_seconds?: number;
+  negative_prompt?: string;
+  reference_images?: { name: string; label?: string }[];
   restored_from?: number;
 }
 

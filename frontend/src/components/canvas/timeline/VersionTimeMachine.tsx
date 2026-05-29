@@ -5,6 +5,8 @@ import { API, type VersionInfo } from "@/api";
 import { useAppStore } from "@/stores/app-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { UI_LAYERS } from "@/utils/ui-layers";
+import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
+import { PreviewableVideoFrame } from "@/components/ui/PreviewableVideoFrame";
 
 type ResourceType = "storyboards" | "videos" | "characters" | "clues" | "scenes";
 
@@ -39,6 +41,25 @@ function getResourcePath(resourceType: ResourceType, resourceId: string): string
 /** v0 是使用者上傳的可替換基底版本；AI 生成版本從 v1 起。 */
 function versionLabel(version: number): string {
   return version === 0 ? "使用者上傳" : `v${version}`;
+}
+
+/** 從版本資訊組出要顯示的生成參數列（label, value），略過未記錄的欄位。 */
+function buildMetaRows(info: VersionInfo): { label: string; value: string }[] {
+  const rows: { label: string; value: string }[] = [];
+  if (info.aspect_ratio) rows.push({ label: "長寬比", value: info.aspect_ratio });
+  if (info.image_size) rows.push({ label: "尺寸", value: info.image_size });
+  if (info.resolution) rows.push({ label: "解析度", value: info.resolution });
+  if (info.duration_seconds != null)
+    rows.push({ label: "時長", value: `${info.duration_seconds}s` });
+  if (info.negative_prompt) rows.push({ label: "負向提示", value: info.negative_prompt });
+  if (info.reference_images?.length) {
+    const names = info.reference_images
+      .map((ref) => ref.label || ref.name)
+      .filter(Boolean)
+      .join("、");
+    rows.push({ label: "參考圖", value: names });
+  }
+  return rows;
 }
 
 function versionPillClass(isSelected: boolean, isCurrent: boolean, isBase: boolean): string {
@@ -330,23 +351,27 @@ export function VersionTimeMachine({
                     {/* Media preview */}
                     {selectedInfo.file_url &&
                       (resourceType === "videos" ? (
-                        <video
-                          src={selectedInfo.file_url}
-                          className="mb-2 w-full rounded-lg border border-gray-800 bg-black object-contain"
-                          controls
-                          playsInline
-                          preload="none"
-                        />
-                      ) : (
-                        <div
-                          className={`mb-2 flex w-full items-center justify-center rounded-lg border border-gray-800 bg-gray-900/70 p-2 ${getImagePreviewHeightClass(resourceType)}`}
-                        >
-                          <img
+                        <PreviewableVideoFrame src={selectedInfo.file_url} alt={`版本 v${selectedInfo.version} 預覽`}>
+                          <video
                             src={selectedInfo.file_url}
-                            alt={`版本 v${selectedInfo.version} 預覽`}
-                            className="max-h-full w-full object-contain"
+                            className="mb-2 w-full rounded-lg border border-gray-800 bg-black object-contain"
+                            controls
+                            playsInline
+                            preload="none"
                           />
-                        </div>
+                        </PreviewableVideoFrame>
+                      ) : (
+                        <PreviewableImageFrame src={selectedInfo.file_url} alt={`版本 v${selectedInfo.version} 預覽`}>
+                          <div
+                            className={`mb-2 flex w-full items-center justify-center rounded-lg border border-gray-800 bg-gray-900/70 p-2 ${getImagePreviewHeightClass(resourceType)}`}
+                          >
+                            <img
+                              src={selectedInfo.file_url}
+                              alt={`版本 v${selectedInfo.version} 預覽`}
+                              className="max-h-full w-full object-contain"
+                            />
+                          </div>
+                        </PreviewableImageFrame>
                       ))}
 
                     {/* Prompt text */}
@@ -354,7 +379,23 @@ export function VersionTimeMachine({
                       {selectedInfo.prompt || "該版本沒有記錄額外說明。"}
                     </p>
 
-
+                    {/* Generation metadata */}
+                    {selectedInfo.version !== 0 && (
+                      <dl className="mt-2 space-y-0.5 border-t border-gray-800 pt-1.5 text-[10px] leading-5">
+                        <div className="flex gap-1.5">
+                          <dt className="shrink-0 text-gray-500">模型</dt>
+                          <dd className="min-w-0 break-words text-gray-300">
+                            {selectedInfo.model ?? <span className="text-gray-600">未記錄</span>}
+                          </dd>
+                        </div>
+                        {buildMetaRows(selectedInfo).map((row) => (
+                          <div key={row.label} className="flex gap-1.5">
+                            <dt className="shrink-0 text-gray-500">{row.label}</dt>
+                            <dd className="min-w-0 break-words text-gray-400">{row.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
                   </div>
                 )}
 

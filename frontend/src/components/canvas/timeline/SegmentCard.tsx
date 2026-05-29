@@ -19,6 +19,7 @@ import { GenerateButton } from "@/components/ui/GenerateButton";
 import { ImageFlipReveal } from "@/components/ui/ImageFlipReveal";
 import { Popover } from "@/components/ui/Popover";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
+import { PreviewableVideoFrame } from "@/components/ui/PreviewableVideoFrame";
 import { useVideoDurationOptions } from "@/hooks/useVideoDurationOptions";
 import { useAppStore } from "@/stores/app-store";
 import { useProjectsStore } from "@/stores/projects-store";
@@ -1046,9 +1047,11 @@ function MediaColumn({
           />
         </div>
         {videoUrl ? (
-          <AspectFrame ratio={normalizedRatio}>
-            <VideoPlayer src={videoUrl} poster={thumbnailUrl} />
-          </AspectFrame>
+          <PreviewableVideoFrame src={videoUrl} poster={thumbnailUrl} alt={`${segmentId} 影片`}>
+            <AspectFrame ratio={normalizedRatio}>
+              <VideoPlayer src={videoUrl} poster={thumbnailUrl} />
+            </AspectFrame>
+          </PreviewableVideoFrame>
         ) : (
           <div className="flex items-center justify-center rounded-lg border border-dashed border-gray-700 bg-gray-800/30 py-4">
             <span className="text-xs text-gray-600">

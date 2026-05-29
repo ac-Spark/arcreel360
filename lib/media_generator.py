@@ -289,6 +289,13 @@ class MediaGenerator:
             prompt=effective_prompt,
             source_file=output_path,
             aspect_ratio=aspect_ratio,
+            image_size=image_size,
+            reference_images=[
+                {"name": Path(ref.path).name, "label": ref.label} for ref in ref_images
+            ]
+            or None,
+            model=self._image_backend.model,
+            provider=self._image_backend.name,
             **version_metadata,
         )
 
@@ -462,6 +469,11 @@ class MediaGenerator:
             prompt=prompt,
             source_file=output_path,
             duration_seconds=actual_duration_seconds,
+            aspect_ratio=aspect_ratio,
+            resolution=resolution,
+            negative_prompt=negative_prompt,
+            model=model_name,
+            provider=provider_name,
             **version_metadata,
         )
 
