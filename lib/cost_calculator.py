@@ -10,6 +10,18 @@ from __future__ import annotations
 from lib.custom_provider import is_custom_provider
 from lib.providers import PROVIDER_BYTEPLUS, PROVIDER_GROK, PROVIDER_OPENAI, CallType, normalize_provider_id
 
+# CNY → USD 換算匯率（寫死；如需可調日後移至設定）
+CNY_TO_USD_RATE = 1 / 7.2  # 約當 USD/CNY = 7.2
+
+
+def _to_usd(amount: float, currency: str) -> tuple[float, str]:
+    """將金額統一換算為 USD。未知幣別原樣回傳。"""
+    if currency == "USD":
+        return amount, "USD"
+    if currency == "CNY":
+        return amount * CNY_TO_USD_RATE, "USD"
+    return amount, currency
+
 
 class CostCalculator:
     """費用計算器"""
@@ -200,7 +212,7 @@ class CostCalculator:
         計算 Ark 影片生成費用。
 
         Returns:
-            (amount, currency) — 金額和幣種 (CNY)
+            (amount, currency) — 金額和幣種 (USD)
         """
         model = self._resolve_ark_video_cost_model(model)
         model_costs = self.ARK_VIDEO_COST.get(model, self.ARK_VIDEO_COST[self.DEFAULT_ARK_VIDEO_MODEL])
@@ -210,7 +222,7 @@ class CostCalculator:
             model_costs.get(("default", True), 16.00),
         )
         amount = usage_tokens / 1_000_000 * price_per_million
-        return amount, "CNY"
+        return _to_usd(amount, "CNY")
 
     def _resolve_ark_video_cost_model(self, model: str | None) -> str:
         if model and model.startswith("ep-"):
@@ -292,11 +304,11 @@ class CostCalculator:
         Ark 圖片按張計費。
 
         Returns:
-            (amount, currency) — 金額和幣種 (CNY)
+            (amount, currency) — 金額和幣種 (USD)
         """
         model = model or self.DEFAULT_ARK_IMAGE_MODEL
         per_image = self.ARK_IMAGE_COST.get(model, self.ARK_IMAGE_COST[self.DEFAULT_ARK_IMAGE_MODEL])
-        return per_image * n, "CNY"
+        return _to_usd(per_image * n, "CNY")
 
     def calculate_grok_image_cost(
         self,
@@ -311,7 +323,7 @@ class CostCalculator:
         """
         model = model or self.DEFAULT_GROK_IMAGE_MODEL
         per_image = self.GROK_IMAGE_COST.get(model, self.GROK_IMAGE_COST[self.DEFAULT_GROK_IMAGE_MODEL])
-        return per_image * n, "USD"
+        return _to_usd(per_image * n, "USD")
 
     def calculate_grok_video_cost(
         self,
@@ -330,7 +342,7 @@ class CostCalculator:
         """
         model = model or self.DEFAULT_GROK_MODEL
         per_second = self.GROK_VIDEO_COST.get(model, self.GROK_VIDEO_COST[self.DEFAULT_GROK_MODEL])
-        return duration_seconds * per_second, "USD"
+        return _to_usd(duration_seconds * per_second, "USD")
 
     def calculate_openai_image_cost(
         self,
@@ -351,7 +363,7 @@ class CostCalculator:
         per_image = model_costs.get(
             (quality, size), model_costs.get((quality, "1024x1024"), model_costs.get(("medium", "1024x1024"), 0.034))
         )
-        return per_image, "USD"
+        return _to_usd(per_image, "USD")
 
     def calculate_openai_video_cost(
         self,
@@ -369,7 +381,7 @@ class CostCalculator:
         resolution = resolution or "720p"
         model_costs = self.OPENAI_VIDEO_COST.get(model, self.OPENAI_VIDEO_COST[self.DEFAULT_OPENAI_VIDEO_MODEL])
         per_second = model_costs.get(resolution, model_costs.get("720p"))
-        return duration_seconds * per_second, "USD"
+        return _to_usd(duration_seconds * per_second, "USD")
 
     _TEXT_COST_TABLES: dict[str, tuple[dict, str, str]] = {
         # provider -> (cost_table_attr, default_model, currency)
@@ -393,7 +405,7 @@ class CostCalculator:
         model = model or default_model
         rates = cost_table.get(model, cost_table.get(default_model, {"input": 0.0, "output": 0.0}))
         amount = (input_tokens * rates["input"] + output_tokens * rates["output"]) / 1_000_000
-        return amount, currency
+        return _to_usd(amount, currency)
 
     def calculate_cost(
         self,
@@ -495,19 +507,19 @@ class CostCalculator:
     ) -> tuple[float, str]:
         """根據呼叫方預查的價格資訊計算自定義供應商費用。"""
         if price_input is None:
-            return 0.0, "USD"
+            return _to_usd(0.0, "USD")
 
         cur = currency or "USD"
 
         if call_type == "text":
             inp = (input_tokens or 0) * price_input
             out = (output_tokens or 0) * (price_output or 0)
-            return (inp + out) / 1_000_000, cur
-        elif call_type == "image":
-            return price_input, cur
-        elif call_type == "video":
-            return (duration_seconds or 8) * price_input, cur
-        return 0.0, cur
+            return _to_usd((inp + out) / 1_000_000, cur)
+        if call_type == "image":
+            return _to_usd(price_input, cur)
+        if call_type == "video":
+            return _to_usd((duration_seconds or 8) * price_input, cur)
+        return _to_usd(0.0, cur)
 
 
 # 單例例項，方便使用

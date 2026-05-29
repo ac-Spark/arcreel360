@@ -1,6 +1,10 @@
 import pytest
 
-from lib.cost_calculator import CostCalculator, cost_calculator
+from lib.cost_calculator import CNY_TO_USD_RATE, CostCalculator, cost_calculator
+
+
+def cny(amount: float) -> float:
+    return amount * CNY_TO_USD_RATE
 
 
 class TestCostCalculator:
@@ -52,8 +56,8 @@ class TestArkCost:
             generate_audio=True,
             model="doubao-seedance-1-5-pro-251215",
         )
-        assert currency == "CNY"
-        assert amount == pytest.approx(3.9494, rel=1e-3)
+        assert currency == "USD"
+        assert amount == pytest.approx(cny(3.9494), rel=1e-3)
 
     def test_online_no_audio(self):
         calculator = CostCalculator()
@@ -62,8 +66,8 @@ class TestArkCost:
             service_tier="default",
             generate_audio=False,
         )
-        assert currency == "CNY"
-        assert amount == pytest.approx(1.9747, rel=1e-3)
+        assert currency == "USD"
+        assert amount == pytest.approx(cny(1.9747), rel=1e-3)
 
     def test_flex_with_audio(self):
         calculator = CostCalculator()
@@ -72,8 +76,8 @@ class TestArkCost:
             service_tier="flex",
             generate_audio=True,
         )
-        assert currency == "CNY"
-        assert amount == pytest.approx(1.9747, rel=1e-3)
+        assert currency == "USD"
+        assert amount == pytest.approx(cny(1.9747), rel=1e-3)
 
     def test_flex_no_audio(self):
         calculator = CostCalculator()
@@ -82,8 +86,8 @@ class TestArkCost:
             service_tier="flex",
             generate_audio=False,
         )
-        assert currency == "CNY"
-        assert amount == pytest.approx(0.9874, rel=1e-3)
+        assert currency == "USD"
+        assert amount == pytest.approx(cny(0.9874), rel=1e-3)
 
     def test_zero_tokens(self):
         calculator = CostCalculator()
@@ -93,7 +97,7 @@ class TestArkCost:
             generate_audio=True,
         )
         assert amount == pytest.approx(0.0)
-        assert currency == "CNY"
+        assert currency == "USD"
 
     def test_unknown_model_uses_default(self):
         calculator = CostCalculator()
@@ -103,8 +107,8 @@ class TestArkCost:
             generate_audio=True,
             model="unknown-model",
         )
-        assert currency == "CNY"
-        assert amount == pytest.approx(16.0)
+        assert currency == "USD"
+        assert amount == pytest.approx(cny(16.0))
 
     def test_seedance_2_cost(self):
         calculator = CostCalculator()
@@ -114,18 +118,19 @@ class TestArkCost:
             generate_audio=True,
             model="doubao-seedance-2-0-260128",
         )
-        assert currency == "CNY"
-        assert amount == pytest.approx(46.00)
+        assert currency == "USD"
+        assert amount == pytest.approx(cny(46.00))
 
     def test_seedance_2_cost_no_audio_same_price(self):
         calculator = CostCalculator()
-        amount, _ = calculator.calculate_ark_video_cost(
+        amount, currency = calculator.calculate_ark_video_cost(
             usage_tokens=1_000_000,
             service_tier="default",
             generate_audio=False,
             model="doubao-seedance-2-0-260128",
         )
-        assert amount == pytest.approx(46.00)
+        assert currency == "USD"
+        assert amount == pytest.approx(cny(46.00))
 
     def test_modelark_endpoint_id_uses_seedance_2_cost(self):
         calculator = CostCalculator()
@@ -135,8 +140,8 @@ class TestArkCost:
             generate_audio=True,
             model="ep-20260508120826-lkcjf",
         )
-        assert currency == "CNY"
-        assert amount == pytest.approx(46.00)
+        assert currency == "USD"
+        assert amount == pytest.approx(cny(46.00))
 
     def test_seedance_2_fast_cost(self):
         calculator = CostCalculator()
@@ -146,8 +151,8 @@ class TestArkCost:
             generate_audio=True,
             model="doubao-seedance-2-0-fast-260128",
         )
-        assert currency == "CNY"
-        assert amount == pytest.approx(37.00)
+        assert currency == "USD"
+        assert amount == pytest.approx(cny(37.00))
 
 
 class TestGrokCost:
@@ -197,21 +202,23 @@ class TestGrokCost:
 class TestArkImageCost:
     def test_ark_image_cost_default(self):
         cost, currency = cost_calculator.calculate_ark_image_cost()
-        assert currency == "CNY"
-        assert cost == pytest.approx(0.22)
+        assert currency == "USD"
+        assert cost == pytest.approx(cny(0.22))
 
     def test_ark_image_cost_by_model(self):
-        cost, _ = cost_calculator.calculate_ark_image_cost(model="doubao-seedream-4-5-251128")
-        assert cost == pytest.approx(0.25)
+        cost, currency = cost_calculator.calculate_ark_image_cost(model="doubao-seedream-4-5-251128")
+        assert currency == "USD"
+        assert cost == pytest.approx(cny(0.25))
 
     def test_ark_image_cost_n_images(self):
-        cost, _ = cost_calculator.calculate_ark_image_cost(n=3)
-        assert cost == pytest.approx(0.22 * 3)
+        cost, currency = cost_calculator.calculate_ark_image_cost(n=3)
+        assert currency == "USD"
+        assert cost == pytest.approx(cny(0.22 * 3))
 
     def test_ark_image_cost_unknown_model(self):
         cost, currency = cost_calculator.calculate_ark_image_cost(model="unknown-model")
-        assert currency == "CNY"
-        assert cost == pytest.approx(0.22)
+        assert currency == "USD"
+        assert cost == pytest.approx(cny(0.22))
 
 
 class TestGrokImageCost:
