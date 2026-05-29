@@ -9,10 +9,7 @@ import json
 import logging
 import os
 import re
-import secrets
-import shutil
 import tempfile
-import unicodedata
 from collections.abc import Callable
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -24,12 +21,11 @@ from pydantic import BaseModel, Field
 from lib import agent_profile
 from lib.entity_reconciler import reconcile_script
 from lib.project_change_hints import emit_project_change_hint
+from lib.project_paths import ProjectPaths
 from lib.storyboard_sequence import find_storyboard_item, get_storyboard_items
 
 logger = logging.getLogger(__name__)
 
-PROJECT_NAME_PATTERN = re.compile(r"^[A-Za-z0-9-]+$")
-PROJECT_SLUG_SANITIZER = re.compile(r"[^a-zA-Z0-9]+")
 EPISODE_FILENAME_PATTERN = re.compile(r"episode[_\s]*(\d+)", re.IGNORECASE)
 
 
@@ -104,27 +100,16 @@ class ProjectManager:
     @staticmethod
     def normalize_project_name(name: str) -> str:
         """Validate and normalize a project identifier."""
-        normalized = str(name).strip()
-        if not normalized:
-            raise ValueError("專案標識不能為空")
-        if not PROJECT_NAME_PATTERN.fullmatch(normalized):
-            raise ValueError("專案標識僅允許英文字母、數字和中劃線")
-        return normalized
+        return ProjectPaths.normalize_project_name(name)
 
     @staticmethod
     def _slugify_project_title(title: str) -> str:
         """Build a filesystem-safe slug prefix from the project title."""
-        ascii_text = unicodedata.normalize("NFKD", str(title).strip()).encode("ascii", "ignore").decode("ascii")
-        slug = PROJECT_SLUG_SANITIZER.sub("-", ascii_text).strip("-_").lower()
-        return slug[:24] or "project"
+        return ProjectPaths._slugify_project_title(title)
 
     def generate_project_name(self, title: str | None = None) -> str:
         """Generate a unique internal project identifier."""
-        prefix = self._slugify_project_title(title or "")
-        while True:
-            candidate = f"{prefix}-{secrets.token_hex(4)}"
-            if not (self.projects_root / candidate).exists():
-                return candidate
+        return self._paths.generate_project_name(title)
 
     @classmethod
     def from_cwd(cls) -> tuple["ProjectManager", str]:
@@ -168,6 +153,15 @@ class ProjectManager:
 
         self.projects_root = Path(projects_root)
         self.projects_root.mkdir(parents=True, exist_ok=True)
+        self._paths = ProjectPaths(self.projects_root)
+
+        from lib.lorebook_manager import LorebookManager
+
+        self.lorebook = LorebookManager(self)
+
+        from lib.episode_manager import EpisodeManager
+
+        self.episode_manager = EpisodeManager(self)
 
     def list_projects(self) -> list[str]:
         """列出所有專案"""
@@ -260,24 +254,12 @@ class ProjectManager:
 
     def get_project_path(self, name: str) -> Path:
         """獲取專案路徑（含路徑遍歷防護）"""
-        name = self.normalize_project_name(name)
-        real = os.path.realpath(self.projects_root / name)
-        base = os.path.realpath(self.projects_root) + os.sep
-        if not real.startswith(base):
-            raise ValueError(f"非法專案名稱: '{name}'")
-        project_dir = Path(real)
-        if not project_dir.exists():
-            raise FileNotFoundError(f"專案 '{name}' 不存在")
-        return project_dir
+        return self._paths.get_project_path(name)
 
     @staticmethod
     def _safe_subpath(base_dir: Path, filename: str) -> str:
         """校驗 filename 拼接後不逃出 base_dir，返回 realpath 字串。"""
-        real = os.path.realpath(base_dir / filename)
-        bound = os.path.realpath(base_dir) + os.sep
-        if not real.startswith(bound):
-            raise ValueError(f"非法檔名: '{filename}'")
-        return real
+        return ProjectPaths._safe_subpath(base_dir, filename)
 
     def get_project_status(self, name: str) -> dict[str, Any]:
         """
@@ -933,23 +915,23 @@ class ProjectManager:
 
     def get_source_path(self, project_name: str, filename: str) -> Path:
         """獲取原始檔路徑"""
-        return self.get_project_path(project_name) / "source" / filename
+        return self._paths.get_source_path(project_name, filename)
 
     def get_character_path(self, project_name: str, filename: str) -> Path:
         """獲取角色設計圖路徑"""
-        return self.get_project_path(project_name) / "characters" / filename
+        return self._paths.get_character_path(project_name, filename)
 
     def get_storyboard_path(self, project_name: str, filename: str) -> Path:
         """獲取分鏡圖片路徑"""
-        return self.get_project_path(project_name) / "storyboards" / filename
+        return self._paths.get_storyboard_path(project_name, filename)
 
     def get_video_path(self, project_name: str, filename: str) -> Path:
         """獲取影片路徑"""
-        return self.get_project_path(project_name) / "videos" / filename
+        return self._paths.get_video_path(project_name, filename)
 
     def get_output_path(self, project_name: str, filename: str) -> Path:
         """獲取輸出路徑"""
-        return self.get_project_path(project_name) / "output" / filename
+        return self._paths.get_output_path(project_name, filename)
 
     def get_scenes_needing_storyboard(self, project_name: str, script_filename: str) -> list[dict]:
         """
@@ -976,7 +958,7 @@ class ProjectManager:
 
     def _get_project_file_path(self, project_name: str) -> Path:
         """獲取專案後設資料檔案路徑"""
-        return self.get_project_path(project_name) / self.PROJECT_FILE
+        return self._paths._get_project_file_path(project_name)
 
     def project_exists(self, project_name: str) -> bool:
         """檢查專案後設資料檔案是否存在"""
@@ -1217,132 +1199,8 @@ class ProjectManager:
         return project
 
     def remove_episode(self, project_name: str, episode: int) -> tuple[dict, list[str]]:
-        """從專案移除一整集。
-
-        會刪除：劇本檔（scripts/episode_N.json）、預處理草稿（drafts/episode_N/）、
-        分集切分產生的 source/episode_N.txt、合成輸出（output/episode_N*.{mp4,webm}）、
-        該集所有片段/場景對應的分鏡/影片/縮圖與版本檔（versions/）及 versions.json 內的條目，
-        最後從 project.json 的 episodes 移除該條目。
-
-        Args:
-            project_name: 專案名稱
-            episode: 集數
-
-        Returns:
-            (更新後的 project dict, 已刪除的相對路徑清單)
-
-        Raises:
-            KeyError: 該集不存在於 project.json。
-        """
-        project = self.load_project(project_name)
-        episodes = project.get("episodes", [])
-        entry = next((ep for ep in episodes if int(ep.get("episode", -1)) == int(episode)), None)
-        if entry is None:
-            raise KeyError(f"劇集 E{episode} 不存在")
-
-        project_dir = self.get_project_path(project_name)
-        removed: list[str] = []
-        ep_prefix = f"E{int(episode)}S"
-
-        def _rm_file(rel: str) -> None:
-            p = project_dir / rel
-            if p.is_file():
-                p.unlink()
-                removed.append(rel)
-
-        def _rm_dir(rel: str) -> None:
-            p = project_dir / rel
-            if p.is_dir():
-                shutil.rmtree(p)
-                removed.append(rel.rstrip("/") + "/")
-
-        # 收集該集所有片段/場景 id（劇本可能損毀或不存在 → 退回前綴掃描）
-        script_rel = entry.get("script_file") or f"scripts/episode_{episode}.json"
-        script_name = script_rel[len("scripts/") :] if script_rel.startswith("scripts/") else script_rel
-        segment_ids: set[str] = set()
-        try:
-            script = self.load_script(project_name, script_name)
-            for key in ("segments", "scenes"):
-                for item in script.get(key, []) or []:
-                    sid = item.get("segment_id") or item.get("scene_id")
-                    if isinstance(sid, str) and sid:
-                        segment_ids.add(sid)
-        except (FileNotFoundError, json.JSONDecodeError, ValueError, AttributeError):
-            pass
-
-        def _id_hit(resource_id: str) -> bool:
-            return resource_id in segment_ids if segment_ids else resource_id.startswith(ep_prefix)
-
-        # 1) 劇本檔
-        _rm_file(f"scripts/{script_name}")
-        # 2) 預處理草稿目錄
-        _rm_dir(f"drafts/episode_{episode}")
-        # 3) 分集切分產生的 source/episode_N.txt
-        _rm_file(f"source/episode_{episode}.txt")
-        # 4) 合成輸出 output/episode_N*.{mp4,webm}
-        output_dir = project_dir / "output"
-        if output_dir.is_dir():
-            for f in sorted(output_dir.iterdir()):
-                if f.is_file() and f.name.startswith(f"episode_{episode}") and f.suffix.lower() in (".mp4", ".webm"):
-                    f.unlink()
-                    removed.append(f"output/{f.name}")
-        # 5) 各片段/場景的分鏡、影片、縮圖（檔名格式：scene_{id}.{ext}）
-        media_dirs = {
-            "storyboards": (".png", ".jpg", ".jpeg"),
-            "videos": (".mp4", ".webm"),
-            "thumbnails": (".png", ".jpg", ".jpeg"),
-        }
-        for sub, exts in media_dirs.items():
-            d = project_dir / sub
-            if not d.is_dir():
-                continue
-            for f in sorted(d.iterdir()):
-                if not f.is_file() or f.suffix.lower() not in exts:
-                    continue
-                stem = f.stem
-                resource_id = stem[len("scene_") :] if stem.startswith("scene_") else stem
-                if _id_hit(resource_id):
-                    f.unlink()
-                    removed.append(f"{sub}/{f.name}")
-        # 6) versions/ 目錄檔案與 versions.json 條目（檔名格式：{id}_v{n}_{timestamp}.{ext}）
-        versions_dir = project_dir / "versions"
-        if versions_dir.is_dir():
-            for rt in ("storyboards", "videos"):
-                rt_dir = versions_dir / rt
-                if not rt_dir.is_dir():
-                    continue
-                for f in sorted(rt_dir.iterdir()):
-                    if not f.is_file():
-                        continue
-                    resource_id = f.name.split("_v", 1)[0]
-                    if _id_hit(resource_id):
-                        f.unlink()
-                        removed.append(f"versions/{rt}/{f.name}")
-            versions_file = versions_dir / "versions.json"
-            if versions_file.is_file():
-                try:
-                    with open(versions_file, encoding="utf-8") as fh:  # noqa: PTH123
-                        vdata = json.load(fh)
-                    changed = False
-                    for rt in ("storyboards", "videos"):
-                        bucket = vdata.get(rt)
-                        if not isinstance(bucket, dict):
-                            continue
-                        for resource_id in list(bucket.keys()):
-                            if _id_hit(resource_id):
-                                del bucket[resource_id]
-                                changed = True
-                    if changed:
-                        with open(versions_file, "w", encoding="utf-8") as fh:  # noqa: PTH123
-                            json.dump(vdata, fh, ensure_ascii=False, indent=2)
-                        removed.append("versions/versions.json")
-                except (json.JSONDecodeError, OSError):
-                    pass
-
-        # 7) 從 project.json 移除該集
-        project["episodes"] = [ep for ep in episodes if int(ep.get("episode", -1)) != int(episode)]
-        self.save_project(project_name, project)
-        return project, removed
+        """[已委託] 從專案移除一整集。"""
+        return self.episode_manager.remove_episode(project_name, episode)
 
     def commit_episode_split(
         self,
@@ -1353,48 +1211,10 @@ class ProjectManager:
         part_after: str,
         title: str | None = None,
     ) -> dict:
-        """落地一次分集切分。
-
-        - 寫 source/episode_{episode}.txt（= part_before）
-        - 寫 source/_remaining.txt（= part_after）—— 下一集的新起點
-        - 原始 source 檔不修改
-        - 在 project.json 的 episodes 加/更新 {episode, title?}（已存在則只更新 title）
-
-        Args:
-            source_rel: 來源檔相對路徑（須在 source/ 下），僅用於路徑安全檢查。
-        Returns:
-            更新後的 project dict。
-        Raises:
-            ValueError: source_rel 不在 source/ 目錄內。
-        """
-        project_dir = self.get_project_path(project_name)
-        # 路徑安全：source_rel 必須落在 project_dir/source/ 內
-        src_abs = (project_dir / source_rel).resolve()
-        source_dir = (project_dir / "source").resolve()
-        if not src_abs.is_relative_to(source_dir):
-            raise ValueError(f"source 路徑超出 source/ 目錄: {source_rel}")
-        source_dir.mkdir(parents=True, exist_ok=True)
-
-        (source_dir / f"episode_{episode}.txt").write_text(part_before, encoding="utf-8")
-        (source_dir / "_remaining.txt").write_text(part_after, encoding="utf-8")
-
-        project = self.load_project(project_name)
-        episodes = project.setdefault("episodes", [])
-        existing: dict | None = next((ep for ep in episodes if int(ep.get("episode", -1)) == int(episode)), None)
-        if existing is None:
-            existing = {"episode": int(episode), "order": _next_display_order(episodes)}
-            episodes.append(existing)
-        if title is not None:
-            existing["title"] = title
-        episodes.sort(key=lambda ep: int(ep.get("episode", 0)))
-        self.save_project(project_name, project)
-        logger.info(
-            "分集切分落地: episode %d，前半 %d 字元，後半 %d 字元",
-            episode,
-            len(part_before),
-            len(part_after),
+        """[已委託] 落地一次分集切分。"""
+        return self.episode_manager.commit_episode_split(
+            project_name, source_rel, episode, part_before, part_after, title
         )
-        return project
 
     def sync_project_status(self, project_name: str) -> dict:
         """
@@ -1431,191 +1251,38 @@ class ProjectManager:
         voice_style: str | None = None,
         character_sheet: str | None = None,
     ) -> dict:
-        """
-        向專案新增角色（專案級）
-
-        Args:
-            project_name: 專案名稱
-            name: 角色名稱
-            description: 角色描述
-            voice_style: 聲音風格
-            character_sheet: 角色設計圖路徑
-
-        Returns:
-            更新後的專案後設資料
-        """
-        project = self.load_project(project_name)
-
-        project.setdefault("characters", {})[name] = {
-            "description": description,
-            "voice_style": voice_style or "",
-            "character_sheet": character_sheet or "",
-        }
-
-        self.save_project(project_name, project)
-        return project
+        return self.lorebook.add_project_character(project_name, name, description, voice_style, character_sheet)
 
     def update_project_character_sheet(self, project_name: str, name: str, sheet_path: str) -> dict:
-        """更新專案級角色設計圖路徑"""
-        project = self.load_project(project_name)
-
-        if name not in project["characters"]:
-            raise KeyError(f"角色 '{name}' 不存在")
-
-        project["characters"][name]["character_sheet"] = sheet_path
-        self.save_project(project_name, project)
-        return project
+        return self.lorebook.update_project_character_sheet(project_name, name, sheet_path)
 
     def update_character_reference_image(self, project_name: str, char_name: str, ref_path: str) -> dict:
-        """
-        更新角色的參考圖路徑
-
-        Args:
-            project_name: 專案名稱
-            char_name: 角色名稱
-            ref_path: 參考圖相對路徑
-
-        Returns:
-            更新後的專案資料
-        """
-        project = self.load_project(project_name)
-
-        if "characters" not in project or char_name not in project["characters"]:
-            raise KeyError(f"角色 '{char_name}' 不存在")
-
-        project["characters"][char_name]["reference_image"] = ref_path
-        self.save_project(project_name, project)
-        return project
+        return self.lorebook.update_character_reference_image(project_name, char_name, ref_path)
 
     def get_project_character(self, project_name: str, name: str) -> dict:
-        """獲取專案級角色定義"""
-        project = self.load_project(project_name)
-
-        if name not in project["characters"]:
-            raise KeyError(f"角色 '{name}' 不存在")
-
-        return project["characters"][name]
+        return self.lorebook.get_project_character(project_name, name)
 
     # ==================== 線索管理 ====================
 
     def update_clue_sheet(self, project_name: str, name: str, sheet_path: str) -> dict:
-        """
-        更新線索設計圖路徑
-
-        Args:
-            project_name: 專案名稱
-            name: 線索名稱
-            sheet_path: 設計圖路徑
-
-        Returns:
-            更新後的專案後設資料
-        """
-        project = self.load_project(project_name)
-
-        if name not in project["clues"]:
-            raise KeyError(f"線索 '{name}' 不存在")
-
-        project["clues"][name]["clue_sheet"] = sheet_path
-        self.save_project(project_name, project)
-        return project
+        return self.lorebook.update_clue_sheet(project_name, name, sheet_path)
 
     def get_clue(self, project_name: str, name: str) -> dict:
-        """
-        獲取線索定義
-
-        Args:
-            project_name: 專案名稱
-            name: 線索名稱
-
-        Returns:
-            線索定義字典
-        """
-        project = self.load_project(project_name)
-
-        if name not in project["clues"]:
-            raise KeyError(f"線索 '{name}' 不存在")
-
-        return project["clues"][name]
+        return self.lorebook.get_clue(project_name, name)
 
     def get_pending_characters(self, project_name: str) -> list[dict]:
-        """
-        獲取待生成設計圖的角色列表
-
-        Args:
-            project_name: 專案名稱
-
-        Returns:
-            待處理角色列表（無 character_sheet 或檔案不存在）
-        """
-        project = self.load_project(project_name)
-        project_dir = self.get_project_path(project_name)
-
-        pending = []
-        for name, char in project.get("characters", {}).items():
-            if self._needs_generated_sheet(project_dir, char, "character_sheet"):
-                pending.append({"name": name, **char})
-
-        return pending
+        return self.lorebook.get_pending_characters(project_name)
 
     def get_pending_clues(self, project_name: str) -> list[dict]:
-        """
-        獲取待生成設計圖的線索列表
-
-        Args:
-            project_name: 專案名稱
-
-        Returns:
-            待處理線索列表（importance='major' 且無 clue_sheet）
-        """
-        project = self.load_project(project_name)
-        project_dir = self.get_project_path(project_name)
-
-        pending = []
-        for name, clue in project["clues"].items():
-            if clue.get("importance") == "major" and self._needs_generated_sheet(project_dir, clue, "clue_sheet"):
-                pending.append({"name": name, **clue})
-
-        return pending
+        return self.lorebook.get_pending_clues(project_name)
 
     def get_clue_path(self, project_name: str, filename: str) -> Path:
-        """獲取線索設計圖路徑"""
-        return self.get_project_path(project_name) / "clues" / filename
+        return self.lorebook.get_clue_path(project_name, filename)
 
     # ==================== 角色/線索直接寫入工具 ====================
 
     def add_character(self, project_name: str, name: str, description: str, voice_style: str = "") -> bool:
-        """
-        直接新增角色到 project.json
-
-        如果角色已存在，跳過不覆蓋。
-
-        Args:
-            project_name: 專案名稱
-            name: 角色名稱
-            description: 角色描述
-            voice_style: 聲音風格（可選）
-
-        Returns:
-            True 如果新增成功，False 如果已存在
-        """
-        project = self.load_project(project_name)
-
-        if name in project.get("characters", {}):
-            logger.debug("角色 '%s' 已存在於 project.json，跳過", name)
-            return False
-
-        if "characters" not in project:
-            project["characters"] = {}
-
-        project["characters"][name] = {
-            "description": description,
-            "character_sheet": "",
-            "voice_style": voice_style,
-        }
-
-        self.save_project(project_name, project)
-        logger.info("新增角色: %s", name)
-        return True
+        return self.lorebook.add_character(project_name, name, description, voice_style)
 
     def add_clue(
         self,
@@ -1624,149 +1291,18 @@ class ProjectManager:
         description: str,
         importance: str = "minor",
     ) -> bool:
-        """
-        直接新增線索（道具）到 project.json
-
-        如果線索已存在，跳過不覆蓋。
-
-        Args:
-            project_name: 專案名稱
-            name: 線索名稱
-            description: 線索描述
-            importance: 重要性（major 或 minor，預設 minor）
-
-        Returns:
-            True 如果新增成功，False 如果已存在
-        """
-        project = self.load_project(project_name)
-
-        if name in project.get("clues", {}):
-            logger.debug("線索 '%s' 已存在於 project.json，跳過", name)
-            return False
-
-        if "clues" not in project:
-            project["clues"] = {}
-
-        project["clues"][name] = {
-            "description": description,
-            "importance": importance,
-            "clue_sheet": "",
-        }
-
-        self.save_project(project_name, project)
-        logger.info("新增線索: %s", name)
-        return True
+        return self.lorebook.add_clue(project_name, name, description, importance)
 
     def add_characters_batch(self, project_name: str, characters: dict[str, dict]) -> int:
-        """
-        批次新增角色到 project.json
-
-        Args:
-            project_name: 專案名稱
-            characters: 角色字典 {name: {description, voice_style}}
-
-        Returns:
-            新增的角色數量
-        """
-        project = self.load_project(project_name)
-
-        if "characters" not in project:
-            project["characters"] = {}
-
-        added = 0
-        for name, data in characters.items():
-            if name not in project["characters"]:
-                project["characters"][name] = {
-                    "description": data.get("description", ""),
-                    "character_sheet": data.get("character_sheet", ""),
-                    "voice_style": data.get("voice_style", ""),
-                }
-                added += 1
-                logger.info("新增角色: %s", name)
-            else:
-                logger.debug("角色 '%s' 已存在，跳過", name)
-
-        if added > 0:
-            self.save_project(project_name, project)
-
-        return added
+        return self.lorebook.add_characters_batch(project_name, characters)
 
     def add_clues_batch(self, project_name: str, clues: dict[str, dict]) -> int:
-        """
-        批次新增線索到 project.json
-
-        Args:
-            project_name: 專案名稱
-            clues: 線索字典 {name: {description, importance}}
-
-        Returns:
-            新增的線索數量
-        """
-        project = self.load_project(project_name)
-
-        if "clues" not in project:
-            project["clues"] = {}
-
-        added = 0
-        for name, data in clues.items():
-            if name not in project["clues"]:
-                project["clues"][name] = {
-                    "description": data.get("description", ""),
-                    "importance": data.get("importance", "minor"),
-                    "clue_sheet": data.get("clue_sheet", ""),
-                }
-                added += 1
-                logger.info("新增線索: %s", name)
-            else:
-                logger.debug("線索 '%s' 已存在，跳過", name)
-
-        if added > 0:
-            self.save_project(project_name, project)
-
-        return added
+        return self.lorebook.add_clues_batch(project_name, clues)
 
     # ==================== 參考圖收集工具 ====================
 
     def collect_reference_images(self, project_name: str, scene: dict) -> list[Path]:
-        """
-        收集場景所需的所有參考圖
-
-        Args:
-            project_name: 專案名稱
-            scene: 場景字典
-
-        Returns:
-            參考圖路徑列表
-        """
-        project = self.load_project(project_name)
-        project_dir = self.get_project_path(project_name)
-        refs = []
-
-        def append_existing(relative_path: str | None) -> None:
-            if not relative_path:
-                return
-            path = project_dir / relative_path
-            if path.exists():
-                refs.append(path)
-
-        # 角色參考圖
-        for char in scene.get("characters_in_scene", []):
-            char_data = project["characters"].get(char, {})
-            append_existing(char_data.get("character_sheet"))
-
-        # 線索參考圖
-        for clue in scene.get("clues_in_scene", []):
-            clue_data = project["clues"].get(clue, {})
-            append_existing(clue_data.get("clue_sheet"))
-
-        # 場景參考圖（單數欄位，narration 用 scene_in_segment / drama 用 scene_in_scene）
-        # scene_sheet 已指向當前版本（使用者上傳寫入 v0 或 AI 生成）；無則退回 scene_ref
-        scene_name = scene.get("scene_in_scene") or scene.get("scene_in_segment")
-        if scene_name:
-            scene_data = project.get("scenes", {}).get(scene_name, {})
-            append_existing(scene_data.get("scene_sheet") or scene_data.get("scene_ref"))
-
-        return refs
+        return self.lorebook.collect_reference_images(project_name, scene)
 
     # ==================== 場景管理 ====================
 
@@ -1777,107 +1313,28 @@ class ProjectManager:
         description: str,
         scene_sheet: str | None = None,
     ) -> dict:
-        """向專案新增場景（專案級）"""
-        project = self.load_project(project_name)
-
-        project.setdefault("scenes", {})[name] = self._scene_entry(description, scene_sheet or "")
-
-        self.save_project(project_name, project)
-        return project
+        return self.lorebook.add_project_scene(project_name, name, description, scene_sheet)
 
     def update_scene_sheet(self, project_name: str, name: str, sheet_path: str) -> dict:
-        """更新場景設計圖路徑"""
-        project = self.load_project(project_name)
-
-        if name not in project.get("scenes", {}):
-            raise KeyError(f"場景 '{name}' 不存在")
-
-        project["scenes"][name]["scene_sheet"] = sheet_path
-        self.save_project(project_name, project)
-        return project
+        return self.lorebook.update_scene_sheet(project_name, name, sheet_path)
 
     def update_scene_reference_image(self, project_name: str, name: str, ref_path: str) -> dict:
-        """更新場景參考圖路徑"""
-        project = self.load_project(project_name)
-
-        if name not in project.get("scenes", {}):
-            raise KeyError(f"場景 '{name}' 不存在")
-
-        project["scenes"][name]["scene_ref"] = ref_path
-        self.save_project(project_name, project)
-        return project
+        return self.lorebook.update_scene_reference_image(project_name, name, ref_path)
 
     def get_project_scene(self, project_name: str, name: str) -> dict:
-        """獲取專案級場景定義"""
-        project = self.load_project(project_name)
-
-        if name not in project.get("scenes", {}):
-            raise KeyError(f"場景 '{name}' 不存在")
-
-        return project["scenes"][name]
+        return self.lorebook.get_project_scene(project_name, name)
 
     def get_scene_path(self, project_name: str, filename: str) -> Path:
-        """獲取場景設計圖路徑"""
-        return self.get_project_path(project_name) / "scenes" / filename
+        return self.lorebook.get_scene_path(project_name, filename)
 
     def get_pending_scene_sheets(self, project_name: str) -> list[dict]:
-        """
-        獲取待生成設計圖的場景列表
-
-        排除：已有 scene_sheet 檔案的場景（含使用者上傳寫入 v0 後指向的 sheet）。
-        （注意：與既有 get_pending_scenes(分鏡資產查詢) 為不同語義，刻意分名。）
-        """
-        project = self.load_project(project_name)
-        project_dir = self.get_project_path(project_name)
-
-        pending = []
-        for name, scene in project.get("scenes", {}).items():
-            if self._needs_generated_sheet(project_dir, scene, "scene_sheet"):
-                pending.append({"name": name, **scene})
-
-        return pending
+        return self.lorebook.get_pending_scene_sheets(project_name)
 
     def add_scenes_batch(self, project_name: str, scenes: dict[str, dict]) -> int:
-        """
-        批次新增場景到 project.json
-
-        Args:
-            scenes: 場景字典 {name: {description, scene_sheet?}}
-
-        Returns:
-            新增的場景數量
-        """
-        project = self.load_project(project_name)
-
-        project_scenes = project.setdefault("scenes", {})
-
-        added = 0
-        for name, data in scenes.items():
-            if name not in project_scenes:
-                project_scenes[name] = self._scene_entry(
-                    data.get("description", ""),
-                    data.get("scene_sheet", ""),
-                )
-                added += 1
-                logger.info("新增場景: %s", name)
-            else:
-                logger.debug("場景 '%s' 已存在，跳過", name)
-
-        if added > 0:
-            self.save_project(project_name, project)
-
-        return added
+        return self.lorebook.add_scenes_batch(project_name, scenes)
 
     def update_clue_reference_image(self, project_name: str, name: str, ref_path: str) -> dict:
-        """更新線索的參考圖路徑（支援線索自備圖）"""
-        project = self.load_project(project_name)
-
-        if name not in project.get("clues", {}):
-            raise KeyError(f"線索 '{name}' 不存在")
-
-        project["clues"][name]["reference_image"] = ref_path
-        self.save_project(project_name, project)
-        return project
+        return self.lorebook.update_clue_reference_image(project_name, name, ref_path)
 
     def _find_script_filename_by_scene_id(self, project_name: str, scene_id: str) -> str:
         """遍歷專案 episodes 中的劇本，查找包含特定 scene_id 或 segment_id 的劇本檔名"""
