@@ -4,12 +4,10 @@
 管理影片專案的目錄結構、分鏡劇本讀寫、狀態追蹤。
 """
 
-import fcntl
 import json
 import logging
 import os
 import re
-import tempfile
 from collections.abc import Callable
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -22,6 +20,7 @@ from lib import agent_profile
 from lib.entity_reconciler import reconcile_script
 from lib.project_change_hints import emit_project_change_hint
 from lib.project_paths import ProjectPaths
+from lib.project_store import ProjectStore
 from lib.storyboard_sequence import find_storyboard_item, get_storyboard_items
 
 logger = logging.getLogger(__name__)
@@ -154,6 +153,7 @@ class ProjectManager:
         self.projects_root = Path(projects_root)
         self.projects_root.mkdir(parents=True, exist_ok=True)
         self._paths = ProjectPaths(self.projects_root)
+        self._store = ProjectStore(self._paths)
 
         from lib.lorebook_manager import LorebookManager
 
@@ -962,10 +962,7 @@ class ProjectManager:
 
     def project_exists(self, project_name: str) -> bool:
         """檢查專案後設資料檔案是否存在"""
-        try:
-            return self._get_project_file_path(project_name).exists()
-        except FileNotFoundError:
-            return False
+        return self._store.project_exists(project_name)
 
     def load_project(self, project_name: str) -> dict:
         """
@@ -977,54 +974,18 @@ class ProjectManager:
         Returns:
             專案後設資料字典
         """
-        project_file = self._get_project_file_path(project_name)
-
-        if not project_file.exists():
-            raise FileNotFoundError(f"專案後設資料檔案不存在: {project_file}")
-
-        with open(project_file, encoding="utf-8") as f:
-            return json.load(f)
+        return self._store.load_project(project_name)
 
     @contextmanager
     def _project_lock(self, project_name: str):
-        """透過專用 lock file 獲取專案後設資料的排他鎖。
-
-        使用獨立的 .project.json.lock 而非資料檔案本身，避免 os.replace
-        更換 inode 後鎖失效的問題。
-        """
-        lock_path = self._get_project_file_path(project_name).with_suffix(".lock")
-        lock_path.touch(exist_ok=True)
-        fd = open(lock_path)
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX)
+        """透過專用 lock file 獲取專案後設資料的排他鎖（委派給 ProjectStore）。"""
+        with self._store._project_lock(project_name):
             yield
-        finally:
-            fcntl.flock(fd, fcntl.LOCK_UN)
-            fd.close()
 
     @staticmethod
     def _atomic_write_json(path: Path, data: dict) -> None:
-        """透過臨時檔案 + os.replace 原子寫入 JSON。"""
-        tmp_path = None
-        try:
-            with tempfile.NamedTemporaryFile(
-                mode="w",
-                encoding="utf-8",
-                dir=str(path.parent),
-                prefix=".project.",
-                suffix=".tmp",
-                delete=False,
-            ) as tmp:
-                json.dump(data, tmp, ensure_ascii=False, indent=2)
-                tmp_path = Path(tmp.name)
-            os.replace(tmp_path, path)
-            tmp_path = None
-        finally:
-            if tmp_path is not None:
-                try:
-                    tmp_path.unlink()
-                except OSError:
-                    pass
+        """透過臨時檔案 + os.replace 原子寫入 JSON（委派給 ProjectStore）。"""
+        ProjectStore._atomic_write_json(path, data)
 
     def save_project(self, project_name: str, project: dict) -> Path:
         """
@@ -1037,19 +998,7 @@ class ProjectManager:
         Returns:
             儲存的檔案路徑
         """
-        project_file = self._get_project_file_path(project_name)
-
-        self._touch_metadata(project)
-
-        with self._project_lock(project_name):
-            self._atomic_write_json(project_file, project)
-
-        emit_project_change_hint(
-            project_name,
-            changed_paths=[self.PROJECT_FILE],
-        )
-
-        return project_file
+        return self._store.save_project(project_name, project)
 
     def update_project(
         self,
@@ -1064,29 +1013,11 @@ class ProjectManager:
             project_name: 專案名稱
             mutate_fn: 接收 project dict 並就地修改的回撥函式
         """
-        project_file = self._get_project_file_path(project_name)
-
-        with self._project_lock(project_name):
-            with open(project_file, encoding="utf-8") as f:
-                project = json.load(f)
-            mutate_fn(project)
-            self._touch_metadata(project)
-            self._atomic_write_json(project_file, project)
-
-        emit_project_change_hint(
-            project_name,
-            changed_paths=[self.PROJECT_FILE],
-        )
-
-        return project_file
+        return self._store.update_project(project_name, mutate_fn)
 
     @staticmethod
     def _touch_metadata(project: dict) -> None:
-        now = _utc_now_iso()
-        if "metadata" not in project:
-            project["metadata"] = {"created_at": now, "updated_at": now}
-        else:
-            project["metadata"]["updated_at"] = now
+        ProjectStore._touch_metadata(project)
 
     def create_project_metadata(
         self,
@@ -1111,27 +1042,14 @@ class ProjectManager:
         Returns:
             專案後設資料字典
         """
-        project_name = self.normalize_project_name(project_name)
-        project_title = str(title).strip() if title is not None else ""
-
-        project = {
-            "title": project_title or project_name,
-            "content_mode": content_mode,
-            "aspect_ratio": aspect_ratio,
-            "style": style or "",
-            "episodes": [],
-            "characters": {},
-            "clues": {},
-            "metadata": {
-                "created_at": _utc_now_iso(),
-                "updated_at": _utc_now_iso(),
-            },
-        }
-        if default_duration is not None:
-            project["default_duration"] = default_duration
-
-        self.save_project(project_name, project)
-        return project
+        return self._store.create_project_metadata(
+            project_name,
+            title=title,
+            style=style,
+            content_mode=content_mode,
+            aspect_ratio=aspect_ratio,
+            default_duration=default_duration,
+        )
 
     def add_episode(self, project_name: str, episode: int, title: str, script_file: str) -> dict:
         """
