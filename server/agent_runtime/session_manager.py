@@ -8,7 +8,6 @@ import logging
 import os
 import time
 from collections.abc import AsyncIterable, Callable
-from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -16,6 +15,11 @@ from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
+from server.agent_runtime import session_hooks
+from server.agent_runtime.managed_session import (
+    ManagedSession,
+    SessionCapacityError,
+)
 from server.agent_runtime.message_utils import extract_plain_user_content
 from server.agent_runtime.models import SessionMeta, SessionStatus
 from server.agent_runtime.session_store import SessionMetaStore
@@ -53,174 +57,9 @@ except ImportError:
 from lib import agent_profile
 
 
-class SessionCapacityError(Exception):
-    """所有併發槽位已被 running 會話佔滿，無法建立新連線。"""
-
-    pass
-
-
 def _utc_now_iso() -> str:
     """Return current UTC timestamp in ISO-8601 format."""
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
-
-
-@dataclass
-class PendingQuestion:
-    """Tracks a pending AskUserQuestion request."""
-
-    question_id: str
-    payload: dict[str, Any]
-    answer_future: asyncio.Future[dict[str, str]]
-
-
-@dataclass
-class ManagedSession:
-    """A managed ClaudeSDKClient session."""
-
-    session_id: str  # sdk_session_id（已有會話）或臨時 UUID（新會話等待中）
-    client: Any  # ClaudeSDKClient
-    status: SessionStatus = "idle"
-    project_name: str = ""  # 用於 _register_new_session
-    sdk_id_event: asyncio.Event = field(default_factory=asyncio.Event)
-    resolved_sdk_id: str | None = None  # consumer 設定，send_new_session 讀取
-    message_buffer: list[dict[str, Any]] = field(default_factory=list)
-    subscribers: set[asyncio.Queue] = field(default_factory=set)
-    consumer_task: asyncio.Task | None = None
-    buffer_max_size: int = 100
-    pending_questions: dict[str, PendingQuestion] = field(default_factory=dict)
-    pending_user_echoes: list[str] = field(default_factory=list)
-    interrupt_requested: bool = False
-    last_activity: float | None = None  # updated on every send/receive
-    _cleanup_task: asyncio.Task | None = None  # current cleanup timer (idle TTL or terminal delay)
-
-    # Message types that must never be silently dropped from subscriber queues.
-    _CRITICAL_MESSAGE_TYPES = {"result", "runtime_status", "user", "assistant"}
-    # Transient types that are evicted first when buffer is full.
-    _TRANSIENT_BUFFER_TYPES = {"stream_event"}
-
-    def add_message(self, message: dict[str, Any]) -> None:
-        """Add message to buffer and notify subscribers."""
-        self.message_buffer.append(message)
-        if len(self.message_buffer) > self.buffer_max_size:
-            self._evict_oldest_buffer_entry()
-        self._broadcast_to_subscribers(message)
-
-    def _evict_oldest_buffer_entry(self) -> None:
-        """Evict one entry from buffer, preferring transient stream_events."""
-        for i, m in enumerate(self.message_buffer[:-1]):
-            if m.get("type") in self._TRANSIENT_BUFFER_TYPES:
-                self.message_buffer.pop(i)
-                return
-        self.message_buffer.pop(0)
-
-    def _broadcast_to_subscribers(self, message: dict[str, Any]) -> None:
-        """Push message to all subscriber queues, evicting non-critical on overflow."""
-        is_critical = message.get("type") in self._CRITICAL_MESSAGE_TYPES
-        stale_queues: list[asyncio.Queue] = []
-        for queue in self.subscribers:
-            if not self._try_enqueue(queue, message, is_critical):
-                stale_queues.append(queue)
-        for q in stale_queues:
-            # Drain the hopelessly full queue and inject a reconnect signal so
-            # the SSE consumer loop terminates instead of blocking forever.
-            self._drain_and_signal_reconnect(q)
-            self.subscribers.discard(q)
-
-    def _drain_and_signal_reconnect(self, queue: asyncio.Queue) -> None:
-        """Empty *queue* and push a reconnect signal so the SSE loop exits.
-
-        Uses a connection-level ``_queue_overflow`` type rather than
-        ``runtime_status`` so the SSE consumer can close the stream without
-        misrepresenting the session's actual status to the client.
-        """
-        while not queue.empty():
-            try:
-                queue.get_nowait()
-            except asyncio.QueueEmpty:
-                break
-        try:
-            queue.put_nowait(
-                {
-                    "type": "_queue_overflow",
-                    "session_id": self.session_id,
-                }
-            )
-        except asyncio.QueueFull:
-            pass  # should never happen after drain
-
-    def _try_enqueue(self, queue: asyncio.Queue, message: dict[str, Any], is_critical: bool) -> bool:
-        """Try to put *message* into *queue*. Returns False if the queue should be discarded."""
-        try:
-            queue.put_nowait(message)
-            return True
-        except asyncio.QueueFull:
-            if not is_critical:
-                return True  # non-critical drop is acceptable
-        # Critical message on a full queue — evict one non-critical to make room.
-        self._evict_non_critical(queue)
-        try:
-            queue.put_nowait(message)
-            return True
-        except asyncio.QueueFull:
-            return False
-
-    @staticmethod
-    def _evict_non_critical(queue: asyncio.Queue) -> bool:
-        """Try to remove one non-critical message from *queue* to make room."""
-        temp: list[dict[str, Any]] = []
-        evicted = False
-        while not queue.empty():
-            try:
-                msg = queue.get_nowait()
-            except asyncio.QueueEmpty:
-                break
-            if not evicted and msg.get("type") not in ManagedSession._CRITICAL_MESSAGE_TYPES:
-                evicted = True  # drop this one
-                continue
-            temp.append(msg)
-        for msg in temp:
-            try:
-                queue.put_nowait(msg)
-            except asyncio.QueueFull:
-                break
-        return evicted
-
-    def clear_buffer(self) -> None:
-        """Clear message buffer after session completes."""
-        self.message_buffer.clear()
-
-    def add_pending_question(self, payload: dict[str, Any]) -> PendingQuestion:
-        """Register a pending AskUserQuestion payload."""
-        question_id = str(payload.get("question_id") or f"aq_{uuid4().hex}")
-        payload["question_id"] = question_id
-        future: asyncio.Future[dict[str, str]] = asyncio.get_running_loop().create_future()
-        pending = PendingQuestion(
-            question_id=question_id,
-            payload=payload,
-            answer_future=future,
-        )
-        self.pending_questions[question_id] = pending
-        return pending
-
-    def resolve_pending_question(self, question_id: str, answers: dict[str, str]) -> bool:
-        """Resolve a pending AskUserQuestion with user answers."""
-        pending = self.pending_questions.pop(question_id, None)
-        if not pending:
-            return False
-        if not pending.answer_future.done():
-            pending.answer_future.set_result(answers)
-        return True
-
-    def cancel_pending_questions(self, reason: str = "session closed") -> None:
-        """Cancel all pending AskUserQuestion waiters."""
-        for pending in list(self.pending_questions.values()):
-            if not pending.answer_future.done():
-                pending.answer_future.set_exception(RuntimeError(reason))
-        self.pending_questions.clear()
-
-    def get_pending_question_payloads(self) -> list[dict[str, Any]]:
-        """Return unresolved AskUserQuestion payloads for reconnect snapshot."""
-        return [pending.payload for pending in self.pending_questions.values()]
 
 
 class SessionManager:
@@ -435,7 +274,11 @@ class SessionManager:
         hooks = None
         if HookMatcher is not None:
             hook_callbacks: list[Any] = [
-                self._build_file_access_hook(project_cwd),
+                session_hooks.build_file_access_hook(
+                    project_cwd,
+                    self._PATH_TOOLS,
+                    self._is_path_allowed,
+                ),
             ]
             if can_use_tool is not None:
                 # Official Python SDK guidance: keep stream open when using
@@ -452,7 +295,7 @@ class SessionManager:
                     HookMatcher(
                         matcher="Write|Edit",
                         hooks=[
-                            self._build_json_validation_hook(project_cwd, json_backups),
+                            session_hooks.build_json_validation_hook(project_cwd, json_backups),
                         ],
                     ),
                 ],
@@ -460,7 +303,7 @@ class SessionManager:
                     HookMatcher(
                         matcher="Write|Edit",
                         hooks=[
-                            self._build_json_post_validation_hook(project_cwd, json_backups),
+                            session_hooks.build_json_post_validation_hook(project_cwd, json_backups),
                         ],
                     ),
                 ],
@@ -488,323 +331,6 @@ class SessionManager:
     ) -> dict[str, bool]:
         """Required keep-alive hook for Python can_use_tool callback."""
         return {"continue_": True}
-
-    def _build_file_access_hook(
-        self,
-        project_cwd: Path,
-    ) -> Callable[..., Any]:
-        """Build a PreToolUse hook callback that enforces file access control.
-
-        PreToolUse hooks are step 1 in the SDK permission chain and fire for
-        **every** tool call, including Read/Glob/Grep which would otherwise
-        be auto-approved by allow rules at step 4.
-        """
-
-        async def _file_access_hook(
-            input_data: dict[str, Any],
-            _tool_use_id: str | None,
-            _context: Any,
-        ) -> dict[str, Any]:
-            tool_name = input_data.get("tool_name", "")
-            if tool_name not in self._PATH_TOOLS:
-                return {"continue_": True}
-
-            tool_input = input_data.get("tool_input", {})
-            path_key = self._PATH_TOOLS[tool_name]
-            file_path = tool_input.get(path_key)
-
-            if file_path:
-                allowed, deny_reason = self._is_path_allowed(
-                    file_path,
-                    tool_name,
-                    project_cwd,
-                )
-                if not allowed:
-                    return {
-                        "hookSpecificOutput": {
-                            "hookEventName": "PreToolUse",
-                            "permissionDecision": "deny",
-                            "permissionDecisionReason": deny_reason,
-                        },
-                    }
-
-            return {"continue_": True}
-
-        return _file_access_hook
-
-    def _build_json_validation_hook(
-        self,
-        project_cwd: Path,
-        json_backups: dict[str, tuple[Path, str]] | None = None,
-    ) -> Callable[..., Any]:
-        """Build a PreToolUse hook that blocks Write/Edit when the result would
-        produce invalid JSON.
-
-        For Edit: reads the current file, simulates the string replacement, and
-        validates the result with ``json.loads()``.
-        For Write: validates the ``content`` parameter directly.
-
-        When *json_backups* is provided, the hook saves the current file
-        content before the edit so the PostToolUse hook can restore it if
-        the actual result turns out to be invalid.
-
-        Returns ``permissionDecision: "deny"`` to block the operation before it
-        executes, giving the agent a chance to fix its input and retry.
-        """
-
-        async def _json_validation_hook(
-            input_data: dict[str, Any],
-            _tool_use_id: str | None,
-            _context: Any,
-        ) -> dict[str, Any]:
-            tool_name = input_data.get("tool_name", "")
-            tool_input = input_data.get("tool_input", {})
-
-            file_path = tool_input.get("file_path", "")
-            if not file_path or not file_path.endswith(".json"):
-                return {}
-
-            # --- Reject curly/smart quotes that would corrupt JSON ---
-            _CURLY_QUOTES = "\u201c\u201d\u201e\u201f"  # ""„‟
-
-            def _has_curly_quotes(text: str) -> bool:
-                """Return True if *text* contains Unicode curly/smart quotes."""
-                return any(ch in _CURLY_QUOTES for ch in text)
-
-            # --- Simulate the result without touching the file ---
-            simulated: str | None = None
-
-            if tool_name == "Write":
-                simulated = tool_input.get("content")
-                logger.info(
-                    "JSON 校驗 hook: tool=Write file=%s content_len=%s",
-                    file_path,
-                    len(simulated) if simulated else 0,
-                )
-            elif tool_name == "Edit":
-                old_string = tool_input.get("old_string", "")
-                new_string = tool_input.get("new_string", "")
-                if not old_string:
-                    logger.info(
-                        "JSON 校驗 hook: tool=Edit file=%s skip=old_string為空",
-                        file_path,
-                    )
-                    return {}
-
-                # Detect curly quotes early — Claude Code may normalise
-                # old_string internally (allowing the edit to succeed) while
-                # the hook's exact-match ``old_string not in current`` check
-                # below would skip validation, letting curly quotes slip into
-                # the file and corrupt JSON.
-                if _has_curly_quotes(new_string):
-                    curly_found = [f"U+{ord(ch):04X}" for ch in new_string if ch in _CURLY_QUOTES]
-                    logger.warning(
-                        "PreToolUse JSON 校驗攔截(彎引號): file=%s curly=%s",
-                        file_path,
-                        curly_found[:5],
-                    )
-                    return {
-                        "hookSpecificOutput": {
-                            "hookEventName": "PreToolUse",
-                            "permissionDecision": "deny",
-                            "permissionDecisionReason": (
-                                "操作被阻止：new_string 包含彎引號"
-                                "（\u201c 或 \u201d），"
-                                "這會破壞 JSON 格式。"
-                                "請將所有彎引號替換為標準 ASCII "
-                                "雙引號 (U+0022) 後重試。"
-                            ),
-                        },
-                    }
-
-                p = Path(file_path)
-                resolved = (project_cwd / p).resolve() if not p.is_absolute() else p.resolve()
-                try:
-                    current = resolved.read_text(encoding="utf-8")
-                except OSError as read_err:
-                    logger.info(
-                        "JSON 校驗 hook: tool=Edit file=%s skip=讀取失敗 error=%s",
-                        file_path,
-                        read_err,
-                    )
-                    return {}
-
-                # Save backup for PostToolUse restore on corruption
-                if json_backups is not None and _tool_use_id:
-                    json_backups[_tool_use_id] = (resolved, current)
-
-                if old_string not in current:
-                    # Edit tool will fail on its own; no need to intervene.
-                    logger.info(
-                        "JSON 校驗 hook: tool=Edit file=%s skip=old_string未匹配 old_len=%d new_len=%d file_len=%d",
-                        file_path,
-                        len(old_string),
-                        len(new_string),
-                        len(current),
-                    )
-                    return {}
-
-                replace_all = tool_input.get("replace_all", False)
-                if replace_all:
-                    simulated = current.replace(old_string, new_string)
-                else:
-                    simulated = current.replace(old_string, new_string, 1)
-
-                logger.info(
-                    "JSON 校驗 hook: tool=Edit file=%s matched=True "
-                    "old_len=%d new_len=%d simulated_len=%d replace_all=%s",
-                    file_path,
-                    len(old_string),
-                    len(new_string),
-                    len(simulated),
-                    replace_all,
-                )
-
-            if simulated is None:
-                return {}
-
-            try:
-                json.loads(simulated)
-                logger.info(
-                    "JSON 校驗 hook: tool=%s file=%s result=valid",
-                    tool_name,
-                    file_path,
-                )
-                return {}
-            except json.JSONDecodeError as exc:
-                logger.warning(
-                    "PreToolUse JSON 校驗攔截: file=%s tool=%s error=%s",
-                    file_path,
-                    tool_name,
-                    exc,
-                )
-                return {
-                    "hookSpecificOutput": {
-                        "hookEventName": "PreToolUse",
-                        "permissionDecision": "deny",
-                        "permissionDecisionReason": (
-                            f"操作已被阻止：此次 {tool_name} 會讓 {file_path} "
-                            f"變成無效 JSON。錯誤：{exc}。"
-                            "請檢查你的輸入內容是否包含未跳脫的雙引號或其他"
-                            "JSON 語法問題，修正後再試。"
-                        ),
-                    },
-                }
-
-        return _json_validation_hook
-
-    def _build_json_post_validation_hook(
-        self,
-        project_cwd: Path,
-        json_backups: dict[str, tuple[Path, str]],
-    ) -> Callable[..., Any]:
-        """Build a PostToolUse hook that validates JSON files after Write/Edit.
-
-        This is a safety net for cases where the PreToolUse simulation fails
-        to catch invalid edits (e.g. due to old_string mismatch or escaping
-        differences between the hook simulation and the actual Edit tool).
-
-        If the file is invalid JSON after the edit, the hook:
-        1. Restores the file from the backup saved by the PreToolUse hook
-        2. Returns ``additionalContext`` telling the agent what went wrong
-        """
-
-        async def _json_post_validation_hook(
-            input_data: dict[str, Any],
-            tool_use_id: str | None,
-            _context: Any,
-        ) -> dict[str, Any]:
-            # Top-level guard: unhandled exceptions in hooks interrupt the
-            # agent (per SDK docs), so we catch everything and log.
-            try:
-                return await _json_post_validation_impl(
-                    input_data,
-                    tool_use_id,
-                )
-            except Exception:
-                logger.exception("PostToolUse JSON 校驗 hook 異常")
-                return {}
-
-        async def _json_post_validation_impl(
-            input_data: dict[str, Any],
-            tool_use_id: str | None,
-        ) -> dict[str, Any]:
-            tool_name = input_data.get("tool_name", "")
-            tool_input = input_data.get("tool_input", {})
-
-            file_path = tool_input.get("file_path", "")
-            if not file_path or not file_path.endswith(".json"):
-                return {}
-
-            # Pop the backup regardless of outcome to avoid memory leaks
-            backup = json_backups.pop(tool_use_id, None) if tool_use_id else None
-
-            p = Path(file_path)
-            resolved = (project_cwd / p).resolve() if not p.is_absolute() else p.resolve()
-
-            try:
-                actual = resolved.read_text(encoding="utf-8")
-            except OSError:
-                return {}
-
-            try:
-                json.loads(actual)
-                logger.info(
-                    "PostToolUse JSON 校驗: tool=%s file=%s result=valid",
-                    tool_name,
-                    file_path,
-                )
-                return {}
-            except json.JSONDecodeError as exc:
-                # File is corrupt — restore from backup if available
-                restored = False
-                if backup:
-                    backup_path, backup_content = backup
-                    try:
-                        backup_path.write_text(backup_content, encoding="utf-8")
-                        restored = True
-                        logger.warning(
-                            "PostToolUse JSON 校驗攔截並恢復: file=%s tool=%s error=%s backup_restored=True",
-                            file_path,
-                            tool_name,
-                            exc,
-                        )
-                    except OSError as write_err:
-                        logger.error(
-                            "PostToolUse JSON 備份恢復失敗: file=%s error=%s",
-                            file_path,
-                            write_err,
-                        )
-                else:
-                    logger.warning(
-                        "PostToolUse JSON 校驗攔截(無備份): file=%s tool=%s error=%s",
-                        file_path,
-                        tool_name,
-                        exc,
-                    )
-
-                if restored:
-                    ctx = (
-                        f"⚠ 已偵測到 JSON 損壞並完成回滾：{tool_name} 導致 "
-                        f"{file_path} 變成無效 JSON（{exc}）。"
-                        "檔案已恢復到編輯前狀態，請修正後再試。"
-                    )
-                else:
-                    ctx = (
-                        f"⚠ 已偵測到 JSON 損壞但無法恢復：{tool_name} 導致 "
-                        f"{file_path} 變成無效 JSON（{exc}）。"
-                        "檔案目前仍為損壞狀態（沒有可用備份或恢復寫入失敗），"
-                        "請先讀取檔案確認內容，再手動修正為合法 JSON。"
-                    )
-
-                return {
-                    "hookSpecificOutput": {
-                        "hookEventName": "PostToolUse",
-                        "additionalContext": ctx,
-                    },
-                }
-
-        return _json_post_validation_hook
 
     def _resolve_project_cwd(self, project_name: str) -> Path:
         """Resolve and validate per-session project working directory."""
