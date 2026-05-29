@@ -14,6 +14,7 @@ import { ExportScopeDialog } from "./ExportScopeDialog";
 import { API } from "@/api";
 import { ArchiveDiagnosticsDialog } from "@/components/shared/ArchiveDiagnosticsDialog";
 import type { ExportDiagnostics, WorkspaceNotification } from "@/types";
+import { sortEpisodesForDisplay } from "@/utils/episodes";
 
 /** 透過隱藏 <a> 觸發瀏覽器下載，避免 window.open 產生空白標籤頁 */
 function triggerBrowserDownload(url: string) {
@@ -45,8 +46,10 @@ type PhaseKey = (typeof PHASES)[number]["key"];
 
 function PhaseStepper({
   currentPhase,
+  onNavigate,
 }: {
   currentPhase: string | undefined;
+  onNavigate: (phase: PhaseKey) => void;
 }) {
   const currentIdx = PHASES.findIndex((p) => p.key === currentPhase);
 
@@ -82,11 +85,17 @@ function PhaseStepper({
               />
             )}
 
-            {/* Step circle + label */}
-            <div className="flex items-center gap-1.5">
+            {/* Step circle + label — 點擊跳到該階段對應工作區 */}
+            <button
+              type="button"
+              onClick={() => onNavigate(phase.key)}
+              aria-current={isCurrent ? "step" : undefined}
+              title={`前往「${phase.label}」`}
+              className="flex items-center gap-1.5 rounded px-1 py-0.5 transition-colors hover:bg-[rgba(136,163,255,0.12)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--wb-accent)]"
+            >
               <span className={circleClass}>{idx + 1}</span>
               <span className={labelClass}>{phase.label}</span>
-            </div>
+            </button>
           </div>
         );
       })}
@@ -155,6 +164,22 @@ export function GlobalHeader({ onNavigateBack }: GlobalHeaderProps) {
     .filter(([, v]) => v > 0)
     .map(([currency, amount]) => `${currency === "CNY" ? "¥" : "$"}${amount.toFixed(2)}`)
     .join(" + ") || "$0.00";
+
+  const handlePhaseNavigate = (phase: PhaseKey) => {
+    // scripting / production 為集內階段，跳到第一集工作區；其餘跳全域頁
+    const firstEpisode = sortEpisodesForDisplay(currentProjectData?.episodes ?? [])[0];
+    let route: string;
+    if (phase === "worldbuilding") {
+      route = "/lorebook";
+    } else if (phase === "scripting" || phase === "production") {
+      route = firstEpisode ? `/episodes/${firstEpisode.episode}` : "/";
+    } else {
+      route = "/";
+    }
+    startTransition(() => {
+      setLocation(route);
+    });
+  };
 
   const handleNotificationNavigate = (notification: WorkspaceNotification) => {
     if (!notification.target) return;
@@ -261,7 +286,7 @@ export function GlobalHeader({ onNavigateBack }: GlobalHeaderProps) {
 
       {/* ---- Center section ---- */}
       <div className="hidden md:flex">
-        <PhaseStepper currentPhase={currentPhase} />
+        <PhaseStepper currentPhase={currentPhase} onNavigate={handlePhaseNavigate} />
       </div>
 
       {/* ---- Right section ---- */}
