@@ -487,6 +487,15 @@ def _collect_reference_images(
     if previous_storyboard_path and previous_storyboard_path.exists():
         reference_images.append(build_previous_storyboard_reference(previous_storyboard_path))
 
+    # 納入本分鏡自己的參考圖（v0 基底）
+    storyboard_sheet = target_item.get("storyboard_sheet")
+    if storyboard_sheet:
+        _append_existing_project_asset(reference_images, project_path, storyboard_sheet)
+    else:
+        storyboard_ref = target_item.get("reference_image")
+        if storyboard_ref:
+            _append_existing_project_asset(reference_images, project_path, storyboard_ref)
+
     return reference_images or None
 
 

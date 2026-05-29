@@ -22,6 +22,7 @@ interface SceneCardProps {
   onSave: (name: string, payload: SceneSavePayload) => Promise<void>;
   onGenerate?: (name: string) => void;
   onUploadReference?: (name: string, file: File) => Promise<void> | void;
+  onRemoveReference?: (name: string) => Promise<void> | void;
   onDelete?: (name: string) => Promise<void> | void;
   onRename?: (oldName: string, newName: string) => Promise<void> | void;
   onRestoreVersion?: () => Promise<void> | void;
@@ -35,6 +36,7 @@ export function SceneCard({
   onSave,
   onGenerate,
   onUploadReference,
+  onRemoveReference,
   onDelete,
   onRename,
   onRestoreVersion,
@@ -206,6 +208,7 @@ export function SceneCard({
             savedUrl={savedReferenceUrl}
             resetKey={savedReferenceUrl}
             onUpload={(file) => onUploadReference(name, file)}
+            onRemove={onRemoveReference ? () => onRemoveReference(name) : undefined}
           />
         )}
       </div>

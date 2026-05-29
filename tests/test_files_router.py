@@ -57,6 +57,50 @@ def _client(monkeypatch, tmp_path):
     return TestClient(app), pm
 
 
+def _add_storyboard_script(pm: ProjectManager) -> None:
+    project = pm.load_project("demo")
+    project["episodes"] = [
+        {
+            "episode": 1,
+            "title": "Episode 1",
+            "script_file": "scripts/episode_1.json",
+            "status": "ready",
+        }
+    ]
+    pm.save_project("demo", project)
+
+    pm.save_script(
+        "demo",
+        {
+            "episode": 1,
+            "title": "Episode 1",
+            "content_mode": "narration",
+            "segments": [
+                {
+                    "segment_id": "E1S01",
+                    "novel_text": "段落文字",
+                    "image_prompt": "提示詞",
+                    "video_prompt": "影片提示詞",
+                    "duration_seconds": 3,
+                    "generated_assets": {},
+                }
+            ],
+        },
+        "episode_1.json",
+    )
+
+
+def _upload_reference(client: TestClient, upload_type: str, name: str):
+    return client.post(
+        f"/api/v1/projects/demo/upload/{upload_type}?name={name}",
+        files={"file": ("c.jpg", _img_bytes("JPEG"), "image/jpeg")},
+    )
+
+
+def _delete_reference(client: TestClient, resource_type: str, name: str):
+    return client.delete(f"/api/v1/projects/demo/reference-image/{resource_type}/{name}")
+
+
 class TestFilesRouter:
     def test_source_and_file_endpoints(self, tmp_path, monkeypatch):
         client, _ = _client(monkeypatch, tmp_path)
@@ -464,3 +508,72 @@ class TestUploadReferenceWritesBaseVersion:
         char = pm.get_project_character("demo", "Alice")
         assert char["reference_image"].startswith("characters/refs/")
         assert char["character_sheet"].startswith("versions/characters/")
+
+    def test_storyboard_ref_writes_v0_and_sheet(self, tmp_path, monkeypatch):
+        client, pm = _client(monkeypatch, tmp_path)
+        _add_storyboard_script(pm)
+
+        with client:
+            up = _upload_reference(client, "storyboard_ref", "E1S01")
+            assert up.status_code == 200
+
+        updated_script = pm.load_script("demo", "episode_1.json")
+        segment = updated_script["segments"][0]
+        assert segment["reference_image"].startswith("storyboards/refs/")
+        assert segment["storyboard_sheet"].startswith("versions/storyboards/")
+
+        vm = VersionManager(pm.get_project_path("demo"))
+        info = vm.get_versions("storyboards", "E1S01")
+        assert info["current_version"] == 0
+        assert len([v for v in info["versions"] if v["version"] == 0]) == 1
+
+    def test_delete_reference_image(self, tmp_path, monkeypatch):
+        client, pm = _client(monkeypatch, tmp_path)
+        pm.add_project_scene("demo", "古城", "城牆")
+
+        with client:
+            up = _upload_reference(client, "scene_ref", "古城")
+            assert up.status_code == 200
+
+            rm = _delete_reference(client, "scenes", "古城")
+            assert rm.status_code == 200
+
+        scene = pm.get_project_scene("demo", "古城")
+        assert scene["scene_ref"] == ""
+        assert scene["scene_sheet"] == ""
+
+        with client:
+            up = _upload_reference(client, "character_ref", "Alice")
+            assert up.status_code == 200
+
+            rm = _delete_reference(client, "characters", "Alice")
+            assert rm.status_code == 200
+
+        char = pm.get_project_character("demo", "Alice")
+        assert char["reference_image"] == ""
+        assert char["character_sheet"] == ""
+
+        with client:
+            up = _upload_reference(client, "clue_ref", "玉佩")
+            assert up.status_code == 200
+
+            rm = _delete_reference(client, "clues", "玉佩")
+            assert rm.status_code == 200
+
+        clue = pm.get_clue("demo", "玉佩")
+        assert clue["reference_image"] == ""
+        assert clue["clue_sheet"] == ""
+
+        _add_storyboard_script(pm)
+
+        with client:
+            up = _upload_reference(client, "storyboard_ref", "E1S01")
+            assert up.status_code == 200
+
+            rm = _delete_reference(client, "storyboards", "E1S01")
+            assert rm.status_code == 200
+
+        updated_script = pm.load_script("demo", "episode_1.json")
+        segment = updated_script["segments"][0]
+        assert segment.get("reference_image") is None or segment["reference_image"] == ""
+        assert segment.get("storyboard_sheet") is None or segment["storyboard_sheet"] == ""

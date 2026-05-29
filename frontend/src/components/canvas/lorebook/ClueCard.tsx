@@ -27,6 +27,7 @@ interface ClueCardProps {
   onGenerate: (name: string) => void;
   /** 上傳參考圖（multipart）。提供時才顯示參考圖上傳入口。 */
   onUploadReference?: (name: string, file: File) => Promise<void> | void;
+  onRemoveReference?: (name: string) => Promise<void> | void;
   onDelete?: (name: string) => Promise<void> | void;
   onRename?: (oldName: string, newName: string) => Promise<void> | void;
   onRestoreVersion?: () => Promise<void> | void;
@@ -44,6 +45,7 @@ export function ClueCard({
   onSave,
   onGenerate,
   onUploadReference,
+  onRemoveReference,
   onDelete,
   onRename,
   onRestoreVersion,
@@ -223,6 +225,7 @@ export function ClueCard({
             savedUrl={savedReferenceUrl}
             resetKey={savedReferenceUrl}
             onUpload={(file) => onUploadReference(name, file)}
+            onRemove={onRemoveReference ? () => onRemoveReference(name) : undefined}
           />
         )}
       </div>

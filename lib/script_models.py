@@ -94,6 +94,8 @@ class NarrationSegment(BaseModel):
     video_prompt: VideoPrompt = Field(description="影片生成提示詞")
     transition_to_next: Literal["cut", "fade", "dissolve"] = Field(default="cut", description="轉場型別")
     note: str | None = Field(default=None, description="使用者備註（不參與生成）")
+    reference_image: str | None = Field(default=None, description="分鏡參考圖路徑")
+    storyboard_sheet: str | None = Field(default=None, description="分鏡當前參考圖（指向 v0）")
     generated_assets: GeneratedAssets = Field(default_factory=GeneratedAssets, description="生成資源狀態")
 
 
@@ -133,6 +135,8 @@ class DramaScene(BaseModel):
     video_prompt: VideoPrompt = Field(description="影片生成提示詞")
     transition_to_next: Literal["cut", "fade", "dissolve"] = Field(default="cut", description="轉場型別")
     note: str | None = Field(default=None, description="使用者備註（不參與生成）")
+    reference_image: str | None = Field(default=None, description="分鏡參考圖路徑")
+    storyboard_sheet: str | None = Field(default=None, description="分鏡當前參考圖（指向 v0）")
     generated_assets: GeneratedAssets = Field(default_factory=GeneratedAssets, description="生成資源狀態")
 
 

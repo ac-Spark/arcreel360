@@ -23,6 +23,7 @@ import type { Clue, TaskItem } from "@/types";
 
 const ACTIVE_TASK_STATUSES = new Set<TaskItem["status"]>(["queued", "running"]);
 type LorebookMode = "characters" | "clues" | "scenes";
+type ReferenceResourceType = "characters" | "clues" | "scenes";
 
 const LOREBOOK_MODE_BY_ROUTE: Record<string, LorebookMode> = {
   "/characters": "characters",
@@ -234,6 +235,39 @@ export function StudioCanvasRouter() {
     [currentProjectName, refreshProject],
   );
 
+  const removeReferenceImage = useCallback(
+    async (
+      resourceType: ReferenceResourceType,
+      name: string,
+      successMessage: string,
+      invalidateKeys: string[] = [],
+    ) => {
+      if (!currentProjectName) return;
+      try {
+        await API.deleteReferenceImage(currentProjectName, resourceType, name);
+        await refreshProject(invalidateKeys);
+        useAppStore.getState().pushToast(successMessage, "success");
+      } catch (err) {
+        useAppStore
+          .getState()
+          .pushToast(`移除參考圖失敗: ${(err as Error).message}`, "error");
+      }
+    },
+    [currentProjectName, refreshProject],
+  );
+
+  const handleRemoveCharacterReference = useCallback(
+    async (name: string) => {
+      await removeReferenceImage(
+        "characters",
+        name,
+        `角色「${name}」參考圖已移除`,
+        [buildEntityRevisionKey("character", name)],
+      );
+    },
+    [removeReferenceImage],
+  );
+
   const handleGenerateCharacter = useCallback(async (name: string) => {
     if (!currentProjectName) return;
     try {
@@ -382,6 +416,18 @@ export function StudioCanvasRouter() {
     [currentProjectName, refreshProject],
   );
 
+  const handleRemoveClueReference = useCallback(
+    async (name: string) => {
+      await removeReferenceImage(
+        "clues",
+        name,
+        `道具「${name}」參考圖已移除`,
+        [buildEntityRevisionKey("clue", name)],
+      );
+    },
+    [removeReferenceImage],
+  );
+
   // ---- Scene CRUD callbacks ----
   const handleSaveScene = useCallback(
     async (
@@ -418,6 +464,13 @@ export function StudioCanvasRouter() {
       }
     },
     [currentProjectName, refreshProject],
+  );
+
+  const handleRemoveSceneReference = useCallback(
+    async (name: string) => {
+      await removeReferenceImage("scenes", name, `場景「${name}」參考圖已移除`);
+    },
+    [removeReferenceImage],
   );
 
   const handleGenerateScene = useCallback(async (name: string) => {
@@ -530,12 +583,15 @@ export function StudioCanvasRouter() {
             mode={lorebookMode}
             onSaveCharacter={handleSaveCharacter}
             onUploadCharacterReference={handleUploadCharacterReference}
+            onRemoveCharacterReference={handleRemoveCharacterReference}
             onUpdateClue={handleUpdateClue}
             onGenerateCharacter={handleGenerateCharacter}
             onGenerateClue={handleGenerateClue}
             onGenerateScene={handleGenerateScene}
             onUploadClueReference={handleUploadClueReference}
             onUploadSceneReference={handleUploadSceneReference}
+            onRemoveClueReference={handleRemoveClueReference}
+            onRemoveSceneReference={handleRemoveSceneReference}
             onDeleteCharacter={handleDeleteCharacter}
             onDeleteClue={handleDeleteClue}
             onRenameCharacter={handleRenameCharacter}

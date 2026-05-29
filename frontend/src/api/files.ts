@@ -153,4 +153,18 @@ export const filesApi = {
       { method: "DELETE" },
     );
   },
+
+  /** 刪除參考圖 */
+  async deleteReferenceImage(
+    projectName: string,
+    resourceType: string,
+    resourceId: string,
+  ): Promise<SuccessResponse> {
+    const response = await fetch(
+      `${API_BASE}/projects/${encodeURIComponent(projectName)}/reference-image/${encodeURIComponent(resourceType)}/${encodeURIComponent(resourceId)}`,
+      withAuth({ method: "DELETE" }),
+    );
+    await throwIfNotOk(response, "移除參考圖失敗");
+    return response.json();
+  },
 };

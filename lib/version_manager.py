@@ -249,6 +249,53 @@ class VersionManager:
 
         return {"version": self.BASE_VERSION, "file": version_rel_path}
 
+    def remove_base_version(self, resource_type: str, resource_id: str) -> None:
+        """移除 v0 基底版本，包括 versions.json 裡的記錄與磁碟上的實體 v0 檔案。
+
+        若 current_version 當時是 0，則重新計算為最新 AI 版本，若無其他版本則設為 0。
+        """
+        if resource_type not in self.RESOURCE_TYPES:
+            raise ValueError(f"不支援的資源型別: {resource_type}")
+
+        with self._lock:
+            data = self._load_versions()
+            if resource_type not in data or resource_id not in data[resource_type]:
+                return
+
+            resource_data = data[resource_type][resource_id]
+            versions = resource_data.get("versions", [])
+
+            # 尋找 version == 0 的記錄並移除
+            v0_record = None
+            new_versions = []
+            for v in versions:
+                if v.get("version") == self.BASE_VERSION:
+                    v0_record = v
+                else:
+                    new_versions.append(v)
+
+            if v0_record:
+                # 刪除實體檔案
+                v0_file = self.project_path / v0_record["file"]
+                if v0_file.exists():
+                    v0_file.unlink()
+
+                # 更新 versions 列表
+                resource_data["versions"] = new_versions
+
+                # 重新計算 current_version
+                if resource_data.get("current_version") == self.BASE_VERSION:
+                    if new_versions:
+                        resource_data["current_version"] = max(item.get("version", 0) for item in new_versions)
+                    else:
+                        resource_data["current_version"] = 0
+
+                # 若 versions 為空且 current_version 為 0，則移除該項以保持乾淨
+                if not resource_data["versions"] and resource_data["current_version"] == 0:
+                    del data[resource_type][resource_id]
+
+                self._save_versions(data)
+
     def backup_current(
         self, resource_type: str, resource_id: str, current_file: Path, prompt: str, **metadata
     ) -> int | None:

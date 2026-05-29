@@ -1879,6 +1879,48 @@ class ProjectManager:
         self.save_project(project_name, project)
         return project
 
+    def _find_script_filename_by_scene_id(self, project_name: str, scene_id: str) -> str:
+        """遍歷專案 episodes 中的劇本，查找包含特定 scene_id 或 segment_id 的劇本檔名"""
+        project = self.load_project(project_name)
+        for ep in project.get("episodes", []):
+            script_filename = ep.get("script_file")
+            if not script_filename:
+                continue
+            try:
+                script_name = (
+                    script_filename[len("scripts/") :] if script_filename.startswith("scripts/") else script_filename
+                )
+                script = self.load_script(project_name, script_name)
+                for key in ("segments", "scenes"):
+                    for item in script.get(key, []) or []:
+                        if str(item.get("segment_id") or item.get("scene_id")) == str(scene_id):
+                            return script_name
+            except Exception:
+                continue
+        raise KeyError(f"在專案 '{project_name}' 中找不到包含場景 ID '{scene_id}' 的劇本")
+
+    def update_storyboard_reference_image(self, project_name: str, name: str, ref_path: str) -> dict:
+        """更新分鏡參考圖路徑 (reference_image)"""
+        return self._update_storyboard_item_field(project_name, name, "reference_image", ref_path)
+
+    def update_storyboard_sheet(self, project_name: str, name: str, sheet_path: str) -> dict:
+        """更新分鏡設計圖/當前參考圖路徑 (storyboard_sheet)"""
+        return self._update_storyboard_item_field(project_name, name, "storyboard_sheet", sheet_path)
+
+    def _update_storyboard_item_field(self, project_name: str, name: str, field: str, value: str) -> dict:
+        script_name = self._find_script_filename_by_scene_id(project_name, name)
+        script = self.load_script(project_name, script_name)
+        content_mode = script.get("content_mode", "narration")
+        items = script.get("segments" if content_mode == "narration" else "scenes", [])
+        id_field = "segment_id" if content_mode == "narration" else "scene_id"
+
+        for item in items:
+            if str(item.get(id_field)) == str(name):
+                item[field] = value
+                self.save_script(project_name, script, script_name)
+                return script
+        raise KeyError(f"場景 '{name}' 不存在於劇本 {script_name} 中")
+
     # ==================== 專案概述生成 ====================
 
     def _read_source_files(self, project_name: str, max_chars: int = 50000) -> str:

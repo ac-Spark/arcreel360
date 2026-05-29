@@ -26,6 +26,7 @@ import { ImagePromptEditor } from "./ImagePromptEditor";
 import { VideoPromptEditor } from "./VideoPromptEditor";
 import { SceneBackendPopover } from "./SceneBackendPopover";
 import { formatCost } from "@/utils/cost-format";
+import { LorebookReferenceImageField } from "@/components/canvas/lorebook/LorebookReferenceImageField";
 import {
   extractEntityMentionsFromValue,
   stripKnownEntityMentionMarkers,
@@ -282,6 +283,8 @@ interface SegmentCardProps {
   onDelete?: () => void;
   generatingStoryboard?: boolean;
   generatingVideo?: boolean;
+  onUploadReference?: (segmentId: string, file: File) => Promise<void> | void;
+  onRemoveReference?: (segmentId: string) => Promise<void> | void;
 }
 
 // ---------------------------------------------------------------------------
@@ -843,6 +846,8 @@ function MediaColumn({
   onRestoreVideo,
   generatingStoryboard,
   generatingVideo,
+  onUploadReference,
+  onRemoveReference,
 }: {
   segment: Segment;
   aspectRatio: string;
@@ -854,6 +859,8 @@ function MediaColumn({
   onRestoreVideo?: () => Promise<void> | void;
   generatingStoryboard?: boolean;
   generatingVideo?: boolean;
+  onUploadReference?: (segmentId: string, file: File) => Promise<void> | void;
+  onRemoveReference?: (segmentId: string) => Promise<void> | void;
 }) {
   const assets = segment.generated_assets;
   const storyboardFp = useProjectsStore(
@@ -865,8 +872,14 @@ function MediaColumn({
   const thumbnailFp = useProjectsStore(
     (s) => assets?.video_thumbnail ? s.getAssetFingerprint(assets.video_thumbnail) : null,
   );
+  const refImageFp = useProjectsStore(
+    (s) => segment.reference_image ? s.getAssetFingerprint(segment.reference_image) : null,
+  );
   const storyboardUrl = assets?.storyboard_image
     ? API.getFileUrl(projectName, assets.storyboard_image, storyboardFp)
+    : null;
+  const refImageUrl = segment.reference_image
+    ? API.getFileUrl(projectName, segment.reference_image, refImageFp)
     : null;
   const videoUrl = assets?.video_clip
     ? API.getFileUrl(projectName, assets.video_clip, videoFp)
@@ -920,6 +933,16 @@ function MediaColumn({
             className="w-full justify-center"
           />
         </div>
+        {onUploadReference && (
+          <div className="mt-3">
+            <LorebookReferenceImageField
+              name={segmentId}
+              savedUrl={refImageUrl}
+              onUpload={(file) => onUploadReference(segmentId, file)}
+              onRemove={onRemoveReference ? () => onRemoveReference(segmentId) : undefined}
+            />
+          </div>
+        )}
       </div>
 
       {/* ---- Video (shown when available or as placeholder) ---- */}
@@ -987,6 +1010,8 @@ export function SegmentCard({
   onDelete,
   generatingStoryboard = false,
   generatingVideo = false,
+  onUploadReference,
+  onRemoveReference,
 }: SegmentCardProps) {
   const segmentId = getSegmentId(segment, contentMode);
   const segCost = useCostStore((s) => s.getSegmentCost(segmentId));
@@ -1189,6 +1214,8 @@ export function SegmentCard({
             onRestoreVideo={onRestoreVideo}
             generatingStoryboard={generatingStoryboard}
             generatingVideo={generatingVideo}
+            onUploadReference={onUploadReference}
+            onRemoveReference={onRemoveReference}
           />
         </div>
       </div>

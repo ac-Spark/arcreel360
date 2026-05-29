@@ -173,6 +173,36 @@ export function TimelineCanvas({
     [projectName, scriptFile, contentMode, refreshProject, confirm],
   );
 
+  const handleUploadStoryboardReference = useCallback(
+    async (segmentId: string, file: File) => {
+      try {
+        await API.uploadFile(projectName, "storyboard_ref", file, segmentId);
+        await refreshProject();
+        useAppStore.getState().pushToast("分鏡參考圖上傳成功", "success");
+      } catch (err) {
+        useAppStore
+          .getState()
+          .pushToast(`分鏡參考圖上傳失敗：${(err as Error).message}`, "error");
+      }
+    },
+    [projectName, refreshProject],
+  );
+
+  const handleRemoveStoryboardReference = useCallback(
+    async (segmentId: string) => {
+      try {
+        await API.deleteReferenceImage(projectName, "storyboards", segmentId);
+        await refreshProject();
+        useAppStore.getState().pushToast("分鏡參考圖已移除", "success");
+      } catch (err) {
+        useAppStore
+          .getState()
+          .pushToast(`移除分鏡參考圖失敗：${(err as Error).message}`, "error");
+      }
+    },
+    [projectName, refreshProject],
+  );
+
   const handleResetScript = useCallback(async () => {
     if (!hasScript) return;
     const confirmed = await confirm({
@@ -446,6 +476,8 @@ export function TimelineCanvas({
                       onDelete={() => void handleDeleteSegment(segId)}
                       generatingStoryboard={generatingStoryboardIds?.has(segId) ?? false}
                       generatingVideo={generatingVideoIds?.has(segId) ?? false}
+                      onUploadReference={handleUploadStoryboardReference}
+                      onRemoveReference={handleRemoveStoryboardReference}
                     />
                   </div>
                 );

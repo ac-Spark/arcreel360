@@ -344,6 +344,20 @@ class DataValidator:
                     segment.get("generated_assets"),
                     errors,
                 )
+                self._validate_local_reference(
+                    project_dir,
+                    segment.get("reference_image"),
+                    errors,
+                    f"{prefix}.reference_image",
+                    default_dir="storyboards/refs",
+                )
+                self._validate_local_reference(
+                    project_dir,
+                    segment.get("storyboard_sheet"),
+                    errors,
+                    f"{prefix}.storyboard_sheet",
+                    default_dir="versions/storyboards",
+                )
 
     def _validate_scenes(
         self,
@@ -412,6 +426,20 @@ class DataValidator:
                     prefix,
                     scene.get("generated_assets"),
                     errors,
+                )
+                self._validate_local_reference(
+                    project_dir,
+                    scene.get("reference_image"),
+                    errors,
+                    f"{prefix}.reference_image",
+                    default_dir="storyboards/refs",
+                )
+                self._validate_local_reference(
+                    project_dir,
+                    scene.get("storyboard_sheet"),
+                    errors,
+                    f"{prefix}.storyboard_sheet",
+                    default_dir="versions/storyboards",
                 )
 
     def _validate_episode_payload(

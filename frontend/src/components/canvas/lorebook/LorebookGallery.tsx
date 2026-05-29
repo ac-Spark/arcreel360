@@ -29,12 +29,15 @@ interface LorebookGalleryProps {
     }
   ) => Promise<void>;
   onUploadCharacterReference: (name: string, file: File) => Promise<void> | void;
+  onRemoveCharacterReference?: (name: string) => Promise<void> | void;
   onUpdateClue: (name: string, updates: Partial<Clue>) => Promise<void>;
   onGenerateCharacter: (name: string) => void;
   onGenerateClue: (name: string) => void;
   onGenerateScene: (name: string) => void;
   onUploadClueReference?: (name: string, file: File) => Promise<void> | void;
   onUploadSceneReference?: (name: string, file: File) => Promise<void> | void;
+  onRemoveClueReference?: (name: string) => Promise<void> | void;
+  onRemoveSceneReference?: (name: string) => Promise<void> | void;
   onDeleteCharacter?: (name: string) => Promise<void> | void;
   onDeleteClue?: (name: string) => Promise<void> | void;
   onRenameCharacter?: (oldName: string, newName: string) => Promise<void> | void;
@@ -85,12 +88,15 @@ export function LorebookGallery({
   mode,
   onSaveCharacter,
   onUploadCharacterReference,
+  onRemoveCharacterReference,
   onUpdateClue,
   onGenerateCharacter,
   onGenerateClue,
   onGenerateScene,
   onUploadClueReference,
   onUploadSceneReference,
+  onRemoveClueReference,
+  onRemoveSceneReference,
   onDeleteCharacter,
   onDeleteClue,
   onRenameCharacter,
@@ -224,6 +230,7 @@ export function LorebookGallery({
                     projectName={projectName}
                     onSave={onSaveCharacter}
                     onUploadReference={onUploadCharacterReference}
+                    onRemoveReference={onRemoveCharacterReference}
                     onGenerate={onGenerateCharacter}
                     onDelete={onDeleteCharacter}
                     onRename={onRenameCharacter}
@@ -292,6 +299,7 @@ export function LorebookGallery({
                     onSave={(n, payload) => onUpdateClue(n, payload)}
                     onGenerate={onGenerateClue}
                     onUploadReference={onUploadClueReference}
+                    onRemoveReference={onRemoveClueReference}
                     onDelete={onDeleteClue}
                     onRename={onRenameClue}
                     onRestoreVersion={onRestoreClueVersion}
@@ -357,6 +365,7 @@ export function LorebookGallery({
                     onSave={onSaveScene}
                     onGenerate={onGenerateScene}
                     onUploadReference={onUploadSceneReference}
+                    onRemoveReference={onRemoveSceneReference}
                     onDelete={onDeleteScene}
                     onRename={onRenameScene}
                     onRestoreVersion={onRestoreSceneVersion}

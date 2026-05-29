@@ -80,8 +80,12 @@ export interface NarrationSegment {
   video_prompt: VideoPrompt | string;
   image_backend?: string | null;
   video_backend?: string | null;
+  image_size?: string | null;
+  video_resolution?: string | null;
   transition_to_next: TransitionType;
   note?: string;
+  reference_image?: string | null;
+  storyboard_sheet?: string | null;
   generated_assets?: GeneratedAssets;
 }
 
@@ -97,8 +101,12 @@ export interface DramaScene {
   video_prompt: VideoPrompt | string;
   image_backend?: string | null;
   video_backend?: string | null;
+  image_size?: string | null;
+  video_resolution?: string | null;
   transition_to_next: TransitionType;
   note?: string;
+  reference_image?: string | null;
+  storyboard_sheet?: string | null;
   generated_assets?: GeneratedAssets;
 }
 

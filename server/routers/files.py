@@ -32,7 +32,16 @@ def get_project_manager() -> ProjectManager:
 
 
 IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"]
-IMAGE_UPLOAD_TYPES = {"character", "character_ref", "clue", "clue_ref", "scene", "scene_ref", "storyboard"}
+IMAGE_UPLOAD_TYPES = {
+    "character",
+    "character_ref",
+    "clue",
+    "clue_ref",
+    "scene",
+    "scene_ref",
+    "storyboard",
+    "storyboard_ref",
+}
 UPLOAD_DIRS = {
     "source": "source",
     "character": "characters",
@@ -42,11 +51,13 @@ UPLOAD_DIRS = {
     "scene": "scenes",
     "scene_ref": "scenes/refs",
     "storyboard": "storyboards",
+    "storyboard_ref": "storyboards/refs",
 }
 REF_UPLOAD_KINDS = {
     "character_ref": "character",
     "clue_ref": "clue",
     "scene_ref": "scene",
+    "storyboard_ref": "storyboard",
 }
 METADATA_UPDATE_METHODS = {
     "character": "update_project_character_sheet",
@@ -55,6 +66,7 @@ METADATA_UPDATE_METHODS = {
     "clue_ref": "update_clue_reference_image",
     "scene": "update_scene_sheet",
     "scene_ref": "update_scene_reference_image",
+    "storyboard_ref": "update_storyboard_reference_image",
 }
 
 # 允許的檔案型別
@@ -67,6 +79,7 @@ ALLOWED_EXTENSIONS = {
     "scene": IMAGE_EXTENSIONS,
     "scene_ref": IMAGE_EXTENSIONS,
     "storyboard": IMAGE_EXTENSIONS,
+    "storyboard_ref": IMAGE_EXTENSIONS,
 }
 
 
@@ -80,7 +93,7 @@ def _build_upload_target(
         return target_dir, original_filename
 
     stem = name or Path(original_filename).stem
-    prefix = "scene_" if upload_type == "storyboard" and name else ""
+    prefix = "scene_" if upload_type in ("storyboard", "storyboard_ref") and name else ""
     return target_dir, f"{prefix}{stem}.png"
 
 
@@ -121,7 +134,15 @@ _REF_KIND_MAP = {
     "character": ("characters", "update_project_character_sheet"),
     "clue": ("clues", "update_clue_sheet"),
     "scene": ("scenes", "update_scene_sheet"),
+    "storyboard": ("storyboards", "update_storyboard_sheet"),
 }
+
+REFERENCE_IMAGE_CLEAR_FIELDS = {
+    "characters": ("characters", ("character_sheet", "reference_image")),
+    "clues": ("clues", ("clue_sheet", "reference_image")),
+    "scenes": ("scenes", ("scene_sheet", "scene_ref")),
+}
+REFERENCE_IMAGE_RESOURCE_TYPES = set(REFERENCE_IMAGE_CLEAR_FIELDS) | {"storyboards"}
 
 
 def _promote_reference_to_base_version(
@@ -144,6 +165,28 @@ def _promote_reference_to_base_version(
 
     with project_change_source("webui"):
         getattr(manager, sheet_setter)(project_name, name, result["file"])
+
+
+def _clear_reference_image_metadata(
+    manager: ProjectManager,
+    project_name: str,
+    resource_type: str,
+    resource_id: str,
+) -> None:
+    if resource_type == "storyboards":
+        manager.update_storyboard_sheet(project_name, resource_id, "")
+        manager.update_storyboard_reference_image(project_name, resource_id, "")
+        return
+
+    collection_name, fields = REFERENCE_IMAGE_CLEAR_FIELDS[resource_type]
+    project = manager.load_project(project_name)
+    resource = project.get(collection_name, {}).get(resource_id)
+    if not resource:
+        return
+
+    for field in fields:
+        resource[field] = ""
+    manager.save_project(project_name, project)
 
 
 @router.get("/files/{project_name}/{path:path}")
@@ -707,4 +750,42 @@ async def update_style_description(
         raise
     except Exception as e:
         logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/projects/{project_name}/reference-image/{resource_type}/{resource_id}")
+async def delete_reference_image(
+    project_name: str,
+    resource_type: str,
+    resource_id: str,
+    _user: CurrentUser,
+):
+    """
+    清除特定資源的參考圖與 v0 基底版本
+    """
+    if resource_type not in REFERENCE_IMAGE_RESOURCE_TYPES:
+        raise HTTPException(status_code=400, detail=f"不支援的資源型別：{resource_type}")
+
+    try:
+
+        def _sync():
+            manager = get_project_manager()
+            project_path = manager.get_project_path(project_name)
+
+            vm = VersionManager(project_path)
+            vm.remove_base_version(resource_type, resource_id)
+
+            with project_change_source("webui"):
+                _clear_reference_image_metadata(manager, project_name, resource_type, resource_id)
+
+            return {"success": True}
+
+        return await asyncio.to_thread(_sync)
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"專案 '{project_name}' 不存在")
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception("清除參考圖失敗")
         raise HTTPException(status_code=500, detail=str(e))

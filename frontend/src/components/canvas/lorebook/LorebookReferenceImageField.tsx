@@ -7,6 +7,7 @@ interface LorebookReferenceImageFieldProps {
   savedUrl: string | null;
   resetKey?: string | null;
   onUpload: (file: File) => Promise<void> | void;
+  onRemove?: () => Promise<void> | void;
 }
 
 const REFERENCE_IMAGE_ACCEPT = ".png,.jpg,.jpeg,.webp";
@@ -26,6 +27,7 @@ export function LorebookReferenceImageField({
   savedUrl,
   resetKey,
   onUpload,
+  onRemove,
 }: LorebookReferenceImageFieldProps) {
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [referencePreview, setReferencePreview] = useState<string | null>(null);
@@ -70,6 +72,20 @@ export function LorebookReferenceImageField({
     }
   };
 
+  const handleRemove = async () => {
+    if (!onRemove) return;
+    try {
+      await onRemove();
+      setReferenceFile(null);
+      setReferencePreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+    } catch (err) {
+      console.error("Failed to remove reference image:", err);
+    }
+  };
+
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between">
@@ -77,13 +93,27 @@ export function LorebookReferenceImageField({
           參考圖
         </span>
         {displayedReferenceUrl && (
-          <button
-            type="button"
-            onClick={openReferencePicker}
-            className="text-xs text-gray-400 transition-colors hover:text-gray-200"
-          >
-            替換
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={openReferencePicker}
+              className="text-xs text-gray-400 transition-colors hover:text-gray-200"
+            >
+              替換
+            </button>
+            {onRemove && (
+              <>
+                <span className="text-gray-600 text-xs">|</span>
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  className="text-xs text-red-400/80 transition-colors hover:text-red-400"
+                >
+                  移除
+                </button>
+              </>
+            )}
+          </div>
         )}
       </div>
 

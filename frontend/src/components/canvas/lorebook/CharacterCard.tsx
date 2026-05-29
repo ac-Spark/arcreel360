@@ -23,6 +23,7 @@ interface CharacterCardProps {
   projectName: string;
   onSave: (name: string, payload: CharacterSavePayload) => Promise<void>;
   onUploadReference: (name: string, file: File) => Promise<void> | void;
+  onRemoveReference?: (name: string) => Promise<void> | void;
   onGenerate: (name: string) => void;
   onDelete?: (name: string) => Promise<void> | void;
   onRename?: (oldName: string, newName: string) => Promise<void> | void;
@@ -36,6 +37,7 @@ export function CharacterCard({
   projectName,
   onSave,
   onUploadReference,
+  onRemoveReference,
   onGenerate,
   onDelete,
   onRename,
@@ -209,6 +211,7 @@ export function CharacterCard({
           savedUrl={savedReferenceUrl}
           resetKey={savedReferenceUrl}
           onUpload={(file) => onUploadReference(name, file)}
+          onRemove={onRemoveReference ? () => onRemoveReference(name) : undefined}
         />
       </div>
 
