@@ -19,7 +19,7 @@
 
 - [x] 3.1 在 `frontend/src/api.ts` 中添加 `requestExportToken(projectName)` 方法，调用签发 token 端点
 - [x] 3.2 在 `frontend/src/api.ts` 中添加 `getExportDownloadUrl(projectName, downloadToken, scope)` 辅助方法，拼接完整下载 URL
-- [x] 3.3 创建 `ExportScopeDialog` 组件（可复用弹窗），提供"仅当前版本"和"全部数据"两個选项
-- [x] 3.4 修改 `GlobalHeader.tsx` 的 `handleExportProject`：点击导出按钮后弹出 `ExportScopeDialog`，选择后签发 token 并触发 `window.open` 浏览器原生下载
+- [x] 3.3 创建 `ExportScopeDialog` 组件（可复用弹窗），提供"仅当前版本"和"全部数据"两個選項
+- [x] 3.4 修改 `GlobalHeader.tsx` 的 `handleExportProject`：点击导出按钮后弹出 `ExportScopeDialog`，選择后签发 token 并触发 `window.open` 浏览器原生下载
 - [x] 3.5 移除 `frontend/src/api.ts` 中旧的 `exportProject` fetch+Blob 逻辑（确认无其他调用方后删除）
 - [x] 3.6 为前端导出相关改动编写测试（`GlobalHeader.test.tsx` 补充 + API 测试补充）

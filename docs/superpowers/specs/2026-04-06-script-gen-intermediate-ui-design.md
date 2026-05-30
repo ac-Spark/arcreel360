@@ -123,7 +123,7 @@ Tab 样式：
 **Toast 通知**：
 - `draft:created`：重要通知（`important: true`），弹出 Toast
   - narration：「第 N 集片段拆分完成 · XX 個片段 · 约 XXs」
-  - drama：「第 N 集规范化剧本完成 · XX 個场景 · 约 XXs」
+  - drama：「第 N 集规范化剧本完成 · XX 個場景 · 约 XXs」
 - `draft:updated`：非重要通知
 
 **自动导航**：

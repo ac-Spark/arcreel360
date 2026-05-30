@@ -444,7 +444,7 @@ def _emit_generation_success_batch(
         emit_project_change_batch(project_name, changes, source="worker")
     except Exception:
         logger.exception(
-            "发送生成完成项目事件失败 project=%s task_type=%s resource_id=%s",
+            "发送生成完成项目事件失敗 project=%s task_type=%s resource_id=%s",
             project_name,
             task_type,
             resource_id,
@@ -693,7 +693,7 @@ async def extract_video_thumbnail(
         thumbnail_path: 输出缩略图路径
 
     Returns:
-        缩略图路径（成功）或 None（失败）
+        缩略图路径（成功）或 None（失敗）
     """
     if not video_path.exists():
         return None
@@ -717,7 +717,7 @@ async def extract_video_thumbnail(
 
         return thumbnail_path
     except Exception:
-        logger.warning("提取视频缩略图失败: %s", video_path, exc_info=True)
+        logger.warning("提取视频缩略图失敗: %s", video_path, exc_info=True)
         return None
 ```
 
@@ -866,7 +866,7 @@ Expected: FAIL
 
 **Step 3: Write minimal implementation**
 
-修改 `frontend/src/types/workspace.ts:10-24`，给 ProjectChange 添加可选字段：
+修改 `frontend/src/types/workspace.ts:10-24`，给 ProjectChange 添加可選字段：
 
 ```typescript
 export interface ProjectChange {
@@ -1122,7 +1122,7 @@ async function handleRestore(version: number) {
     setSelectedVersion(version);
     useAppStore.getState().pushToast(`已切换到 v${version}`, "success");
   } catch (err) {
-    useAppStore.getState().pushToast(`切换版本失败: ${(err as Error).message}`, "error");
+    useAppStore.getState().pushToast(`切换版本失敗: ${(err as Error).message}`, "error");
   } finally {
     setRestoringVersion(null);
   }

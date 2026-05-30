@@ -16,7 +16,7 @@ docker compose exec postgres psql -U arcreel -d arcreel -c \
   "INSERT INTO system_setting (key, value, updated_at) VALUES ('assistant_provider', 'gemini-full', now()) \
    ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=now();"
 
-# 方式 C：前端设置页 → 助手 → 选择「Gemini · 工作流模式」
+# 方式 C：前端设置页 → 助手 → 選择「Gemini · 工作流模式」
 ```
 
 需要的前置：DB 中存在 active 的 `gemini-aistudio` credential（前端设置页 → 文字供应商可设）。
@@ -43,7 +43,7 @@ GeminiFullRuntimeProvider  ←  继承 BaseTextBackendRuntimeProvider（复用 s
 | `permission_gate.py` PreToolUse 闸门（默认放行） | ✅ 完成 + 11 测试 |
 | `skill_function_declarations.py` 7 個 skill 翻译 | ✅ 7 個全部接入（4 文本 + 2 队列驱动 + 1 ffmpeg） |
 | `gemini_full_runtime_provider.py` 工具循环 + streaming | ✅ 完成 + 11 测试（含真实 API 联调） |
-| 前端 capabilities 注入与 banner 文案 | ✅ 基本完成；二维选择器 UX 留待优化 |
+| 前端 capabilities 注入与 banner 文案 | ✅ 基本完成；二维選择器 UX 留待优化 |
 | 真实 Gemini API 联调 | ✅ 已验证 manga_workflow_status + sandbox escape |
 
 ## 真实可用的 skill
@@ -70,7 +70,7 @@ GeminiFullRuntimeProvider  ←  继承 BaseTextBackendRuntimeProvider（复用 s
    ```python
    MY_SKILL_DECL = FunctionDeclaration(
        name="my_skill",
-       description="清晰描述触发场景，Gemini 会读这段决定调不调",
+       description="清晰描述触发場景，Gemini 会读这段决定调不调",
        parameters={
            "type": "object",
            "properties": {"arg": {"type": "string"}},
@@ -90,9 +90,9 @@ GeminiFullRuntimeProvider  ←  继承 BaseTextBackendRuntimeProvider（复用 s
 
 3. 注册到 `SKILL_DECLARATIONS` 与 `SKILL_HANDLERS` 两张表
 
-4. 写一個测试：参考 `tests/test_skill_function_declarations.py` 的 happy path + 校验失败 case
+4. 写一個测试：参考 `tests/test_skill_function_declarations.py` 的 happy path + 校验失敗 case
 
-5. （可选）让 Gemini 知道这個 skill：description 措辞要明确、要例子。Gemini 偏向直接回答，比 Claude 更需要明确指示「请用 X 工具」
+5. （可選）让 Gemini 知道这個 skill：description 措辞要明确、要例子。Gemini 偏向直接回答，比 Claude 更需要明确指示「请用 X 工具」
 
 ## 如何修改沙盒白名单
 
@@ -142,7 +142,7 @@ WHERE sdk_session_id = 'gemini-full:xxx' ORDER BY seq;
 - **subagent 真隔离未实作**：所有 skill dispatch 都跑在主对话同 context；长工作流可能撑大 context。Claude SDK 的「fresh context subagent」未对应实现。
 - **permission UI 未接入**：`permission_gate` 默认放行，没有前端 modal 审批。要接入时实作 `PermissionGate.check()` 并 `set_default_gate()`。
 - **streaming 仅文本 token**：functionCall / functionResponse 不分块，整体作为一轮事件。
-- **parallel tool call 走串行执行**：模型一轮吐多個 functionCall 时按顺序执行；性能差距在 ArcReel 场景里不显著。
+- **parallel tool call 走串行执行**：模型一轮吐多個 functionCall 时按顺序执行；性能差距在 ArcReel 場景里不显著。
 
 ## thought_signature 注意事项（Gemini 3 系列）
 
@@ -155,7 +155,7 @@ Gemini 3 系列要求 functionCall 在下一轮回传时携带 `thought_signatur
 ## 下一步路线图
 
 - [ ] 把占位 skill（generate_storyboard / generate_video / compose_video）接到 generation queue
-- [ ] 前端做 banner 切换入口 + Settings 二维 grid 选择器
+- [ ] 前端做 banner 切换入口 + Settings 二维 grid 選择器
 - [ ] permission_gate 接前端 modal 审批
 - [ ] subagent 真隔离（开新 session、回收摘要）
 - [ ] OpenAI full-tier provider（同样模式，但用 OpenAI Assistants v2）

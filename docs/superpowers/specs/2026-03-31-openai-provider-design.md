@@ -267,7 +267,7 @@ class OpenAIVideoBackend:
         video = await self._client.videos.create_and_poll(**kwargs)
 
         if video.status == "failed":
-            raise RuntimeError(f"Sora 视频生成失败: {video.error}")
+            raise RuntimeError(f"Sora 视频生成失敗: {video.error}")
 
         content = await self._client.videos.download_content(video.id)
         request.output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -341,7 +341,7 @@ OPENAI_VIDEO_COST = {
 - 图片：新增 `calculate_openai_image_cost(model, quality)` 方法
 - 视频：新增 `calculate_openai_video_cost(duration_seconds, model, resolution)` 方法
 
-`calculate_cost()` 签名新增可选 `quality` 参数，仅 OpenAI 图片使用。
+`calculate_cost()` 签名新增可選 `quality` 参数，仅 OpenAI 图片使用。
 
 > **`quality` 上游传递：** 本期 `UsageTracker` / `usage_repo` 暂不传递 `quality`，OpenAI 图片费用将使用默认值 `"medium"` 计算。完善 `quality` 从 Backend → UsageTracker → CostCalculator 的传递链作为后续优化。
 
@@ -385,7 +385,7 @@ def _test_openai(config: dict[str, str]) -> ConnectionTestResponse:
 - 配置表单 — 动态生成
 - Credential 管理 — 已通用化
 - 连接测试按钮 — 已通用化
-- 后端选择下拉框 — 动态获取
+- 后端選择下拉框 — 动态获取
 
 ### 需要改的
 

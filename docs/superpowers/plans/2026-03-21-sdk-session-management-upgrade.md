@@ -251,7 +251,7 @@ async def send_new_session(
     try:
         await managed.client.query(prompt)
     except Exception:
-        logger.exception("新会话消息发送失败")
+        logger.exception("新会话消息发送失敗")
         del self.sessions[temp_id]
         try:
             await client.disconnect()
@@ -537,7 +537,7 @@ async def send_message(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
-        logger.exception("请求处理失败")
+        logger.exception("请求处理失敗")
         raise HTTPException(status_code=500, detail=str(exc))
 ```
 
@@ -766,11 +766,11 @@ connectStream(returnedSessionId);
 ```typescript
 catch (err) {
   if (pendingSendVersionRef.current !== sendVersion) return;
-  store.getState().setError((err as Error).message ?? "发送失败");
+  store.getState().setError((err as Error).message ?? "发送失敗");
   if (sessionId && optimisticUuid) {
     restoreFailedSend(sessionId, optimisticUuid, previousStatus);
   } else {
-    // 新会话创建失败：回滚到 draft 模式
+    // 新会话创建失敗：回滚到 draft 模式
     store.getState().setTurns(store.getState().turns.filter(t => t.uuid !== optimisticUuid));
     store.getState().setIsDraftSession(true);
     store.getState().setCurrentSessionId(null);

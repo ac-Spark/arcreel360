@@ -279,7 +279,7 @@ TaskProgressBlock 渲染:
   task_started  → "🔄 子任务开始: {description}"
   task_progress → "⏳ {description} (tokens: {usage.total_tokens})"
   task_notification(completed) → "✅ 子任务完成: {summary}"
-  task_notification(failed)    → "❌ 子任务失败: {summary}"
+  task_notification(failed)    → "❌ 子任务失敗: {summary}"
 ```
 
 ### 5. 前端类型变更

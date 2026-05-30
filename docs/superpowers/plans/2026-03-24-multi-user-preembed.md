@@ -675,7 +675,7 @@ git commit -m "feat: add users table and user_id fields via migration"
 ### Task 9: 全量回归测试 + 清理
 
 **Files:**
-- 可能修改：任何因回归失败需要修复的文件
+- 可能修改：任何因回归失敗需要修复的文件
 
 - [ ] **Step 1: 运行全部测试套件**
 
@@ -694,7 +694,7 @@ Expected: 输出 "OK"
 
 - [ ] **Step 4: 修复任何回归问题**
 
-如有测试失败，逐個修复并重新运行。
+如有测试失敗，逐個修复并重新运行。
 
 - [ ] **Step 5: 最终提交（如有修复）**
 

@@ -74,7 +74,7 @@ git commit -m "feat: add input_tokens and output_tokens columns to api_calls"
 - Test: `tests/test_usage_repo.py`
 - Modify: `lib/db/repositories/usage_repo.py`
 
-- [ ] **Step 1: 写失败测试 — text call 的 start + finish + 成本计算**
+- [ ] **Step 1: 写失敗测试 — text call 的 start + finish + 成本计算**
 
 在 `tests/test_usage_repo.py` 的 `TestMultiProviderUsage` 类末尾新增：
 
@@ -148,7 +148,7 @@ git commit -m "feat: add input_tokens and output_tokens columns to api_calls"
         assert item["cost_amount"] == 0.0
 ```
 
-- [ ] **Step 2: 运行测试验证失败**
+- [ ] **Step 2: 运行测试验证失敗**
 
 Run: `uv run python -m pytest tests/test_usage_repo.py::TestMultiProviderUsage::test_text_call_gemini_cost -v`
 Expected: FAIL — `finish_call()` 不接受 `input_tokens` 参数
@@ -215,7 +215,7 @@ Expected: FAIL — `finish_call()` 不接受 `input_tokens` 参数
 Run: `uv run python -m pytest tests/test_usage_repo.py::TestMultiProviderUsage -v`
 Expected: 全部 PASS（包括原有测试和 3 個新测试）
 
-- [ ] **Step 5: 写失败测试 — get_stats 包含 text_count**
+- [ ] **Step 5: 写失敗测试 — get_stats 包含 text_count**
 
 在 `tests/test_usage_repo.py` 的 `TestUsageRepository` 类中的 `test_get_stats` 方法末尾新增断言覆盖：
 
@@ -241,7 +241,7 @@ Expected: 全部 PASS（包括原有测试和 3 個新测试）
         assert stats["total_count"] == 3
 ```
 
-- [ ] **Step 6: 运行测试验证失败**
+- [ ] **Step 6: 运行测试验证失敗**
 
 Run: `uv run python -m pytest tests/test_usage_repo.py::TestUsageRepository::test_get_stats_includes_text_count -v`
 Expected: FAIL — `text_count` key 不存在
@@ -280,7 +280,7 @@ Expected: 全部 PASS
 
 ```bash
 git add lib/db/repositories/usage_repo.py tests/test_usage_repo.py
-git commit -m "feat: UsageRepository 支持 text call_type 成本计算和 text_count 统计"
+git commit -m "feat: UsageRepository 支持 text call_type 成本计算和 text_count 統計"
 ```
 
 ---
@@ -291,7 +291,7 @@ git commit -m "feat: UsageRepository 支持 text call_type 成本计算和 text_
 - Test: `tests/test_usage_tracker.py`
 - Modify: `lib/usage_tracker.py`
 
-- [ ] **Step 1: 写失败测试 — UsageTracker 处理 text call**
+- [ ] **Step 1: 写失敗测试 — UsageTracker 处理 text call**
 
 在 `tests/test_usage_tracker.py` 的 `TestUsageTracker` 类末尾新增：
 
@@ -323,7 +323,7 @@ git commit -m "feat: UsageRepository 支持 text call_type 成本计算和 text_
         assert stats["total_count"] == 1
 ```
 
-- [ ] **Step 2: 运行测试验证失败**
+- [ ] **Step 2: 运行测试验证失敗**
 
 Run: `uv run python -m pytest tests/test_usage_tracker.py::TestUsageTracker::test_text_call_with_token_tracking -v`
 Expected: FAIL — `finish_call()` 不接受 `input_tokens` 参数
@@ -387,7 +387,7 @@ git commit -m "feat: UsageTracker 透传 input_tokens/output_tokens 参数"
 - Create: `lib/text_generator.py`
 - Test: `tests/test_text_generator.py`
 
-- [ ] **Step 1: 写失败测试**
+- [ ] **Step 1: 写失敗测试**
 
 创建 `tests/test_text_generator.py`：
 
@@ -484,7 +484,7 @@ class TestTextGenerator:
         assert item["project_name"] == ""
 ```
 
-- [ ] **Step 2: 运行测试验证失败**
+- [ ] **Step 2: 运行测试验证失敗**
 
 Run: `uv run python -m pytest tests/test_text_generator.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'lib.text_generator'`
@@ -633,7 +633,7 @@ from lib.text_generator import TextGenerator
 ```python
     @classmethod
     async def create(cls, project_path: Union[str, Path]) -> "ScriptGenerator":
-        """异步工厂方法，自动从 DB 加载供应商配置创建 backend。"""
+        """異步工厂方法，自动从 DB 加载供应商配置创建 backend。"""
         from lib.text_backends.factory import create_text_backend_for_task
 
         project_name = Path(project_path).name
@@ -644,7 +644,7 @@ from lib.text_generator import TextGenerator
 ```python
     @classmethod
     async def create(cls, project_path: Union[str, Path]) -> "ScriptGenerator":
-        """异步工厂方法，自动从 DB 加载供应商配置创建 TextGenerator。"""
+        """異步工厂方法，自动从 DB 加载供应商配置创建 TextGenerator。"""
         project_name = Path(project_path).name
         generator = await TextGenerator.create(TextTaskType.SCRIPT, project_name)
         return cls(project_path, generator)
@@ -844,7 +844,7 @@ import { X, Image, Video, FileText, AlertCircle, DollarSign, ChevronLeft, Chevro
   output_tokens: number | null;
 ```
 
-**2c.** 在 Stats summary 的 grid 中，在 `视频` StatBlock 之后、`失败` StatBlock 之前新增文本统计：
+**2c.** 在 Stats summary 的 grid 中，在 `视频` StatBlock 之后、`失敗` StatBlock 之前新增文本統計：
 
 将 `grid-cols-4` 改为 `grid-cols-5`：
 
@@ -912,7 +912,7 @@ import { X, Image, Video, FileText, AlertCircle, DollarSign, ChevronLeft, Chevro
 
 修改 `frontend/src/components/pages/settings/UsageStatsSection.tsx`：
 
-在统计卡片的 `<div className="mt-2 flex ...">` 内部，将时长展示改为条件渲染：
+在統計卡片的 `<div className="mt-2 flex ...">` 内部，将时长展示改为条件渲染：
 
 将：
 ```typescript

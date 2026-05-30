@@ -95,10 +95,10 @@ async def test_default_allowed_tools_matches_sdk(self, tmp_path):
     await engine.dispose()
 ```
 
-**Step 2: 运行测试确认失败**
+**Step 2: 运行测试确认失敗**
 
 Run: `python -m pytest tests/test_session_manager_project_scope.py::TestAllowedToolsAndConstants::test_default_allowed_tools_matches_sdk -v`
-Expected: FAIL — `assert "Bash" not in tools` 失败
+Expected: FAIL — `assert "Bash" not in tools` 失敗
 
 **Step 3: 修改 DEFAULT_ALLOWED_TOOLS**
 
@@ -172,10 +172,10 @@ async def test_can_use_tool_callback_branches(self, session_manager, monkeypatch
     assert "user interrupted" in deny.message
 ```
 
-**Step 2: 运行测试确认失败**
+**Step 2: 运行测试确认失敗**
 
 Run: `python -m pytest tests/test_session_manager_more.py::TestSessionManagerMore::test_can_use_tool_callback_branches -v`
-Expected: FAIL — `assert isinstance(result, _FakeDeny)` 失败（当前返回 _FakeAllow）
+Expected: FAIL — `assert isinstance(result, _FakeDeny)` 失敗（当前返回 _FakeAllow）
 
 **Step 3: 修改 canUseTool 回调**
 
@@ -309,7 +309,7 @@ async def test_file_access_hook_allows_read_within_project_root(self, tmp_path):
 
 5. `test_file_access_hook_allows_read_agent_profile` — 保持不变（agent_runtime_profile 在 project_root 内）
 
-**Step 2: 运行测试确认失败**
+**Step 2: 运行测试确认失敗**
 
 Run: `python -m pytest tests/test_session_manager_project_scope.py -v`
 Expected: FAIL — 旧测试 `test_readonly_dirs_includes_agent_profile` 引用已删除的 `_READONLY_DIRS`
@@ -382,7 +382,7 @@ git commit -m "refactor: simplify file access hook, remove _READONLY_DIRS in fav
 Run: `python -m pytest -v`
 Expected: ALL PASS
 
-**Step 2: 如有失败，修复并重新运行**
+**Step 2: 如有失敗，修复并重新运行**
 
 ---
 

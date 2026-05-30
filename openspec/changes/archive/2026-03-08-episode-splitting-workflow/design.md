@@ -38,7 +38,7 @@ ArcReel 的剧本创建流程中，`normalize_drama_script.py` 默认读取 `sou
 
 ### Decision 1：切分定位方式——锚点文本匹配
 
-**选择**：`split_episode.py` 使用**锚点文本**（切分点前的 N 個字符）定位切分位置，而非数字偏移
+**選择**：`split_episode.py` 使用**锚点文本**（切分点前的 N 個字符）定位切分位置，而非数字偏移
 
 **流程**：
 ```
@@ -66,7 +66,7 @@ split --anchor "他转身离开了。" --dry-run    ← 先 dry run 验证
 
 ### Decision 2：物理切分 vs 逻辑映射
 
-**选择**：物理切分（生成 `source/episode_N.txt` 文件）
+**選择**：物理切分（生成 `source/episode_N.txt` 文件）
 
 **替代方案**：
 - 在 project.json 中记录 `{start_marker, end_marker}` 映射，脚本运行时动态截取 → 需要改多個下游脚本，锚点匹配容易出错
@@ -76,7 +76,7 @@ split --anchor "他转身离开了。" --dry-run    ← 先 dry run 验证
 
 ### Decision 2：字数计数规则
 
-**选择**：含标点，不含空行
+**選择**：含标点，不含空行
 
 - 计数范围：所有非空行中的字符（包括中文字、标点符号、数字、英文字母）
 - 排除：纯空白行（`\n`、`\r\n`、只含空格的行）
@@ -84,7 +84,7 @@ split --anchor "他转身离开了。" --dry-run    ← 先 dry run 验证
 
 ### Decision 3：剩余内容管理方式
 
-**选择**：覆盖式 `_remaining.txt`
+**選择**：覆盖式 `_remaining.txt`
 
 - 每次 split 后，`_remaining.txt` 被更新为剩余内容
 - 原文 `novel.txt`（或用户上传的原始文件）始终保留
@@ -96,13 +96,13 @@ split --anchor "他转身离开了。" --dry-run    ← 先 dry run 验证
 
 ### Decision 4：脚本放置位置
 
-**选择**：`agent_runtime_profile/.claude/skills/manage-project/scripts/`
+**選择**：`agent_runtime_profile/.claude/skills/manage-project/scripts/`
 
 **理由**：分集操作属于项目管理范畴，与已有的 `add_characters_clues.py` 同目录。不属于 `generate-script` skill（那個是生成 JSON 剧本的）。
 
 ### Decision 5：分集规划在工作流中的位置
 
-**选择**：阶段 2 的前置检查，而非独立阶段
+**選择**：阶段 2 的前置检查，而非独立阶段
 
 **理由**：
 - 分集规划只在需要时触发（`source/episode_{N}.txt` 不存在时）
@@ -128,7 +128,7 @@ split --anchor "他转身离开了。" --dry-run    ← 先 dry run 验证
 
 ## Risks / Trade-offs
 
-### [风险] 重新切分场景
+### [风险] 重新切分場景
 
 用户切完 3 集后发现第 1 集切分点不好，想重做。
 

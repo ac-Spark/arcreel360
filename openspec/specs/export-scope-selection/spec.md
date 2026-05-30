@@ -50,29 +50,29 @@
 - **WHEN** 以 `scope=current` 导出
 - **THEN** `arcreel-export.json` 中 `scope` 字段值为 `"current"`
 
-### Requirement: 前端导出交互支持范围选择
-前端 SHALL 在用户点击导出按钮后显示选择弹窗，提供两個导出选项：
+### Requirement: 前端导出交互支持范围選择
+前端 SHALL 在用户点击导出按钮后显示選择弹窗，提供两個导出選項：
 
-- **仅当前版本**（推荐）：标注为推荐选项，说明不含版本历史、体积更小
+- **仅当前版本**（推荐）：标注为推荐選項，说明不含版本历史、体积更小
 - **全部数据**：说明包含完整版本历史
 
-用户选择后，前端 SHALL 依次：
+用户選择后，前端 SHALL 依次：
 1. 调用 `POST /api/v1/projects/{name}/export/token` 获取下载 token
 2. 构造下载 URL：`/api/v1/projects/{name}/export?download_token=xxx&scope=yyy`
 3. 通过 `window.open` 或 `<a>` 标签触发浏览器原生下载
 
-#### Scenario: 用户选择仅当前版本导出
-- **WHEN** 用户点击导出按钮并选择 "仅当前版本"
+#### Scenario: 用户選择仅当前版本导出
+- **WHEN** 用户点击导出按钮并選择 "仅当前版本"
 - **THEN** 浏览器发起 `scope=current` 的原生下载请求，可在浏览器下载管理器中看到下载进度
 
-#### Scenario: 用户选择全部数据导出
-- **WHEN** 用户点击导出按钮并选择 "全部数据"
+#### Scenario: 用户選择全部数据导出
+- **WHEN** 用户点击导出按钮并選择 "全部数据"
 - **THEN** 浏览器发起 `scope=full` 的原生下载请求
 
 #### Scenario: 导出过程中用户可切换页面
 - **WHEN** 用户触发导出下载后切换到其他页面
 - **THEN** 下载不中断，因为由浏览器原生下载管理器接管
 
-#### Scenario: 下载 token 获取失败
-- **WHEN** 获取下载 token 的请求失败（网络错误或认证过期）
+#### Scenario: 下载 token 获取失敗
+- **WHEN** 获取下载 token 的请求失敗（网络错误或认证过期）
 - **THEN** 前端显示错误 toast 提示，不触发下载

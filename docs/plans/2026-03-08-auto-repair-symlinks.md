@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: 为 `repair_claude_symlink` 编写失败测试
+### Task 1: 为 `repair_claude_symlink` 编写失敗测试
 
 **Files:**
 - Modify: `tests/test_project_manager_symlink.py`
@@ -111,7 +111,7 @@ class TestRepairAllSymlinks:
         assert stats["created"] == 0
 ```
 
-**Step 2: 运行测试，确认全部失败**
+**Step 2: 运行测试，确认全部失敗**
 
 ```bash
 python -m pytest tests/test_project_manager_symlink.py::TestRepairClaudeSymlink tests/test_project_manager_symlink.py::TestRepairAllSymlinks -v
@@ -119,7 +119,7 @@ python -m pytest tests/test_project_manager_symlink.py::TestRepairClaudeSymlink 
 
 期望：全部 FAIL，报 `AttributeError: 'ProjectManager' object has no attribute 'repair_claude_symlink'`
 
-**Step 3: Commit 失败测试**
+**Step 3: Commit 失敗测试**
 
 ```bash
 git add tests/test_project_manager_symlink.py

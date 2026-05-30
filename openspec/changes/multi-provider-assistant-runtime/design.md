@@ -63,7 +63,7 @@ AssistantService
 
 - provider 标识与可用性检测
 - 新建会话 / 继续会话
-- 发送消息（文本，可选图片）
+- 发送消息（文本，可選图片）
 - 统一流式事件输出
 - capability 暴露
 - provider-specific 错误到统一错误模型的映射
@@ -230,13 +230,13 @@ ArcReel 真正需要补齐的不是 Claude 专属 hook 细节，而是可跨 pro
 
 ## Workflow-grade Provider Recommendation
 
-首個 workflow-grade provider 建议优先选择 `gemini-lite` 对应的 Gemini 路线，而不是 OpenAI-lite。
+首個 workflow-grade provider 建议优先選择 `gemini-lite` 对应的 Gemini 路线，而不是 OpenAI-lite。
 
 理由如下：
 
 - ArcReel 現有生成链路已经大量复用 Gemini 相关配置与能力，部署方更可能已有 Gemini 凭证
 - Gemini 路线对项目内文本与多模态上下文的复用成本更低，更适合从“项目 copilot”演进到“工作流推进器”
-- 对当前二开场景，Gemini-first 能更直接消除“只有 Gemini key 但 assistant 不能用”的核心痛点
+- 对当前二开場景，Gemini-first 能更直接消除“只有 Gemini key 但 assistant 不能用”的核心痛点
 
 OpenAI 仍然是有价值的第二条路线，主要优势在于通用 tool-calling 生态与 ChatGPT 兼容性；但从 ArcReel 的现状与迁移摩擦看，作为第二阶段补位更合理。
 
@@ -259,10 +259,10 @@ OpenAI 仍然是有价值的第二条路线，主要优势在于通用 tool-call
 - **最大风险**：抽象层若直接照搬 Claude 概念，Gemini 与 OpenAI provider 仍会被迫拟态 Claude，抽象失效
 - **产品取舍**：Gemini 与 OpenAI 首期能力较弱，用户会看到 provider 之间存在功能差异
 - **兼容成本**：前端当前默认 assistant 能力完整可用，加入 capability matrix 后需补一轮显式分支
-- **实现复杂度**：若试图在首期同时支持 subagent 和 resume，会显著放大工期与失败概率
+- **实现复杂度**：若试图在首期同时支持 subagent 和 resume，会显著放大工期与失敗概率
 
 ## Open Questions
 
 - Gemini 与 OpenAI 的工具执行是完全由服务端 orchestration 驱动，还是允许模型返回结构化 tool intent 再由服务端执行？
 - 現有 transcript / snapshot 数据结构是否需要允许 `provider=tier=lite` 的会话类型？
-- 是否允许用户在 UI 中切换 active provider，还是首期仅允许系统配置中选择默认 provider？
+- 是否允许用户在 UI 中切换 active provider，还是首期仅允许系统配置中選择默认 provider？

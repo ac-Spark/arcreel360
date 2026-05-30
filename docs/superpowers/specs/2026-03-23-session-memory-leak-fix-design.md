@@ -2,7 +2,7 @@
 
 ## 背景
 
-Claude SDK 子进程每個占用约 250MB 内存。当前 `SessionManager` 对 `idle` 状态的会话不执行任何清理，导致子进程永驻内存。在多会话场景下内存持续累积，最终 OOM。
+Claude SDK 子进程每個占用约 250MB 内存。当前 `SessionManager` 对 `idle` 状态的会话不执行任何清理，导致子进程永驻内存。在多会话場景下内存持续累积，最终 OOM。
 
 ### 根因
 

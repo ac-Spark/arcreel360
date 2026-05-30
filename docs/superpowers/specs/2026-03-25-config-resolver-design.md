@@ -110,7 +110,7 @@ class ConfigResolver:
 
 **同步 `generate_video()` 路径**：通过現有 `_sync()` helper 调用 async 的 ConfigResolver 方法，与其他 async 调用方式一致。
 
-**后端能力限制由后端自行处理**：ConfigResolver 返回"用户意图"，MediaGenerator 如实传递给后端。后端根据自身能力决定实际行为，并通过 `VideoGenerationResult.generate_audio` 回写实际值。MediaGenerator 在 `finish_call` 时用后端回写的实际值覆盖 usage 记录，确保用量统计与 API 实际行为一致。
+**后端能力限制由后端自行处理**：ConfigResolver 返回"用户意图"，MediaGenerator 如实传递给后端。后端根据自身能力决定实际行为，并通过 `VideoGenerationResult.generate_audio` 回写实际值。MediaGenerator 在 `finish_call` 时用后端回写的实际值覆盖 usage 记录，确保用量統計与 API 实际行为一致。
 
 职责分离：
 - **ConfigResolver**：返回用户配置（项目级覆盖 > 全局配置 > 默认值）
@@ -221,7 +221,7 @@ else:
 | `lib/video_backends/gemini.py` | `generate()` 回写实际 `generate_audio` 值 |
 | `lib/video_backends/seedance.py` | `generate()` 回写实际 `generate_audio` 值 |
 | `lib/video_backends/grok.py` | `generate()` 回写实际 `generate_audio` 值 |
-| `lib/usage_tracker.py` | `finish_call` 新增 `generate_audio` 可选参数 |
+| `lib/usage_tracker.py` | `finish_call` 新增 `generate_audio` 可選参数 |
 | `lib/db/repositories/usage_repo.py` | `finish_call` 支持用后端实际值覆盖 `generate_audio` |
 | 测试文件 | 更新 MediaGenerator 构造方式 |
 

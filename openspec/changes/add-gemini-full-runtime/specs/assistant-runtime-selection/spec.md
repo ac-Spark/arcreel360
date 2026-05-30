@@ -35,9 +35,9 @@
 - **WHEN** session list 响应尚未返回，前端用 `inferAssistantProvider(sessionId)` 推测
 - **THEN** UI 用保守 fallback（lite 能力）渲染，待 server 数据到达后立即覆盖
 
-### Requirement: 前端必须以「provider × 模式」二维选择呈现助手运行时
+### Requirement: 前端必须以「provider × 模式」二维選择呈现助手运行时
 
-前端在 `/settings` 助手区与新会话创建处 MUST 提供二维选择器：第一维 provider（Gemini / OpenAI / Claude），第二维 模式（对话 / 工作流）。当前不可用组合（OpenAI × 工作流）MUST 以禁用态显示并附带「未实现」提示。用户选择 MUST 同步映射到合法的 `provider_id`：
+前端在 `/settings` 助手区与新会话创建处 MUST 提供二维選择器：第一维 provider（Gemini / OpenAI / Claude），第二维 模式（对话 / 工作流）。当前不可用组合（OpenAI × 工作流）MUST 以禁用态显示并附带「未实现」提示。用户選择 MUST 同步映射到合法的 `provider_id`：
 
 | Provider | 模式 | provider_id |
 |---|---|---|
@@ -48,12 +48,12 @@
 | Claude | 工作流 | `claude` |
 | Claude | 对话 | （禁用） |
 
-#### Scenario: 用户选 Gemini × 工作流
-- **WHEN** 用户在选择器选 Gemini 列与工作流模式
+#### Scenario: 用户選 Gemini × 工作流
+- **WHEN** 用户在選择器選 Gemini 列与工作流模式
 - **THEN** 前端把对应设定 PUT 到 `system_setting.assistant_provider = 'gemini_full'`，下次新会话使用 full provider
 
 #### Scenario: 不可用组合禁用
-- **WHEN** 用户尝试选 OpenAI × 工作流
+- **WHEN** 用户尝试選 OpenAI × 工作流
 - **THEN** 该组合按钮禁用，hover 显示 tooltip「OpenAI 工作流模式尚未实现」
 
 ### Requirement: lite 与 full 命名必须有清晰文案，不再使用「不支援」措辞

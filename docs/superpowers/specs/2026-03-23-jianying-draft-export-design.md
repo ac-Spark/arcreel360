@@ -27,7 +27,7 @@
 
 ---
 
-## 技术选型
+## 技术選型
 
 **pyJianYingDraft**（`pyjianyingdraft>=0.2.6`）：2800+ Star 的成熟社区库，API 简洁，pip 可安装，与 ArcReel Python 后端一致。系统依赖 `mediainfo`（Docker 中需 `apt-get install`）。
 
@@ -61,7 +61,7 @@ GET /api/v1/projects/{name}/export/jianying-draft
 
 错误码：
 
-| 状态码 | 场景 |
+| 状态码 | 場景 |
 |--------|------|
 | 404 | 项目或集数不存在 |
 | 422 | 该集无已完成视频 / draft_path 为空或含控制字符 |
@@ -128,15 +128,15 @@ if content_mode == "narration":
 
 ### 入口
 
-在現有 `ExportScopeDialog` 弹窗中新增第三個选项：**"导出为剪映草稿"**。
+在現有 `ExportScopeDialog` 弹窗中新增第三個選項：**"导出为剪映草稿"**。
 
-选择后展开额外表单：
+選择后展开额外表单：
 
-#### 1. 集数选择（下拉框）
+#### 1. 集数選择（下拉框）
 
 - 数据源：`project.episodes[]`
 - 仅列出有已完成视频的集
-- 仅一集时自动选中，不显示下拉
+- 仅一集时自动選中，不显示下拉
 
 #### 2. 剪映草稿目录（文本输入框）
 
@@ -153,13 +153,13 @@ if content_mode == "narration":
 
 ### ExportScopeDialog 改造
 
-現有组件是简单的两按钮选择器（"仅当前版本"/"全部数据"），选择即触发 `onSelect(scope)`。改造为：
+現有组件是简单的两按钮選择器（"仅当前版本"/"全部数据"），選择即触发 `onSelect(scope)`。改造为：
 
 1. 扩展 `ExportScope` 类型：新增 `"jianying-draft"` 值
-2. 选择"导出为剪映草稿"后，弹窗从"选择模式"切换到"表单模式"，展开集数下拉 + 草稿目录输入框
+2. 選择"导出为剪映草稿"后，弹窗从"選择模式"切换到"表单模式"，展开集数下拉 + 草稿目录输入框
 3. 剪映导出走独立回调 `onJianyingExport(episode, draftPath)`，不复用 `onSelect`
 4. 组件内部需要接收 `episodes` prop（或从 store 读取）来填充集数下拉
-5. 状态机：选择模式 → 表单模式 → 导出中（按钮禁用）→ 完成（关闭弹窗）
+5. 状态机：選择模式 → 表单模式 → 导出中（按钮禁用）→ 完成（关闭弹窗）
 
 ### API 层
 
@@ -187,8 +187,8 @@ getJianyingDraftDownloadUrl(projectName: string, episode: number, draftPath: str
 
 ### 用户使用流程
 
-1. 工作台 → "导出 ZIP" → 选 "导出为剪映草稿"
-2. 选集数 + 填写剪映草稿目录（localStorage 自动回填）
+1. 工作台 → "导出 ZIP" → 選 "导出为剪映草稿"
+2. 選集数 + 填写剪映草稿目录（localStorage 自动回填）
 3. 点击导出，浏览器下载 ZIP
 4. 将 ZIP 解压到填写的剪映草稿目录中
 5. 打开剪映，草稿列表出现该项目，时间线已排好视频 + 字幕
@@ -226,12 +226,12 @@ json_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
 ## 错误处理
 
-| 场景 | 处理 |
+| 場景 | 处理 |
 |------|------|
 | 集数不存在 | 404 + "第 N 集不存在" |
 | 该集无已完成视频 | 422 + "请先生成视频" |
 | 视频文件缺失（script 有记录但文件不在） | 跳过该片段，仅导出存在的视频 |
-| pyjianyingdraft 生成失败 | 500 + 日志记录，返回友好错误 |
+| pyjianyingdraft 生成失敗 | 500 + 日志记录，返回友好错误 |
 | draft_path 为空、含控制字符、或超过 1024 字符 | 422 + "请提供有效的剪映草稿目录路径" |
 
 ---

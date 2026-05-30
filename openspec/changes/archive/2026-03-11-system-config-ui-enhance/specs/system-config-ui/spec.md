@@ -5,8 +5,8 @@
 配置页 SHALL 将顶栏 Tab 从原有的 `[config, api-keys]` 扩展为四個 Tab：**ArcReel 智能体配置**（agent）、**AI 生图/生视频配置**（media）、**高级配置**（advanced）、**API Keys**（api-keys）。
 
 各 Tab 承载内容：
-- **ArcReel 智能体配置**：Anthropic API Key、Base URL、各模型选择字段
-- **AI 生图/生视频配置**：Gemini API Key、Base URL、后端选择、模型选择、Vertex 凭证等
+- **ArcReel 智能体配置**：Anthropic API Key、Base URL、各模型選择字段
+- **AI 生图/生视频配置**：Gemini API Key、Base URL、后端選择、模型選择、Vertex 凭证等
 - **高级配置**：速率限制（RPM）、请求间隔、最大并发 Worker 数
 - **API Keys**：現有 API Key 管理功能（不变）
 
@@ -32,7 +32,7 @@
 - **WHEN** Tab 保存请求正在进行
 - **THEN** Tab 内所有输入框 SHALL 禁用，保存按钮显示加载态，防止重复提交
 
-#### Scenario: Tab 保存失败
+#### Scenario: Tab 保存失敗
 - **WHEN** 保存请求返回错误
 - **THEN** 系统 SHALL 在保存按钮旁显示错误提示，字段值保持用户编辑的内容
 
@@ -68,16 +68,16 @@
 
 ---
 
-### Requirement: 所有可选字段统一提供清除按钮
+### Requirement: 所有可選字段统一提供清除按钮
 
-所有非必填配置字段（包括 base_url、API key 等可选项）SHALL 在有值时显示清除（×）按钮，点击后立即清空字段值并触发 Tab 的未保存状态。
+所有非必填配置字段（包括 base_url、API key 等可選項）SHALL 在有值时显示清除（×）按钮，点击后立即清空字段值并触发 Tab 的未保存状态。
 
 #### Scenario: 用户清除字段值
-- **WHEN** 可选字段有值，用户点击清除按钮
+- **WHEN** 可選字段有值，用户点击清除按钮
 - **THEN** 字段值 SHALL 立即清空，清除按钮消失，Tab 进入已修改状态（保存页脚变 sticky）
 
 #### Scenario: 字段为空时
-- **WHEN** 可选字段值为空
+- **WHEN** 可選字段值为空
 - **THEN** 清除按钮 SHALL 不显示
 
 ---

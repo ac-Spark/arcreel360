@@ -4,7 +4,7 @@
 
 **Goal:** 将 ArcReel 单集已生成的视频片段导出为剪映草稿 ZIP，用户解压到本地剪映草稿目录后直接在剪映中打开编辑。
 
-**Architecture:** 后端新增 `JianyingDraftService` 服务层，调用 pyjianyingdraft 库生成草稿文件 + ZIP 打包。复用現有 download token 签发机制，新增一個 GET 端点返回 ZIP 流。前端改造 `ExportScopeDialog`，新增剪映草稿选项（含集数下拉 + 草稿目录输入框）。
+**Architecture:** 后端新增 `JianyingDraftService` 服务层，调用 pyjianyingdraft 库生成草稿文件 + ZIP 打包。复用現有 download token 签发机制，新增一個 GET 端点返回 ZIP 流。前端改造 `ExportScopeDialog`，新增剪映草稿選項（含集数下拉 + 草稿目录输入框）。
 
 **Tech Stack:** pyjianyingdraft (Python), FastAPI, React + TypeScript, zustand
 
@@ -23,7 +23,7 @@
 | 创建 | `tests/test_jianying_draft_routes.py` | 路由层集成测试 |
 | 修改 | `server/routers/projects.py` | 新增 GET 导出端点 |
 | 修改 | `frontend/src/api.ts` | 新增下载 URL 构造方法 |
-| 修改 | `frontend/src/components/layout/ExportScopeDialog.tsx` | 扩展 ExportScope 类型 + 新增剪映草稿选项 + 表单 |
+| 修改 | `frontend/src/components/layout/ExportScopeDialog.tsx` | 扩展 ExportScope 类型 + 新增剪映草稿選項 + 表单 |
 | 修改 | `frontend/src/components/layout/GlobalHeader.tsx` | 处理剪映导出回调 |
 | 修改 | `frontend/src/components/layout/GlobalHeader.test.tsx` | 适配新的 ExportScopeDialog props |
 
@@ -171,7 +171,7 @@ class TestResolveCanvasSize:
         assert (w, h) == (1920, 1080)
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_jianying_draft_service.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'server.services.jianying_draft_service'`
@@ -428,7 +428,7 @@ class TestReplacePaths:
         assert result["other"] == "no change"
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_jianying_draft_service.py::TestGenerateDraft -v`
 Expected: FAIL — `AttributeError: 'JianyingDraftService' object has no attribute '_generate_draft'`
@@ -685,7 +685,7 @@ class TestExportEpisodeDraft:
             svc.export_episode_draft(project_name="empty", episode=1, draft_path="/tmp")
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_jianying_draft_service.py::TestExportEpisodeDraft -v`
 Expected: FAIL — `AttributeError: 'JianyingDraftService' object has no attribute 'export_episode_draft'`
@@ -995,7 +995,7 @@ class TestJianyingDraftExport:
         assert response.status_code == 403
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_jianying_draft_routes.py -v`
 Expected: FAIL — 404（端点不存在）
@@ -1057,8 +1057,8 @@ async def export_jianying_draft(
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception:
-        logger.exception("剪映草稿导出失败: project=%s episode=%d", name, episode)
-        raise HTTPException(status_code=500, detail="剪映草稿导出失败，请稍后重试")
+        logger.exception("剪映草稿导出失敗: project=%s episode=%d", name, episode)
+        raise HTTPException(status_code=500, detail="剪映草稿导出失敗，请稍后重试")
 
     download_name = f"{name}_第{episode}集_剪映草稿.zip"
 
@@ -1151,13 +1151,13 @@ git commit -m "feat(jianying): add frontend API method and extend ExportScope ty
 
 - [ ] **Step 1: 改造 ExportScopeDialog 组件**
 
-重写 `ExportScopeDialog.tsx`，保留原有的两個导出选项，新增剪映草稿选项和表单模式：
+重写 `ExportScopeDialog.tsx`，保留原有的两個导出選項，新增剪映草稿選項和表单模式：
 
 ```typescript
 // ExportScopeDialog 改造要点：
 // 1. 新增 props: episodes (EpisodeMeta[]), onJianyingExport(episode, draftPath)
 // 2. 内部状态：mode ("select" | "jianying-form")
-// 3. 选择"剪映草稿"后切换到表单模式
+// 3. 選择"剪映草稿"后切换到表单模式
 // 4. 表单包含：集数下拉 + 草稿目录输入框 + 导出按钮
 // 5. localStorage 缓存草稿目录
 // 6. OS 检测 placeholder
@@ -1184,7 +1184,7 @@ interface ExportScopeDialogProps {
 - **草稿目录输入**：`<input type="text">`，`onChange` 时同步写 `localStorage.setItem("arcreel_jianying_draft_path", value)`
 - **OS placeholder**：`navigator.platform.includes("Win")` 区分 Windows/macOS 路径示例
 - **导出按钮**：`jianyingExporting` 时禁用，显示"导出中..."
-- **返回按钮**：表单模式左上角 ← 回到选择模式
+- **返回按钮**：表单模式左上角 ← 回到選择模式
 
 - [ ] **Step 2: 运行前端类型检查**
 
@@ -1226,7 +1226,7 @@ const handleJianyingExport = async (episode: number, draftPath: string) => {
     setExportDialogOpen(false);
     toast.success("导出已开始，请将下载的 ZIP 解压到剪映草稿目录中");
   } catch (err) {
-    toast.error(`剪映草稿导出失败: ${err instanceof Error ? err.message : "未知错误"}`);
+    toast.error(`剪映草稿导出失敗: ${err instanceof Error ? err.message : "未知错误"}`);
   } finally {
     setJianyingExporting(false);
   }
@@ -1289,9 +1289,9 @@ cd frontend && pnpm dev
 
 验证流程：
 1. 打开工作台，点击"导出 ZIP"
-2. 看到三個选项：仅当前版本 / 全部数据 / 导出为剪映草稿
-3. 选择剪映草稿，弹出表单
-4. 选集数，填草稿目录，点导出
+2. 看到三個選項：仅当前版本 / 全部数据 / 导出为剪映草稿
+3. 選择剪映草稿，弹出表单
+4. 選集数，填草稿目录，点导出
 5. 下载 ZIP，解压后验证 `draft_content.json` 路径正确
 
 - [ ] **Step 4: 最终提交（如有遗漏修复）**

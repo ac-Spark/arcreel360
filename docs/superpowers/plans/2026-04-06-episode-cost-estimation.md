@@ -84,7 +84,7 @@ git commit -m "feat: ApiCall 新增 segment_id 字段"
 - Modify: `lib/usage_tracker.py:24-51`
 - Test: `tests/test_usage_tracker.py`
 
-- [ ] **Step 1: 写失败测试**
+- [ ] **Step 1: 写失敗测试**
 
 在 `tests/test_usage_tracker.py` 添加：
 
@@ -117,7 +117,7 @@ git commit -m "feat: ApiCall 新增 segment_id 字段"
         assert item["segment_id"] is None
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_usage_tracker.py::TestUsageTracker::test_start_call_with_segment_id -v`
 Expected: FAIL — `start_call()` 不接受 `segment_id` 参数
@@ -267,7 +267,7 @@ git commit -m "feat: MediaGenerator 将 resource_id 作为 segment_id 传入 Usa
 - Modify: `lib/db/repositories/usage_repo.py`
 - Test: `tests/test_usage_tracker.py`
 
-- [ ] **Step 1: 写失败测试**
+- [ ] **Step 1: 写失敗测试**
 
 在 `tests/test_usage_tracker.py` 添加新测试类：
 
@@ -288,7 +288,7 @@ class TestActualCostsBySegment:
         c4 = await tracker.start_call("proj", "image", "gemini-3.1-flash-image-preview", resolution="1K", segment_id="E1S002")
         await tracker.finish_call(c4, status="success", output_path="c.png")
 
-        # 失败的不计入
+        # 失敗的不计入
         c5 = await tracker.start_call("proj", "image", "gemini-3.1-flash-image-preview", resolution="1K", segment_id="E1S001")
         await tracker.finish_call(c5, status="failed", error_message="err")
 
@@ -309,7 +309,7 @@ class TestActualCostsBySegment:
         assert result.get("__project__", {}).get("image", {}).get("USD") == pytest.approx(0.067)
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_usage_tracker.py::TestActualCostsBySegment -v`
 Expected: FAIL — `get_actual_costs_by_segment` 不存在
@@ -383,7 +383,7 @@ git commit -m "feat: 新增按 segment 汇总实际费用查询"
 - Create: `server/services/cost_estimation.py`
 - Test: `tests/test_cost_estimation_service.py`
 
-- [ ] **Step 1: 写失败测试**
+- [ ] **Step 1: 写失敗测试**
 
 创建 `tests/test_cost_estimation_service.py`：
 
@@ -496,7 +496,7 @@ class TestCostEstimationService:
         assert result["project_totals"]["estimate"] == {}
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_cost_estimation_service.py -v`
 Expected: FAIL — `cost_estimation` 模块不存在
@@ -776,7 +776,7 @@ async def get_cost_estimate(project_name: str, _user: CurrentUser):
     try:
         return await service.compute(project_data, scripts, project_name=project_name)
     except Exception as e:
-        logger.exception("费用估算失败")
+        logger.exception("费用估算失敗")
         raise HTTPException(status_code=500, detail=str(e))
 ```
 

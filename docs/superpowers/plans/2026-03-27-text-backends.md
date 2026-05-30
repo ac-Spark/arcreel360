@@ -2319,7 +2319,7 @@ git commit -m "feat: frontend types and config-status for text backends"
 { id: "media", label: "图片/视频", Icon: Film },
 
 // After:
-{ id: "media", label: "模型选择", Icon: Film },
+{ id: "media", label: "模型選择", Icon: Film },
 ```
 
 - [ ] **Step 2: Expand MediaModelSection with text model selectors**
@@ -2330,7 +2330,7 @@ Add text model section after the image backend selector:
 {/* Text backend selectors */}
 <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">
   <div className="mb-3 text-sm font-medium text-gray-100">文本模型</div>
-  <p className="mb-3 text-xs text-gray-500">按任务类型配置文本模型，留空表示自动选择</p>
+  <p className="mb-3 text-xs text-gray-500">按任务类型配置文本模型，留空表示自动選择</p>
 
   {textBackends.length > 0 ? (
     <div className="space-y-3">
@@ -2366,7 +2366,7 @@ Update the section heading:
 <h3 className="text-lg font-semibold text-gray-100">图片 / 视频模型</h3>
 
 // After:
-<h3 className="text-lg font-semibold text-gray-100">模型选择</h3>
+<h3 className="text-lg font-semibold text-gray-100">模型選择</h3>
 <p className="mt-1 text-sm text-gray-500">设置全局默认的生成模型，项目内可单独覆盖</p>
 ```
 
@@ -2385,7 +2385,7 @@ Expected: All pass
 ```bash
 git add frontend/src/components/pages/settings/MediaModelSection.tsx \
   frontend/src/components/pages/SystemConfigPage.tsx
-git commit -m "feat: rename tab to 模型选择, add text model selectors"
+git commit -m "feat: rename tab to 模型選择, add text model selectors"
 ```
 
 ---

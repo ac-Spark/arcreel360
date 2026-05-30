@@ -8,7 +8,7 @@
 随着多供应商（Gemini AI Studio、Gemini Vertex AI、Seedance、Grok）的接入，需要：
 
 1. 将系统配置存储从 JSON 文件迁移到数据库
-2. 重构全局设置页为侧边栏布局，新增供应商管理与用量统计
+2. 重构全局设置页为侧边栏布局，新增供应商管理与用量統計
 3. API 按职责分层，新增 `/api/v1/providers` 路由
 4. 修复项目设置页路由，支持项目级模型覆盖
 
@@ -98,7 +98,7 @@ system_setting 存储的键包括：
 ```
 lib/config/
 ├── models.py          # ORM: ProviderConfig, SystemSetting
-├── repository.py      # 异步 CRUD: ProviderConfigRepository, SystemSettingRepository
+├── repository.py      # 異步 CRUD: ProviderConfigRepository, SystemSettingRepository
 ├── service.py         # ConfigService 业务逻辑
 ├── registry.py        # PROVIDER_REGISTRY 静态元数据
 └── migration.py       # JSON → DB 一次性迁移
@@ -243,7 +243,7 @@ class ProviderStatus:
 
 连接测试，返回可用模型列表。各供应商测试策略不同：
 - **gemini-aistudio / gemini-vertex**: 调用 list models API 验证凭证和连接
-- **seedance / grok**: 若 API 不支持 list models，则发送轻量级验证请求（如获取账户信息或发送最小参数请求），返回成功/失败即可，`available_models` 为该供应商在 registry 中注册的模型列表
+- **seedance / grok**: 若 API 不支持 list models，则发送轻量级验证请求（如获取账户信息或发送最小参数请求），返回成功/失敗即可，`available_models` 为该供应商在 registry 中注册的模型列表
 
 ```json
 {
@@ -297,9 +297,9 @@ Vertex AI 凭证文件上传（特殊端点），保持現有上传逻辑。
 { "default_video_backend": "seedance/doubao-seedance-1-5-pro-251215" }
 ```
 
-### 3.3 `/api/v1/usage/stats` — 用量统计
+### 3.3 `/api/v1/usage/stats` — 用量統計
 
-扩展現有 usage API，增加筛选和分组。
+扩展現有 usage API，增加筛選和分组。
 
 **GET /api/v1/usage/stats?provider=gemini-vertex&start=2026-03-01&end=2026-03-18&group_by=provider**
 
@@ -325,7 +325,7 @@ Vertex AI 凭证文件上传（特殊端点），保持現有上传逻辑。
 |---|---|---|
 | `/api/v1/providers` | 供应商 CRUD、连接测试 | 供应商 |
 | `/api/v1/system/config` | 全局默认设置 | 智能体 + 图片/视频 |
-| `/api/v1/usage/stats` | 用量统计查询 | 用量统计 |
+| `/api/v1/usage/stats` | 用量統計查询 | 用量統計 |
 
 ## 4. 前端设计
 
@@ -340,7 +340,7 @@ Vertex AI 凭证文件上传（特殊端点），保持現有上传逻辑。
 │ 🤖 智能体 │                                  │
 │ 🔌 供应商 │                                  │
 │ 🎬 图片/视频│                                │
-│ 📊 用量统计│                                 │
+│ 📊 用量統計│                                 │
 │          │                                  │
 └──────────┴──────────────────────────────────┘
 ```
@@ -369,9 +369,9 @@ Vertex AI 凭证文件上传（特殊端点），保持現有上传逻辑。
 - 连接测试按钮内联在详情底部
 - 高级配置区（折叠）：并发数（image_max_workers, video_max_workers）、限流（rpm, request_gap），按该供应商支持的 media_types 动态展示
 
-### 4.3 图片/视频栏位 — 分组下拉选择
+### 4.3 图片/视频栏位 — 分组下拉選择
 
-两個选择器：默认视频模型、默认图片模型。
+两個選择器：默认视频模型、默认图片模型。
 
 下拉列表按供应商分组显示（仅 status=ready 的供应商）：
 
@@ -386,13 +386,13 @@ Vertex AI 凭证文件上传（特殊端点），保持現有上传逻辑。
    doubao-seedance-1-5-pro-251215
 ```
 
-附加选项：
+附加選項：
 - `video_generate_audio` 开关（标注"仅部分供应商支持"）
 
-### 4.4 用量统计栏位
+### 4.4 用量統計栏位
 
 - 按供应商分组展示用量数据
-- 筛选器：时间范围、供应商、调用类型（video/image）
+- 筛選器：时间范围、供应商、调用类型（video/image）
 - 展示字段：调用次数、成功率、费用、时长
 
 ### 4.5 智能体栏位
@@ -401,10 +401,10 @@ Vertex AI 凭证文件上传（特殊端点），保持現有上传逻辑。
 
 ### 4.6 通用组件
 
-**`ProviderModelSelect`** — 分组下拉选择组件
+**`ProviderModelSelect`** — 分组下拉選择组件
 
 - 接收 `options: string[]`（`provider_id/model_id` 格式）和 `providerDisplayNames: Record<string, string>`
-- 按 `/` 拆分，provider 作为分组标题，model 作为选项
+- 按 `/` 拆分，provider 作为分组标题，model 作为選項
 - 复用于全局设置页和项目设置页
 
 ## 5. 项目设置页
@@ -417,13 +417,13 @@ Vertex AI 凭证文件上传（特殊端点），保持現有上传逻辑。
 
 ### 5.2 内容
 
-支持覆盖全局默认的模型选择：
+支持覆盖全局默认的模型選择：
 
-- **视频模型** — 分组下拉，顶部额外选项「跟随全局默认」（显示当前全局值作为 hint）
+- **视频模型** — 分组下拉，顶部额外選項「跟随全局默认」（显示当前全局值作为 hint）
 - **图片模型** — 同上
 - **生成音频** — 三态：跟随全局 / 开启 / 关闭
 
-选择 `null` 即跟随全局默认。
+選择 `null` 即跟随全局默认。
 
 ### 5.3 数据存储
 
@@ -455,7 +455,7 @@ Vertex AI 凭证文件上传（特殊端点），保持現有上传逻辑。
 | `server/auth.py` | 认证相关配置改走 ConfigService |
 | `server/agent_runtime/session_manager.py` | Agent 相关配置改走 ConfigService |
 | `lib/generation_worker.py` | **架构重构**：从全局 2 通道（image/video 各 N workers）改为按供应商分池调度，每個供应商独立并发数和限流。任务入队时携带 provider_id，Worker 根据 provider 分配到对应池 |
-| `lib/usage_tracker.py` / `server/routers/usage.py` | 扩展筛选参数 |
+| `lib/usage_tracker.py` / `server/routers/usage.py` | 扩展筛選参数 |
 
 ### 6.2 前端
 
@@ -467,7 +467,7 @@ Vertex AI 凭证文件上传（特殊端点），保持現有上传逻辑。
 | `AdvancedConfigTab.tsx` | 废弃，并发/限流配置移入供应商详情 |
 | `ApiKeysTab.tsx` | 废弃，合并到供应商配置 |
 | `config-status-store.ts` | 改用 `/api/v1/providers` 判断配置状态 |
-| 新增 `UsageStatsSection.tsx` | 用量统计栏位 |
+| 新增 `UsageStatsSection.tsx` | 用量統計栏位 |
 | 新增 `ProviderModelSelect.tsx` | 分组下拉组件 |
 | 项目设置页 | 修复路由为全屏 overlay + 模型覆盖 UI |
 

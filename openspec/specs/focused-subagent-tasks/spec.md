@@ -14,7 +14,7 @@
 
 #### Scenario: normalize-drama-script subagent 契约
 - **WHEN** 该 subagent 被 dispatch
-- **THEN** 它接收项目名称、集数作为输入，首次生成时通过 Bash 调用 `normalize_drama_script.py` 脚本（使用 gemini-3.1-pro-preview 模型）生成规范化剧本和镜头预算，保存 `drafts/episode_{N}/step1_normalized_script.md` 和 `step2_shot_budget.md`，返回场景数量和镜头分布摘要；后续修改时由 subagent 直接编辑已有的 Markdown 文件
+- **THEN** 它接收项目名称、集数作为输入，首次生成时通过 Bash 调用 `normalize_drama_script.py` 脚本（使用 gemini-3.1-pro-preview 模型）生成规范化剧本和镜头预算，保存 `drafts/episode_{N}/step1_normalized_script.md` 和 `step2_shot_budget.md`，返回場景数量和镜头分布摘要；后续修改时由 subagent 直接编辑已有的 Markdown 文件
 
 #### Scenario: create-episode-script subagent 契约
 - **WHEN** 该 subagent 被 dispatch
@@ -42,7 +42,7 @@
 
 #### Scenario: drama 模式使用 normalize-drama-script
 - **WHEN** project 的 content_mode 为 "drama"
-- **THEN** 编排 skill 指引主 agent dispatch `normalize-drama-script` subagent，执行规范化剧本（结构化场景、时间、地点、角色）+ 镜头预算（预估镜头数、标记 segment_break），输出 step1_normalized_script.md 和 step2_shot_budget.md
+- **THEN** 编排 skill 指引主 agent dispatch `normalize-drama-script` subagent，执行规范化剧本（结构化場景、时间、地点、角色）+ 镜头预算（预估镜头数、标记 segment_break），输出 step1_normalized_script.md 和 step2_shot_budget.md
 
 ### Requirement: create-episode-script subagent 须预加载 generate-script skill
 
@@ -74,7 +74,7 @@ SHALL 提供 `add_characters_clues.py` 脚本，封装 `ProjectManager.add_chara
 
 #### Scenario: 批量添加角色和线索
 - **WHEN** subagent 通过 Bash 调用 `add_characters_clues.py` 并传入 JSON 格式的角色/线索数据
-- **THEN** 脚本将角色/线索写入 project.json，调用 validate_project 验证，打印成功/失败摘要
+- **THEN** 脚本将角色/线索写入 project.json，调用 validate_project 验证，打印成功/失敗摘要
 
 #### Scenario: 已存在的角色自动跳过
 - **WHEN** 传入的角色名在 project.json 中已存在

@@ -1,4 +1,4 @@
-# 生成接口异步化设计
+# 生成接口異步化设计
 
 ## 日期
 2026-03-04
@@ -19,7 +19,7 @@
 之前：前端 → generate.py → await Gemini API (30s+) → 返回结果
 之后：前端 → generate.py → enqueue_task() → 立即返回 {task_id}
                                     ↓
-                          GenerationWorker 异步执行
+                          GenerationWorker 異步执行
                                     ↓
                           tasks/stream SSE → 前端 TaskHud 显示状态
                           project events SSE → 前端 refreshProject() + 刷新资源

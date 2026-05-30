@@ -247,7 +247,7 @@ git commit -m "feat: return video_uri from extend_video for persistence"
 
 try:
     if video_ref is None:
-        # 第一個场景：使用 image-to-video
+        # 第一個場景：使用 image-to-video
         print(f"    🎥 生成初始视频（{duration}秒）...")
         output_path, video_ref, video_uri = client.generate_video_with_ref(
             prompt=prompt,
@@ -258,7 +258,7 @@ try:
             output_path=segment_output
         )
     else:
-        # 后续场景：使用 extend
+        # 后续場景：使用 extend
         print(f"    🔗 扩展视频（+7秒）...")
         output_path, video_ref, video_uri = client.extend_video(
             video_ref=video_ref,
@@ -388,7 +388,7 @@ git commit -m "docs: add video reference persistence documentation"
 ```markdown
 ### 视频规格
 - **视频比例**：16:9 横屏格式（Veo extend 限制）
-- **单场景时长**：默认 8 秒
+- **单場景时长**：默认 8 秒
 - **扩展时长**：每次 +7 秒
 - **连续视频最大时长**：148 秒（约 2.5 分钟）
 - **分辨率**：720p（扩展模式限制）
@@ -438,7 +438,7 @@ Expected: 无输出（成功）
 **Step 2: 验证 CLI 帮助**
 
 Run: `PYTHONPATH=. python .claude/skills/generate-video/scripts/generate_video.py --help`
-Expected: 显示帮助信息，包含 `--continuous`, `--episode`, `--resume` 选项
+Expected: 显示帮助信息，包含 `--continuous`, `--episode`, `--resume` 選項
 
 **Step 3: 验证 segment 分组**
 
@@ -461,13 +461,13 @@ for s in scenes:
 if current:
     segments.append(current)
 
-print(f'场景数: {len(scenes)}')
+print(f'場景数: {len(scenes)}')
 print(f'片段数: {len(segments)}')
 for i, seg in enumerate(segments):
-    print(f'  片段 {i+1}: {len(seg)} 场景')
+    print(f'  片段 {i+1}: {len(seg)} 場景')
 "
 ```
-Expected: 显示 22 個场景，4 個片段
+Expected: 显示 22 個場景，4 個片段
 
 **Step 4: 最终 Commit**
 
@@ -478,9 +478,9 @@ git commit -m "feat: complete video reference persistence implementation"
 
 ---
 
-## 可选：Task 9: 实际 API 测试
+## 可選：Task 9: 实际 API 测试
 
-**注意：此任务需要消耗 API 配额，可选执行**
+**注意：此任务需要消耗 API 配额，可選执行**
 
 **Step 1: 生成第一個视频并保存 checkpoint**
 

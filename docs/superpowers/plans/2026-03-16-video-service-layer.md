@@ -29,7 +29,7 @@
 | Modify | `tests/test_cost_calculator.py` | 新增 Seedance 计费测试 |
 | Modify | `lib/db/models/api_call.py` | 新增 provider/currency/usage_tokens 列 |
 | Create | Alembic migration | 数据库迁移脚本 |
-| Modify | `lib/db/repositories/usage_repo.py` | provider-aware 计费 + 按币种分组统计 |
+| Modify | `lib/db/repositories/usage_repo.py` | provider-aware 计费 + 按币种分组統計 |
 | Modify | `lib/usage_tracker.py` | 传递 provider 参数 |
 | Modify | `tests/test_usage_repo.py` | 新增多供应商用量测试 |
 | Modify | `lib/system_config.py` | 新增 video_provider / ark_api_key / file_service_base_url 配置项 |
@@ -136,7 +136,7 @@ class TestVideoGenerationResult:
         assert result.task_id == "cgt-20250101"
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `python -m pytest tests/test_video_backend_base.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'lib.video_backends'`
@@ -311,7 +311,7 @@ class TestRegistry:
         assert backend.api_key == "overwritten"
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `python -m pytest tests/test_video_backend_registry.py -v`
 Expected: FAIL — `ModuleNotFoundError`
@@ -456,7 +456,7 @@ class TestSeedanceCost:
         assert amount == pytest.approx(16.0)
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `python -m pytest tests/test_cost_calculator.py::TestSeedanceCost -v`
 Expected: FAIL — `AttributeError: 'CostCalculator' object has no attribute 'calculate_seedance_video_cost'`
@@ -674,7 +674,7 @@ class TestMultiProviderUsage:
         assert stats["total_cost"] == pytest.approx(3.2)
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `python -m pytest tests/test_usage_repo.py::TestMultiProviderUsage -v`
 Expected: FAIL
@@ -685,7 +685,7 @@ Expected: FAIL
 
 1. `_row_to_dict`: 将 `cost_usd` 改为 `cost_amount`，新增 `currency`、`provider`、`usage_tokens` 字段
 2. `start_call`: 新增 `provider: str = "gemini"` 参数，写入 `ApiCall.provider`
-3. `finish_call`: 新增 `usage_tokens`、`provider`、`service_tier` 可选参数；根据 provider 分派计费逻辑：
+3. `finish_call`: 新增 `usage_tokens`、`provider`、`service_tier` 可選参数；根据 provider 分派计费逻辑：
    - `provider == "gemini"` → 現有 `cost_calculator.calculate_video_cost()`，`currency = "USD"`
    - `provider == "seedance"` → `cost_calculator.calculate_seedance_video_cost()`，`currency = "CNY"`
    - 更新时写入 `cost_amount`、`currency`、`usage_tokens`
@@ -843,7 +843,7 @@ class TestGeminiVideoBackendGenerate:
         assert result.provider == "gemini"
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `python -m pytest tests/test_video_backend_gemini.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'lib.video_backends.gemini'`
@@ -894,7 +894,7 @@ async def generate(self, request: VideoGenerationRequest) -> VideoGenerationResu
     image_param = self._prepare_image_param(request.start_image) if request.start_image else None
     source = self._types.GenerateVideosSource(prompt=request.prompt, image=image_param)
 
-    # 5. 调用 API + 异步轮询
+    # 5. 调用 API + 異步轮询
     operation = await self._client.aio.models.generate_videos(
         model=self._video_model, source=source, config=config
     )
@@ -1093,7 +1093,7 @@ class TestSeedanceGenerate:
             assert image_items[0]["image_url"]["url"] == "https://example.com/files/frame.png"
 
     async def test_failed_task_raises(self, backend, tmp_path):
-        """任务失败应抛出异常。"""
+        """任务失敗应抛出异常。"""
         output = tmp_path / "out.mp4"
 
         create_result = MagicMock()
@@ -1180,7 +1180,7 @@ class TestSeedanceGenerate:
         assert create_call.kwargs.get("service_tier") == "flex"
 ```
 
-- [ ] **Step 3: 运行测试确认失败**
+- [ ] **Step 3: 运行测试确认失敗**
 
 Run: `python -m pytest tests/test_video_backend_seedance.py -v`
 Expected: FAIL — `ModuleNotFoundError`
@@ -1201,7 +1201,7 @@ Expected: FAIL — `ModuleNotFoundError`
 - `_upload_image(path)`: POST 到 `{file_service_base_url}/api/v1/files/upload` 获取公网 URL
 - 轮询间隔：`default` → 10s，`flex` → 60s
 - 超时：`default` → 600s，`flex` → 172800s
-- `generate` 接受可选 `_poll_interval_override` 参数供测试用
+- `generate` 接受可選 `_poll_interval_override` 参数供测试用
 
 - [ ] **Step 5: 运行测试确认通过**
 
@@ -1424,7 +1424,7 @@ def _create_video_backend(provider_name: str, provider_settings: dict) -> VideoB
         )
 ```
 
-同时更新 `GenerateVideoRequest` 模型，新增可选 `seed` 字段：
+同时更新 `GenerateVideoRequest` 模型，新增可選 `seed` 字段：
 
 ```python
 class GenerateVideoRequest(BaseModel):

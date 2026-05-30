@@ -36,7 +36,7 @@
 ## 6. 主 Agent Prompt 增强
 
 - [x] 6.1 更新 `server/agent_runtime/session_manager.py` 中 `_PERSONA_PROMPT`：增加编排意识——理解工作流阶段、知道何时 dispatch 哪個 subagent
-- [x] 6.2 评估 `_build_append_prompt()` 是否需要注入当前工作流阶段状态（可选优化）
+- [x] 6.2 评估 `_build_append_prompt()` 是否需要注入当前工作流阶段状态（可選优化）
 
 ## 7. 集成测试与验证
 

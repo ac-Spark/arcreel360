@@ -1,6 +1,6 @@
 ## Why
 
-当前 ArcReel 的对话式助手完全绑定 Claude Agent SDK，导致 Anthropic 配置缺失时，助手能力不可用，且前端将该状态表达为接近"系统未完成配置"。这对只使用 Gemini 或 OpenAI/ChatGPT 的二开场景都不成立，也阻碍了将助手能力演进为可替换的产品层能力。
+当前 ArcReel 的对话式助手完全绑定 Claude Agent SDK，导致 Anthropic 配置缺失时，助手能力不可用，且前端将该状态表达为接近"系统未完成配置"。这对只使用 Gemini 或 OpenAI/ChatGPT 的二开場景都不成立，也阻碍了将助手能力演进为可替换的产品层能力。
 
 如果继续维持当前结构，任何 Gemini 或 OpenAI assistant 尝试都会被迫模拟 Claude SDK 的会话、tool use、resume、subagent 与 transcript 语义，技术风险高、演进成本大。因此需要先将 assistant runtime 从"Claude 专用实现"重构为"多 provider、按能力分层"的架构，并在同一套 proposal 中纳入 Gemini 与 OpenAI/ChatGPT 两类 provider。
 
@@ -22,7 +22,7 @@
 ### Modified Capabilities
 
 - `sync-agent-chat`：同步对话端点改为走当前激活 provider，并在能力不足时返回结构化降级信息
-- `system-config-ui`：配置页与全局警告从"Anthropic 必填"改为"当前 assistant provider 所需凭证"，避免误伤 Gemini-only 或 OpenAI-only 场景
+- `system-config-ui`：配置页与全局警告从"Anthropic 必填"改为"当前 assistant provider 所需凭证"，避免误伤 Gemini-only 或 OpenAI-only 場景
 
 ## Impact
 

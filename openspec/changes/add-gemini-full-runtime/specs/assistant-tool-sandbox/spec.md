@@ -105,7 +105,7 @@
 #### Scenario: Deny 时 functionResponse 携带原因
 - **GIVEN** 自定义 gate 对 `fs_write` 返回 `Deny("user rejected")`
 - **WHEN** 模型调用 `fs_write`
-- **THEN** 系统 NOT 执行写入，构造 `functionResponse(name="fs_write", response={"error": "permission_denied", "reason": "user rejected"})` 喂回模型；模型 MAY 选择换路或终止
+- **THEN** 系统 NOT 执行写入，构造 `functionResponse(name="fs_write", response={"error": "permission_denied", "reason": "user rejected"})` 喂回模型；模型 MAY 選择换路或终止
 
 #### Scenario: Deny 不抛异常
 - **WHEN** gate 拒绝

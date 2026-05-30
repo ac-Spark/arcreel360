@@ -36,7 +36,7 @@
   - exists()                       → skip（正常，无论是软连接还是真实文件）
 ```
 
-新增 `repair_all_symlinks() -> dict`，扫描 `projects/` 下所有非隐藏子目录，返回统计：
+新增 `repair_all_symlinks() -> dict`，扫描 `projects/` 下所有非隐藏子目录，返回統計：
 
 ```python
 {"repaired": int, "created": int, "skipped": int, "errors": int}

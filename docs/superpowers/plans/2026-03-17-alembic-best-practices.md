@@ -1009,12 +1009,12 @@ git commit -m "feat(db): add migration to unify timestamps and add FK constraint
 Run: `python -m pytest -v`
 Expected: 全部 PASS
 
-- [ ] **Step 2: 排查失败（如有）**
+- [ ] **Step 2: 排查失敗（如有）**
 
-如果有测试失败，检查是否因为：
+如果有测试失敗，检查是否因为：
 1. 测试中构造了 ISO 字符串类型的时间戳传给了期望 datetime 的字段
 2. 测试断言检查了时间戳的具体字符串格式（如 `Z` 结尾）
-3. `_row_to_dict` / `_task_to_dict` 的返回值格式变化导致断言失败
+3. `_row_to_dict` / `_task_to_dict` 的返回值格式变化导致断言失敗
 
 根据具体报错修复。
 

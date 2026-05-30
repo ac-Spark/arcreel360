@@ -25,7 +25,7 @@
 - `open` 触发方式按设备能力分流：
   - hover 能力设备：mouseenter 打开，mouseleave 关闭。
   - touch 设备：click 切换，点击外部关闭。
-- Esc 关闭支持保留，二维码加载失败时显示降级占位文案。
+- Esc 关闭支持保留，二维码加载失敗时显示降级占位文案。
 
 ## 实施范围
 - 主要修改：`frontend/src/react/components/landing-page.js`。

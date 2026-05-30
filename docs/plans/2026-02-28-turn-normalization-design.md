@@ -2,7 +2,7 @@
 
 ## 问题
 
-Agent 对话的加载有 3 种场景：实时对话、历史对话、正在进行的对话重连。由于数据来源不同（JSONL transcript、SDK 内存 buffer、流式 DraftProjector），输出的 Turn 结构存在系统性差异，导致渲染不一致。
+Agent 对话的加载有 3 种場景：实时对话、历史对话、正在进行的对话重连。由于数据来源不同（JSONL transcript、SDK 内存 buffer、流式 DraftProjector），输出的 Turn 结构存在系统性差异，导致渲染不一致。
 
 ### 数据结构差异全景
 
@@ -105,7 +105,7 @@ def normalize_turns(turns: list[dict]) -> list[dict]:
 ### Step 5: 精简前端冗余 normalization
 - `ChatMessage.tsx` 简化 `normalizeContent()`，移除 JSON parse 分支
 - `ContentBlockRenderer.tsx` 移除 silent fallback（`block.type || "text"`）
-- 可选：dev-only Turn contract 验证
+- 可選：dev-only Turn contract 验证
 
 ---
 
@@ -124,4 +124,4 @@ def normalize_turns(turns: list[dict]) -> list[dict]:
 
 - 現有 turn_grouper 测试应继续通过（行为不变，代码位置迁移）
 - 新增 `test_turn_schema.py` 覆盖各种输入格式的规范化
-- 手动验证三种场景：历史加载、实时流、重连
+- 手动验证三种場景：历史加载、实时流、重连

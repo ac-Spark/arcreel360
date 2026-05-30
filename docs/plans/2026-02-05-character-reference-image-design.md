@@ -62,7 +62,7 @@ projects/{项目名}/
 
 ### 2. 角色管理路由 (`webui/server/routers/characters.py`)
 
-`UpdateCharacterRequest` 新增可选字段：
+`UpdateCharacterRequest` 新增可選字段：
 ```python
 reference_image: Optional[str] = None
 ```
@@ -102,7 +102,7 @@ reference_image: Optional[str] = None
 │  │          [预览图/占位符]             │      │
 │  │                                      │      │
 │  └──────────────────────────────────────┘      │
-│  [选择文件...]                                  │
+│  [選择文件...]                                  │
 ├─────────────────────────────────────────────────┤
 │  设计图（AI 生成）                              │
 │  ┌──────────────────────────────────────┐      │
@@ -118,9 +118,9 @@ reference_image: Optional[str] = None
 
 ### 交互逻辑
 
-1. **选择参考图**：选择文件后暂存在前端（File 对象），显示预览
+1. **選择参考图**：選择文件后暂存在前端（File 对象），显示预览
 2. **点击保存**：
-   - 若有新选择的参考图文件 → 先调用 `upload/character_ref` API
+   - 若有新選择的参考图文件 → 先调用 `upload/character_ref` API
    - 再保存角色数据（包含 `reference_image` 路径）
 3. **生成设计图**：调用 `generate/character` API，后端自动读取参考图
 4. **版本控制**：设计图支持版本管理（現有功能）
@@ -135,7 +135,7 @@ reference_image: Optional[str] = None
 ```
 1. 添加/编辑角色 → 填写名称、描述
          ↓
-2. 选择参考图（可选）→ 前端预览
+2. 選择参考图（可選）→ 前端预览
          ↓
 3. 点击"保存" → 上传参考图 + 保存角色数据
          ↓
@@ -150,7 +150,7 @@ reference_image: Optional[str] = None
 |------|------|------|
 | 新增字段名 | `reference_image` | 与 `character_sheet` 对应，语义清晰 |
 | 存储路径 | `characters/refs/{name}.png` | 单独目录，文件组织清晰 |
-| 参考图数量 | 单张 | 简化实现，满足主要场景 |
+| 参考图数量 | 单张 | 简化实现，满足主要場景 |
 | UI 布局 | 上下排布 | 符合用户阅读习惯 |
 | 保存时机 | 点击保存时一并上传 | 避免临时文件残留 |
 | CLI --ref 参数 | 移除 | 统一从 project.json 读取，减少用户操作 |

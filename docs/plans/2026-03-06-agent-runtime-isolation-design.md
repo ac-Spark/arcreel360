@@ -2,7 +2,7 @@
 
 ## 背景
 
-项目的 Claude Code 运行环境配置（`.claude/`、`CLAUDE.md`）混合了两种场景：
+项目的 Claude Code 运行环境配置（`.claude/`、`CLAUDE.md`）混合了两种場景：
 
 1. **智能体态**（WebUI 内嵌 Claude Agent SDK）：面向终端用户的视频创作助手
 2. **开发态**（开发者本地 CLI）：面向开发者的编码助手

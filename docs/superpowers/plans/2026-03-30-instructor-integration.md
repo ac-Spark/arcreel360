@@ -108,7 +108,7 @@ class SampleModel(BaseModel):
 
 class TestGenerateStructuredViaInstructor:
     def test_returns_json_and_tokens(self):
-        """正确返回 JSON 文本和 token 统计。"""
+        """正确返回 JSON 文本和 token 統計。"""
         mock_client = MagicMock()
         sample = SampleModel(name="Alice", age=30)
         mock_completion = SimpleNamespace(
@@ -172,7 +172,7 @@ class TestGenerateStructuredViaInstructor:
             )
 
     def test_handles_none_usage(self):
-        """completion.usage 为 None 时返回 None token 统计。"""
+        """completion.usage 为 None 时返回 None token 統計。"""
         mock_client = MagicMock()
         sample = SampleModel(name="Charlie", age=35)
         mock_completion = SimpleNamespace(usage=None)
@@ -197,7 +197,7 @@ class TestGenerateStructuredViaInstructor:
         assert output_tokens is None
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_text_backends/test_instructor_support.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'lib.text_backends.instructor_support'`
@@ -271,7 +271,7 @@ git commit -m "feat: 添加 instructor_support 模块，提供结构化输出降
 
 ```python
 class TestCapabilityAwareStructured:
-    """测试基于模型能力的结构化输出路径选择。"""
+    """测试基于模型能力的结构化输出路径選择。"""
 
     @pytest.fixture
     def backend_no_structured(self, mock_ark):
@@ -349,7 +349,7 @@ class TestCapabilityAwareStructured:
         assert b._supports_native_structured is False
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_text_backends/test_ark.py::TestCapabilityAwareStructured -v`
 Expected: FAIL — `AttributeError: 'ArkTextBackend' object has no attribute '_supports_native_structured'`

@@ -37,7 +37,7 @@ class ImageCapability(str, Enum):  # 继承 str 以支持字符串比较，与 V
 @dataclass
 class ReferenceImage:
     path: str              # 本地文件路径
-    label: str = ""        # 可选标签（如 "角色参考"）
+    label: str = ""        # 可選标签（如 "角色参考"）
 
 @dataclass
 class ImageGenerationRequest:
@@ -102,7 +102,7 @@ class ImageBackend(Protocol):
 - **SDK**: `volcenginesdkarkruntime.Ark` → `client.images.generate()`
 - **默认模型**: `doubao-seedream-5-0-lite-260128`
 - **能力**: `TEXT_TO_IMAGE`, `IMAGE_TO_IMAGE`
-- **可选模型**: `doubao-seedream-5-0-lite-260128`, `doubao-seedream-4-5-251128`, `doubao-seedream-4-0-250828`
+- **可選模型**: `doubao-seedream-5-0-lite-260128`, `doubao-seedream-4-5-251128`, `doubao-seedream-4-0-250828`
 - **API 调用**: 同步 SDK 通过 `asyncio.to_thread()` 包装
 - **参考图处理**: 将 `ReferenceImage` 路径读取为 base64，通过 `image` 参数传入（支持多图）
 - **构造参数**: `api_key`, `model`
@@ -112,11 +112,11 @@ class ImageBackend(Protocol):
 - **Provider ID**: `grok`
 - **SDK**: `xai_sdk.AsyncClient` → `client.image.sample()`
 - **默认模型**: `grok-imagine-image`
-- **可选模型**: `grok-imagine-image-pro`
+- **可選模型**: `grok-imagine-image-pro`
 - **能力**: `TEXT_TO_IMAGE`, `IMAGE_TO_IMAGE`
 - **生成**: `client.image.sample(prompt, model, aspect_ratio, resolution)`
 - **编辑（I2I）**: `client.image.sample(prompt, model, image_url="data:image/png;base64,...")`，SDK 的 `sample()` 方法在传入 `image_url` 时自动走编辑路径
-- **参考图处理**: 读取第一张 `ReferenceImage` 为 base64 data URI 传入 `image_url`；多张参考图场景需确认 SDK 是否支持 `images` 数组参数，不支持则取第一张
+- **参考图处理**: 读取第一张 `ReferenceImage` 为 base64 data URI 传入 `image_url`；多张参考图場景需确认 SDK 是否支持 `images` 数组参数，不支持则取第一张
 - **构造参数**: `api_key`, `model`
 
 #### 2.4 Reference Images 处理策略
@@ -166,7 +166,7 @@ request = ImageGenerationRequest(...)
 result = await self._image_backend.generate(request)
 ```
 
-脚本直调 MediaGenerator 的场景由调用方负责创建 backend 实例（通过 `image_backends.create_backend()` 即可）。
+脚本直调 MediaGenerator 的場景由调用方负责创建 backend 实例（通过 `image_backends.create_backend()` 即可）。
 
 #### 3.4 ConfigResolver / ConfigService
 
@@ -292,14 +292,14 @@ if status == "success":
 
 #### 6.3 MediaGenerator GeminiClient 依赖移除
 
-移除 `MediaGenerator` 中对 `GeminiClient` 的图片/视频生成依赖（与 3.3 节一致）。`image_backend` 为必需注入，脚本直调场景由调用方通过 `image_backends.create_backend()` 创建实例。`MediaGenerator` 不再直接 import `GeminiClient`。
+移除 `MediaGenerator` 中对 `GeminiClient` 的图片/视频生成依赖（与 3.3 节一致）。`image_backend` 为必需注入，脚本直调場景由调用方通过 `image_backends.create_backend()` 创建实例。`MediaGenerator` 不再直接 import `GeminiClient`。
 
 ### 7. 错误处理
 
 - **网络/API 错误**: 直接抛出，Worker 记录 `status=failed` + `error_message`
 - **审核拒绝**: Grok `respect_moderation=False`、Ark 特定错误码 → 统一抛出描述性异常
 - **能力不匹配**: 传了 `reference_images` 但后端不支持 `IMAGE_TO_IMAGE` → 忽略参考图退回 T2I，log warning（不中断，四個后端均支持 I2I，此分支为防御性代码）
-- **重试**: SDK 层通过 `@with_retry_async` 处理瞬态 API 错误（429/503，backoff 2-32s）；持久性失败直接标记 `failed` 终态，由用户决定是否重试
+- **重试**: SDK 层通过 `@with_retry_async` 处理瞬态 API 错误（429/503，backoff 2-32s）；持久性失敗直接标记 `failed` 终态，由用户决定是否重试
 
 ### 8. 测试策略
 
@@ -322,12 +322,12 @@ if status == "success":
 
 #### DB Migration 测试
 
-- 空表场景正常迁移
+- 空表場景正常迁移
 - 已有 `seedance` 配置正确更新为 `ark`
 
 ## 不在范围内
 
-- 前端 UI 变更（`MediaModelSection` 已支持 image backend 选择，数据驱动）
+- 前端 UI 变更（`MediaModelSection` 已支持 image backend 選择，数据驱动）
 - 项目级 image_backend 配置 UI（已有 `project.json` 字段支持）
 - Batch generation（生成组图）— 后续按需扩展 `ImageCapability`
 - `generate_image_with_chat()` 多轮对话能力 — Gemini 特有，不纳入通用 Protocol

@@ -54,7 +54,7 @@ Agent 可以执行 `curl`、`wget`、`pip install` 等危险命令。
     │                           匹配 → 自动放行，流程终止
     ▼
 ⑤ canUseTool 回调 ←── 只有前面都没匹配的才到这里
-    │                   AskUserQuestion → 异步用户交互
+    │                   AskUserQuestion → 異步用户交互
     │                   其他 → PermissionResultDeny("未授权的工具调用")
     ▼
    拒绝

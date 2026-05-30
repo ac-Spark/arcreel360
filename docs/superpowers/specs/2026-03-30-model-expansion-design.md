@@ -79,6 +79,6 @@ gemini-vertex 与其完全镜像（模型 ID 相同），下方仅列一次。
 
 以下事项不在本次变更中，将在后续 PR 处理：
 
-- **运行时 capability 校验**：当用户选择不支持 structured_output 的模型但 pipeline 需要时，应提前报错或 fallback。本次仅修正 registry 声明。
+- **运行时 capability 校验**：当用户選择不支持 structured_output 的模型但 pipeline 需要时，应提前报错或 fallback。本次仅修正 registry 声明。
 - **ArkTextBackend capabilities 硬编码**：后端级别声明的 `TextCapability.STRUCTURED_OUTPUT` 需改为模型级别判断。
-- **前端 capabilities 条件渲染**：根据所选模型的 capabilities 过滤或提示不可用功能。
+- **前端 capabilities 条件渲染**：根据所選模型的 capabilities 过滤或提示不可用功能。

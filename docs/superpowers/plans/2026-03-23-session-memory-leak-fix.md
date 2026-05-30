@@ -168,7 +168,7 @@ class TestDisconnectSession:
         await mgr._disconnect_session("nonexistent")  # should not raise
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_session_lifecycle.py::TestDisconnectSession -v`
 Expected: FAIL — `_disconnect_session` 不存在
@@ -247,7 +247,7 @@ class TestConfigReading:
         assert result == 5
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_session_lifecycle.py::TestConfigReading -v`
 Expected: FAIL
@@ -268,7 +268,7 @@ Expected: FAIL
                 val = await svc.get_setting("agent_session_idle_ttl_minutes", "10")
             return max(int(val), 1) * 60
         except Exception:
-            logger.warning("读取 idle TTL 配置失败，使用默认值", exc_info=True)
+            logger.warning("读取 idle TTL 配置失敗，使用默认值", exc_info=True)
             return 600
 
     async def _get_max_concurrent(self) -> int:
@@ -282,7 +282,7 @@ Expected: FAIL
                 val = await svc.get_setting("agent_max_concurrent_sessions", "5")
             return max(int(val), 1)
         except Exception:
-            logger.warning("读取 max_concurrent 配置失败，使用默认值", exc_info=True)
+            logger.warning("读取 max_concurrent 配置失敗，使用默认值", exc_info=True)
             return 5
 ```
 
@@ -379,7 +379,7 @@ class TestIdleCleanup:
         assert managed.idle_since is not None
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_session_lifecycle.py::TestIdleCleanup -v`
 Expected: FAIL
@@ -510,7 +510,7 @@ class TestEnsureCapacity:
                 await mgr._ensure_capacity()
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_session_lifecycle.py::TestEnsureCapacity -v`
 Expected: FAIL
@@ -629,7 +629,7 @@ class TestPatrolLoop:
                 mock_disc.assert_not_called()
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_session_lifecycle.py::TestPatrolLoop -v`
 Expected: FAIL
@@ -839,7 +839,7 @@ git commit -m "feat: 路由层捕获 SessionCapacityError 返回 503"
 - [ ] **Step 4: 运行全部测试确认无回归**
 
 Run: `uv run python -m pytest tests/ -v --no-header 2>&1 | tail -10`
-Expected: 无新失败
+Expected: 无新失敗
 
 - [ ] **Step 5: Commit**
 

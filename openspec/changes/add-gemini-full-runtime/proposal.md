@@ -2,7 +2,7 @@
 
 目前 ArcReel 助手运行时只有两条可用路径：`claude`（绑定 Claude Code bundled CLI 与 OAuth 登录态）与 `gemini-lite` / `openai-lite`（仅纯对话，不支持工具调用、子代理与权限钩子）。结果是想用 Gemini 的用户**必须放弃工作流自动化**（生成剧本、分镜、角色、线索、视频等），因为这些 skill 全部依赖 tool-calling。Gemini API 本身完整支持 function calling、parallel tools 与 streaming，缺的只是项目内的对接层。
 
-本变更新增一条 `gemini-full` 路径，提供与 Claude provider 同等 tier 的能力（工具循环、白名单沙盒文件 IO、子代理调度、权限闸门、流式 function call），让用户能在不绑定 Claude 的前提下完整跑通漫画/旁白工作流。同时澄清 `lite` / `full` 命名歧义：`lite` 改为「对话模式」、`full` 为「工作流模式」，前端给用户显式选择。
+本变更新增一条 `gemini-full` 路径，提供与 Claude provider 同等 tier 的能力（工具循环、白名单沙盒文件 IO、子代理调度、权限闸门、流式 function call），让用户能在不绑定 Claude 的前提下完整跑通漫画/旁白工作流。同时澄清 `lite` / `full` 命名歧义：`lite` 改为「对话模式」、`full` 为「工作流模式」，前端给用户显式選择。
 
 ## What Changes
 
@@ -11,7 +11,7 @@
 - **新增** 白名单沙盒文件 IO 工具（`fs_read` / `fs_write` / `fs_list` / `run_subagent`）。允许的根目录限定为 `projects/{project_name}/`；允许的子路径白名单为 `source/` / `scripts/` / `characters/` / `clues/` / `storyboards/` / `videos/` / `drafts/` / `output/` / `project.json`。任何越界访问 SHALL 被工具层在执行前拒绝并返回结构化错误。
 - **新增** 流式 function call、parallel tool call、PreToolUse 风格的权限闸门钩子；权限被拒时 SHALL 把 deny 原因塞回 `functionResponse` 让模型自己决定下一步。
 - **修改** session 持久化复用現有 `agent_messages` 表（无需额外迁移），但 message payload 新增 `tool_use` / `tool_result` / `permission_decision` 三种 type，projector 与前端 turn grouper 须能呈现工具调用块。
-- **修改** assistant runtime 选择逻辑：`ASSISTANT_PROVIDER` 与 DB `assistant_provider` 设定接受新值 `gemini_full`；前端在 `/settings` 与新会话创建处，把現有「provider」单选改为「provider × mode」二维选择（Gemini × 对话/工作流、OpenAI × 对话、Claude × 工作流）。
+- **修改** assistant runtime 選择逻辑：`ASSISTANT_PROVIDER` 与 DB `assistant_provider` 设定接受新值 `gemini_full`；前端在 `/settings` 与新会话创建处，把現有「provider」单選改为「provider × mode」二维選择（Gemini × 对话/工作流、OpenAI × 对话、Claude × 工作流）。
 - **修改** 前端 `ASSISTANT_PROVIDER_LABELS` 与 banner 文案：明确 `lite=对话模式`、`full=工作流模式`，移除「lite 不支持」这种含糊措辞。
 - **BREAKING** 无对外 API 破坏。`gemini-lite` 与 `openai-lite` 的現有 session 行为与对外契约保持不变。
 
@@ -21,7 +21,7 @@
 
 - `gemini-full-runtime`：定义 GeminiFullRuntimeProvider 的对外契约——capabilities 等级、Gemini function-calling 工具循环、流式行为、session 持久化与 lite provider 共用 `agent_messages` 表的兼容性、与 `gemini-lite` 的切换边界。
 - `assistant-tool-sandbox`：定义助手工具执行环境的白名单沙盒规则——可访问根目录、白名单子目录清单、越界拒绝行为、PreToolUse 权限闸门协议、`fs_read`/`fs_write`/`fs_list`/`run_subagent` 四個工具的输入输出契约。本 capability 设计为 provider-agnostic：未来若新增其他 full-tier provider（如 OpenAI Assistants v2、Claude 直连 API）可复用同一沙盒规格。
-- `assistant-runtime-selection`：定义用户在多 provider × 多模式之间的选择契约——`ASSISTANT_PROVIDER` 环境变量与 `assistant_provider` 系统设定的合法值、前端选择器 UI 行为、capabilities 由后端 SSE event 注入并被前端 `resolveAssistantCapabilities` 消费的数据流、`lite` / `full` 命名语义。
+- `assistant-runtime-selection`：定义用户在多 provider × 多模式之间的選择契约——`ASSISTANT_PROVIDER` 环境变量与 `assistant_provider` 系统设定的合法值、前端選择器 UI 行为、capabilities 由后端 SSE event 注入并被前端 `resolveAssistantCapabilities` 消费的数据流、`lite` / `full` 命名语义。
 
 ### Modified Capabilities
 
@@ -42,7 +42,7 @@
 - `server/agent_runtime/text_backend_runtime_provider.py`：注释更新（lite 不再代表「能力受限」，而是「对话模式」）。
 - `frontend/src/types/assistant.ts`：`ASSISTANT_PROVIDER_LABELS` 增加 `gemini-full`；`inferAssistantProvider` 支持 `gemini-full:` 前缀。
 - `frontend/src/components/copilot/AgentCopilot.tsx`：banner 文案改为「对话模式 vs 工作流模式」表述。
-- `frontend/src/components/SettingsPage`（或对应 settings UI）：provider × mode 选择器。
+- `frontend/src/components/SettingsPage`（或对应 settings UI）：provider × mode 選择器。
 
 **依赖**
 - 后端：`google-genai`（已用于 lib/gemini_shared/）—— 复用，无需新增。需要确认現有版本支持 streaming function call；不支持时升级到对应版本。

@@ -6,7 +6,7 @@
 
 ## 设计决策
 
-| 决策点 | 选择 |
+| 决策点 | 選择 |
 |--------|------|
 | 迁移目标 | 完全迁移到 ClaudeSDKClient 原生会话 |
 | 历史查询 | UI 展示 + 会话恢复（resume） |
@@ -60,7 +60,7 @@ projects/.agent_data/
 │   ├── {session_id}.json          # SDK 生成的完整对话记录
 │   └── ...
 ├── sessions.db                     # SQLite 元数据
-└── checkpoints/                    # 可选：用于 resume 的检查点数据
+└── checkpoints/                    # 可選：用于 resume 的检查点数据
 ```
 
 ### ClaudeAgentOptions 配置

@@ -75,7 +75,7 @@ git commit -m "refactor: migrate business skills/agents to agent_runtime_profile
 - 可用 Skills 列表
 - 快速开始
 - 工作流程（说书+画面模式、剧集动画模式）
-- 视频生成模式（标准、断点续传、单场景、分段标记）
+- 视频生成模式（标准、断点续传、单場景、分段标记）
 - 剧本核心字段
 - Veo 3.1 技术参考
 - 关键原则
@@ -129,7 +129,7 @@ git commit -m "refactor: split CLAUDE.md into dev guide + agent system prompt"
 - Modify: `lib/project_manager.py:106-126` (`create_project` method)
 - Test: `tests/test_project_manager_symlink.py`
 
-**Step 1: 写失败的测试**
+**Step 1: 写失敗的测试**
 
 创建 `tests/test_project_manager_symlink.py`：
 
@@ -186,7 +186,7 @@ class TestProjectSymlink:
         assert not symlink.exists()
 ```
 
-**Step 2: 运行测试验证失败**
+**Step 2: 运行测试验证失敗**
 
 ```bash
 python -m pytest tests/test_project_manager_symlink.py -v
@@ -266,7 +266,7 @@ git commit -m "feat: create .claude symlink on project creation for agent isolat
 - Modify: `server/agent_runtime/session_manager.py:199-222`
 - Modify: `tests/test_session_manager_project_scope.py`
 
-**Step 1: 写失败的测试**
+**Step 1: 写失敗的测试**
 
 在 `tests/test_session_manager_project_scope.py` 中添加：
 
@@ -312,7 +312,7 @@ class TestAllowedToolsAndConstants:
         await engine.dispose()
 ```
 
-**Step 2: 运行测试验证失败**
+**Step 2: 运行测试验证失敗**
 
 ```bash
 python -m pytest tests/test_session_manager_project_scope.py::TestAllowedToolsAndConstants -v
@@ -368,7 +368,7 @@ git commit -m "fix: align DEFAULT_ALLOWED_TOOLS with SDK docs, update access con
 - Modify: `server/agent_runtime/session_manager.py:256-307` (`_load_config`, `_build_system_prompt`)
 - Modify: `tests/test_session_manager_project_scope.py`
 
-**Step 1: 写失败的测试**
+**Step 1: 写失敗的测试**
 
 在 `tests/test_session_manager_project_scope.py` 中添加：
 
@@ -437,7 +437,7 @@ class TestAgentProfileSystemPrompt:
         await engine.dispose()
 ```
 
-**Step 2: 运行测试验证失败**
+**Step 2: 运行测试验证失敗**
 
 ```bash
 python -m pytest tests/test_session_manager_project_scope.py::TestAgentProfileSystemPrompt -v
@@ -507,7 +507,7 @@ git commit -m "feat: load system prompt from agent_runtime_profile/CLAUDE.md"
 - Modify: `server/agent_runtime/session_manager.py:325-358` (`_build_options`)
 - Test: `tests/test_session_manager_project_scope.py`
 
-**Step 1: 写失败的测试**
+**Step 1: 写失敗的测试**
 
 ```python
 class TestAgentDefinitions:
@@ -567,7 +567,7 @@ class TestAgentDefinitions:
         await engine.dispose()
 ```
 
-**Step 2: 运行测试验证失败**
+**Step 2: 运行测试验证失敗**
 
 ```bash
 python -m pytest tests/test_session_manager_project_scope.py::TestAgentDefinitions -v
@@ -640,7 +640,7 @@ git commit -m "feat: programmatic agent loading from agent_runtime_profile"
 - Modify: `server/agent_runtime/service.py:743-787` (`list_available_skills`)
 - Test: `tests/test_assistant_service_skills.py`
 
-**Step 1: 写失败的测试**
+**Step 1: 写失敗的测试**
 
 创建 `tests/test_assistant_service_skills.py`：
 
@@ -682,7 +682,7 @@ class TestListAvailableSkills:
         assert "dev-tool" not in names
 ```
 
-**Step 2: 运行测试验证失败**
+**Step 2: 运行测试验证失敗**
 
 ```bash
 python -m pytest tests/test_assistant_service_skills.py -v

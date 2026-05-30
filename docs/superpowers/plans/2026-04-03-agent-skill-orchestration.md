@@ -102,7 +102,7 @@ description: "统一资产生成 subagent。接收任务清单（资产类型、
 
 按主 agent 提供的命令逐条执行：
 - 使用 Bash 工具运行每条命令
-- 如果某条命令失败，**记录错误信息，继续执行后续命令**
+- 如果某条命令失敗，**记录错误信息，继续执行后续命令**
 - 不跳过、不自行决定跳过任何命令
 - 不执行主 agent 未列出的额外命令
 
@@ -116,7 +116,7 @@ description: "统一资产生成 subagent。接收任务清单（资产类型、
 
 - **DONE**：全部命令执行成功，验证通过
 - **DONE_WITH_CONCERNS**：全部完成但有异常（如生成结果可能存在质量问题）
-- **PARTIAL**：部分成功，部分失败
+- **PARTIAL**：部分成功，部分失敗
 - **BLOCKED**：无法执行（前置条件不满足，如缺少 project.json 或依赖文件）
 
 摘要格式：
@@ -130,7 +130,7 @@ description: "统一资产生成 subagent。接收任务清单（资产类型、
 | 项目 | 状态 | 备注 |
 |------|------|------|
 | {项1} | ✅ 成功 | |
-| {项2} | ❌ 失败 | {错误原因} |
+| {项2} | ❌ 失敗 | {错误原因} |
 
 {如果是 DONE_WITH_CONCERNS，列出 concerns}
 {如果是 BLOCKED，说明阻塞原因和建议}
@@ -140,7 +140,7 @@ description: "统一资产生成 subagent。接收任务清单（资产类型、
 
 - 不做主 agent 未要求的额外操作
 - 不等待用户确认，完成即返回
-- 单条命令失败不阻断整体流程，全部执行完后统一报告
+- 单条命令失敗不阻断整体流程，全部执行完后统一报告
 ```
 
 - [ ] **Step 2: 验证文件可被发现**
@@ -177,7 +177,7 @@ git commit -m "feat: 新建 generate-assets 统一资产生成 subagent 定义"
 -| content_mode | `narration` | `drama` |
 -| 内容形式 | 严格保留小说原文，不改编 | 小说改编为剧本 |
 -| 数据结构 | `segments` 数组 | `scenes` 数组 |
--| 默认时长 | 4 秒/片段 | 8 秒/场景 |
+-| 默认时长 | 4 秒/片段 | 8 秒/場景 |
 -| 对白来源 | 后期人工配音（小说原文） | 演员对话 |
 -| 视频 Prompt | 仅包含角色对话（如有），无旁白 | 包含对话、旁白、音效 |
 -| 画面比例 | 9:16 竖屏（分镜图+视频） | 16:9 横屏 |
@@ -288,13 +288,13 @@ git commit -m "fix: 修正 CLAUDE.md agent 名称、去除重复内容模式表�
  4. scripts/episode_{N}.json 不存在？ → **阶段 4**
 -5. 有角色缺少 character_sheet？ → **阶段 5**
 -6. 有 importance=major 线索缺少 clue_sheet？ → **阶段 6**
--7. 有场景缺少分镜图？ → **阶段 7**
--8. 有场景缺少视频？ → **阶段 8**
+-7. 有場景缺少分镜图？ → **阶段 7**
+-8. 有場景缺少视频？ → **阶段 8**
 -9. 全部完成 → **阶段 9**
 +5. 有角色缺少 character_sheet？ → **阶段 5**（与阶段 6 可并行）
 +6. 有 importance=major 线索缺少 clue_sheet？ → **阶段 6**（与阶段 5 可并行）
-+7. 有场景缺少分镜图？ → **阶段 7**
-+8. 有场景缺少视频？ → **阶段 8**
++7. 有場景缺少分镜图？ → **阶段 7**
++8. 有場景缺少视频？ → **阶段 8**
 +9. 全部完成 → 工作流结束，引导用户在 Web 端导出剪映草稿
 ```
 
@@ -371,7 +371,7 @@ dispatch `generate-assets` subagent：
 
 ## 阶段 7：分镜图生成
 
-**触发**：有场景缺少分镜图
+**触发**：有場景缺少分镜图
 
 **dispatch `generate-assets` subagent**：
 
@@ -382,14 +382,14 @@ dispatch `generate-assets` subagent：
   项目路径：projects/{project_name}/
   脚本命令：
     python .claude/skills/generate-storyboard/scripts/generate_storyboard.py episode_{N}.json
-  验证方式：重新读取 scripts/episode_{N}.json，检查各场景的 storyboard_image 字段
+  验证方式：重新读取 scripts/episode_{N}.json，检查各場景的 storyboard_image 字段
 ```
 
 ---
 
 ## 阶段 8：视频生成
 
-**触发**：有场景缺少视频
+**触发**：有場景缺少视频
 
 **dispatch `generate-assets` subagent**：
 
@@ -400,7 +400,7 @@ dispatch `generate-assets` subagent：
   项目路径：projects/{project_name}/
   脚本命令：
     python .claude/skills/generate-video/scripts/generate_video.py episode_{N}.json --episode {N}
-  验证方式：重新读取 scripts/episode_{N}.json，检查各场景的 video_clip 字段
+  验证方式：重新读取 scripts/episode_{N}.json，检查各場景的 video_clip 字段
 ```
 ```
 
@@ -514,7 +514,7 @@ git commit -m "fix: 统一 agent 定义中的脚本调用路径，修正 add_cha
 替换为统一使用 `--scene-ids` 并添加说明：
 
 ```markdown
-# 为多個场景重新生成
+# 为多個場景重新生成
 python .claude/skills/generate-storyboard/scripts/generate_storyboard.py script.json --scene-ids E1S01 E1S02
 ```
 
@@ -578,7 +578,7 @@ git commit -m "fix: 统一 skill SKILL.md 中的 reference 路径和脚本调用
 
 -- 回答用户必须使用中文
  - 主动引导用户完成视频创作工作流，而不仅仅被动回答问题
- - 遇到不确定的创作决策时，向用户提出选项并给出建议，而不是自行决定
+ - 遇到不确定的创作决策时，向用户提出選項并给出建议，而不是自行决定
  - 涉及多步骤任务时，使用 TodoWrite 跟踪进度并向用户汇报
 -- 你是用户的视频制作搭档，专业、友善、高效
 -

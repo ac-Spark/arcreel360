@@ -21,13 +21,13 @@
 
 ## 决策记录
 
-### 决策 1：选择 Instructor 库
+### 决策 1：選择 Instructor 库
 
 引入 `instructor`（MIT，11k+ Stars，300 万+月下载）。核心定位"给任意 OpenAI 兼容客户端加结构化输出"精确匹配需求。`from_openai()` 直接 patch `Ark` 客户端，`Mode` 枚举提供完整降级路径，内置 Pydantic 校验 + `max_retries` 自动重试。
 
 否决方案：自建（缺少错误反馈重试能力）、PydanticAI（过重）、BAML（DSL 不兼容）、Mirascope（社区更小）。
 
-### 决策 2：选择性使用，非统一入口
+### 决策 2：選择性使用，非统一入口
 
 Instructor 仅作为降级路径。有原生 `structured_output` 能力的模型继续走原生 API，只有不支持的模型走 Instructor `MD_JSON` 模式。
 
@@ -82,12 +82,12 @@ def generate_structured_via_instructor(
 
 - 使用 `instructor.from_openai(client, mode=mode)` patch 客户端
 - 调用 `create_with_completion()` 获取 Pydantic 结果 + completion 对象
-- 从 `completion.usage` 提取 token 统计
+- 从 `completion.usage` 提取 token 統計
 - 返回 `(json_text, input_tokens, output_tokens)` 元组
 
 关键设计：
 - **`Mode.MD_JSON`**：prompt 注入 schema 描述 + 从 markdown/text 中提取 JSON，兼容性最广
-- **`max_retries=2`**：解析失败时将错误信息反馈给模型重新生成
+- **`max_retries=2`**：解析失敗时将错误信息反馈给模型重新生成
 - **`create_with_completion()`**：Instructor 官方推荐的 token usage 获取方式
 - **鸭子类型 client 参数**：不强绑 `Ark`，保持通用性
 
@@ -125,6 +125,6 @@ def generate_structured_via_instructor(
 
 | 测试 | 内容 |
 |------|------|
-| `test_instructor_support.py` | mock Instructor patched client，验证 `create_with_completion()` 调用、JSON 序列化、token 统计提取 |
+| `test_instructor_support.py` | mock Instructor patched client，验证 `create_with_completion()` 调用、JSON 序列化、token 統計提取 |
 | `test_ark.py` 扩展 | 验证模型无 `structured_output` 能力时走 Instructor 路径，有能力时走原生路径 |
 | 現有测试回归 | Gemini/Grok Backend 不受影响，ProjectManager 传 Pydantic 类兼容所有后端 |

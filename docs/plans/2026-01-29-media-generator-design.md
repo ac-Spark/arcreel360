@@ -183,6 +183,6 @@ lib/media_generator.py    # MediaGenerator 类
 ## 注意事项
 
 1. **线程安全**：`VersionManager` 已实现线程安全锁，`MediaGenerator` 可直接复用
-2. **异步支持**：需要同时提供同步和异步版本的方法
+2. **異步支持**：需要同时提供同步和異步版本的方法
 3. **向后兼容**：`GeminiClient` 保持不变，現有直接调用不受影响
 4. **元数据传递**：通过 `**version_metadata` 支持传递额外信息（如 `aspect_ratio`、`duration_seconds`）

@@ -6,7 +6,7 @@
 
 ## 背景
 
-Seedance 2.0 已对企业公测开放。当前 Ark 视频后端仅注册了 Seedance 1.5 Pro (`doubao-seedance-1-5-pro-251215`)。需要添加 Seedance 2.0 和 2.0 Fast 两個模型，使用户可以在配置中选用。
+Seedance 2.0 已对企业公测开放。当前 Ark 视频后端仅注册了 Seedance 1.5 Pro (`doubao-seedance-1-5-pro-251215`)。需要添加 Seedance 2.0 和 2.0 Fast 两個模型，使用户可以在配置中選用。
 
 本次不涉及 Seedance 2.0 的新增能力扩展（多模态参考图、视频编辑/延长、联网搜索等），仅让現有 t2v 和 i2v（首帧）流程在 2.0 模型上跑通。
 

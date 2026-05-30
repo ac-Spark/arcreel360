@@ -40,8 +40,8 @@
 
 提取的线索 SHALL 标记类型（location/prop）和重要性（major/minor）。
 
-#### Scenario: 场景类线索标记为 location
-- **WHEN** 线索为环境/场景（如"竹林深处"、"客栈大堂"）
+#### Scenario: 場景类线索标记为 location
+- **WHEN** 线索为环境/場景（如"竹林深处"、"客栈大堂"）
 - **THEN** 线索 type 标记为 "location"，描述包含空间结构、光线氛围
 
 #### Scenario: 道具类线索标记为 prop
@@ -64,8 +64,8 @@ subagent 写入 project.json 后 SHALL 调用数据验证确保完整性。
 - **WHEN** subagent 完成角色/线索写入
 - **THEN** subagent 调用 `validate_project(project_name)` 验证 project.json 结构和引用完整性
 
-#### Scenario: 验证失败时修复
-- **WHEN** validate_project 返回验证失败
+#### Scenario: 验证失敗时修复
+- **WHEN** validate_project 返回验证失敗
 - **THEN** subagent 根据错误信息修复数据，重新验证直到通过
 
 ### Requirement: subagent 须返回结构化摘要

@@ -10,13 +10,13 @@
 ## 需求
 
 1. 同一供应商可配置多個凭证（API Key 或 Vertex 服务账号 JSON）
-2. 每個凭证有：自定义名称、密钥值、可选的自定义 base_url（AI Studio）
+2. 每個凭证有：自定义名称、密钥值、可選的自定义 base_url（AI Studio）
 3. RPM / max_workers / request_gap 等配置跟供应商走，所有凭证共享
 4. 每個供应商有一個「当前活跃凭证」，在供应商配置页手动切换，全局生效
 5. 连接测试可针对任意一個凭证单独进行
 6. Bug fix：base_url 尾部 `/` 归一化
 
-## 方案选择
+## 方案選择
 
 **方案 A（采用）：新建 `provider_credential` 表**
 
@@ -126,7 +126,7 @@ Alembic 迁移脚本：
 POST /api/v1/providers/{provider_id}/test?credential_id=123
 ```
 
-- 新增可选 query param `credential_id`
+- 新增可選 query param `credential_id`
 - 若指定，用该凭证测试
 - 若未指定，用当前活跃凭证测试
 - 若无任何凭证，返回「缺少配置」错误
@@ -180,7 +180,7 @@ POST /api/v1/providers/gemini-vertex/credentials
 ```
 
 - `●` / `○` 表示活跃/非活跃状态
-- 每条凭证行显示：名称、脱敏 key（或 Vertex 文件名）、可选的 base_url
+- 每条凭证行显示：名称、脱敏 key（或 Vertex 文件名）、可選的 base_url
 - 每条凭证独立的「测试」按钮，调用 `POST /test?credential_id=xxx`
 - 「编辑」展开内联编辑表单
 - 「添加密钥」打开内联表单
@@ -220,7 +220,7 @@ interface ProviderCredential {
 
 ### 问题
 
-Google genai SDK 的 `http_options.base_url` 要求尾部带 `/`。用户输入不带斜杠的 URL 会导致请求失败。
+Google genai SDK 的 `http_options.base_url` 要求尾部带 `/`。用户输入不带斜杠的 URL 会导致请求失敗。
 
 ### 修复
 
@@ -250,7 +250,7 @@ def normalize_base_url(url: str | None) -> str | None:
 
 ## 边界情况
 
-| 场景 | 行为 |
+| 場景 | 行为 |
 |------|------|
 | 供应商无任何凭证 | 状态为 `unconfigured`，生成任务报错「未配置密钥」 |
 | 删除活跃凭证，还有其他凭证 | 自动将 `created_at` 最早的另一条设为活跃 |
@@ -263,4 +263,4 @@ def normalize_base_url(url: str | None) -> str | None:
 
 - 自动轮换 / 负载均衡 — 仅手动切换
 - api_key 加密存储 — 与現有 `provider_config` 表保持一致
-- 凭证使用统计 — 超出当前范围
+- 凭证使用統計 — 超出当前范围

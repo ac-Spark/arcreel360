@@ -30,7 +30,7 @@
 - `lib/config/service.py` — 状态判定逻辑改用凭证表
 - `lib/config/resolver.py` — provider_config() 合并活跃凭证
 - `server/routers/providers.py` — 新增凭证 CRUD 端点，改造连接测试和 Vertex 上传
-- `server/dependencies.py` — 可选：新增凭证相关依赖
+- `server/dependencies.py` — 可選：新增凭证相关依赖
 - `lib/image_backends/gemini.py` — base_url 防御性归一化
 - `lib/video_backends/gemini.py` — base_url 防御性归一化
 - `lib/gemini_client.py` — base_url 防御性归一化
@@ -84,7 +84,7 @@ class TestNormalizeBaseUrl:
         assert normalize_base_url("https://example.com") == "https://example.com/"
 ```
 
-- [ ] **Step 2: 运行测试验证失败**
+- [ ] **Step 2: 运行测试验证失敗**
 
 运行: `uv run python -m pytest tests/test_normalize_base_url.py -v`
 预期: FAIL — `ModuleNotFoundError: No module named 'lib.config.url_utils'`
@@ -103,7 +103,7 @@ def normalize_base_url(url: str | None) -> str | None:
     """确保 base_url 以 / 结尾。
 
     Google genai SDK 的 http_options.base_url 要求尾部带 /，
-    否则请求路径拼接会失败。
+    否则请求路径拼接会失敗。
     """
     if not url:
         return None
@@ -171,7 +171,7 @@ def normalize_base_url(url: str | None) -> str | None:
 
 ```bash
 git add lib/config/url_utils.py tests/test_normalize_base_url.py lib/image_backends/gemini.py lib/video_backends/gemini.py lib/gemini_client.py server/routers/providers.py
-git commit -m "fix: base_url 尾部斜杠归一化，修复代理 URL 不带 / 导致请求失败"
+git commit -m "fix: base_url 尾部斜杠归一化，修复代理 URL 不带 / 导致请求失敗"
 ```
 
 ---
@@ -515,7 +515,7 @@ class TestCredentialRepository:
         assert c.base_url == "https://proxy.example.com/v1/"
 ```
 
-- [ ] **Step 2: 运行测试验证失败**
+- [ ] **Step 2: 运行测试验证失敗**
 
 运行: `uv run python -m pytest tests/test_credential_repository.py -v`
 预期: FAIL — `ModuleNotFoundError: No module named 'lib.db.repositories.credential_repository'`
@@ -643,7 +643,7 @@ class CredentialRepository:
         await self.session.flush()
 
         if was_active:
-            # 选 created_at 最早的一条设为活跃
+            # 選 created_at 最早的一条设为活跃
             stmt = (
                 select(ProviderCredential)
                 .where(ProviderCredential.provider == provider)
@@ -941,7 +941,7 @@ class TestDeleteCredential:
         assert resp.status_code == 204
 ```
 
-- [ ] **Step 2: 运行测试验证失败**
+- [ ] **Step 2: 运行测试验证失敗**
 
 运行: `uv run python -m pytest tests/test_credential_api.py -v`
 预期: FAIL — 端点不存在
@@ -1140,7 +1140,7 @@ git commit -m "feat: 供应商凭证 CRUD API 端点"
 
 - [ ] **Step 1: 改造连接测试端点**
 
-修改 `server/routers/providers.py` 中的 `test_provider_connection` 端点，添加 `credential_id` 可选参数：
+修改 `server/routers/providers.py` 中的 `test_provider_connection` 端点，添加 `credential_id` 可選参数：
 
 ```python
 @router.post("/{provider_id}/test", response_model=ConnectionTestResponse)
@@ -1202,11 +1202,11 @@ async def test_provider_connection(
         err_msg = str(exc)
         if len(err_msg) > 200:
             err_msg = err_msg[:200] + "..."
-        logger.warning("连接测试失败 [%s]: %s", provider_id, err_msg)
+        logger.warning("连接测试失敗 [%s]: %s", provider_id, err_msg)
         return ConnectionTestResponse(
             success=False,
             available_models=[],
-            message=f"连接失败: {err_msg}",
+            message=f"连接失敗: {err_msg}",
         )
 
     return result
@@ -1228,7 +1228,7 @@ async def upload_vertex_credential(
     try:
         contents = await file.read(MAX_VERTEX_CREDENTIALS_BYTES + 1)
     except Exception:
-        raise HTTPException(status_code=400, detail="读取上传文件失败")
+        raise HTTPException(status_code=400, detail="读取上传文件失敗")
 
     if len(contents) > MAX_VERTEX_CREDENTIALS_BYTES:
         raise HTTPException(status_code=413, detail="凭证文件过大")
@@ -1425,12 +1425,12 @@ export interface ProviderCredential {
       }),
     );
 
-    await throwIfNotOk(response, "上传凭证失败");
+    await throwIfNotOk(response, "上传凭证失敗");
     return response.json();
   }
 ```
 
-注意：`testProviderConnection` 的签名变更（添加了可选的 `credentialId` 参数），需要同时更新原有方法。移除旧的 `uploadVertexCredentialsForProvider` 方法。
+注意：`testProviderConnection` 的签名变更（添加了可選的 `credentialId` 参数），需要同时更新原有方法。移除旧的 `uploadVertexCredentialsForProvider` 方法。
 
 - [ ] **Step 3: 添加 ProviderCredential 到 imports**
 
@@ -1669,7 +1669,7 @@ function CredentialRow({ cred, providerId, isVertex, onChanged }: RowProps) {
           </div>
           {providerId === "gemini-aistudio" && (
             <div>
-              <label className="text-xs text-gray-500">Base URL（可选）</label>
+              <label className="text-xs text-gray-500">Base URL（可選）</label>
               <input
                 type="url"
                 value={draft.base_url}
@@ -1761,7 +1761,7 @@ function AddCredentialForm({ providerId, isVertex, onCreated, onCancel }: AddFor
               onClick={() => fileRef.current?.click()}
               className="inline-flex items-center gap-1 rounded border border-gray-700 px-2 py-1 text-xs text-gray-300 hover:bg-gray-800"
             >
-              <Upload className="h-3 w-3" /> 选择 JSON 文件
+              <Upload className="h-3 w-3" /> 選择 JSON 文件
             </button>
             <input ref={fileRef} type="file" accept=".json" className="hidden" />
           </div>
@@ -1779,7 +1779,7 @@ function AddCredentialForm({ providerId, isVertex, onCreated, onCancel }: AddFor
           </div>
           {providerId === "gemini-aistudio" && (
             <div>
-              <label className="text-xs text-gray-500">Base URL（可选）</label>
+              <label className="text-xs text-gray-500">Base URL（可選）</label>
               <input
                 type="url"
                 value={baseUrl}

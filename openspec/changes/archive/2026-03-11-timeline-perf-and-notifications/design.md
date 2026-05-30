@@ -1,10 +1,10 @@
 ## Context
 
-ArcReel 前端的分镜场景板（TimelineCanvas）使用简单的 `overflow-y-auto` 垂直堆叠所有 SegmentCard，没有虚拟滚动或懒加载。一個剧集通常有 30-100 個分镜，页面加载时会同时发起所有图片和视频的请求。
+ArcReel 前端的分镜場景板（TimelineCanvas）使用简单的 `overflow-y-auto` 垂直堆叠所有 SegmentCard，没有虚拟滚动或懒加载。一個剧集通常有 30-100 個分镜，页面加载时会同时发起所有图片和视频的请求。
 
 当任意资源变更时，`invalidateMediaAssets()` 递增全局 `mediaRevision` 计数器，导致所有订阅该值的组件（SegmentCard、CharacterCard、ClueCard、OverviewCanvas、AssetSidebar、AvatarStack、VersionTimeMachine）同时触发媒体 URL `?v=N` 变化，浏览器重新加载全部资源。
 
-Agent 批量操作（如一次新增 5 個角色）时，后端 diff 正确产生多条变更事件，但前端 `selectPrimaryChange()` / `selectNotificationChange()` 仅从数组中选出 1 条展示。
+Agent 批量操作（如一次新增 5 個角色）时，后端 diff 正确产生多条变更事件，但前端 `selectPrimaryChange()` / `selectNotificationChange()` 仅从数组中選出 1 条展示。
 
 ## Goals / Non-Goals
 
@@ -21,9 +21,9 @@ Agent 批量操作（如一次新增 5 個角色）时，后端 diff 正确产�
 
 ## Decisions
 
-### 1. 虚拟滚动选型：@tanstack/react-virtual
+### 1. 虚拟滚动選型：@tanstack/react-virtual
 
-**选择**：@tanstack/react-virtual v3
+**選择**：@tanstack/react-virtual v3
 **替代方案**：react-window、react-virtuoso
 **理由**：
 - 原生支持动态高度（`measureElement` + ResizeObserver），SegmentCard 有展开/折叠态
@@ -33,12 +33,12 @@ Agent 批量操作（如一次新增 5 個角色）时，后端 diff 正确产�
 
 ### 2. 懒加载策略：原生 + 虚拟滚动
 
-**选择**：虚拟滚动自然实现懒加载（不在视口的 SegmentCard 不渲染），视口内的 `<img>` 额外添加 `loading="lazy"` 作为二级保险
+**選择**：虚拟滚动自然实现懒加载（不在视口的 SegmentCard 不渲染），视口内的 `<img>` 额外添加 `loading="lazy"` 作为二级保险
 **理由**：虚拟滚动已经从根本上解决了问题，`loading="lazy"` 仅作为 overscan 区域内图片的补充优化，无需额外的 IntersectionObserver 逻辑
 
 ### 3. 缓存失效：按实体的版本号（key 为 entity_type:entity_id）
 
-**选择**：`entityRevisions: Record<string, number>`，key 格式为 `entity_type:entity_id`（如 `segment:seg_001`、`character:张三`、`clue:凶器`、`project:project`）
+**選择**：`entityRevisions: Record<string, number>`，key 格式为 `entity_type:entity_id`（如 `segment:seg_001`、`character:张三`、`clue:凶器`、`project:project`）
 **替代方案**：
 - 按文件路径的版本号 — 角色/线索的文件路径不确定性，需要额外推导逻辑
 - 前端 diff 前后 scripts 数据 — 复杂度高，不可靠
@@ -62,12 +62,12 @@ Agent 批量操作（如一次新增 5 個角色）时，后端 diff 正确产�
 
 ### 4. 滚动定位适配
 
-**选择**：维护 `segmentId → virtualIndex` 映射，scrollTarget 触发时调用 `virtualizer.scrollToIndex()`
+**選择**：维护 `segmentId → virtualIndex` 映射，scrollTarget 触发时调用 `virtualizer.scrollToIndex()`
 **理由**：虚拟滚动下目标 segment 可能不在 DOM 中，无法使用 `getElementById` + `scrollIntoView()`
 
 ### 5. 通知聚合：按 entity_type:action 分组
 
-**选择**：将同批次 changes 按 `entity_type:action` 分组，每组生成一条聚合文案
+**選择**：将同批次 changes 按 `entity_type:action` 分组，每组生成一条聚合文案
 **替代方案**：每条变更单独弹 toast
 **理由**：批量 5 個角色弹 5 個 toast 体验差，聚合为"AI 新增了 3 個角色：张三、李四、王五"更友好
 

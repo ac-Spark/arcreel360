@@ -16,14 +16,14 @@
 
 - [x] 3.1 调整 assistant/chat 相关路由，按 active provider 路由请求
 - [x] 3.2 调整 session / snapshot / status 响应，暴露 provider 与 capability 信息
-- [x] 3.3 为同步聊天端点补充 Claude / Gemini / OpenAI 的 provider 选择、能力不足与配置缺失测试覆盖
+- [x] 3.3 为同步聊天端点补充 Claude / Gemini / OpenAI 的 provider 選择、能力不足与配置缺失测试覆盖
 
 ## 4. 配置与前端降级
 
-- [x] 4.1 在系统配置中新增 assistant provider 选择与 provider 状态展示
-- [x] 4.2 调整 `config-status-store` 与设置页横幅逻辑，将 Anthropic 从全局必填项改为 provider-specific requirement，并纳入 Gemini / OpenAI 配置缺失场景
+- [x] 4.1 在系统配置中新增 assistant provider 選择与 provider 状态展示
+- [x] 4.2 调整 `config-status-store` 与设置页横幅逻辑，将 Anthropic 从全局必填项改为 provider-specific requirement，并纳入 Gemini / OpenAI 配置缺失場景
 - [x] 4.3 调整 assistant 面板 UI，基于 capability matrix 隐藏或禁用不支持的功能
-- [x] 4.4 为 Gemini-only 与 OpenAI-only 场景补充前端测试，验证不会再因缺少 Anthropic 被误判为系统未完成
+- [x] 4.4 为 Gemini-only 与 OpenAI-only 場景补充前端测试，验证不会再因缺少 Anthropic 被误判为系统未完成
 
 ## 5. Workflow-grade 路线
 

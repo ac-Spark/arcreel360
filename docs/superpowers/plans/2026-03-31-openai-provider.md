@@ -380,7 +380,7 @@ class TestOpenAITextBackend:
         assert result.output_tokens is None
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_openai_text_backend.py -v`
 
@@ -726,7 +726,7 @@ class TestOpenAIImageBackend:
                 assert call_kwargs["quality"] == expected_quality, f"size={img_size}"
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_openai_image_backend.py -v`
 
@@ -1038,7 +1038,7 @@ class TestOpenAIVideoBackend:
                 prompt="Bad content",
                 output_path=output_path,
             )
-            with pytest.raises(RuntimeError, match="Sora 视频生成失败"):
+            with pytest.raises(RuntimeError, match="Sora 视频生成失敗"):
                 await backend.generate(request)
 
     async def test_duration_mapping(self, tmp_path: Path):
@@ -1090,7 +1090,7 @@ class TestOpenAIVideoBackend:
                 assert call_kwargs["size"] == expected_size, f"aspect={aspect}"
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_openai_video_backend.py -v`
 
@@ -1177,7 +1177,7 @@ class OpenAIVideoBackend:
         video = await self._client.videos.create_and_poll(**kwargs)
 
         if video.status == "failed":
-            raise RuntimeError(f"Sora 视频生成失败: {video.error}")
+            raise RuntimeError(f"Sora 视频生成失敗: {video.error}")
 
         content = await self._client.videos.download_content(video.id)
         request.output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1336,7 +1336,7 @@ class TestOpenAICost:
         assert amount == pytest.approx(1.20)
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_cost_calculator.py::TestOpenAICost -v`
 

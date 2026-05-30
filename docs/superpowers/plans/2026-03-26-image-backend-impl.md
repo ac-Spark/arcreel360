@@ -228,7 +228,7 @@ def _normalize_provider_id(raw: str) -> str:
 - [ ] **Step 16: 运行测试验证重命名无破坏**
 
 Run: `uv run python -m pytest -x -q`
-Expected: 全部 PASS（或仅存在与本次无关的已有失败）
+Expected: 全部 PASS（或仅存在与本次无关的已有失敗）
 
 - [ ] **Step 17: 提交**
 
@@ -275,7 +275,7 @@ uv run alembic upgrade head
 
 - [ ] **Step 4: 验证 migration 数据转换**
 
-在测试或 Python shell 中验证：向 DB 插入 `seedance` provider_config 行，运行 migration，断言变为 `ark`。也验证空表场景不报错。
+在测试或 Python shell 中验证：向 DB 插入 `seedance` provider_config 行，运行 migration，断言变为 `ark`。也验证空表場景不报错。
 
 - [ ] **Step 5: 提交**
 
@@ -342,7 +342,7 @@ def test_image_generation_result():
     assert result.usage_tokens is None
 ```
 
-- [ ] **Step 3: 运行测试验证失败**
+- [ ] **Step 3: 运行测试验证失敗**
 
 Run: `uv run python -m pytest tests/test_image_backends/test_base.py -v`
 Expected: FAIL (模块不存在)
@@ -669,7 +669,7 @@ def test_name_vertex():
     assert backend.name == "gemini-vertex"
 ```
 
-- [ ] **Step 2: 运行测试验证失败**
+- [ ] **Step 2: 运行测试验证失敗**
 
 Run: `uv run python -m pytest tests/test_image_backends/test_gemini.py -v`
 Expected: FAIL
@@ -888,7 +888,7 @@ git commit -m "feat: implement GeminiImageBackend with T2I and I2I support"
 
 测试 `ArkImageBackend` 的构造、capabilities、`generate()` SDK 参数转换（mock `volcenginesdkarkruntime.Ark`）。
 
-- [ ] **Step 2: 运行测试验证失败**
+- [ ] **Step 2: 运行测试验证失敗**
 
 Run: `uv run python -m pytest tests/test_image_backends/test_ark.py -v`
 
@@ -930,7 +930,7 @@ git commit -m "feat: implement ArkImageBackend (Seedream) with T2I and I2I"
 
 测试 `GrokImageBackend` 的构造、capabilities、`generate()` SDK 参数转换（mock `xai_sdk.AsyncClient`）。
 
-- [ ] **Step 2: 运行测试验证失败**
+- [ ] **Step 2: 运行测试验证失敗**
 
 - [ ] **Step 3: 创建 `lib/image_backends/grok.py`**
 
@@ -992,7 +992,7 @@ def test_grok_image_cost_pro():
     assert cost == pytest.approx(0.07)
 ```
 
-- [ ] **Step 2: 运行测试验证失败**
+- [ ] **Step 2: 运行测试验证失敗**
 
 - [ ] **Step 3: 在 `CostCalculator` 中新增方法和常量**
 
@@ -1208,7 +1208,7 @@ async def generate_image_async(self, prompt, resource_type, resource_id,
             call_id=call_id, status="success", output_path=str(output_path),
         )
     except Exception as e:
-        logger.exception("生成失败 (image)")
+        logger.exception("生成失敗 (image)")
         await self.usage_tracker.finish_call(
             call_id=call_id, status="failed", error_message=str(e),
         )

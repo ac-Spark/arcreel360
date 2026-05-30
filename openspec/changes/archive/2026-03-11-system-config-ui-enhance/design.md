@@ -12,7 +12,7 @@
 **Goals:**
 - 将顶栏 Tab 从 `[config, api-keys]` 扩展为 `[ArcReel 智能体配置, AI 生图/生视频配置, 高级配置, API Keys]`，每個配置 Tab 承载对应分类的字段
 - 每個配置 Tab 有独立保存按钮；Tab 内有未保存变更时，保存页脚以 sticky 方式固定在视口底部
-- 为所有可选字段统一添加清除（×）按钮
+- 为所有可選字段统一添加清除（×）按钮
 - 使用 `/frontend-design` 技能进行 UI 设计，使用 `/vercel-react-best-practices` 技能进行开发
 
 **Non-Goals:**
@@ -24,12 +24,12 @@
 
 ### 决策 1：Tab 结构设计
 
-**选择**：四個顶栏 Tab，原 `api-keys` Tab 保留不变，原 `config` Tab 拆分为三個
+**選择**：四個顶栏 Tab，原 `api-keys` Tab 保留不变，原 `config` Tab 拆分为三個
 
 | Tab | 内容 |
 |-----|------|
-| ArcReel 智能体配置 | Anthropic API Key、Base URL、各模型选择 |
-| AI 生图/生视频配置 | Gemini API Key、Base URL、后端选择、模型选择、Vertex 凭证 |
+| ArcReel 智能体配置 | Anthropic API Key、Base URL、各模型選择 |
+| AI 生图/生视频配置 | Gemini API Key、Base URL、后端選择、模型選择、Vertex 凭证 |
 | 高级配置 | 速率限制（RPM）、请求间隔、最大并发 Worker 数 |
 | API Keys | 現有 ApiKeysTab 组件，不变 |
 
@@ -39,7 +39,7 @@
 
 **核心问题**：Tab 内内容可能较长，用户编辑上方字段后不知道需要点击保存按钮。
 
-**选择**：每個配置 Tab 的保存页脚在有未保存变更时变为 sticky，固定在视口底部。
+**選择**：每個配置 Tab 的保存页脚在有未保存变更时变为 sticky，固定在视口底部。
 
 **交互细节**：
 - 无未保存变更时：保存页脚正常渲染在 Tab 内容底部（非 sticky），save 按钮为禁用态
@@ -67,7 +67,7 @@ const isDirty = !deepEqual(draft, savedValues)
 
 ### 决策 3：状态模型
 
-**选择**：每個配置 Tab 组件内部维护自己的草稿状态（`useState`），Tab 间完全隔离
+**選择**：每個配置 Tab 组件内部维护自己的草稿状态（`useState`），Tab 间完全隔离
 
 ```typescript
 type TabStatus = "idle" | "saving" | "error"
@@ -153,7 +153,7 @@ function getConfigIssues(config: SystemConfigView): ConfigIssue[] {
 
 ## Risks / Trade-offs
 
-- **切换 Tab 时未保存变更丢失** → Tab 标签上的圆点徽标提醒用户；可选：切换时弹出确认对话框 → 先用徽标方案，避免过度打扰
+- **切换 Tab 时未保存变更丢失** → Tab 标签上的圆点徽标提醒用户；可選：切换时弹出确认对话框 → 先用徽标方案，避免过度打扰
 - **Sticky 页脚遮挡最后一行** → 页面底部添加足够 `padding-bottom`；sticky 解除后自动恢复 → 低风险
 - **重构范围较大** → `SystemConfigPage.tsx` 需大幅重写 → 分阶段：先拆分 Tab 结构，再加 sticky 感知
 - **配置完整性请求时机** → 应用初始化时若未登录则无法请求 → 配置完整性检测放在 AuthGuard 通过后执行，未登录时不显示徽标

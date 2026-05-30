@@ -31,7 +31,7 @@
 - Modify: `lib/image_utils.py`
 - Create: `tests/test_image_utils.py`
 
-- [ ] **Step 1: 编写 `compress_image_bytes` 失败测试**
+- [ ] **Step 1: 编写 `compress_image_bytes` 失敗测试**
 
 ```python
 # tests/test_image_utils.py
@@ -122,7 +122,7 @@ class TestCompressImageBytes:
         assert len(result) < len(raw)
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_image_utils.py -v`
 Expected: FAIL — `ImportError: cannot import name 'compress_image_bytes'`
@@ -425,7 +425,7 @@ class TestAspectRatioValidation:
         assert _validate_aspect_ratio("5:4") == "5:4"
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失敗**
 
 Run: `uv run python -m pytest tests/test_image_backends/test_grok.py -v`
 Expected: FAIL — 旧测试断言 `image_url`（单数），新测试断言 `image_urls`（复数）
@@ -576,7 +576,7 @@ Expected: 无错误。如有，修复后重新运行。
 
 Run: `uv run python -m pytest tests/ -v --no-header`
 
-Expected: 全部 PASS。如有失败，修复后重新运行。
+Expected: 全部 PASS。如有失敗，修复后重新运行。
 
 - [ ] **Step 3: 如有修复则提交**
 

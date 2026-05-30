@@ -56,7 +56,7 @@ Grok 供应商在实际使用中暴露出四個问题，影响图片/视频生�
 
 1. **DB 配置残留**：检查 `provider_configs` 表中 Grok 的 `image_max_workers` 是否被设为 1
 2. **Pool 加载逻辑**：`_load_pools_from_db()` 在解析 config 时是否有类型转换或默认值问题
-3. **Fallback pool**：如果 DB 加载失败，`_build_default_pools()` 是否被使用且行为正确
+3. **Fallback pool**：如果 DB 加载失敗，`_build_default_pools()` 是否被使用且行为正确
 
 ### 方案
 

@@ -278,11 +278,12 @@ client.content_generation.tasks.delete(task_id="cgt-2025****")
 
 對於非實時場景，配置 `service_tier="flex"` 可以將呼叫價格降低 50%。
 
+> ⚠️ **注意**：離線推理 (`service_tier: flex`) 僅 Seedance 1.5 Pro 及其以前版本支援，**Seedance 2.0 系列（包括 Fast 版）完全不支援此參數**。若對 2.0 模型發送 `service_tier` 參數將會引發 404/Invalid 錯誤。
+
 ```
 create_result = client.content_generation.tasks.create(
     model="doubao-seedance-1-5-pro-251215",
     content=[...], # 略
-    service_tier="flex",             # 開啟離線推理
     execution_expires_after=172800,  # 設定任務超時時間
 )
 ```
@@ -374,3 +375,93 @@ if __name__ == '__main__':
 ### 6.3 任務生命週期
 
 任務資料（如狀態、影片下載連結）**僅保留 24 小時**，超時將自動清除。請在回撥或輪詢確認成功後，儘快將產物下載轉存至您的 OSS 等儲存空間。
+
+---
+
+## 7. 官方 API 參數與常見錯誤參考
+
+### 7.1 模型支援能力對照
+
+| 功能 | Seedance 2.0 & 2.0 Fast | Seedance 1.5 Pro | Seedance 1.0 Pro | 1.0 Pro Fast |
+| :--- | :--- | :--- | :--- | :--- |
+| **Text to video** | ✅ | ✅ | ✅ | ✅ |
+| **Image to video (首幀)** | ✅ | ✅ | ✅ | ✅ |
+| **Image to video (首尾幀)** | ✅ | ✅ | ✅ | — |
+| **多模態參考 (圖+影片+音訊+文)** | ✅ | — | — | — |
+| **樣片模式 (`draft: true`)** | ❌ **不支援** | ✅ | — | — |
+| **樣片任務強化 (`draft_task`)** | ❌ **不支援** | ✅ | — | — |
+| **音訊生成 (`generate_audio`)** | ✅ | ✅ | — | — |
+| **離線推理 (`service_tier: flex`)** | ❌ **不支援** | ✅ | ✅ | ✅ |
+
+### 7.2 Request Body 關鍵欄位補充說明
+
+* **`model`** (string, required): 模型 ID 或 Endpoint ID（以 `ep-` 開頭，生產環境必須使用以 `ep-` 開頭的接入點 ID）。
+* **`draft`** (boolean, default: false): 僅 Seedance 1.5 Pro 支援。設為 `true` 會生成 480p 樣片，確認後可在下一個任務傳入 `{"type": "draft_task", "draft_task": {"id": "<樣片任務 ID>"}}` 生成正式版。
+* **`service_tier`** (string, default: "default"): **Seedance 2.0 系列不支援**。可用於 1.5 Pro / 1.0 Pro 的 Flex 離線推理。
+
+### 7.3 常見錯誤代碼與解決方法
+
+| 錯誤訊息 | 原因 | 解決方式 |
+| :--- | :--- | :--- |
+| `draft_task content cannot be mixed with other content types` | `draft_task` 欄位與其他內容類型同時出現在 content 中 | `draft_task` 必須是 content 陣列中唯一的元素。 |
+| `task_type draft_task does not support model dreamina-seedance-2-0` | 使用 Seedance 2.0 系列模型發送 `draft_task` | 請改用 Seedance 1.5 Pro 模型 (`seedance-1-5-pro-251215`)。 |
+| `InvalidParameter: content` | content 多模態組合不符合規則（如音訊單獨發送） | 音訊不可單獨發送，請至少搭配一張圖片或一部影片，並確認組合符合官方支援規則。 |
+| `InvalidEndpointOrModel.NotFound` | 調用時直接使用了原生模型名稱，或者 Endpoint ID 無效/無權限 | 在火山引擎 Ark 平台，調用時必須使用在控制台部署後取得的以 `ep-` 開頭的 Endpoint ID（接入點 ID），請確認「全域設定 -> 模型選擇」配置是否正確。 |
+
+## 8. BytePlus ModelArk 境外版 API 參考 (BytePlus API Reference)
+
+對於使用 **BytePlus ModelArk**（火山引擎海外版）的用戶，其 API 端點及模型 ID 命名規則與國內火山引擎方舟平台略有不同。
+
+* **API Endpoint**: `POST https://ark.ap-southeast.bytepluses.com/api/v3/contents/generations/tasks`
+
+### 8.1 常用模型 ID 對照
+在海外版 BytePlus ModelArk 中，常用模型 ID 命名一般為 `dreamina-` 開頭：
+* `dreamina-seedance-2-0`（Seedance 2.0）
+* `dreamina-seedance-2-0-fast`（Seedance 2.0 Fast）
+* `dreamina-seedance-1-5-pro`（Seedance 1.5 Pro）
+* `dreamina-seedance-1-0-pro`（Seedance 1.0 Pro）
+
+> ⚠️ **重要**：在實際調用時，必須使用在 BytePlus 控制台部署該模型後所生成的以 `ep-` 開頭的 **Endpoint ID**（接入點 ID），直接傳入原生模型 ID 會返回 `InvalidEndpointOrModel.NotFound` 錯誤。
+
+### 8.2 多模態輸入結構 (`content` 欄位)
+`content` 欄位為一個陣列（Array），用於傳遞多模態輸入內容。可以包含文本、圖像、影片、音訊或樣片任務：
+
+#### 1. 文本描述 (Text)
+* `type`: `"text"`
+* `text`: 影片畫面的文字提示詞描述。
+
+#### 2. 首幀圖像 (First Frame Image)
+* `type`: `"image_url"`
+* `image_url.url`: TOS 或公網可訪問的 HTTP 連結。
+* `role`: `"first_frame"`
+
+#### 3. 尾幀圖像 (Last Frame Image)
+* `type`: `"image_url"`
+* `image_url.url`: TOS 或公網可訪問的 HTTP 連結。
+* `role`: `"last_frame"`
+
+#### 4. 參考圖像 (Reference Image)
+* `type`: `"image_url"`
+* `image_url.url`: TOS 或公網可訪問的 HTTP 連結。
+* `role`: `"reference_image"`
+
+#### 5. 影片參考 (Video Reference)
+* `type`: `"video_url"`
+* `video_url.url`: 影片檔案的 HTTP 連結。
+* `role`: `"reference_video"`（例如作為動態或風格參考）
+
+#### 6. 音訊參考 (Audio Reference)
+* `type`: `"audio_url"`
+* `audio_url.url`: 音訊檔案的 HTTP 連結。
+* `role`: `"reference_audio"`（目前僅 Seedance 2.0 系列支持多模態音訊參考）
+
+#### 7. 樣片任務 (Draft Task)
+* `type`: `"draft_task"`
+* `draft_task.id`: 用於二次強化的 `draft_task_id`（樣片任務 ID）。
+
+### 8.3 狀態碼與常見錯誤說明
+
+* **`400 InvalidParameter`**: 參數格式錯誤、超出限制或多模態組合不支持。
+* **`404 InvalidEndpointOrModel.NotFound`**: Endpoint ID 不存在、拼寫錯誤或當前租戶無訪問權限。
+* **`413 RequestEntityTooLarge`**: 傳入的圖片或媒體連結之檔案大小超出上限。
+

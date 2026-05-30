@@ -4,7 +4,7 @@
 
 **Goal:** 在分镜卡片文本列下半部分添加备注 textarea，失焦自动保存到剧集 JSON。
 
-**Architecture:** 在 `NarrationSegment` / `DramaScene` 模型中加 `note` 可选字段，复用現有 PATCH API 保存，前端 `TextColumn` 中渲染 textarea。
+**Architecture:** 在 `NarrationSegment` / `DramaScene` 模型中加 `note` 可選字段，复用現有 PATCH API 保存，前端 `TextColumn` 中渲染 textarea。
 
 **Tech Stack:** Python Pydantic, FastAPI, React, TypeScript, Tailwind CSS
 

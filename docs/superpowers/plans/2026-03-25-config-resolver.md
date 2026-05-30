@@ -19,7 +19,7 @@
 - Modify: `lib/config/__init__.py`
 - Create: `tests/test_config_resolver.py`
 
-- [ ] **Step 1: 编写 ConfigResolver 失败测试**
+- [ ] **Step 1: 编写 ConfigResolver 失敗测试**
 
 ```python
 # tests/test_config_resolver.py
@@ -150,7 +150,7 @@ class TestProviderConfig:
         assert "gemini-aistudio" in result
 ```
 
-- [ ] **Step 2: 运行测试，确认全部失败**
+- [ ] **Step 2: 运行测试，确认全部失敗**
 
 Run: `uv run python -m pytest tests/test_config_resolver.py -v`
 Expected: ImportError 或 AttributeError（ConfigResolver 还不存在）
@@ -300,7 +300,7 @@ git commit -m "feat: add ConfigResolver with unified defaults and priority resol
 - Modify: `lib/media_generator.py:43-97` (构造函数)
 - Modify: `lib/media_generator.py:136-143` (删除 `_resolve_video_generate_audio`)
 - Modify: `lib/media_generator.py:406-418` (同步 `generate_video`)
-- Modify: `lib/media_generator.py:554-566` (异步 `generate_video_async`)
+- Modify: `lib/media_generator.py:554-566` (異步 `generate_video_async`)
 - Modify: `tests/test_media_generator_module.py:63-83` (`_build_generator` helper)
 
 - [ ] **Step 1: 更新 `_build_generator` 测试 helper，注入 FakeConfigResolver**
@@ -380,7 +380,7 @@ else:
     )
 ```
 
-- [ ] **Step 5: 改造异步 `generate_video_async()` 中的 audio 解析逻辑**
+- [ ] **Step 5: 改造異步 `generate_video_async()` 中的 audio 解析逻辑**
 
 在 `lib/media_generator.py` 第 554-566 行，同样的模式：
 
@@ -681,4 +681,4 @@ git add -A
 git commit -m "chore: remove stale references to _BulkConfig and _video_generate_audio"
 ```
 
-> **行为变更说明**：ConfigResolver 不像旧 `_load_all_config()` 那样在 DB 异常时静默回退到 `True`。DB 异常现在会抛出，这是设计规格中的有意决策——避免配置读取失败时静默启用音频生成。
+> **行为变更说明**：ConfigResolver 不像旧 `_load_all_config()` 那样在 DB 异常时静默回退到 `True`。DB 异常现在会抛出，这是设计规格中的有意决策——避免配置读取失敗时静默启用音频生成。

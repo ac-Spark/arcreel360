@@ -37,7 +37,7 @@ OpenClaw 等外部平台需要长期有效的 API Key 来调用 ArcReel API，�
 2. 检查 token 是否以 `arc-` 开头
 3. **是 → API Key 路径**：计算 SHA-256 哈希 → 查数据库 → 成功则返回 `{"sub": "apikey:<key_name>", "via": "apikey"}`
 4. **否 → JWT 路径**：JWT 解码验证 → 成功则返回 payload
-5. 任一路径失败 → 返回 401
+5. 任一路径失敗 → 返回 401
 
 **理由**: 前缀判定是确定性的，避免不必要的 JWT 解码尝试。最小改动，所有現有端点自动获得 API Key 支持。
 
@@ -52,7 +52,7 @@ OpenClaw 等外部平台需要长期有效的 API Key 来调用 ArcReel API，�
 {
   "project_name": "my-project",
   "message": "帮我写一個悬疑剧本",
-  "session_id": null  // 可选，传入则复用会话
+  "session_id": null  // 可選，传入则复用会话
 }
 ```
 
@@ -77,7 +77,7 @@ OpenClaw 等外部平台需要长期有效的 API Key 来调用 ArcReel API，�
 - `key_hash`: SHA-256 哈希
 - `key_prefix`: 前 8 位（`arc-xxxx`）用于列表展示
 - `created_at`: 创建时间
-- `expires_at`: 过期时间（可选，默认 30 天）
+- `expires_at`: 过期时间（可選，默认 30 天）
 - `last_used_at`: 最近使用时间
 
 **理由**: 与現有 ORM 体系一致，复用 SQLAlchemy async + Alembic migration。

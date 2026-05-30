@@ -47,7 +47,7 @@ ArcReel 使用 Claude Agent SDK 运行一個主 agent 会话，通过 Agent 工�
 
 ### Decision 1：Subagent 拆解策略
 
-**选择**：将两個大 agent 拆解为 3 個聚焦 subagent + 利用現有 skill
+**選择**：将两個大 agent 拆解为 3 個聚焦 subagent + 利用現有 skill
 
 **替代方案**：
 - A) 保留两個大 agent，只修改内部流程 → 不解决作用域错配问题
@@ -69,7 +69,7 @@ ArcReel 使用 Claude Agent SDK 运行一個主 agent 会话，通过 Agent 工�
 
 ### Decision 2：编排 skill 设计方式
 
-**选择**：将 `manga-workflow` 重写为带状态检测逻辑的编排 skill（纯 prompt 驱动，无代码框架）
+**選择**：将 `manga-workflow` 重写为带状态检测逻辑的编排 skill（纯 prompt 驱动，无代码框架）
 
 **替代方案**：
 - A) 编写一個 Python 状态机框架来编排 → 过度工程化，且与 Claude Agent SDK 的 prompt-based 模式不匹配
@@ -93,7 +93,7 @@ ArcReel 使用 Claude Agent SDK 运行一個主 agent 会话，通过 Agent 工�
 
 ### Decision 3：Skill 调用方式——预加载 vs 运行时调用
 
-**选择**：混合策略
+**選择**：混合策略
 
 - `create-episode-script` subagent 通过 `skills` 字段**预加载** `generate-script` skill（因为该 subagent 的核心任务就是调用这個 skill）
 - 资产生成阶段（generate-characters/storyboard/video）由主 agent dispatch 一個通用 subagent，该 subagent 运行时通过 **Bash 工具直接调用** 对应的 Python 脚本（因为这些 skill 本质就是脚本包装）
@@ -102,11 +102,11 @@ ArcReel 使用 Claude Agent SDK 运行一個主 agent 会话，通过 Agent 工�
 - 所有 skill 都预加载 → 部分 subagent 会加载不需要的 skill 内容，浪费 context
 - 所有 skill 都运行时调用 → 部分 skill 的指令对 subagent 的行为至关重要，需要预加载
 
-**理由**：预加载适合"subagent 的行为完全由 skill 定义"的场景；运行时调用适合"subagent 只需执行一個脚本命令"的场景。
+**理由**：预加载适合"subagent 的行为完全由 skill 定义"的場景；运行时调用适合"subagent 只需执行一個脚本命令"的場景。
 
 ### Decision 4：全局角色/线索提取的触发时机
 
-**选择**：作为编排流程的第一個显式阶段，且支持独立调用
+**選择**：作为编排流程的第一個显式阶段，且支持独立调用
 
 **设计**：
 - `manga-workflow` 编排时，如果 project.json 中 characters 为空或 clues 为空，自动进入全局提取阶段
@@ -120,19 +120,19 @@ ArcReel 使用 Claude Agent SDK 运行一個主 agent 会话，通过 Agent 工�
 
 ### Decision 5：资产生成阶段是否使用 subagent
 
-**选择**：资产生成 skill（generate-characters/storyboard/video）通过 subagent 调用
+**選择**：资产生成 skill（generate-characters/storyboard/video）通过 subagent 调用
 
 **理由**：
 - 这些 skill 执行时会产生大量输出（生成 prompt、API 调用日志、进度信息）
 - 下沉到 subagent 可保护主 agent context
-- subagent 可以处理生成失败、重试、部分结果汇总等逻辑，只返回最终摘要
-- 利用 subagent 的 `background: true` 选项，部分生成任务可后台运行
+- subagent 可以处理生成失敗、重试、部分结果汇总等逻辑，只返回最终摘要
+- 利用 subagent 的 `background: true` 選項，部分生成任务可后台运行
 
 **实现方式**：为资产生成阶段创建一個通用的 `asset-generator` subagent 模板，通过参数指定调用哪個 skill 脚本。或者直接让主 agent dispatch general-purpose subagent 并在 prompt 中指定任务。
 
 ### Decision 6：角色/线索写入脚本化
 
-**选择**：新建 `add_characters_clues.py` 脚本，封装 `ProjectManager.add_characters_batch()` + `add_clues_batch()` + `validate_project()`
+**選择**：新建 `add_characters_clues.py` 脚本，封装 `ProjectManager.add_characters_batch()` + `add_clues_batch()` + `validate_project()`
 
 **现状**：
 - `ProjectManager` 已有 `add_characters_batch()` 和 `add_clues_batch()` 方法
@@ -148,12 +148,12 @@ python .claude/skills/manage-project/scripts/add_characters_clues.py {project_na
 ```
 
 - 输入：项目名 + JSON 格式的角色/线索数据（通过命令行参数或 stdin）
-- 输出：写入 project.json + 调用 validate_project 验证 + 打印成功/失败摘要
+- 输出：写入 project.json + 调用 validate_project 验证 + 打印成功/失敗摘要
 - **settings.json 放行**：需在 `permissions.allow` 中添加 `Bash(python .claude/skills/manage-project/scripts/add_characters_clues.py *)`
 
 ### Decision 7：drama 模式预处理分两步——Gemini 生成 Markdown + script_generator 生成 JSON
 
-**选择**：`normalize-drama-script` subagent 调用新脚本使用 `gemini-3.1-pro-preview` 生成 Markdown 格式的规范化剧本（step1），然后 `create-episode-script` subagent 使用已有的 `script_generator` 将 Markdown 转为 JSON（step2）
+**選择**：`normalize-drama-script` subagent 调用新脚本使用 `gemini-3.1-pro-preview` 生成 Markdown 格式的规范化剧本（step1），然后 `create-episode-script` subagent 使用已有的 `script_generator` 将 Markdown 转为 JSON（step2）
 
 **两步流程**：
 
