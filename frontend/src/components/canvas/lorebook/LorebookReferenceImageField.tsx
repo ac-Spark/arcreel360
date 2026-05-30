@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Upload } from "lucide-react";
+import { ImagePlus, Upload, X } from "lucide-react";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
+import { useConfirm } from "@/hooks/useConfirm";
 
 interface LorebookReferenceImageFieldProps {
   name: string;
@@ -29,13 +30,12 @@ export function LorebookReferenceImageField({
   onUpload,
   onRemove,
 }: LorebookReferenceImageFieldProps) {
-  const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [referencePreview, setReferencePreview] = useState<string | null>(null);
   const [savingReference, setSavingReference] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const confirm = useConfirm();
 
   useEffect(() => {
-    setReferenceFile(null);
     setReferencePreview((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
@@ -52,14 +52,13 @@ export function LorebookReferenceImageField({
 
   const displayedReferenceUrl = referencePreview ?? savedUrl;
   const openReferencePicker = () => fileInputRef.current?.click();
-  const referenceStatusLabel = getReferenceStatusLabel(savingReference, referenceFile !== null);
+  const referenceStatusLabel = getReferenceStatusLabel(savingReference, referencePreview !== null);
 
   const handleReferenceChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
 
-    setReferenceFile(file);
     setReferencePreview((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return URL.createObjectURL(file);
@@ -74,9 +73,15 @@ export function LorebookReferenceImageField({
 
   const handleRemove = async () => {
     if (!onRemove) return;
+    const ok = await confirm({
+      message: `確定要移除「${name}」參考圖嗎？`,
+      confirmLabel: "移除",
+      danger: true,
+    });
+    if (!ok) return;
+
     try {
       await onRemove();
-      setReferenceFile(null);
       setReferencePreview((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return null;
@@ -92,36 +97,13 @@ export function LorebookReferenceImageField({
         <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
           參考圖
         </span>
-        {displayedReferenceUrl && (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={openReferencePicker}
-              className="text-xs text-gray-400 transition-colors hover:text-gray-200"
-            >
-              替換
-            </button>
-            {onRemove && (
-              <>
-                <span className="text-gray-600 text-xs">|</span>
-                <button
-                  type="button"
-                  onClick={handleRemove}
-                  className="text-xs text-red-400/80 transition-colors hover:text-red-400"
-                >
-                  移除
-                </button>
-              </>
-            )}
-          </div>
-        )}
       </div>
 
       {displayedReferenceUrl ? (
         <PreviewableImageFrame
           src={displayedReferenceUrl}
           alt={`${name} 參考圖`}
-          buttonClassName="right-2.5 top-2.5"
+          buttonClassName="left-2.5 right-auto top-2.5"
         >
           <div className="relative overflow-hidden rounded-lg border border-gray-700 bg-gray-800">
             <img
@@ -129,6 +111,16 @@ export function LorebookReferenceImageField({
               alt={`${name} 參考圖`}
               className="h-28 w-full object-cover"
             />
+            {onRemove && (
+              <button
+                type="button"
+                onClick={handleRemove}
+                aria-label={`移除 ${name} 參考圖`}
+                className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white/85 shadow-lg backdrop-blur transition-colors hover:bg-red-500/85 hover:text-white focus:outline-none focus:ring-2 focus:ring-red-300/70"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
             <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-3 py-2">
               <span className="flex items-center gap-1.5 text-xs text-gray-200">
                 <ImagePlus className="h-3.5 w-3.5" />
@@ -137,9 +129,10 @@ export function LorebookReferenceImageField({
               <button
                 type="button"
                 onClick={openReferencePicker}
+                aria-label="替換參考圖"
                 className="rounded bg-black/40 px-2 py-1 text-xs text-gray-200 transition-colors hover:bg-black/60"
               >
-                更換
+                替換
               </button>
             </div>
           </div>

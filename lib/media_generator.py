@@ -283,6 +283,7 @@ class MediaGenerator:
             raise
 
         # 5. 記錄新版本
+        reference_images_metadata = [{"name": Path(ref.path).name, "label": ref.label} for ref in ref_images] or None
         new_version = self.versions.add_version(
             resource_type=resource_type,
             resource_id=resource_id,
@@ -290,10 +291,7 @@ class MediaGenerator:
             source_file=output_path,
             aspect_ratio=aspect_ratio,
             image_size=image_size,
-            reference_images=[
-                {"name": Path(ref.path).name, "label": ref.label} for ref in ref_images
-            ]
-            or None,
+            reference_images=reference_images_metadata,
             model=self._image_backend.model,
             provider=self._image_backend.name,
             **version_metadata,
