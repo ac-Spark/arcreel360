@@ -4,7 +4,6 @@
 管理影片專案的目錄結構、分鏡劇本讀寫、狀態追蹤。
 """
 
-import json
 import logging
 import os
 import re
@@ -16,12 +15,11 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from lib import agent_profile
-from lib.entity_reconciler import reconcile_script
-from lib.project_change_hints import emit_project_change_hint
+from lib import overview_generator
 from lib.project_paths import ProjectPaths
 from lib.project_store import ProjectStore
-from lib.storyboard_sequence import find_storyboard_item, get_storyboard_items
+from lib.script_repository import ScriptRepository
+from lib.symlink_repair import repair_all_symlinks, repair_claude_symlink
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +152,20 @@ class ProjectManager:
         self.projects_root.mkdir(parents=True, exist_ok=True)
         self._paths = ProjectPaths(self.projects_root)
         self._store = ProjectStore(self._paths)
+        self._scripts = ScriptRepository(
+            paths=self._paths,
+            store=self._store,
+            sync_characters=lambda project_name, script_filename: getattr(
+                self,
+                "sync_characters_from_script",
+                lambda *_args: None,
+            )(project_name, script_filename),
+            sync_clues=lambda project_name, script_filename: getattr(
+                self,
+                "sync_clues_from_script",
+                lambda *_args: None,
+            )(project_name, script_filename),
+        )
 
         from lib.lorebook_manager import LorebookManager
 
@@ -192,65 +204,10 @@ class ProjectManager:
         return project_dir
 
     def repair_claude_symlink(self, project_dir: Path) -> dict:
-        """修復專案目錄的 .claude 和 CLAUDE.md 軟連線。
-
-        對每條軟連線執行：
-        - 損壞（is_symlink but not exists）→ 刪除並重建
-        - 缺失（not exists and not is_symlink）→ 建立
-        - 正常（exists）→ 跳過
-
-        Returns:
-            {"created": int, "repaired": int, "skipped": int, "errors": int}
-        """
-        symlink_targets = agent_profile.project_symlink_targets(self.projects_root.parent)
-        relative_targets = agent_profile.project_symlink_relative_targets()
-
-        stats = {"created": 0, "repaired": 0, "skipped": 0, "errors": 0}
-        for name, target_source in symlink_targets.items():
-            if not target_source.exists():
-                continue
-            symlink_path = project_dir / name
-            if symlink_path.is_symlink() and not symlink_path.exists():
-                # 損壞的軟連線
-                try:
-                    symlink_path.unlink()
-                    symlink_path.symlink_to(relative_targets[name])
-                    stats["repaired"] += 1
-                except OSError as e:
-                    logger.warning("無法修復專案 %s 的 %s 符號連結: %s", project_dir.name, name, e)
-                    stats["errors"] += 1
-            elif not symlink_path.exists() and not symlink_path.is_symlink():
-                # 缺失
-                try:
-                    symlink_path.symlink_to(relative_targets[name])
-                    stats["created"] += 1
-                except OSError as e:
-                    logger.warning("無法為專案 %s 建立 %s 符號連結: %s", project_dir.name, name, e)
-                    stats["errors"] += 1
-            else:
-                stats["skipped"] += 1
-        return stats
+        return repair_claude_symlink(project_dir, profile_root=self.projects_root.parent)
 
     def repair_all_symlinks(self) -> dict:
-        """掃描所有專案目錄，修復軟連線。
-
-        Returns:
-            {"created": int, "repaired": int, "skipped": int, "errors": int}
-        """
-        totals = {"created": 0, "repaired": 0, "skipped": 0, "errors": 0}
-        if not self.projects_root.exists():
-            return totals
-        for project_dir in sorted(self.projects_root.iterdir()):
-            if not project_dir.is_dir() or project_dir.name.startswith("."):
-                continue
-            try:
-                result = self.repair_claude_symlink(project_dir)
-                for key in ("created", "repaired", "skipped", "errors"):
-                    totals[key] += result.get(key, 0)
-            except Exception as e:
-                logger.warning("修復專案 %s 軟連線時出錯: %s", project_dir.name, e)
-                totals["errors"] += 1
-        return totals
+        return repair_all_symlinks(self.projects_root)
 
     def get_project_path(self, name: str) -> Path:
         """獲取專案路徑（含路徑遍歷防護）"""
@@ -324,488 +281,42 @@ class ProjectManager:
     # ==================== 分鏡劇本操作 ====================
 
     def create_script(self, project_name: str, title: str, chapter: str) -> dict:
-        """
-        建立新的分鏡劇本模板
-
-        Args:
-            project_name: 專案名稱
-            title: 小說標題
-            chapter: 章節名稱
-
-        Returns:
-            劇本字典
-        """
-        script = {
-            "novel": {"title": title, "chapter": chapter},
-            "scenes": [],
-            "metadata": {
-                "created_at": _utc_now_iso(),
-                "updated_at": _utc_now_iso(),
-                "total_scenes": 0,
-                "estimated_duration_seconds": 0,
-                "status": "draft",
-            },
-        }
-
-        return script
+        return self._scripts.create_script(project_name, title, chapter)
 
     def save_script(self, project_name: str, script: dict, filename: str | None = None) -> Path:
-        """
-        儲存分鏡劇本
-
-        Args:
-            project_name: 專案名稱
-            script: 劇本字典
-            filename: 可選的檔名，預設使用章節名
-
-        Returns:
-            儲存的檔案路徑
-        """
-        project_dir = self.get_project_path(project_name)
-        scripts_dir = project_dir / "scripts"
-
-        if filename is not None and filename.startswith("scripts/"):
-            filename = filename[len("scripts/") :]
-
-        if filename is None:
-            chapter = script["novel"].get("chapter", "chapter_01")
-            filename = f"{chapter.replace(' ', '_')}_script.json"
-
-        # 以檔名集數為唯一真相源，校正內容的 episode 欄位。
-        # 防止「episode=1 的內容被寫進 episode_2.json」造成兩檔撞號、
-        # 進而拖垮事件服務的索引同步迴圈。檔名無法解析集數時不校正。
-        filename_episode = _episode_from_filename(filename)
-        if filename_episode is not None and script.get("episode") != filename_episode:
-            logger.warning(
-                "劇本內容 episode=%s 與檔名集數=%s 不一致，以檔名為準校正 project=%s file=%s",
-                script.get("episode"),
-                filename_episode,
-                project_name,
-                filename,
-            )
-            script["episode"] = filename_episode
-            for items_key in ("segments", "scenes"):
-                items = script.get(items_key)
-                if not isinstance(items, list):
-                    continue
-                for item in items:
-                    if isinstance(item, dict) and "episode" in item:
-                        item["episode"] = filename_episode
-
-        # 更新後設資料（相容舊指令碼：可能缺少 metadata，或 narration 使用 segments）
-        now = _utc_now_iso()
-
-        # 補齊非關鍵路徑，任何失敗都不應阻擋存檔
-        try:
-            project_json = self.load_project(project_name)
-            script = reconcile_script(script, project_json)
-        except Exception:
-            logger.warning("關聯補齊失敗，沿用原劇本繼續存檔: %s", project_name, exc_info=True)
-
-        metadata = script.get("metadata")
-        if not isinstance(metadata, dict):
-            metadata = {}
-            script["metadata"] = metadata
-        metadata.setdefault("created_at", now)
-        metadata.setdefault("status", "draft")
-        metadata["updated_at"] = now
-
-        scenes = script.get("scenes", [])
-        if not isinstance(scenes, list):
-            scenes = []
-        segments = script.get("segments", [])
-        if not isinstance(segments, list):
-            segments = []
-
-        content_mode = script.get("content_mode", "narration")
-        if content_mode == "narration" and segments:
-            items = segments
-            items_type = "segments"
-        elif scenes:
-            items = scenes
-            items_type = "scenes"
-        else:
-            items = segments
-            items_type = "segments"
-
-        metadata["total_scenes"] = len(items)
-
-        # 計算總時長：按當前選中的資料結構決定回退值，避免 content_mode 缺失時誤判
-        default_duration = 4 if items_type == "segments" else 8
-        total_duration = sum(item.get("duration_seconds", default_duration) for item in items)
-        metadata["estimated_duration_seconds"] = total_duration
-
-        # 儲存檔案（含路徑遍歷防護），使用原子寫入避免併發讀取讀到半寫狀態
-        real = self._safe_subpath(scripts_dir, filename)
-        output_path = Path(real)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        self._atomic_write_json(output_path, script)
-
-        emit_project_change_hint(
-            project_name,
-            changed_paths=[f"scripts/{output_path.name}"],
-        )
-
-        # 自動同步到 project.json
-        if self.project_exists(project_name) and isinstance(script.get("episode"), int):
-            self.sync_episode_from_script(project_name, filename)
-
-        return output_path
+        return self._scripts.save_script(project_name, script, filename)
 
     def sync_episode_from_script(self, project_name: str, script_filename: str) -> dict:
-        """
-        從劇本檔案同步集數資訊到 project.json
-
-        Agent 寫入劇本後必須呼叫此方法以確保 WebUI 能正確顯示劇集列表。
-
-        Args:
-            project_name: 專案名稱
-            script_filename: 劇本檔名（如 episode_1.json）
-
-        Returns:
-            更新後的 project 字典
-        """
-        script = self.load_script(project_name, script_filename)
-        project = self.load_project(project_name)
-
-        episode_num = script.get("episode", 1)
-        episode_title = script.get("title", "")
-        script_file = f"scripts/{script_filename}"
-
-        # 查詢或建立 episode 條目
-        episodes = project.setdefault("episodes", [])
-        episode_entry = next((ep for ep in episodes if ep["episode"] == episode_num), None)
-
-        if episode_entry is None:
-            episode_entry = {"episode": episode_num, "order": _next_display_order(episodes)}
-            episodes.append(episode_entry)
-        elif episode_entry.get("title") == episode_title and episode_entry.get("script_file") == script_file:
-            # 內容無變化時直接返回，不觸發 save_project（避免無謂的變更 hint
-            # 造成事件服務反覆重掃，形成自我觸發迴圈），也不打 info log。
-            return project
-
-        # 同步核心後設資料（不包含統計欄位，統計欄位由 StatusCalculator 讀時計算）
-        episode_entry["title"] = episode_title
-        episode_entry["script_file"] = script_file
-
-        # 排序並儲存
-        episodes.sort(key=lambda x: x["episode"])
-        self.save_project(project_name, project)
-
-        logger.info("已同步劇集資訊: Episode %d - %s", episode_num, episode_title)
-        return project
+        return self._scripts.sync_episode_from_script(project_name, script_filename)
 
     def load_script(self, project_name: str, filename: str) -> dict:
-        """
-        載入分鏡劇本
-
-        Args:
-            project_name: 專案名稱
-            filename: 劇本檔名
-
-        Returns:
-            劇本字典
-        """
-        project_dir = self.get_project_path(project_name)
-        if filename.startswith("scripts/"):
-            filename = filename[len("scripts/") :]
-        real = self._safe_subpath(project_dir / "scripts", filename)
-
-        if not os.path.exists(real):
-            raise FileNotFoundError(f"劇本檔案不存在: {real}")
-
-        with open(real, encoding="utf-8") as f:  # noqa: PTH123
-            return json.load(f)
+        return self._scripts.load_script(project_name, filename)
 
     def list_scripts(self, project_name: str) -> list[str]:
-        """列出專案中的所有劇本"""
-        project_dir = self.get_project_path(project_name)
-        scripts_dir = project_dir / "scripts"
-        return [f.name for f in scripts_dir.glob("*.json")]
-
-    # ==================== 角色管理 ====================
+        return self._scripts.list_scripts(project_name)
 
     def update_character_sheet(self, project_name: str, script_filename: str, name: str, sheet_path: str) -> dict:
-        """更新角色設計圖路徑"""
-        script = self.load_script(project_name, script_filename)
-
-        if name not in script["characters"]:
-            raise KeyError(f"角色 '{name}' 不存在")
-
-        script["characters"][name]["character_sheet"] = sheet_path
-        self.save_script(project_name, script, script_filename)
-        return script
-
-    # ==================== 資料結構標準化 ====================
+        return self._scripts.update_character_sheet(project_name, script_filename, name, sheet_path)
 
     @staticmethod
     def create_generated_assets(content_mode: str = "narration") -> dict:
-        """
-        建立標準的 generated_assets 結構
-
-        Args:
-            content_mode: 內容模式（'narration' 或 'drama'）
-
-        Returns:
-            標準的 generated_assets 字典
-        """
-        return {
-            "storyboard_image": None,
-            "video_clip": None,
-            "video_thumbnail": None,
-            "video_uri": None,
-            "status": "pending",
-        }
+        return ScriptRepository.create_generated_assets(content_mode)
 
     @staticmethod
     def create_scene_template(scene_id: str, episode: int = 1, duration_seconds: int = 8) -> dict:
-        """
-        建立標準場景物件模板
-
-        Args:
-            scene_id: 場景 ID（如 "E1S01"）
-            episode: 集數編號
-            duration_seconds: 場景時長（秒）
-
-        Returns:
-            標準的場景字典
-        """
-        return {
-            "scene_id": scene_id,
-            "episode": episode,
-            "title": "",
-            "scene_type": "劇情",
-            "duration_seconds": duration_seconds,
-            "segment_break": False,
-            "characters_in_scene": [],
-            "clues_in_scene": [],
-            "visual": {
-                "description": "",
-                "shot_type": "medium shot",
-                "camera_movement": "static",
-                "lighting": "",
-                "mood": "",
-            },
-            "action": "",
-            "dialogue": {"speaker": "", "text": "", "emotion": "neutral"},
-            "audio": {"dialogue": [], "narration": "", "sound_effects": []},
-            "transition_to_next": "cut",
-            "generated_assets": ProjectManager.create_generated_assets(),
-        }
+        return ScriptRepository.create_scene_template(scene_id, episode, duration_seconds)
 
     def normalize_scene(self, scene: dict, episode: int = 1) -> dict:
-        """
-        補全單個場景中缺失的欄位
-
-        Args:
-            scene: 場景字典
-            episode: 集數編號（用於補全 episode 欄位）
-
-        Returns:
-            補全後的場景字典
-        """
-        template = self.create_scene_template(
-            scene_id=scene.get("scene_id", "000"),
-            episode=episode,
-            duration_seconds=scene.get("duration_seconds", 8),
-        )
-
-        # 合併 visual 欄位
-        if "visual" not in scene:
-            scene["visual"] = template["visual"]
-        else:
-            for key in template["visual"]:
-                if key not in scene["visual"]:
-                    scene["visual"][key] = template["visual"][key]
-
-        # 合併 audio 欄位
-        if "audio" not in scene:
-            scene["audio"] = template["audio"]
-        else:
-            for key in template["audio"]:
-                if key not in scene["audio"]:
-                    scene["audio"][key] = template["audio"][key]
-
-        # 補全 generated_assets 欄位
-        if "generated_assets" not in scene:
-            scene["generated_assets"] = self.create_generated_assets()
-        else:
-            assets_template = self.create_generated_assets()
-            for key in assets_template:
-                if key not in scene["generated_assets"]:
-                    scene["generated_assets"][key] = assets_template[key]
-
-        # 補全其他頂層欄位
-        top_level_defaults = {
-            "episode": episode,
-            "title": "",
-            "scene_type": "劇情",
-            "segment_break": False,
-            "characters_in_scene": [],
-            "clues_in_scene": [],
-            "action": "",
-            "dialogue": template["dialogue"],
-            "transition_to_next": "cut",
-        }
-
-        for key, default_value in top_level_defaults.items():
-            if key not in scene:
-                scene[key] = default_value
-
-        # 更新狀態
-        self.update_scene_status(scene)
-
-        return scene
+        return self._scripts.normalize_scene(scene, episode)
 
     def update_scene_status(self, scene: dict) -> str:
-        """
-        根據 generated_assets 內容更新並返回場景狀態
-
-        狀態值:
-        - pending: 未開始
-        - storyboard_ready: 分鏡圖完成
-        - completed: 影片完成
-
-        Args:
-            scene: 場景字典
-
-        Returns:
-            更新後的狀態值
-        """
-        assets = scene.get("generated_assets", {})
-
-        has_image = bool(assets.get("storyboard_image"))
-        has_video = bool(assets.get("video_clip"))
-
-        if has_video:
-            status = "completed"
-        elif has_image:
-            status = "storyboard_ready"
-        else:
-            status = "pending"
-
-        assets["status"] = status
-        return status
+        return self._scripts.update_scene_status(scene)
 
     def normalize_script(self, project_name: str, script_filename: str, save: bool = True) -> dict:
-        """
-        補全現有 script.json 中缺失的欄位
-
-        Args:
-            project_name: 專案名稱
-            script_filename: 劇本檔名
-            save: 是否儲存修改後的劇本
-
-        Returns:
-            補全後的劇本字典
-        """
-        import re
-
-        script = self.load_script(project_name, script_filename)
-
-        # 從檔名或現有資料推斷 episode
-        episode = script.get("episode", 1)
-        if not episode:
-            match = re.search(r"episode[_\s]*(\d+)", script_filename, re.IGNORECASE)
-            if match:
-                episode = int(match.group(1))
-            else:
-                episode = 1
-
-        # 補全頂層欄位
-        script_defaults = {
-            "episode": episode,
-            "title": script.get("novel", {}).get("chapter", ""),
-            "duration_seconds": 0,
-            "summary": "",
-        }
-
-        for key, default_value in script_defaults.items():
-            if key not in script:
-                script[key] = default_value
-
-        # 確保必要的頂層結構存在
-        if "novel" not in script:
-            script["novel"] = {"title": "", "chapter": ""}
-        # 剝離已廢棄的 source_file 欄位
-        if isinstance(script.get("novel"), dict):
-            script["novel"].pop("source_file", None)
-
-        # 處理舊格式：如果有 characters 物件，同步到 project.json
-        if "characters" in script and isinstance(script["characters"], dict) and script["characters"]:
-            logger.warning("檢測到舊格式 characters 物件，自動同步到 project.json")
-            self.sync_characters_from_script(project_name, script_filename)
-            # sync_characters_from_script 會重新載入和儲存 script，所以需要重新載入
-            script = self.load_script(project_name, script_filename)
-
-        # 處理舊格式：如果有 clues 物件，同步到 project.json
-        if "clues" in script and isinstance(script["clues"], dict) and script["clues"]:
-            logger.warning("檢測到舊格式 clues 物件，自動同步到 project.json")
-            self.sync_clues_from_script(project_name, script_filename)
-            script = self.load_script(project_name, script_filename)
-
-        # 注意：characters_in_episode 和 clues_in_episode 已改為讀時計算
-        # 不再在 normalize_script 中建立這些欄位
-
-        if "scenes" not in script:
-            script["scenes"] = []
-
-        if "metadata" not in script:
-            script["metadata"] = {
-                "created_at": _utc_now_iso(),
-                "updated_at": _utc_now_iso(),
-                "total_scenes": 0,
-                "estimated_duration_seconds": 0,
-                "status": "draft",
-            }
-
-        # 規範化每個場景
-        for scene in script["scenes"]:
-            self.normalize_scene(scene, episode)
-
-        # 更新統計資訊
-        script["metadata"]["total_scenes"] = len(script["scenes"])
-        script["metadata"]["estimated_duration_seconds"] = sum(s.get("duration_seconds", 8) for s in script["scenes"])
-        script["duration_seconds"] = script["metadata"]["estimated_duration_seconds"]
-
-        if save:
-            self.save_script(project_name, script, script_filename)
-            logger.info("劇本已規範化並儲存: %s", script_filename)
-
-        return script
-
-    # ==================== 場景管理 ====================
+        return self._scripts.normalize_script(project_name, script_filename, save)
 
     def add_scene(self, project_name: str, script_filename: str, scene: dict) -> dict:
-        """
-        向劇本新增場景
-
-        Args:
-            project_name: 專案名稱
-            script_filename: 劇本檔名
-            scene: 場景字典
-
-        Returns:
-            更新後的劇本
-        """
-        script = self.load_script(project_name, script_filename)
-
-        # 自動生成場景 ID
-        existing_ids = [s["scene_id"] for s in script["scenes"]]
-        next_id = f"{len(existing_ids) + 1:03d}"
-        scene["scene_id"] = next_id
-
-        # 確保有 generated_assets 欄位
-        if "generated_assets" not in scene:
-            scene["generated_assets"] = {
-                "storyboard_image": None,
-                "video_clip": None,
-                "status": "pending",
-            }
-
-        script["scenes"].append(scene)
-        self.save_script(project_name, script, script_filename)
-        return script
+        return self._scripts.add_scene(project_name, script_filename, scene)
 
     def update_scene_asset(
         self,
@@ -815,51 +326,7 @@ class ProjectManager:
         asset_type: str,
         asset_path: str,
     ) -> dict:
-        """
-        更新場景的生成資源路徑
-
-        Args:
-            project_name: 專案名稱
-            script_filename: 劇本檔名
-            scene_id: 場景/片段 ID
-            asset_type: 資源型別 ('storyboard_image' 或 'video_clip')
-            asset_path: 資源路徑
-
-        Returns:
-            更新後的劇本
-        """
-        script = self.load_script(project_name, script_filename)
-
-        # 根據內容模式選擇正確的資料結構
-        content_mode = script.get("content_mode", "narration")
-        if content_mode == "narration" and "segments" in script:
-            items = script["segments"]
-            id_field = "segment_id"
-        else:
-            items = script.get("scenes", [])
-            id_field = "scene_id"
-
-        for item in items:
-            if str(item.get(id_field)) == str(scene_id):
-                assets = item.get("generated_assets")
-                if not isinstance(assets, dict):
-                    assets = {}
-                    item["generated_assets"] = assets
-
-                assets_template = self.create_generated_assets(content_mode)
-                for key, default_value in assets_template.items():
-                    if key not in assets:
-                        assets[key] = default_value
-
-                assets[asset_type] = asset_path
-
-                # 使用 update_scene_status 更新狀態
-                self.update_scene_status(item)
-
-                self.save_script(project_name, script, script_filename)
-                return script
-
-        raise KeyError(f"場景 '{scene_id}' 不存在")
+        return self._scripts.update_scene_asset(project_name, script_filename, scene_id, asset_type, asset_path)
 
     def update_scene_backend(
         self,
@@ -870,46 +337,18 @@ class ProjectManager:
         image_backend: str | None | _BackendUnset = _BACKEND_UNSET,
         video_backend: str | None | _BackendUnset = _BACKEND_UNSET,
     ) -> dict:
-        """更新 scene 的 image_backend / video_backend 覆蓋設定。
-
-        - 未傳入該欄位 → 不動既有值
-        - 傳 None → 清除覆蓋（沿用上層）
-        - 傳字串 → 設為 "provider/model" 覆蓋
-        """
-        script = self.load_script(project_name, script_filename)
-        items, id_field, _, _, _ = get_storyboard_items(script)
-        resolved = find_storyboard_item(items, id_field, scene_id)
-        if resolved is None:
-            raise KeyError(f"場景 '{scene_id}' 不存在")
-
-        item, _ = resolved
-        _apply_scene_backend(item, "image_backend", image_backend)
-        _apply_scene_backend(item, "video_backend", video_backend)
-        self.save_script(project_name, script, script_filename)
-        return item
+        kwargs: dict[str, str | None] = {}
+        if image_backend is not _BACKEND_UNSET:
+            kwargs["image_backend"] = image_backend
+        if video_backend is not _BACKEND_UNSET:
+            kwargs["video_backend"] = video_backend
+        return self._scripts.update_scene_backend(project_name, script_filename, scene_id, **kwargs)
 
     def get_pending_scenes(self, project_name: str, script_filename: str, asset_type: str) -> list[dict]:
-        """
-        獲取待處理的場景/片段列表
+        return self._scripts.get_pending_scenes(project_name, script_filename, asset_type)
 
-        Args:
-            project_name: 專案名稱
-            script_filename: 劇本檔名
-            asset_type: 資源型別
-
-        Returns:
-            待處理場景/片段列表
-        """
-        script = self.load_script(project_name, script_filename)
-
-        # 根據內容模式選擇正確的資料結構
-        content_mode = script.get("content_mode", "narration")
-        if content_mode == "narration" and "segments" in script:
-            items = script["segments"]
-        else:
-            items = script.get("scenes", [])
-
-        return [item for item in items if not item["generated_assets"].get(asset_type)]
+    def get_scenes_needing_storyboard(self, project_name: str, script_filename: str) -> list[dict]:
+        return self._scripts.get_scenes_needing_storyboard(project_name, script_filename)
 
     # ==================== 檔案路徑工具 ====================
 
@@ -932,27 +371,6 @@ class ProjectManager:
     def get_output_path(self, project_name: str, filename: str) -> Path:
         """獲取輸出路徑"""
         return self._paths.get_output_path(project_name, filename)
-
-    def get_scenes_needing_storyboard(self, project_name: str, script_filename: str) -> list[dict]:
-        """
-        獲取需要生成分鏡圖的場景/片段列表（兩種模式統一邏輯）
-
-        Args:
-            project_name: 專案名稱
-            script_filename: 劇本檔名
-
-        Returns:
-            需要生成分鏡圖的場景/片段列表
-        """
-        script = self.load_script(project_name, script_filename)
-
-        content_mode = script.get("content_mode", "narration")
-        if content_mode == "narration" and "segments" in script:
-            items = script["segments"]
-        else:
-            items = script.get("scenes", [])
-
-        return [item for item in items if not item.get("generated_assets", {}).get("storyboard_image")]
 
     # ==================== 專案級後設資料管理 ====================
 
@@ -1255,129 +673,21 @@ class ProjectManager:
         return self.lorebook.update_clue_reference_image(project_name, name, ref_path)
 
     def _find_script_filename_by_scene_id(self, project_name: str, scene_id: str) -> str:
-        """遍歷專案 episodes 中的劇本，查找包含特定 scene_id 或 segment_id 的劇本檔名"""
-        project = self.load_project(project_name)
-        for ep in project.get("episodes", []):
-            script_filename = ep.get("script_file")
-            if not script_filename:
-                continue
-            try:
-                script_name = (
-                    script_filename[len("scripts/") :] if script_filename.startswith("scripts/") else script_filename
-                )
-                script = self.load_script(project_name, script_name)
-                for key in ("segments", "scenes"):
-                    for item in script.get(key, []) or []:
-                        if str(item.get("segment_id") or item.get("scene_id")) == str(scene_id):
-                            return script_name
-            except Exception:
-                continue
-        raise KeyError(f"在專案 '{project_name}' 中找不到包含場景 ID '{scene_id}' 的劇本")
+        return self._scripts._find_script_filename_by_scene_id(project_name, scene_id)
 
     def update_storyboard_reference_image(self, project_name: str, name: str, ref_path: str) -> dict:
-        """更新分鏡參考圖路徑 (reference_image)"""
-        return self._update_storyboard_item_field(project_name, name, "reference_image", ref_path)
+        return self._scripts.update_storyboard_reference_image(project_name, name, ref_path)
 
     def update_storyboard_sheet(self, project_name: str, name: str, sheet_path: str) -> dict:
-        """更新分鏡設計圖/當前參考圖路徑 (storyboard_sheet)"""
-        return self._update_storyboard_item_field(project_name, name, "storyboard_sheet", sheet_path)
+        return self._scripts.update_storyboard_sheet(project_name, name, sheet_path)
 
     def _update_storyboard_item_field(self, project_name: str, name: str, field: str, value: str) -> dict:
-        script_name = self._find_script_filename_by_scene_id(project_name, name)
-        script = self.load_script(project_name, script_name)
-        content_mode = script.get("content_mode", "narration")
-        items = script.get("segments" if content_mode == "narration" else "scenes", [])
-        id_field = "segment_id" if content_mode == "narration" else "scene_id"
-
-        for item in items:
-            if str(item.get(id_field)) == str(name):
-                item[field] = value
-                self.save_script(project_name, script, script_name)
-                return script
-        raise KeyError(f"場景 '{name}' 不存在於劇本 {script_name} 中")
+        return self._scripts._update_storyboard_item_field(project_name, name, field, value)
 
     # ==================== 專案概述生成 ====================
 
     def _read_source_files(self, project_name: str, max_chars: int = 50000) -> str:
-        """
-        讀取專案 source 目錄下的所有文字檔案內容
-
-        Args:
-            project_name: 專案名稱
-            max_chars: 最大讀取字元數（避免超出 API 限制）
-
-        Returns:
-            合併後的文字內容
-        """
-        project_dir = self.get_project_path(project_name)
-        source_dir = project_dir / "source"
-
-        if not source_dir.exists():
-            return ""
-
-        contents = []
-        total_chars = 0
-
-        # 按檔名排序，確保順序一致
-        for file_path in sorted(source_dir.glob("*")):
-            if file_path.is_file() and file_path.suffix.lower() in [".txt", ".md"]:
-                try:
-                    with open(file_path, encoding="utf-8") as f:
-                        content = f.read()
-                        remaining = max_chars - total_chars
-                        if remaining <= 0:
-                            break
-                        if len(content) > remaining:
-                            content = content[:remaining]
-                        contents.append(f"--- {file_path.name} ---\n{content}")
-                        total_chars += len(content)
-                except Exception as e:
-                    logger.error("讀取檔案失敗 %s: %s", file_path.name, e)
-
-        return "\n\n".join(contents)
+        return overview_generator._read_source_files(self._paths, project_name, max_chars)
 
     async def generate_overview(self, project_name: str) -> dict:
-        """
-        使用 Gemini API 非同步生成專案概述
-
-        Args:
-            project_name: 專案名稱
-
-        Returns:
-            生成的 overview 字典，包含 synopsis, genre, theme, world_setting, generated_at
-        """
-        from .text_backends.base import TextGenerationRequest, TextTaskType
-        from .text_generator import TextGenerator
-
-        # 讀取原始檔內容
-        source_content = self._read_source_files(project_name)
-        if not source_content:
-            raise ValueError("source 目錄為空，無法生成概述")
-
-        # 建立 TextGenerator（自動追蹤用量）
-        generator = await TextGenerator.create(TextTaskType.OVERVIEW, project_name)
-
-        # 呼叫 TextGenerator（Structured Outputs）
-        prompt = f"請分析以下小說內容，提取關鍵資訊：\n\n{source_content}"
-
-        result = await generator.generate(
-            TextGenerationRequest(
-                prompt=prompt,
-                response_schema=ProjectOverview,
-            ),
-            project_name=project_name,
-        )
-        response_text = result.text
-
-        # 解析並驗證響應
-        overview = ProjectOverview.model_validate_json(response_text)
-        overview_dict = overview.model_dump()
-        overview_dict["generated_at"] = _utc_now_iso()
-
-        # 儲存到 project.json
-        project = self.load_project(project_name)
-        project["overview"] = overview_dict
-        self.save_project(project_name, project)
-
-        logger.info("專案概述已生成並儲存")
-        return overview_dict
+        return await overview_generator.generate_overview(self._store, self._paths, project_name)
