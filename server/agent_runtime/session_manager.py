@@ -15,7 +15,8 @@ from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
-from server.agent_runtime import session_hooks
+from server.agent_runtime import sdk_process_control as proc
+from server.agent_runtime import session_hooks, session_prompt_builder
 from server.agent_runtime.managed_session import (
     ManagedSession,
     SessionCapacityError,
@@ -171,87 +172,60 @@ class SessionManager:
 - 你是使用者的影片製作搭檔，專業、友善、高效"""
 
     def _build_append_prompt(self, project_name: str) -> str:
-        """Build the append portion for SystemPromptPreset.
+        """Build the append portion for SystemPromptPreset."""
+        loaded = self._load_project_context(project_name)
+        if loaded is None:
+            return session_prompt_builder.build_append_prompt(
+                self._PERSONA_PROMPT,
+                project_name=project_name,
+                project=None,
+                project_cwd=None,
+            )
+        project_cwd, project = loaded
+        return session_prompt_builder.build_append_prompt(
+            self._PERSONA_PROMPT,
+            project_name=project_name,
+            project=project,
+            project_cwd=project_cwd,
+        )
 
-        Combines the ArcReel persona with project-specific context from
-        project.json.  The base CLAUDE.md is auto-loaded by the SDK via
-        setting_sources=["project"] and the CLAUDE.md symlink in the
-        project cwd.
-        """
-        parts = [self._PERSONA_PROMPT]
-
-        project_context = self._build_project_context(project_name)
-        if project_context:
-            parts.append(project_context)
-
-        return "\n".join(parts)
-
-    def _build_project_context(self, project_name: str) -> str:
-        """Build project-specific context from project.json metadata."""
+    def _load_project_context(self, project_name: str) -> tuple[Path, dict[str, Any]] | None:
         try:
             project_cwd = self._resolve_project_cwd(project_name)
         except (ValueError, FileNotFoundError):
-            return ""
+            return None
 
         project_json = project_cwd / "project.json"
         if not project_json.exists():
-            return ""
+            return None
 
         try:
             config = json.loads(project_json.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError) as exc:
             logger.warning("Failed to read project.json for %s: %s", project_name, exc)
-            return ""
+            return None
 
         if not isinstance(config, dict):
             logger.warning("project.json for %s is not a JSON object", project_name)
+            return None
+
+        return project_cwd, config
+
+    def _build_project_context(self, project_name: str) -> str:
+        """Build project-specific context from project.json metadata."""
+        loaded = self._load_project_context(project_name)
+        if loaded is None:
             return ""
-
-        parts = [
-            "## 目前專案上下文",
-            "",
-        ]
-
-        # TODO: 當前定位是自部署服務，這裡直接拼接專案後設資料以保持實現簡單。
-        # TODO: 若後續演進為 SaaS / 多租戶服務，需要把 title/style/overview 等使用者輸入
-        # TODO: 按“非指令上下文”做邊界化或轉義，降低 prompt injection 風險。
-        parts.append(f"- 專案識別：{project_name}")
-        if title := config.get("title"):
-            parts.append(f"- 專案標題：{title}")
-        if mode := config.get("content_mode"):
-            parts.append(f"- 內容模式：{mode}")
-        if style := config.get("style"):
-            parts.append(f"- 視覺風格：{style}")
-        if style_desc := config.get("style_description"):
-            parts.append(f"- 風格描述：{style_desc}")
-        parts.append(f"- 專案目錄（即目前工作目錄 cwd）：{project_cwd}")
-        parts.append(
-            "- Read/Edit/Write 等工具的 file_path 引數必須使用絕對路徑，不要使用相對路徑，也不要把專案標題當成目錄名。"
+        project_cwd, project = loaded
+        return session_prompt_builder.build_project_context(
+            project_name=project_name,
+            project=project,
+            project_cwd=project_cwd,
         )
-        parts.append(
-            f"- Bash 呼叫 skill 指令碼時必須使用相對路徑（如 `python {agent_profile.RELATIVE_SKILLS_PREFIX}/.../script.py`），不要轉成絕對路徑。"
-        )
-        parts.append("- Bash 命令必須寫在單行，禁止使用 `\\` 換行，JSON 引數請使用緊湊格式。")
-
-        self._append_overview_section(parts, config.get("overview", {}))
-
-        return "\n".join(parts)
 
     @staticmethod
     def _append_overview_section(parts: list[str], overview: Any) -> None:
-        """Append project overview fields to prompt parts."""
-        if not isinstance(overview, dict) or not overview:
-            return
-        parts.append("")
-        parts.append("### 專案概述")
-        if synopsis := overview.get("synopsis"):
-            parts.append(synopsis)
-        if genre := overview.get("genre"):
-            parts.append(f"- 題材：{genre}")
-        if theme := overview.get("theme"):
-            parts.append(f"- 主題：{theme}")
-        if world := overview.get("world_setting"):
-            parts.append(f"- 世界觀：{world}")
+        session_prompt_builder.append_overview_section(parts, overview)
 
     def _build_options(
         self,
@@ -688,132 +662,6 @@ class SessionManager:
 
         managed._cleanup_task = asyncio.create_task(_do_cleanup())
 
-    @staticmethod
-    def _get_client_process(client: Any) -> Any:
-        """Best-effort access to the SDK transport process for fallback kill."""
-        transport = getattr(client, "_transport", None)
-        if transport is None:
-            return None
-        return getattr(transport, "_process", None)
-
-    @staticmethod
-    def _process_pid(process: Any) -> int | None:
-        pid = getattr(process, "pid", None)
-        return pid if isinstance(pid, int) else None
-
-    @staticmethod
-    def _process_returncode(process: Any) -> int | None:
-        returncode = getattr(process, "returncode", None)
-        return returncode if isinstance(returncode, int) else None
-
-    async def _cancel_task(self, task: asyncio.Task | None) -> None:
-        """Cancel a task and wait for it to finish."""
-        if task is None or task.done():
-            return
-        task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
-
-    async def _wait_for_process_exit(
-        self,
-        process: Any,
-        *,
-        timeout: float,
-    ) -> bool:
-        """Wait for a subprocess to exit within timeout."""
-        if process is None:
-            return True
-        if self._process_returncode(process) is not None:
-            return True
-        try:
-            await asyncio.wait_for(process.wait(), timeout=timeout)
-        except TimeoutError:
-            return False
-        except Exception:
-            logger.warning("等待 Claude 子程序退出失敗", exc_info=True)
-            return False
-        return self._process_returncode(process) is not None
-
-    async def _force_close_client_process(
-        self,
-        session_id: str,
-        process: Any,
-        *,
-        pid: int | None,
-        cause: str,
-    ) -> bool:
-        """Force terminate lingering Claude CLI process."""
-        if process is None:
-            logger.error(
-                "會話斷開失敗且無法訪問底層程序 session_id=%s cause=%s",
-                session_id,
-                cause,
-            )
-            return False
-
-        if self._process_returncode(process) is not None:
-            return True
-
-        logger.warning(
-            "會話斷開異常，嘗試強制終止 Claude 子程序 session_id=%s pid=%s cause=%s",
-            session_id,
-            pid,
-            cause,
-        )
-        try:
-            process.terminate()
-        except ProcessLookupError:
-            return True
-        except Exception:
-            logger.warning(
-                "傳送 SIGTERM 失敗 session_id=%s pid=%s",
-                session_id,
-                pid,
-                exc_info=True,
-            )
-        else:
-            if await self._wait_for_process_exit(process, timeout=self._TERMINATE_WAIT_TIMEOUT):
-                logger.warning(
-                    "Claude 子程序已透過 SIGTERM 退出 session_id=%s pid=%s returncode=%s",
-                    session_id,
-                    pid,
-                    self._process_returncode(process),
-                )
-                return True
-
-        logger.error(
-            "Claude 子程序在 SIGTERM 後仍存活，傳送 SIGKILL session_id=%s pid=%s",
-            session_id,
-            pid,
-        )
-        try:
-            process.kill()
-        except ProcessLookupError:
-            return True
-        except Exception:
-            logger.error(
-                "傳送 SIGKILL 失敗 session_id=%s pid=%s",
-                session_id,
-                pid,
-                exc_info=True,
-            )
-            return False
-
-        if await self._wait_for_process_exit(process, timeout=self._KILL_WAIT_TIMEOUT):
-            logger.warning(
-                "Claude 子程序已透過 SIGKILL 退出 session_id=%s pid=%s returncode=%s",
-                session_id,
-                pid,
-                self._process_returncode(process),
-            )
-            return True
-
-        logger.error(
-            "Claude 子程序在 SIGKILL 後仍未退出 session_id=%s pid=%s",
-            session_id,
-            pid,
-        )
-        return False
-
     async def close_session(self, session_id: str, *, reason: str = "session closed") -> None:
         """Public close entry for explicit session teardown paths."""
         await self._disconnect_session(
@@ -855,7 +703,7 @@ class SessionManager:
         interrupt_running: bool,
     ) -> None:
         managed.cancel_pending_questions(reason)
-        await self._cancel_task(managed._cleanup_task)
+        await proc.cancel_task(managed._cleanup_task)
 
         if interrupt_running and managed.status == "running":
             managed.pending_user_echoes.clear()
@@ -880,11 +728,11 @@ class SessionManager:
                     exc_info=True,
                 )
 
-        await self._cancel_task(managed.consumer_task)
-        await self._cancel_task(managed._cleanup_task)
+        await proc.cancel_task(managed.consumer_task)
+        await proc.cancel_task(managed._cleanup_task)
 
-        process = self._get_client_process(managed.client)
-        pid = self._process_pid(process)
+        process = proc.get_client_process(managed.client)
+        pid = proc.process_pid(process)
         logger.info(
             "開始斷開會話 session_id=%s status=%s pid=%s reason=%s",
             session_id,
@@ -906,7 +754,7 @@ class SessionManager:
 
         closed = False
         if disconnect_error is None:
-            closed = process is None or self._process_returncode(process) is not None
+            closed = process is None or proc.process_returncode(process) is not None
             if not closed:
                 logger.warning(
                     "disconnect 返回後 Claude 子程序仍存活 session_id=%s pid=%s",
@@ -923,13 +771,15 @@ class SessionManager:
             )
 
         if not closed:
-            closed = await self._force_close_client_process(
+            closed = await proc.force_close_client_process(
                 session_id,
                 process,
                 pid=pid,
                 cause="disconnect_timeout"
                 if isinstance(disconnect_error, asyncio.TimeoutError)
                 else ("disconnect_error" if disconnect_error is not None else "process_still_running"),
+                terminate_wait_timeout=self._TERMINATE_WAIT_TIMEOUT,
+                kill_wait_timeout=self._KILL_WAIT_TIMEOUT,
             )
 
         if not closed:
@@ -942,7 +792,7 @@ class SessionManager:
             "會話已斷開 session_id=%s pid=%s returncode=%s",
             session_id,
             pid,
-            self._process_returncode(process),
+            proc.process_returncode(process),
         )
 
     async def _get_cleanup_delay(self) -> int:
@@ -1061,12 +911,7 @@ class SessionManager:
 
     @staticmethod
     def _encode_sdk_project_path(project_cwd: Path) -> str:
-        """Encode a project cwd the same way the SDK does for session storage.
-
-        Uses the same scheme as transcript_reader.py and the SDK itself:
-        replace ``/`` and ``.`` with ``-``.
-        """
-        return project_cwd.as_posix().replace("/", "-").replace(".", "-")
+        return session_hooks.encode_sdk_project_path(project_cwd)
 
     def _is_path_allowed(
         self,
@@ -1074,65 +919,15 @@ class SessionManager:
         tool_name: str,
         project_cwd: Path,
     ) -> tuple[bool, str | None]:
-        """Check if file_path is allowed for the given tool.
-
-        Returns (allowed, deny_reason).  deny_reason is a human-readable
-        message when allowed is False, None otherwise.
-
-        Write tools: only project_cwd, restricted to _WRITABLE_EXTENSIONS.
-        Read tools: project_cwd + project_root + SDK session dir for
-        this project (sensitive files protected by settings.json deny rules).
-        """
-        try:
-            p = Path(file_path)
-            resolved = (project_cwd / p).resolve() if not p.is_absolute() else p.resolve()
-        except (ValueError, OSError):
-            return False, "存取遭拒：無效的檔案路徑"
-
-        # 1. Within project directory
-        if resolved.is_relative_to(project_cwd):
-            if tool_name in self._WRITE_TOOLS:
-                ext = resolved.suffix.lower()
-                if ext not in self._WRITABLE_EXTENSIONS:
-                    return False, (
-                        f"不允許建立／編輯 {ext} 型別的檔案。"
-                        "Write/Edit 僅限 .json、.md、.txt 檔案。"
-                        "如果你需要執行資料處理，請使用既有的 skill 指令碼。"
-                    )
-            return True, None
-
-        # 2. Write tools: only project directory allowed
-        if tool_name in self._WRITE_TOOLS:
-            return False, "存取遭拒：不允許存取目前專案目錄之外的路徑"
-
-        # 3. Read tools: allow entire project_root for shared resources
-        #    Sensitive files protected by settings.json deny rules
-        if resolved.is_relative_to(self.project_root):
-            return True, None
-
-        # 4. Read tools: allow SDK tool-results for THIS project only.
-        #    When tool output exceeds the inline limit, the SDK saves the
-        #    full result to ~/.claude/projects/{encoded-cwd}/{session}/
-        #    tool-results/{id}.txt and instructs the agent to Read it.
-        #    Only tool-results/ subdirectories are allowed — other SDK
-        #    session data (transcripts, etc.) remains inaccessible.
-        encoded = self._encode_sdk_project_path(project_cwd)
-        sdk_project_dir = self._CLAUDE_PROJECTS_DIR / encoded
-        if resolved.is_relative_to(sdk_project_dir) and "tool-results" in resolved.parts:
-            return True, None
-
-        # 5. Read tools: allow SDK task output files.
-        #    Background tasks (Agent/Bash run_in_background) write their
-        #    output to /tmp/claude-{N}/{encoded-cwd}/tasks/{id}.output.
-        #    The SDK instructs the agent to Read the file after the task
-        #    completes.  Only the tasks/ subdirectory is allowed.
-        #    macOS: /tmp → /private/tmp symlink, so check both prefixes.
-        _SDK_TMP_PREFIXES = ("/tmp/claude-", "/private/tmp/claude-")
-        resolved_str = str(resolved)
-        if resolved_str.startswith(_SDK_TMP_PREFIXES) and "tasks" in resolved.parts:
-            return True, None
-
-        return False, "存取遭拒：不允許存取目前專案與公共目錄之外的路徑"
+        return session_hooks.is_path_allowed(
+            file_path,
+            tool_name,
+            project_cwd,
+            project_root=self.project_root,
+            write_tools=self._WRITE_TOOLS,
+            writable_extensions=self._WRITABLE_EXTENSIONS,
+            sdk_projects_dir=self._CLAUDE_PROJECTS_DIR,
+        )
 
     async def _handle_ask_user_question(
         self,
@@ -1140,95 +935,28 @@ class SessionManager:
         tool_name: str,
         input_data: dict[str, Any],
     ) -> Any:
-        """Handle AskUserQuestion tool invocation within can_use_tool callback."""
-        if managed is None:
-            return PermissionResultAllow(updated_input=input_data)
-
-        raw_questions = input_data.get("questions")
-        questions = raw_questions if isinstance(raw_questions, list) else []
-        payload = {
-            "type": "ask_user_question",
-            "question_id": f"aq_{uuid4().hex}",
-            "tool_name": tool_name,
-            "questions": questions,
-            "timestamp": _utc_now_iso(),
-        }
-        pending = managed.add_pending_question(payload)
-        managed.add_message(payload)
-
-        try:
-            answers = await pending.answer_future
-        except Exception as exc:
-            if PermissionResultDeny is not None:
-                return PermissionResultDeny(
-                    message=str(exc) or "會話已被使用者中斷",
-                    interrupt=True,
-                )
-            raise
-        merged_input = dict(input_data or {})
-        merged_input["answers"] = answers
-        return PermissionResultAllow(updated_input=merged_input)
+        return await session_hooks.handle_ask_user_question(
+            managed,
+            tool_name,
+            input_data,
+            permission_allow_cls=PermissionResultAllow,
+            permission_deny_cls=PermissionResultDeny,
+        )
 
     async def _build_can_use_tool_callback(
         self,
         session_id: str,
         managed_ref: list[Optional["ManagedSession"]] | None = None,
     ):
-        """Create per-session can_use_tool callback (default-deny).
-
-        This is step 5 (final fallback) in the SDK permission chain:
-        Hooks → Deny rules → Permission mode → Allow rules → canUseTool.
-        Only reached when prior steps don't resolve the decision.
-
-        File access control uses the PreToolUse hook (step 1) because it
-        fires for ALL tool calls.  Read/Glob/Grep are resolved by allow
-        rules (step 4) and never reach this callback.
-
-        This callback handles AskUserQuestion (async user interaction) and
-        denies everything else as a whitelist fallback.
-
-        Args:
-            session_id: Initial session ID (may be temp_id for new sessions).
-            managed_ref: Mutable single-element list holding the ManagedSession.
-                When provided, the callback resolves the session via this
-                reference instead of looking up session_id in self.sessions,
-                so it survives the temp_id → sdk_id key swap.
-        """
-
-        async def _can_use_tool(
-            tool_name: str,
-            input_data: dict[str, Any],
-            _context: Any,
-        ) -> Any:
-            if PermissionResultAllow is None:
-                raise RuntimeError("claude_agent_sdk is not installed")
-
-            normalized_tool = str(tool_name or "").strip().lower()
-
-            if normalized_tool == "askuserquestion":
-                managed = managed_ref[0] if managed_ref else self.sessions.get(session_id)
-                return await self._handle_ask_user_question(
-                    managed,
-                    tool_name,
-                    input_data,
-                )
-
-            # Whitelist fallback: deny any tool that was not pre-approved
-            # by allowed_tools or settings.json allow rules.
-            if PermissionResultDeny is not None:
-                hint = (
-                    f"未授權的工具呼叫：{tool_name}"
-                    f"({json.dumps(input_data, ensure_ascii=False)[:200]})\n"
-                    "目前 Bash 白名單僅允許以下命令：\n"
-                    f"  - python {agent_profile.RELATIVE_SKILLS_PREFIX}/<skill>/scripts/<script>.py <args>（必須使用相對路徑）\n"
-                    "  - ffmpeg / ffprobe\n"
-                    "其他 Bash 命令都不可用。"
-                    "請檢查命令格式是否符合白名單規則。"
-                )
-                return PermissionResultDeny(message=hint)
-            return PermissionResultAllow(updated_input=input_data)
-
-        return _can_use_tool
+        return session_hooks.build_can_use_tool_callback(
+            session_id=session_id,
+            sessions=self.sessions,
+            managed_ref=managed_ref,
+            handle_ask_user_question_fn=self._handle_ask_user_question,
+            permission_allow_cls=PermissionResultAllow,
+            permission_deny_cls=PermissionResultDeny,
+            relative_skills_prefix=agent_profile.RELATIVE_SKILLS_PREFIX,
+        )
 
     def _message_to_dict(self, message: Any) -> dict[str, Any]:
         """Convert SDK message to dict for JSON serialization."""

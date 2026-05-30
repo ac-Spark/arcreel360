@@ -5,6 +5,7 @@ import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from lib.db.base import Base
+from server.agent_runtime import session_hooks
 from server.agent_runtime import session_manager as sm_mod
 from server.agent_runtime.session_manager import ManagedSession
 from server.agent_runtime.session_store import SessionMetaStore
@@ -308,7 +309,11 @@ class TestSessionManagerMore:
             meta_store=meta_store,
         )
 
-        hook = mgr._build_file_access_hook(own_project)
+        hook = session_hooks.build_file_access_hook(
+            own_project,
+            mgr._PATH_TOOLS,
+            mgr._is_path_allowed,
+        )
 
         # Read own project file — allowed (within project_cwd)
         result = await hook(
@@ -364,7 +369,11 @@ class TestSessionManagerMore:
             meta_store=meta_store,
         )
 
-        hook = mgr._build_file_access_hook(own_project)
+        hook = session_hooks.build_file_access_hook(
+            own_project,
+            mgr._PATH_TOOLS,
+            mgr._is_path_allowed,
+        )
 
         # Write own project file — allowed
         result = await hook(
@@ -402,7 +411,11 @@ class TestSessionManagerMore:
             meta_store=meta_store,
         )
 
-        hook = mgr._build_file_access_hook(own_project)
+        hook = session_hooks.build_file_access_hook(
+            own_project,
+            mgr._PATH_TOOLS,
+            mgr._is_path_allowed,
+        )
 
         # Bash — not a path tool, hook continues
         result = await hook(
@@ -432,7 +445,11 @@ class TestSessionManagerMore:
             meta_store=meta_store,
         )
 
-        hook = mgr._build_file_access_hook(own_project)
+        hook = session_hooks.build_file_access_hook(
+            own_project,
+            mgr._PATH_TOOLS,
+            mgr._is_path_allowed,
+        )
 
         # Write .py in project dir — denied
         result = await hook(
@@ -522,7 +539,11 @@ class TestSessionManagerMore:
             meta_store=meta_store,
         )
 
-        hook = mgr._build_file_access_hook(own_project)
+        hook = session_hooks.build_file_access_hook(
+            own_project,
+            mgr._PATH_TOOLS,
+            mgr._is_path_allowed,
+        )
 
         # Read agent_runtime_profile/CLAUDE.md — allowed (readonly dir)
         result = await hook(
@@ -556,7 +577,11 @@ class TestSessionManagerMore:
         )
         monkeypatch.setattr(sm_mod.SessionManager, "_CLAUDE_PROJECTS_DIR", claude_home)
 
-        hook = mgr._build_file_access_hook(own_project)
+        hook = session_hooks.build_file_access_hook(
+            own_project,
+            mgr._PATH_TOOLS,
+            mgr._is_path_allowed,
+        )
         return hook, own_project, claude_home, engine
 
     @pytest.mark.asyncio
@@ -700,7 +725,7 @@ class TestJsonValidationHook:
         """Helper: invoke the JSON validation hook callback directly."""
         from pathlib import Path
 
-        hook_fn = manager._build_json_validation_hook(
+        hook_fn = session_hooks.build_json_validation_hook(
             Path(project_cwd) if project_cwd else Path("/tmp"),
         )
         input_data = {
@@ -944,7 +969,7 @@ class TestJsonPostValidationHook:
     ):
         from pathlib import Path
 
-        hook_fn = manager._build_json_post_validation_hook(
+        hook_fn = session_hooks.build_json_post_validation_hook(
             Path(project_cwd) if project_cwd else Path("/tmp"),
             json_backups if json_backups is not None else {},
         )
