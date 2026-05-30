@@ -3,8 +3,13 @@
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from lib.cost_calculator import CNY_TO_USD_RATE
 from lib.db.base import Base
 from lib.db.repositories.usage_repo import UsageRepository
+
+
+def cny(amount: float) -> float:
+    return amount * CNY_TO_USD_RATE
 
 
 @pytest.fixture
@@ -114,9 +119,9 @@ class TestMultiProviderUsage:
         calls = await repo.get_calls(project_name="demo")
         item = calls["items"][0]
         assert item["provider"] == "byteplus"
-        assert item["currency"] == "CNY"
+        assert item["currency"] == "USD"
         assert item["usage_tokens"] == 246840
-        assert item["cost_amount"] == pytest.approx(3.9494, rel=1e-3)
+        assert item["cost_amount"] == pytest.approx(cny(3.9494), rel=1e-3)
 
     async def test_gemini_call_defaults_to_usd(self, db_session):
         repo = UsageRepository(db_session)
@@ -165,9 +170,9 @@ class TestMultiProviderUsage:
         stats = await repo.get_stats(project_name="demo")
         assert stats["total_count"] == 2
         assert "cost_by_currency" in stats
-        assert stats["cost_by_currency"]["USD"] == pytest.approx(3.2)
-        assert stats["cost_by_currency"]["CNY"] == pytest.approx(3.9494, rel=1e-3)
-        assert stats["total_cost"] == pytest.approx(3.2)
+        assert stats["cost_by_currency"]["USD"] == pytest.approx(3.2 + cny(3.9494), rel=1e-3)
+        assert "CNY" not in stats["cost_by_currency"]
+        assert stats["total_cost"] == pytest.approx(3.2 + cny(3.9494), rel=1e-3)
 
     async def test_text_call_gemini_cost(self, db_session):
         repo = UsageRepository(db_session)
@@ -214,9 +219,9 @@ class TestMultiProviderUsage:
 
         calls = await repo.get_calls(project_name="demo")
         item = calls["items"][0]
-        assert item["currency"] == "CNY"
-        # cost = (2000 * 0.30 + 1000 * 0.60) / 1_000_000 = 0.0012
-        assert item["cost_amount"] == pytest.approx(0.0012)
+        assert item["currency"] == "USD"
+        # cost = (2000 * 0.30 + 1000 * 0.60) / 1_000_000 = 0.0012 CNY -> USD
+        assert item["cost_amount"] == pytest.approx(cny(0.0012))
 
     async def test_legacy_ark_provider_normalizes_to_byteplus(self, db_session):
         repo = UsageRepository(db_session)
@@ -232,7 +237,7 @@ class TestMultiProviderUsage:
         calls = await repo.get_calls(project_name="demo")
         item = calls["items"][0]
         assert item["provider"] == "byteplus"
-        assert item["currency"] == "CNY"
+        assert item["currency"] == "USD"
 
     async def test_text_call_failed_zero_cost(self, db_session):
         repo = UsageRepository(db_session)
