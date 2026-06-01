@@ -59,6 +59,7 @@ class ImageGenerationResult:
     seed: int | None = None
     usage_tokens: int | None = None
     quality: str | None = None
+    size: str | None = None
 
 
 class ImageBackend(Protocol):

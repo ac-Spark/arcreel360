@@ -39,7 +39,7 @@ ALLOWED_FILES: frozenset[str] = frozenset({"project.json"})
 
 
 class SandboxViolationError(Exception):
-    """沙盒校验失败时抛出。
+    """沙盒校验失敗时抛出。
 
     工具入口应捕获并转换为结构化错误返回模型，避免向 LLM 暴露异常 traceback。
     """

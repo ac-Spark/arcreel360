@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from lib.image_backends.base import ImageGenerationResult
 from lib.media_generator import MediaGenerator
 
 
@@ -135,6 +136,33 @@ class TestMediaGenerator:
             gen.generate_image(prompt="p", resource_type="characters", resource_id="A")
 
         assert any(item["status"] == "failed" for item in gen.usage_tracker.finished)
+
+    @pytest.mark.asyncio
+    async def test_generate_image_records_quality_and_size_for_cost(self, tmp_path):
+        gen = _build_generator(tmp_path)
+
+        async def _generate(request):
+            request.output_path.parent.mkdir(parents=True, exist_ok=True)
+            request.output_path.write_bytes(b"fake-image-data")
+            return ImageGenerationResult(
+                image_path=request.output_path,
+                provider=gen._image_backend.name,
+                model=gen._image_backend.model,
+                quality="medium",
+                size="1024x1536",
+            )
+
+        gen._image_backend.generate = _generate
+
+        await gen.generate_image_async(
+            prompt="p",
+            resource_type="storyboards",
+            resource_id="E1S02",
+            aspect_ratio="9:16",
+        )
+
+        assert gen.usage_tracker.finished[-1]["quality"] == "medium"
+        assert gen.usage_tracker.finished[-1]["size"] == "1024x1536"
 
     @pytest.mark.asyncio
     async def test_generate_video_sync_and_async(self, tmp_path):

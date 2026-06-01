@@ -157,9 +157,9 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
     ),
     "byteplus": ProviderMeta(
         display_name="BytePlus ModelArk",
-        description="BytePlus ModelArk AI 平臺，支援 Seedance 影片生成和 Seedream 圖片生成，具備音訊生成和種子控制能力。",
+        description="BytePlus ModelArk AI 平臺，支援豆包文字模型和 Seedance 影片生成，具備音訊生成和種子控制能力。",
         required_keys=["api_key"],
-        optional_keys=["video_max_workers", "image_max_workers"],
+        optional_keys=["video_max_workers"],
         secret_keys=["api_key"],
         models={
             # --- text ---
@@ -184,52 +184,12 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
                 media_type="text",
                 capabilities=["text_generation", "structured_output", "vision"],
             ),
-            # --- image ---
-            "doubao-seedream-5-0-lite-260128": ModelInfo(
-                display_name="Seedream 5.0 Lite",
-                media_type="image",
-                supported_image_sizes=["1K"],
-                capabilities=["text_to_image", "image_to_image"],
-                default=True,
-            ),
-            "doubao-seedream-5-0-260128": ModelInfo(
-                display_name="Seedream 5.0",
-                media_type="image",
-                supported_image_sizes=["1K"],
-                capabilities=["text_to_image", "image_to_image"],
-            ),
-            "doubao-seedream-4-5-251128": ModelInfo(
-                display_name="Seedream 4.5",
-                media_type="image",
-                supported_image_sizes=["1K"],
-                capabilities=["text_to_image", "image_to_image"],
-            ),
-            "doubao-seedream-4-0-250828": ModelInfo(
-                display_name="Seedream 4.0",
-                media_type="image",
-                supported_image_sizes=["1K"],
-                capabilities=["text_to_image", "image_to_image"],
-            ),
             # --- video ---
-            "doubao-seedance-1-5-pro-251215": ModelInfo(
-                display_name="Seedance 1.5 Pro",
-                media_type="video",
-                capabilities=["text_to_video", "image_to_video", "generate_audio", "seed_control", "flex_tier"],
-                default=True,
-                supported_durations=list(range(4, 13)),
-                supported_resolutions=["720p", "1080p"],
-            ),
             "doubao-seedance-2-0-260128": ModelInfo(
                 display_name="Seedance 2.0",
                 media_type="video",
                 capabilities=["text_to_video", "image_to_video", "generate_audio", "seed_control", "video_extend"],
-                supported_durations=list(range(4, 16)),
-                supported_resolutions=["480p", "720p", "1080p"],
-            ),
-            "doubao-seedance-2-0-fast-260128": ModelInfo(
-                display_name="Seedance 2.0 Fast",
-                media_type="video",
-                capabilities=["text_to_video", "image_to_video", "generate_audio", "seed_control", "video_extend"],
+                default=True,
                 supported_durations=list(range(4, 16)),
                 supported_resolutions=["480p", "720p", "1080p"],
             ),
@@ -313,15 +273,15 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
                 capabilities=["text_generation", "structured_output", "vision"],
             ),
             # --- image ---
-            "gpt-image-1.5": ModelInfo(
-                display_name="GPT Image 1.5",
+            "gpt-image-2": ModelInfo(
+                display_name="GPT Image 2",
                 media_type="image",
                 supported_image_sizes=["512PX", "1K", "2K", "4K"],
                 capabilities=["text_to_image", "image_to_image"],
                 default=True,
             ),
-            "gpt-image-1-mini": ModelInfo(
-                display_name="GPT Image 1 Mini",
+            "gpt-image-2-2026-04-21": ModelInfo(
+                display_name="GPT Image 2 (2026-04-21)",
                 media_type="image",
                 supported_image_sizes=["512PX", "1K", "2K", "4K"],
                 capabilities=["text_to_image", "image_to_image"],

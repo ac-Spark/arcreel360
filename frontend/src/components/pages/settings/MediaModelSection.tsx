@@ -14,23 +14,6 @@ const TEXT_MODEL_FIELDS = [
   ["text_backend_style", "風格分析"],
 ] as const;
 
-const BYTEPLUS_PROVIDER_ID = "byteplus";
-
-function compactEndpointId(value: string): string {
-  return value.replace(/\s+/g, "");
-}
-
-function buildBytePlusVideoBackend(endpointId: string): string | null {
-  const compact = compactEndpointId(endpointId);
-  return compact ? `${BYTEPLUS_PROVIDER_ID}/${compact}` : null;
-}
-
-function withBytePlusEndpointOption(backends: string[], endpointId: string): string[] {
-  const endpointBackend = buildBytePlusVideoBackend(endpointId);
-  if (!endpointBackend) return backends;
-  return backends.includes(endpointBackend) ? backends : [...backends, endpointBackend];
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -76,10 +59,7 @@ export function MediaModelSection() {
   }, [draft, fetchConfig]);
 
   const currentBytePlusEndpoint = draft.byteplus_video_endpoint_id ?? settings?.byteplus_video_endpoint_id ?? "";
-  const videoBackends = useMemo(
-    () => withBytePlusEndpointOption(options?.video_backends ?? [], currentBytePlusEndpoint),
-    [currentBytePlusEndpoint, options?.video_backends],
-  );
+  const videoBackends = options?.video_backends ?? [];
   const imageBackends: string[] = options?.image_backends ?? [];
   const textBackends: string[] = options?.text_backends ?? [];
 

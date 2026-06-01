@@ -139,6 +139,15 @@ async def _get_or_create_video_backend(
 
     provider_name = normalize_provider_id(provider_name)
     effective_model = provider_settings.get("model") or default_video_model or None
+
+    # BytePlus (Ark) 供應商適配：如果 model 不是以 ep- 開頭，自動嘗試載入配置中的 endpoint_id
+    if provider_name == PROVIDER_BYTEPLUS and effective_model and not effective_model.startswith("ep-"):
+        async with resolver._open_session() as (session, svc):
+            endpoint_id = await svc.get_setting("byteplus_video_endpoint_id", "")
+        if endpoint_id:
+            logger.info("自動將火山引擎預置模型 %s 替換為接入點 %s", effective_model, endpoint_id)
+            effective_model = endpoint_id
+
     cache_key = ("video", provider_name, effective_model)
     if cache_key in _backend_cache:
         return _backend_cache[cache_key]
@@ -743,7 +752,6 @@ async def execute_video_task(
     prompt_text = _normalize_video_prompt(effective_prompt)
     aspect_ratio = get_aspect_ratio(project, "videos")
     seed = payload.get("seed")
-    service_tier = payload.get("video_provider_settings", {}).get("service_tier", "default")
 
     # 解析 provider / model，供 duration fallback 和解析度查詢共用
     provider_settings = payload.get("video_provider_settings", {})
@@ -793,7 +801,6 @@ async def execute_video_task(
         duration_seconds=duration_seconds,
         resolution=resolution,
         seed=seed,
-        service_tier=service_tier,
     )
 
     def _update_video_metadata():

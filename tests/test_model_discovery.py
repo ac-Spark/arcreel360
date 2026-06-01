@@ -22,7 +22,7 @@ class TestInferMediaType:
             # image 關鍵字
             ("dall-e-4", "image"),
             ("DALL-E-3", "image"),
-            ("gpt-image-1.5", "image"),
+            ("gpt-image-2", "image"),
             ("flux-img-v2", "image"),
             ("stable-image-core", "image"),
             # video 關鍵字
@@ -96,14 +96,14 @@ class TestDiscoverModelsOpenAI:
         model_c = MagicMock()
         model_c.id = "dall-e-4"
         model_d = MagicMock()
-        model_d.id = "gpt-image-1.5"
+        model_d.id = "gpt-image-2"
         mock_client.models.list.return_value = [model_a, model_b, model_c, model_d]
 
         result = await discover_models("openai", "https://api.example.com/v1", "sk-test")
 
-        # 按 id 排序: dall-e-4, gpt-5.4, gpt-5.4-mini, gpt-image-1.5
+        # 按 id 排序: dall-e-4, gpt-5.4, gpt-5.4-mini, gpt-image-2
         # text: gpt-5.4 (default), gpt-5.4-mini
-        # image: dall-e-4 (default), gpt-image-1.5
+        # image: dall-e-4 (default), gpt-image-2
         text_models = [m for m in result if m["media_type"] == "text"]
         image_models = [m for m in result if m["media_type"] == "image"]
 

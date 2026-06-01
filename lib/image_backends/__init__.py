@@ -21,13 +21,9 @@ __all__ = [
 ]
 # Backend auto-registration
 from lib.image_backends.gemini import GeminiImageBackend
-from lib.providers import PROVIDER_BYTEPLUS, PROVIDER_GEMINI
+from lib.providers import PROVIDER_GEMINI
 
 register_backend(PROVIDER_GEMINI, GeminiImageBackend)
-
-from lib.image_backends.ark import ArkImageBackend
-
-register_backend(PROVIDER_BYTEPLUS, ArkImageBackend)
 
 from lib.image_backends.grok import GrokImageBackend
 from lib.providers import PROVIDER_GROK

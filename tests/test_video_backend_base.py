@@ -30,7 +30,6 @@ class TestVideoGenerationRequest:
         assert req.start_image is None
         assert req.generate_audio is True
         assert req.negative_prompt is None
-        assert req.service_tier == "default"
         assert req.seed is None
 
     def test_all_fields(self):
@@ -43,12 +42,10 @@ class TestVideoGenerationRequest:
             start_image=Path("/tmp/frame.png"),
             generate_audio=False,
             negative_prompt="no music",
-            service_tier="flex",
             seed=42,
         )
         assert req.duration_seconds == 8
         assert req.seed == 42
-        assert req.service_tier == "flex"
 
 
 class TestVideoGenerationResult:
@@ -68,7 +65,7 @@ class TestVideoGenerationResult:
         result = VideoGenerationResult(
             video_path=Path("/tmp/out.mp4"),
             provider="byteplus",
-            model="doubao-seedance-1-5-pro-251215",
+            model="doubao-seedance-2-0-260128",
             duration_seconds=5,
             video_uri="https://cdn.example.com/video.mp4",
             seed=58944,

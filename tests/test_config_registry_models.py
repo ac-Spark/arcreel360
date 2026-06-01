@@ -58,7 +58,7 @@ class TestProviderRegistry:
             assert len(text_models) > 0, f"{provider_id} has no text models"
 
     def test_all_providers_have_image_models(self):
-        for provider_id in ("gemini-aistudio", "gemini-vertex", "byteplus", "grok"):
+        for provider_id in ("gemini-aistudio", "gemini-vertex", "grok", "openai"):
             meta = PROVIDER_REGISTRY[provider_id]
             image_models = [mid for mid, m in meta.models.items() if m.media_type == "image"]
             assert len(image_models) > 0, f"{provider_id} has no image models"
@@ -82,18 +82,25 @@ class TestProviderRegistry:
         for provider_id, meta in PROVIDER_REGISTRY.items():
             assert "text" in meta.media_types, f"{provider_id} missing 'text'"
 
-    def test_byteplus_video_models_include_seedance_2(self):
+    def test_byteplus_video_models_only_include_seedance_2(self):
         assert "ark" not in PROVIDER_REGISTRY
         meta = PROVIDER_REGISTRY["byteplus"]
         video_models = {mid: m for mid, m in meta.models.items() if m.media_type == "video"}
-        assert len(video_models) == 3
-        assert "doubao-seedance-2-0-260128" in video_models
-        assert "doubao-seedance-2-0-fast-260128" in video_models
-        # 2.0 系列應宣告 video_extend 但不宣告 flex_tier
-        for mid in ("doubao-seedance-2-0-260128", "doubao-seedance-2-0-fast-260128"):
-            caps = video_models[mid].capabilities
-            assert "video_extend" in caps
-            assert "flex_tier" not in caps
-        # 1.5 Pro 仍然是預設模型
-        assert video_models["doubao-seedance-1-5-pro-251215"].default is True
-        assert video_models["doubao-seedance-2-0-260128"].default is False
+        assert set(video_models) == {"doubao-seedance-2-0-260128"}
+        caps = video_models["doubao-seedance-2-0-260128"].capabilities
+        assert "video_extend" in caps
+        assert "flex_tier" not in caps
+        assert video_models["doubao-seedance-2-0-260128"].default is True
+
+    def test_byteplus_has_no_seedream_image_models(self):
+        meta = PROVIDER_REGISTRY["byteplus"]
+        image_models = {mid: m for mid, m in meta.models.items() if m.media_type == "image"}
+        assert image_models == {}
+        assert not any("seedream" in mid for mid in meta.models)
+
+    def test_openai_image_models_only_include_gpt_image_2_series(self):
+        meta = PROVIDER_REGISTRY["openai"]
+        image_models = {mid: m for mid, m in meta.models.items() if m.media_type == "image"}
+        assert set(image_models) == {"gpt-image-2", "gpt-image-2-2026-04-21"}
+        assert image_models["gpt-image-2"].default is True
+        assert image_models["gpt-image-2-2026-04-21"].default is False

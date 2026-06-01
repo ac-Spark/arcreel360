@@ -165,6 +165,57 @@ def test_rename_clue_full_flow(tmp_path: Path):
     assert script["segments"][0]["video_prompt"]["dialogue"][0]["speaker"] == "拉拉布"
 
 
+def test_rename_clue_updates_base_version_paths(tmp_path: Path):
+    project_path = tmp_path / "demo"
+    (project_path / "clues" / "refs").mkdir(parents=True)
+    (project_path / "versions" / "clues").mkdir(parents=True)
+    (project_path / "scripts").mkdir()
+    (project_path / "clues" / "refs" / "舊道具.jpg").write_bytes(b"ref")
+    (project_path / "versions" / "clues" / "舊道具_v0.png").write_bytes(b"v0")
+    (project_path / "versions" / "clues" / "舊道具_v1_20260101T000000.png").write_bytes(b"v1")
+    (project_path / "versions" / "versions.json").write_text(
+        json.dumps(
+            {
+                "clues": {
+                    "舊道具": {
+                        "current_version": 0,
+                        "versions": [
+                            {"version": 0, "file": "versions/clues/舊道具_v0.png"},
+                            {"version": 1, "file": "versions/clues/舊道具_v1_20260101T000000.png"},
+                        ],
+                    }
+                }
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    project = {
+        "clues": {
+            "舊道具": {
+                "description": "x",
+                "importance": "major",
+                "clue_sheet": "versions/clues/舊道具_v0.png",
+                "reference_image": "clues/refs/舊道具.jpg",
+            }
+        }
+    }
+
+    result = rename_resource(project_path, project, "clue", "舊道具", "新道具")
+
+    assert result.files_moved == 3
+    assert project["clues"]["新道具"]["clue_sheet"] == "versions/clues/新道具_v0.png"
+    assert project["clues"]["新道具"]["reference_image"] == "clues/refs/新道具.jpg"
+    assert (project_path / "versions" / "clues" / "新道具_v0.png").exists()
+    assert not (project_path / "versions" / "clues" / "舊道具_v0.png").exists()
+
+    versions = json.loads((project_path / "versions" / "versions.json").read_text(encoding="utf-8"))
+    assert "舊道具" not in versions["clues"]
+    assert versions["clues"]["新道具"]["current_version"] == 0
+    assert versions["clues"]["新道具"]["versions"][0]["file"] == "versions/clues/新道具_v0.png"
+    assert versions["clues"]["新道具"]["versions"][1]["file"] == "versions/clues/新道具_v1_20260101T000000.png"
+
+
 def test_rename_scene_full_flow(tmp_path: Path):
     project_path, project = _make_project(tmp_path)
 

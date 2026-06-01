@@ -17,15 +17,15 @@ from lib.retry import with_retry_async
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "gpt-image-1.5"
+DEFAULT_MODEL = "gpt-image-2"
 _MAX_REFERENCE_IMAGES = 16
 
 _SIZE_MAP: dict[str, str] = {
-    "9:16": "1024x1792",
-    "16:9": "1792x1024",
+    "9:16": "1024x1536",
+    "16:9": "1536x1024",
     "1:1": "1024x1024",
-    "3:4": "1024x1792",
-    "4:3": "1792x1024",
+    "3:4": "1024x1536",
+    "4:3": "1536x1024",
 }
 
 _QUALITY_MAP: dict[str, str] = {
@@ -66,15 +66,16 @@ class OpenAIImageBackend:
         return await self._generate_create(request)
 
     async def _generate_create(self, request: ImageGenerationRequest) -> ImageGenerationResult:
+        size = _SIZE_MAP.get(request.aspect_ratio, "1024x1536")
+        quality = _QUALITY_MAP.get(request.image_size, "medium")
         response = await self._client.images.generate(
             model=self._model,
             prompt=request.prompt,
-            size=_SIZE_MAP.get(request.aspect_ratio, "1024x1792"),
-            quality=_QUALITY_MAP.get(request.image_size, "medium"),
-            response_format="b64_json",
+            size=size,
+            quality=quality,
             n=1,
         )
-        return self._save_and_return(response, request)
+        return self._save_and_return(response, request, quality=quality, size=size)
 
     async def _generate_edit(self, request: ImageGenerationRequest) -> ImageGenerationResult:
         refs = request.reference_images
@@ -92,18 +93,28 @@ class OpenAIImageBackend:
             if not image_files:
                 logger.warning("所有參考圖均無效，回退到 T2I")
                 return await self._generate_create(request)
+            size = _SIZE_MAP.get(request.aspect_ratio, "1024x1536")
+            quality = _QUALITY_MAP.get(request.image_size, "medium")
             response = await self._client.images.edit(
                 model=self._model,
                 image=image_files,
                 prompt=request.prompt,
-                response_format="b64_json",
+                size=size,
+                quality=quality,
             )
         finally:
             for f in image_files:
                 f.close()
-        return self._save_and_return(response, request)
+        return self._save_and_return(response, request, quality=quality, size=size)
 
-    def _save_and_return(self, response, request: ImageGenerationRequest) -> ImageGenerationResult:
+    def _save_and_return(
+        self,
+        response,
+        request: ImageGenerationRequest,
+        *,
+        quality: str,
+        size: str,
+    ) -> ImageGenerationResult:
         image_bytes = base64.b64decode(response.data[0].b64_json)
         request.output_path.parent.mkdir(parents=True, exist_ok=True)
         request.output_path.write_bytes(image_bytes)
@@ -112,5 +123,6 @@ class OpenAIImageBackend:
             image_path=request.output_path,
             provider=PROVIDER_OPENAI,
             model=self._model,
-            quality=_QUALITY_MAP.get(request.image_size, "medium"),
+            quality=quality,
+            size=size,
         )

@@ -23,7 +23,6 @@ from lib.config.service import (
     sync_anthropic_env,
 )
 from lib.db import get_async_session
-from lib.providers import PROVIDER_BYTEPLUS
 from server.auth import CurrentUser
 from server.dependencies import get_config_service
 from server.routers._validators import validate_backend_value
@@ -64,19 +63,6 @@ async def _resolve_byteplus_video_endpoint_id(
     return _compact_endpoint_id(await svc.get_setting(_BYTEPLUS_VIDEO_ENDPOINT_SETTING, ""))
 
 
-def _append_byteplus_video_endpoint_backend(
-    video_backends: list[str],
-    ready_providers: set[str],
-    endpoint_id: str,
-) -> None:
-    if not endpoint_id or PROVIDER_BYTEPLUS not in ready_providers:
-        return
-
-    endpoint_backend = f"{PROVIDER_BYTEPLUS}/{endpoint_id}"
-    if endpoint_backend not in video_backends:
-        video_backends.append(endpoint_backend)
-
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -114,9 +100,6 @@ async def _build_options(
             bucket = _MEDIA_TO_BUCKET.get(model_info.media_type)
             if bucket:
                 buckets[bucket].append(f"{provider_id}/{model_id}")
-
-    endpoint_id = await _resolve_byteplus_video_endpoint_id(svc, all_settings)
-    _append_byteplus_video_endpoint_backend(buckets["video_backends"], ready_providers, endpoint_id)
 
     from lib.custom_provider import make_provider_id
     from lib.db.repositories.custom_provider_repo import CustomProviderRepository

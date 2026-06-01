@@ -77,13 +77,13 @@ class TestUpdateSceneBackend:
             project_name=project_name,
             script_filename=filename,
             scene_id="scene_1",
-            image_backend="ark/seedream-3.0",
+            image_backend="openai/gpt-image-2",
             video_backend="ark/doubao-seedance-pro",
         )
 
         saved = pm.load_script(project_name, filename)
         scene = saved["scenes"][0]
-        assert scene["image_backend"] == "ark/seedream-3.0"
+        assert scene["image_backend"] == "openai/gpt-image-2"
         assert scene["video_backend"] == "ark/doubao-seedance-pro"
 
     def test_clear_backend_with_none(self, pm_env):
@@ -175,7 +175,7 @@ class TestSnapshotReadsSceneOverride:
         filename = _write_narration_script(pm, project_name)
         # 設專案級
         project = pm.load_project(project_name)
-        project["image_backend"] = "ark/seedream-3.0"
+        project["image_backend"] = "openai/gpt-image-2"
         pm.save_project(project_name, project)
 
         # scene 沒有覆蓋 → 走專案層級
@@ -185,7 +185,7 @@ class TestSnapshotReadsSceneOverride:
             resource_id="E1S01",
         )
 
-        assert result == {"image_provider": "ark", "image_model": "seedream-3.0"}
+        assert result == {"image_provider": "openai", "image_model": "gpt-image-2"}
 
     def test_snapshot_video_backend_uses_scene_override(self, patched_generate_router):
         generate_router, pm, project_name = patched_generate_router

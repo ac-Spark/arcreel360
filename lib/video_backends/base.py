@@ -64,7 +64,6 @@ class VideoGenerationRequest:
     project_name: str | None = None
 
     # Seedance 特有
-    service_tier: str = "default"
     seed: int | None = None
 
 

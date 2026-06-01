@@ -142,16 +142,22 @@ def rename_resource(
 
     # 更新內部路徑欄位
     if entry.get(sheet_key):
-        old_rel = entry[sheet_key]
-        if old_rel.startswith(f"{folder}/{old_name}"):
-            entry[sheet_key] = old_rel.replace(f"{folder}/{old_name}", f"{folder}/{new_name}", 1)
+        entry[sheet_key] = _rename_owned_file_path(
+            entry[sheet_key],
+            folder=folder,
+            old_name=old_name,
+            new_name=new_name,
+            include_versions=True,
+        )
 
     ref_field, ref_folder = _REF_FIELD_BY_KIND[kind]
     if entry.get(ref_field):
-        old_rel = entry[ref_field]
-        ref_prefix = f"{ref_folder}/"
-        if old_rel.startswith(f"{ref_prefix}{old_name}"):
-            entry[ref_field] = old_rel.replace(f"{ref_prefix}{old_name}", f"{ref_prefix}{new_name}", 1)
+        entry[ref_field] = _rename_owned_file_path(
+            entry[ref_field],
+            folder=ref_folder,
+            old_name=old_name,
+            new_name=new_name,
+        )
 
     bucket_dict[new_name] = entry
 
@@ -199,6 +205,29 @@ def _plan_moves(project_path: Path, kind: ResourceKind, old_name: str, new_name:
     return moves
 
 
+def _rename_owned_file_path(
+    path: str,
+    *,
+    folder: str,
+    old_name: str,
+    new_name: str,
+    include_versions: bool = False,
+) -> str:
+    """Rename resource-owned relative paths without touching similarly prefixed names."""
+    candidates = [(f"{folder}/", (".",))]
+    if include_versions:
+        candidates.append((f"versions/{folder}/", ("_v",)))
+
+    for prefix, allowed_suffixes in candidates:
+        old_prefix = f"{prefix}{old_name}"
+        if not path.startswith(old_prefix):
+            continue
+        suffix = path[len(old_prefix) :]
+        if suffix.startswith(allowed_suffixes):
+            return f"{prefix}{new_name}{suffix}"
+    return path
+
+
 def _update_versions_json(project_path: Path, kind: ResourceKind, old_name: str, new_name: str) -> int:
     versions_file = project_path / "versions" / "versions.json"
     if not versions_file.exists():
@@ -212,14 +241,36 @@ def _update_versions_json(project_path: Path, kind: ResourceKind, old_name: str,
 
     bucket = _BUCKET_BY_KIND[kind]
     items = data.get(bucket, [])
-    if not isinstance(items, list):
-        return 0
 
     updated = 0
-    for i, item in enumerate(items):
-        if item == old_name:
-            items[i] = new_name
+    if isinstance(items, list):
+        for i, item in enumerate(items):
+            if item == old_name:
+                items[i] = new_name
+                updated += 1
+    elif isinstance(items, dict):
+        if old_name in items:
+            items[new_name] = items.pop(old_name)
             updated += 1
+
+        resource_data = items.get(new_name)
+        if isinstance(resource_data, dict):
+            folder = _FOLDER_BY_KIND[kind]
+            for version in resource_data.get("versions", []):
+                if not isinstance(version, dict) or not isinstance(version.get("file"), str):
+                    continue
+                new_file = _rename_owned_file_path(
+                    version["file"],
+                    folder=folder,
+                    old_name=old_name,
+                    new_name=new_name,
+                    include_versions=True,
+                )
+                if new_file != version["file"]:
+                    version["file"] = new_file
+                    updated += 1
+    else:
+        return 0
 
     if updated:
         versions_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")

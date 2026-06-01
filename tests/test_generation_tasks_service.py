@@ -436,3 +436,75 @@ class TestGetAspectRatio:
     def test_clues_always_16_9(self):
         project = {"aspect_ratio": "9:16"}
         assert generation_tasks.get_aspect_ratio(project, "clues") == "16:9"
+
+
+class TestGetOrCreateVideoBackend:
+    async def test_byteplus_model_substitution(self, monkeypatch):
+        """驗證當使用 byteplus 且模型非 ep- 開頭時，會自動替換為配置的 endpoint_id。"""
+        import contextlib
+        from unittest.mock import MagicMock
+        
+        # Clear cache to avoid hits
+        generation_tasks._backend_cache.clear()
+        
+        # Mock create_backend
+        created_backends = []
+        def fake_create_backend(name, **kwargs):
+            created_backends.append((name, kwargs))
+            mock_backend = MagicMock()
+            mock_backend.model = kwargs.get("model")
+            return mock_backend
+        monkeypatch.setattr("lib.video_backends.create_backend", fake_create_backend)
+
+        # Mock resolver
+        class FakeResolver:
+            def __init__(self, endpoint_id):
+                self.endpoint_id = endpoint_id
+
+            async def provider_config(self, provider_id):
+                return {"api_key": "fake-key"}
+
+            @contextlib.asynccontextmanager
+            async def _open_session(self):
+                class FakeSvc:
+                    def __init__(self, endpoint_id):
+                        self.endpoint_id = endpoint_id
+                    async def get_setting(self, key, default=""):
+                        if key == "byteplus_video_endpoint_id":
+                            return self.endpoint_id
+                        return default
+                yield object(), FakeSvc(self.endpoint_id)
+
+        resolver_with_endpoint = FakeResolver("ep-2026-test")
+        resolver_no_endpoint = FakeResolver("")
+
+        # 1. 有配置 endpoint_id 且傳入 non-endpoint 模型名稱
+        await generation_tasks._get_or_create_video_backend(
+            "byteplus",
+            {"model": "doubao-seedance-2-0-260128"},
+            resolver_with_endpoint
+        )
+        assert len(created_backends) == 1
+        assert created_backends[0][0] == "byteplus"
+        assert created_backends[0][1]["model"] == "ep-2026-test"
+
+        # 2. 沒有配置 endpoint_id 且傳入 non-endpoint 模型名稱
+        created_backends.clear()
+        await generation_tasks._get_or_create_video_backend(
+            "byteplus",
+            {"model": "doubao-seedance-2-0-260128"},
+            resolver_no_endpoint
+        )
+        assert len(created_backends) == 1
+        assert created_backends[0][1]["model"] == "doubao-seedance-2-0-260128"
+
+        # 3. 有配置 endpoint_id 但傳入的本來就是 ep- 開頭的模型名稱（不應替換）
+        created_backends.clear()
+        await generation_tasks._get_or_create_video_backend(
+            "byteplus",
+            {"model": "ep-another-endpoint"},
+            resolver_with_endpoint
+        )
+        assert len(created_backends) == 1
+        assert created_backends[0][1]["model"] == "ep-another-endpoint"
+

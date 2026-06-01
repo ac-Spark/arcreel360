@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class ArkVideoBackend:
     """BytePlus ModelArk 影片生成後端。"""
 
-    DEFAULT_MODEL = "doubao-seedance-1-5-pro-251215"
+    DEFAULT_MODEL = "doubao-seedance-2-0-260128"
 
     _SEEDANCE_2_CAPABILITIES: set[VideoCapability] = {
         VideoCapability.TEXT_TO_VIDEO,
@@ -32,15 +32,6 @@ class ArkVideoBackend:
 
     _MODEL_CAPABILITIES: dict[str, set[VideoCapability]] = {
         "doubao-seedance-2-0-260128": _SEEDANCE_2_CAPABILITIES,
-        "doubao-seedance-2-0-fast-260128": _SEEDANCE_2_CAPABILITIES,
-    }
-
-    _DEFAULT_CAPABILITIES: set[VideoCapability] = {
-        VideoCapability.TEXT_TO_VIDEO,
-        VideoCapability.IMAGE_TO_VIDEO,
-        VideoCapability.GENERATE_AUDIO,
-        VideoCapability.SEED_CONTROL,
-        VideoCapability.FLEX_TIER,
     }
 
     def __init__(
@@ -57,7 +48,7 @@ class ArkVideoBackend:
     def _capabilities_for_model(cls, model: str) -> set[VideoCapability]:
         if model.startswith("ep-"):
             return cls._SEEDANCE_2_CAPABILITIES
-        return cls._MODEL_CAPABILITIES.get(model, cls._DEFAULT_CAPABILITIES)
+        return cls._MODEL_CAPABILITIES.get(model, cls._SEEDANCE_2_CAPABILITIES)
 
     @property
     def name(self) -> str:
@@ -102,23 +93,33 @@ class ArkVideoBackend:
             "resolution": request.resolution,
             "generate_audio": request.generate_audio,
             "watermark": False,
-            "service_tier": request.service_tier,
         }
         if request.seed is not None:
             create_params["seed"] = request.seed
 
         # 3. Create task (sync SDK call, run in executor)
-        create_result = await asyncio.to_thread(
-            self._client.content_generation.tasks.create,
-            **create_params,
-        )
+        try:
+            create_result = await asyncio.to_thread(
+                self._client.content_generation.tasks.create,
+                **create_params,
+            )
+        except Exception as e:
+            err_msg = str(e)
+            if "InvalidEndpointOrModel" in err_msg or "NotFound" in err_msg or "not exist" in err_msg:
+                if not self._model.startswith("ep-"):
+                    raise RuntimeError(
+                        f"火山引擎 (BytePlus ModelArk) 影片生成失敗：找不到模型或接入點。您的模型設定為 '{self._model}'。\n"
+                        f"請注意，火山引擎通常不支援直接使用原生模型名稱，您必須使用以 'ep-' 開頭的 Endpoint ID (接入點 ID)。\n"
+                        f"請前往「全域設定 -> 模型選擇」配置您的 byteplus_video_endpoint_id，或在設定中直接使用有效的 'ep-...' 接入點。"
+                    ) from e
+            raise
         logger.info("Ark 任務已建立: %s", create_result.id)
         return create_result.id
 
     async def _poll_until_done(self, task_id: str, request: VideoGenerationRequest) -> VideoGenerationResult:
         """輪詢任務狀態直到完成，瞬態錯誤僅重試當次輪詢請求。"""
-        poll_interval = 10 if request.service_tier == "default" else 60
-        max_wait_time = 600 if request.service_tier == "default" else 3600
+        poll_interval = 10
+        max_wait_time = 600
         elapsed = 0
 
         while True:

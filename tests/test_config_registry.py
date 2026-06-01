@@ -16,10 +16,11 @@ def test_provider_meta_fields():
     assert "text_to_video" in meta.capabilities
 
 
-def test_byteplus_supports_video_and_image():
+def test_byteplus_supports_text_and_video_only():
     meta = PROVIDER_REGISTRY["byteplus"]
     assert "video" in meta.media_types
-    assert "image" in meta.media_types
+    assert "text" in meta.media_types
+    assert "image" not in meta.media_types
     assert meta.display_name == "BytePlus ModelArk"
 
 

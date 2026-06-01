@@ -271,6 +271,7 @@ class MediaGenerator:
                 status="success",
                 output_path=str(output_path),
                 quality=getattr(result, "quality", None),
+                size=getattr(result, "size", None),
             )
         except Exception as e:
             # 記錄呼叫失敗
@@ -428,7 +429,6 @@ class MediaGenerator:
                 generate_audio=effective_generate_audio,
                 negative_prompt=negative_prompt,
                 project_name=self.project_name,
-                service_tier=version_metadata.get("service_tier", "default"),
                 seed=version_metadata.get("seed"),
             )
 
@@ -444,7 +444,6 @@ class MediaGenerator:
                 status="success",
                 output_path=str(output_path),
                 usage_tokens=result.usage_tokens,
-                service_tier=version_metadata.get("service_tier", "default"),
                 generate_audio=result.generate_audio,
             )
         except Exception as e:

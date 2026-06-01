@@ -98,11 +98,11 @@ class UsageRepository(BaseRepository):
         error_message: str | None = None,
         retry_count: int = 0,
         usage_tokens: int | None = None,
-        service_tier: str = "default",
         generate_audio: bool | None = None,
         input_tokens: int | None = None,
         output_tokens: int | None = None,
         quality: str | None = None,
+        size: str | None = None,
     ) -> None:
         finished_at = utc_now()
 
@@ -149,10 +149,10 @@ class UsageRepository(BaseRepository):
                 duration_seconds=row.duration_seconds,
                 generate_audio=bool(row.generate_audio),
                 usage_tokens=usage_tokens,
-                service_tier=service_tier,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 quality=quality,
+                size=size,
                 custom_price_input=custom_price_input,
                 custom_price_output=custom_price_output,
                 custom_currency=custom_currency,

@@ -23,6 +23,7 @@ Workflow skills 全部接入：
 - ``update_character``       ✅ 更新 project.json 角色描述
 - ``update_clue``            ✅ 更新 project.json 道具/线索描述
 - ``update_scene``           ✅ 更新 project.json 場景描述
+- ``update_video_settings``  ✅ 保存分鏡 / 本集 / 專案級影片生成設定
 - ``rename_entity``          ✅ 改名角色 / 道具 / 場景並更新引用
 - ``delete_entity``          ✅ 刪除角色 / 道具 / 場景定义
 - ``generate_video``          ✅ 批量入队 video task，等待 worker 完成
@@ -150,6 +151,161 @@ def _resolve_source_file(ctx: SkillCallContext, source: str) -> tuple[Path | Non
     except SourceFileError as exc:
         return None, {"ok": False, "error": exc.kind, "reason": str(exc)}
     return src_abs, None
+
+
+_VIDEO_MODEL_ALIASES: dict[str, tuple[str, str]] = {
+    "seedance": ("byteplus", "doubao-seedance-2-0-260128"),
+    "seedance2": ("byteplus", "doubao-seedance-2-0-260128"),
+    "seedance 2": ("byteplus", "doubao-seedance-2-0-260128"),
+    "seedance 2.0": ("byteplus", "doubao-seedance-2-0-260128"),
+    "veo lite": ("gemini-aistudio", "veo-3.1-lite-generate-preview"),
+    "veo 3.1 lite": ("gemini-aistudio", "veo-3.1-lite-generate-preview"),
+}
+
+
+def _normalize_video_resolution(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text.lower() if text else None
+
+
+def _normalize_video_duration(value: Any) -> tuple[int | None, dict[str, str] | None]:
+    if value is None:
+        return None, None
+    try:
+        duration = int(value)
+    except (TypeError, ValueError):
+        return None, {"error": "invalid_argument", "reason": "duration_seconds must be an integer"}
+    if duration < 1 or duration > 60:
+        return None, {"error": "invalid_argument", "reason": "duration_seconds must be between 1 and 60"}
+    return duration, None
+
+
+def _split_video_backend_value(raw: str) -> tuple[str, str | None]:
+    from lib.providers import normalize_provider_id
+
+    if "/" in raw:
+        provider, model = raw.split("/", 1)
+        return normalize_provider_id(provider.strip()), model.strip() or None
+    return normalize_provider_id(raw.strip()), None
+
+
+def _normalize_video_model_alias(model: str) -> tuple[str | None, str]:
+    key = " ".join(model.strip().lower().replace("-", " ").split())
+    compact_key = key.replace(" ", "")
+    if compact_key in _VIDEO_MODEL_ALIASES:
+        return _VIDEO_MODEL_ALIASES[compact_key]
+    if key in _VIDEO_MODEL_ALIASES:
+        return _VIDEO_MODEL_ALIASES[key]
+    return None, model.strip()
+
+
+def _infer_video_provider_from_model(model: str) -> str | None:
+    if model.startswith("ep-") or "seedance" in model or model.startswith("doubao-"):
+        return "byteplus"
+    if model.startswith("veo-"):
+        return "gemini-aistudio"
+    if model.startswith("sora-"):
+        return "openai"
+    return None
+
+
+def _normalize_endpoint_model_for_storage(provider: str, model: str) -> str:
+    if provider == "byteplus" and model.startswith("ep-"):
+        return "doubao-seedance-2-0-260128"
+    return model
+
+
+def _normalize_video_backend_args(args: dict[str, Any]) -> tuple[str | None, str | None, dict[str, str] | None]:
+    from lib.config.registry import PROVIDER_REGISTRY
+    from lib.providers import normalize_provider_id
+
+    backend = str(args.get("backend") or "").strip()
+    provider = str(args.get("provider") or "").strip()
+    model = str(args.get("model") or "").strip()
+
+    if backend:
+        if "/" not in backend:
+            alias_provider, alias_model = _normalize_video_model_alias(backend)
+            if alias_provider:
+                provider = alias_provider
+                model = alias_model
+            else:
+                parsed_provider, parsed_model = _split_video_backend_value(backend)
+                provider = parsed_provider
+                if parsed_model:
+                    model = parsed_model
+        else:
+            parsed_provider, parsed_model = _split_video_backend_value(backend)
+            provider = parsed_provider
+            if parsed_model:
+                model = parsed_model
+
+    alias_provider = None
+    if model:
+        alias_provider, model = _normalize_video_model_alias(model)
+    if not provider and alias_provider:
+        provider = alias_provider
+    if not provider and model:
+        provider = _infer_video_provider_from_model(model) or ""
+    if provider:
+        provider = normalize_provider_id(provider)
+
+    if not provider and not model:
+        return None, None, None
+    if not provider:
+        return None, None, {"error": "invalid_argument", "reason": "provider is required when setting model"}
+    if provider not in PROVIDER_REGISTRY and not provider.startswith("custom-"):
+        return None, None, {"error": "invalid_argument", "reason": f"unknown video provider: {provider}"}
+    if model:
+        model = _normalize_endpoint_model_for_storage(provider, model)
+        return f"{provider}/{model}", model, None
+    return provider, None, None
+
+
+def _episode_script_file(ctx: SkillCallContext, episode: int) -> str:
+    project = ctx.project_manager.load_project(ctx.project_name)
+    for entry in project.get("episodes", []) or []:
+        if int(entry.get("episode", 0) or 0) == episode and entry.get("script_file"):
+            return str(entry["script_file"]).removeprefix("scripts/")
+    return f"episode_{episode}.json"
+
+
+def _video_payload_from_storyboard_item(item: dict[str, Any]) -> dict[str, Any]:
+    payload: dict[str, Any] = {}
+
+    raw_backend = item.get("video_backend")
+    if isinstance(raw_backend, str) and raw_backend.strip():
+        provider, model = _split_video_backend_value(raw_backend.strip())
+        payload["video_provider"] = provider
+        if model:
+            payload["video_provider_settings"] = {"model": model}
+
+    resolution = _normalize_video_resolution(item.get("video_resolution"))
+    if resolution:
+        payload["video_resolution"] = resolution
+
+    duration = item.get("duration_seconds")
+    if isinstance(duration, int):
+        payload["duration_seconds"] = duration
+
+    return payload
+
+
+def _apply_video_settings_to_item(
+    item: dict[str, Any],
+    *,
+    backend: str | None,
+    resolution: str | None,
+    duration_seconds: int | None,
+) -> None:
+    if backend is not None:
+        item["video_backend"] = backend
+    if resolution is not None:
+        item["video_resolution"] = resolution
+    if duration_seconds is not None:
+        item["duration_seconds"] = duration_seconds
 
 
 def _missing_script_assets(
@@ -873,6 +1029,202 @@ async def _handle_update_scene(ctx: SkillCallContext, args: dict[str, Any]) -> d
 
 
 # ---------------------------------------------------------------------------
+# Skill: update_video_settings
+# ---------------------------------------------------------------------------
+
+UPDATE_VIDEO_SETTINGS_DECL = FunctionDeclaration(
+    name="update_video_settings",
+    description=(
+        "保存影片生成設定，供後續 generate_video 使用。"
+        "scope=scene 只更新 scene_ids 指定分鏡；scope=episode 更新整集；scope=project 更新 project.json 預設。"
+        "backend 使用 provider/model，例如 byteplus/doubao-seedance-2-0-260128；"
+        "若使用者只說 Seedance，可設 model=seedance。不要把這些參數直接塞給 generate_video。"
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "scope": {
+                "type": "string",
+                "enum": ["scene", "episode", "project"],
+                "description": "設定範圍：scene / episode / project",
+            },
+            "episode": {"type": "integer", "description": "scope=scene 或 episode 時必填"},
+            "scene_ids": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "scope=scene 時必填；只更新指定分鏡",
+            },
+            "backend": {
+                "type": "string",
+                "description": "完整影片後端 provider/model，例如 byteplus/doubao-seedance-2-0-260128",
+            },
+            "provider": {"type": "string", "description": "可選供應商，例如 byteplus"},
+            "model": {
+                "type": "string",
+                "description": "可選模型；支援 seedance / seedance fast / veo lite 等常用別名",
+            },
+            "resolution": {"type": "string", "description": "可選解析度，例如 480p / 720p / 1080p"},
+            "duration_seconds": {"type": "integer", "description": "可選秒數，例如 4"},
+        },
+        "required": ["scope"],
+    },
+)
+
+
+async def _handle_update_video_settings(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
+    scope = str(args.get("scope") or "").strip()
+    if scope not in {"scene", "episode", "project"}:
+        return {"error": "invalid_argument", "reason": "scope must be scene, episode, or project"}
+
+    backend, model_id, backend_error = _normalize_video_backend_args(args)
+    if backend_error:
+        return backend_error
+    resolution = _normalize_video_resolution(args.get("resolution"))
+    duration_seconds, duration_error = _normalize_video_duration(args.get("duration_seconds"))
+    if duration_error:
+        return duration_error
+
+    if backend is None and resolution is None and duration_seconds is None:
+        return {
+            "error": "invalid_argument",
+            "reason": "至少需要設定 backend/model/provider、resolution 或 duration_seconds 其中之一",
+        }
+
+    if scope == "project":
+        return await _update_project_video_settings(
+            ctx,
+            backend=backend,
+            model_id=model_id,
+            resolution=resolution,
+            duration_seconds=duration_seconds,
+        )
+
+    episode = _get_positive_episode(args)
+    if episode is None:
+        return _invalid_episode_error()
+
+    scene_ids_arg = args.get("scene_ids")
+    wanted_ids: set[str] | None = None
+    if scope == "scene":
+        if not isinstance(scene_ids_arg, list) or not scene_ids_arg:
+            return {"error": "invalid_argument", "reason": "scope=scene requires non-empty scene_ids"}
+        wanted_ids = {str(scene_id) for scene_id in scene_ids_arg if str(scene_id).strip()}
+        if not wanted_ids:
+            return {"error": "invalid_argument", "reason": "scene_ids cannot be empty"}
+
+    script_file = _episode_script_file(ctx, episode)
+
+    def _sync_update_script() -> list[str]:
+        from lib.storyboard_sequence import get_storyboard_items
+
+        script = ctx.project_manager.load_script(ctx.project_name, script_file)
+        items, id_field, _, _, _ = get_storyboard_items(script)
+        updated: list[str] = []
+        for item in items:
+            resource_id = str(item.get(id_field) or "")
+            if not resource_id:
+                continue
+            if wanted_ids is not None and resource_id not in wanted_ids:
+                continue
+            _apply_video_settings_to_item(
+                item,
+                backend=backend,
+                resolution=resolution,
+                duration_seconds=duration_seconds,
+            )
+            updated.append(resource_id)
+
+        if wanted_ids is not None:
+            missing = sorted(wanted_ids - set(updated))
+            if missing:
+                raise KeyError(f"scene_ids not found in script: {', '.join(missing)}")
+        if not updated:
+            raise ValueError("script contains no scenes/segments to update")
+
+        with project_change_source("agent"):
+            ctx.project_manager.save_script(ctx.project_name, script, script_file)
+        return updated
+
+    try:
+        updated_scene_ids = await asyncio.to_thread(_sync_update_script)
+    except FileNotFoundError:
+        return {"error": "missing_prerequisite", "reason": f"scripts/{script_file} 不存在"}
+    except KeyError as exc:
+        return {"error": "not_found", "reason": str(exc)}
+    except ValueError as exc:
+        return {"error": "invalid_state", "reason": str(exc)}
+    except Exception as exc:
+        return {"error": "update_failed", "reason": str(exc)}
+
+    return {
+        "ok": True,
+        "scope": scope,
+        "episode": episode,
+        "script_file": script_file,
+        "updated_scene_ids": updated_scene_ids,
+        "settings": {
+            "video_backend": backend,
+            "video_resolution": resolution,
+            "duration_seconds": duration_seconds,
+        },
+    }
+
+
+async def _update_project_video_settings(
+    ctx: SkillCallContext,
+    *,
+    backend: str | None,
+    model_id: str | None,
+    resolution: str | None,
+    duration_seconds: int | None,
+) -> dict[str, Any]:
+    def _sync_update_project() -> dict[str, Any]:
+        project = ctx.project_manager.load_project(ctx.project_name)
+        effective_model_id = model_id
+        if backend is not None:
+            project["video_backend"] = backend
+            if effective_model_id is None and "/" in backend:
+                effective_model_id = backend.split("/", 1)[1]
+        elif effective_model_id is None:
+            current_backend = project.get("video_backend")
+            if isinstance(current_backend, str) and "/" in current_backend:
+                effective_model_id = current_backend.split("/", 1)[1]
+
+        if duration_seconds is not None:
+            project["default_duration"] = duration_seconds
+
+        if resolution is not None:
+            if not effective_model_id:
+                raise ValueError("project scope resolution requires backend/model or an existing project video_backend")
+            settings = project.setdefault("video_model_settings", {})
+            model_settings = settings.setdefault(effective_model_id, {})
+            model_settings["resolution"] = resolution
+
+        with project_change_source("agent"):
+            ctx.project_manager.save_project(ctx.project_name, project)
+        return project
+
+    try:
+        project = await asyncio.to_thread(_sync_update_project)
+    except FileNotFoundError:
+        return {"error": "project_not_found", "reason": ctx.project_name}
+    except ValueError as exc:
+        return {"error": "invalid_argument", "reason": str(exc)}
+    except Exception as exc:
+        return {"error": "update_failed", "reason": str(exc)}
+
+    return {
+        "ok": True,
+        "scope": "project",
+        "settings": {
+            "video_backend": project.get("video_backend"),
+            "video_resolution": resolution,
+            "duration_seconds": project.get("default_duration"),
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 # Skill: rename_entity
 # ---------------------------------------------------------------------------
 
@@ -1208,7 +1560,8 @@ GENERATE_VIDEO_DECL = FunctionDeclaration(
         "为指定剧集的所有场景批量生成动态影片片段（image-to-video，每段 5-10 秒），"
         "写入 videos/scene_*.mp4。前置：分镜图已生成（storyboards/scene_*.png）。"
         "异步走 generation queue，handler 阻塞等待完成。"
-        "可选 scene_ids 只生成部分场景。返回成功/失败统计。"
+        "可选 scene_ids 只生成部分场景。会使用劇本分鏡或 project.json 內已保存的模型、解析度、秒數設定。"
+        "若使用者要求改模型或參數，先調用 update_video_settings 保存設定，再調用此工具。返回成功/失败统计。"
     ),
     parameters={
         "type": "object",
@@ -1426,6 +1779,7 @@ async def _enqueue_episode_assets(
                 payload={
                     "prompt": prompt,
                     "script_file": script_file,
+                    **(_video_payload_from_storyboard_item(it) if task_type == "video" else {}),
                 },
                 script_file=script_file,
                 source="agent",
@@ -1474,6 +1828,7 @@ SKILL_DECLARATIONS: list[FunctionDeclaration] = [
     UPDATE_CHARACTER_DECL,
     UPDATE_CLUE_DECL,
     UPDATE_SCENE_DECL,
+    UPDATE_VIDEO_SETTINGS_DECL,
     RENAME_ENTITY_DECL,
     DELETE_ENTITY_DECL,
     MANGA_WORKFLOW_STATUS_DECL,
@@ -1496,6 +1851,7 @@ SKILL_HANDLERS: dict[str, SkillHandler] = {
     "update_character": _handle_update_character,
     "update_clue": _handle_update_clue,
     "update_scene": _handle_update_scene,
+    "update_video_settings": _handle_update_video_settings,
     "rename_entity": _handle_rename_entity,
     "delete_entity": _handle_delete_entity,
     "manga_workflow_status": _handle_manga_workflow_status,

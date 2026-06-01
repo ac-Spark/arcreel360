@@ -6,6 +6,7 @@
 3. OpenAIImageBackend._save_and_return 在結果中填充 quality
 4. UsageTracker.finish_call 透傳 quality 到 UsageRepository
 5. UsageRepository.finish_call 透傳 quality 到 CostCalculator
+6. OpenAI 圖片實際 size 會跟 quality 一起傳入費用計算
 """
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ class TestImageGenerationResultQualityField:
         result = ImageGenerationResult(
             image_path=Path("/tmp/img.png"),
             provider="openai",
-            model="gpt-image-1.5",
+            model="gpt-image-2",
         )
         assert result.quality is None
 
@@ -37,7 +38,7 @@ class TestImageGenerationResultQualityField:
             result = ImageGenerationResult(
                 image_path=Path("/tmp/img.png"),
                 provider="openai",
-                model="gpt-image-1.5",
+                model="gpt-image-2",
                 quality=quality_value,
             )
             assert result.quality == quality_value
@@ -48,10 +49,31 @@ class TestImageGenerationResultQualityField:
         result = ImageGenerationResult(
             image_path=Path("/tmp/img.png"),
             provider="openai",
-            model="gpt-image-1.5",
+            model="gpt-image-2",
             quality=None,
         )
         assert result.quality is None
+
+    def test_size_defaults_to_none(self):
+        from lib.image_backends.base import ImageGenerationResult
+
+        result = ImageGenerationResult(
+            image_path=Path("/tmp/img.png"),
+            provider="openai",
+            model="gpt-image-2",
+        )
+        assert result.size is None
+
+    def test_size_can_be_set(self):
+        from lib.image_backends.base import ImageGenerationResult
+
+        result = ImageGenerationResult(
+            image_path=Path("/tmp/img.png"),
+            provider="openai",
+            model="gpt-image-2",
+            size="1024x1536",
+        )
+        assert result.size == "1024x1536"
 
 
 # ---------------------------------------------------------------------------
@@ -89,6 +111,7 @@ class TestOpenAIImageBackendQuality:
             result = await backend.generate(request)
 
         assert result.quality == "medium"
+        assert result.size == "1024x1536"
 
     async def test_quality_propagated_for_all_sizes(self, tmp_path: Path):
         """所有 image_size 值都應正確對映到 quality 欄位。"""
@@ -167,11 +190,13 @@ class TestUsageTrackerQualityPropagation:
                 status="success",
                 output_path="/tmp/img.png",
                 quality="high",
+                size="1024x1536",
             )
 
         mock_repo.finish_call.assert_awaited_once()
         call_kwargs = mock_repo.finish_call.call_args[1]
         assert call_kwargs.get("quality") == "high"
+        assert call_kwargs.get("size") == "1024x1536"
 
     async def test_finish_call_quality_defaults_none(self):
         """未傳 quality 時，UsageTracker 應傳 quality=None 給 repo。"""
@@ -193,6 +218,7 @@ class TestUsageTrackerQualityPropagation:
 
         call_kwargs = mock_repo.finish_call.call_args[1]
         assert call_kwargs.get("quality") is None
+        assert call_kwargs.get("size") is None
 
 
 # ---------------------------------------------------------------------------
@@ -210,7 +236,7 @@ class TestUsageRepositoryQualityToCostCalculator:
         mock_row.id = 1
         mock_row.provider = PROVIDER_OPENAI
         mock_row.call_type = "image"
-        mock_row.model = "gpt-image-1.5"
+        mock_row.model = "gpt-image-2"
         mock_row.resolution = "1K"
         mock_row.duration_seconds = None
         mock_row.generate_audio = True
@@ -235,11 +261,13 @@ class TestUsageRepositoryQualityToCostCalculator:
                 1,
                 status="success",
                 quality="high",
+                size="1024x1536",
             )
 
         mock_calc.calculate_cost.assert_called_once()
         call_kwargs = mock_calc.calculate_cost.call_args[1]
         assert call_kwargs.get("quality") == "high"
+        assert call_kwargs.get("size") == "1024x1536"
 
     async def test_quality_none_when_not_provided(self):
         """未傳 quality 時，CostCalculator 應收到 quality=None。"""
@@ -250,7 +278,7 @@ class TestUsageRepositoryQualityToCostCalculator:
         mock_row.id = 1
         mock_row.provider = PROVIDER_OPENAI
         mock_row.call_type = "image"
-        mock_row.model = "gpt-image-1.5"
+        mock_row.model = "gpt-image-2"
         mock_row.resolution = "1K"
         mock_row.duration_seconds = None
         mock_row.generate_audio = True
@@ -275,3 +303,4 @@ class TestUsageRepositoryQualityToCostCalculator:
 
         call_kwargs = mock_calc.calculate_cost.call_args[1]
         assert call_kwargs.get("quality") is None
+        assert call_kwargs.get("size") is None

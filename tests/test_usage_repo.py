@@ -101,7 +101,7 @@ class TestMultiProviderUsage:
         call_id = await repo.start_call(
             project_name="demo",
             call_type="video",
-            model="doubao-seedance-1-5-pro-251215",
+            model="doubao-seedance-2-0-260128",
             prompt="test",
             resolution="1080p",
             duration_seconds=5,
@@ -113,7 +113,6 @@ class TestMultiProviderUsage:
             call_id,
             status="success",
             usage_tokens=246840,
-            service_tier="default",
         )
 
         calls = await repo.get_calls(project_name="demo")
@@ -121,7 +120,7 @@ class TestMultiProviderUsage:
         assert item["provider"] == "byteplus"
         assert item["currency"] == "USD"
         assert item["usage_tokens"] == 246840
-        assert item["cost_amount"] == pytest.approx(cny(3.9494), rel=1e-3)
+        assert item["cost_amount"] == pytest.approx(cny(11.35464), rel=1e-3)
 
     async def test_gemini_call_defaults_to_usd(self, db_session):
         repo = UsageRepository(db_session)
@@ -159,20 +158,20 @@ class TestMultiProviderUsage:
         c2 = await repo.start_call(
             project_name="demo",
             call_type="video",
-            model="doubao-seedance-1-5-pro-251215",
+            model="doubao-seedance-2-0-260128",
             duration_seconds=5,
             resolution="1080p",
             generate_audio=True,
             provider="byteplus",
         )
-        await repo.finish_call(c2, status="success", usage_tokens=246840, service_tier="default")
+        await repo.finish_call(c2, status="success", usage_tokens=246840)
 
         stats = await repo.get_stats(project_name="demo")
         assert stats["total_count"] == 2
         assert "cost_by_currency" in stats
-        assert stats["cost_by_currency"]["USD"] == pytest.approx(3.2 + cny(3.9494), rel=1e-3)
+        assert stats["cost_by_currency"]["USD"] == pytest.approx(3.2 + cny(11.35464), rel=1e-3)
         assert "CNY" not in stats["cost_by_currency"]
-        assert stats["total_cost"] == pytest.approx(3.2 + cny(3.9494), rel=1e-3)
+        assert stats["total_cost"] == pytest.approx(3.2 + cny(11.35464), rel=1e-3)
 
     async def test_text_call_gemini_cost(self, db_session):
         repo = UsageRepository(db_session)

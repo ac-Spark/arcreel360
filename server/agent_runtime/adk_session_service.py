@@ -35,12 +35,14 @@ class AgentMessagesSessionService(BaseSessionService):
         # BaseService implementation takes care of temp state delta etc
         event = await super().append_event(session, event)
 
-        # Mapping to agent_message format
-        msg = self._event_to_dict(event)
+        # Mapping to agent_message format (may yield multiple rows, e.g. an
+        # assistant text + tool_use carried in a single ADK event).
+        msgs = self._event_to_dicts(event)
 
         async with self._session_factory() as db_session:
             repo = AgentMessageRepository(db_session)
-            await repo.append(session.id, msg)
+            for msg in msgs:
+                await repo.append(session.id, msg)
         return event
 
     async def get_session(
@@ -65,6 +67,10 @@ class AgentMessagesSessionService(BaseSessionService):
 
         events = []
         for msg in msgs:
+            # Split-off assistant text rows exist only for history rendering;
+            # the full event is reconstructed from the paired tool_use row.
+            if msg.get("_adk_replay_skip"):
+                continue
             events.append(self._dict_to_event(msg))
         return events
 
@@ -76,8 +82,16 @@ class AgentMessagesSessionService(BaseSessionService):
             repo = AgentMessageRepository(db_session)
             await repo.delete_for_session(session_id)
 
-    def _event_to_dict(self, event: Event) -> dict[str, Any]:
-        """Convert ADK event to legacy agent_messages dict format."""
+    def _event_to_dicts(self, event: Event) -> list[dict[str, Any]]:
+        """Convert an ADK event into one or more agent_messages dict rows.
+
+        Most events map to a single row. When a model event carries *both*
+        assistant text and a function call (Gemini commonly does this), the
+        text is emitted as a standalone ``assistant`` row *before* the
+        ``tool_use`` row. This mirrors the live SSE path, where text and tool
+        calls are streamed as separate messages — otherwise turn_grouper would
+        render the tool_use by name/input only and silently drop the text.
+        """
         # ADK stores per-invocation runtime objects (SkillCallContext, ProjectManager,
         # ToolSandbox, ...) in actions.state_delta. Those objects are only needed while
         # the current Runner invocation is alive and cannot be serialized into DB.
@@ -109,11 +123,25 @@ class AgentMessagesSessionService(BaseSessionService):
         else:
             primary_type = "assistant"
 
+        timestamp = event.created_at.isoformat() if hasattr(event, "created_at") and event.created_at else None
+
+        rows: list[dict[str, Any]] = []
+
+        # Split off assistant text that rides along with a tool call so it stays
+        # renderable. The standalone row deliberately omits ``adk_event`` — ADK
+        # replay reconstructs the full event from the tool_use row's dump, so
+        # carrying the text here too would duplicate it on replay.
+        if primary_type == "tool_use" and content:
+            rows.append(
+                {"type": "assistant", "content": content, "timestamp": timestamp, "_adk_replay_skip": True}
+            )
+            content = []
+
         result = {
             "type": primary_type,
             "content": content,
             "adk_event": raw_dump,
-            "timestamp": event.created_at.isoformat() if hasattr(event, "created_at") and event.created_at else None,
+            "timestamp": timestamp,
         }
 
         # Populate tool specific legacy fields
@@ -126,7 +154,8 @@ class AgentMessagesSessionService(BaseSessionService):
                 res = responses[0]
                 result.update({"tool_use_id": res.id, "content": res.response})
 
-        return result
+        rows.append(result)
+        return rows
 
     def _dict_to_event(self, d: dict[str, Any]) -> Event:
         if "adk_event" in d:

@@ -95,6 +95,49 @@ async def test_parallel_function_call(session_service):
 
 
 @pytest.mark.asyncio
+async def test_event_with_text_and_function_call_persists_assistant_text(session_service):
+    """An ADK event carrying both assistant text and a function call must
+    persist the text as a separate renderable assistant message, not swallow
+    it inside the tool_use message (which turn_grouper renders by name/input
+    only). This keeps the history path aligned with the live SSE path."""
+    session = await session_service.create_session(app_name="test_app", user_id="test_user")
+
+    event = Event(
+        author="agent",
+        content={
+            "parts": [
+                {"text": "好的，我先讀取專案檔案。"},
+                {"function_call": {"name": "fs_read", "args": {"path": "project.json"}}},
+            ]
+        },
+    )
+    await session_service.append_event(session, event)
+
+    async with session_service._session_factory() as db_session:
+        stored = await AgentMessageRepository(db_session).list(session.id)
+
+    # Expect two persisted messages: assistant text first, then tool_use.
+    assert [m["type"] for m in stored] == ["assistant", "tool_use"]
+    assistant_msg = stored[0]
+    assert assistant_msg["content"] == [{"type": "text", "text": "好的，我先讀取專案檔案。"}]
+    # The standalone assistant message must not carry adk_event, otherwise ADK
+    # replay would reconstruct the text twice (once here, once via the tool_use
+    # event's adk_event dump).
+    assert "adk_event" not in assistant_msg
+
+    tool_msg = stored[1]
+    assert tool_msg["name"] == "fs_read"
+    assert tool_msg["input"] == {"path": "project.json"}
+
+    # ADK replay must still collapse back to a single event (text + call).
+    events = await session_service.list_events(session.id)
+    assert len(events) == 1
+    assert events[0].get_function_calls()[0].name == "fs_read"
+    text_parts = [p.text for p in events[0].content.parts if getattr(p, "text", None)]
+    assert text_parts == ["好的，我先讀取專案檔案。"]
+
+
+@pytest.mark.asyncio
 async def test_tool_error_event(session_service):
     session = await session_service.create_session(app_name="test_app", user_id="test_user")
     event = Event(

@@ -64,7 +64,7 @@ class TestCustomImageCost:
         amount, currency = calc.calculate_cost(
             "custom-1",
             "image",
-            model="seedream",
+            model="image-model",
             custom_price_input=0.22,
             custom_currency="CNY",
         )

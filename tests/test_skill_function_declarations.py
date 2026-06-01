@@ -106,6 +106,7 @@ def test_workflow_skills_registered() -> None:
         "update_character",
         "update_clue",
         "update_scene",
+        "update_video_settings",
         "rename_entity",
         "delete_entity",
         "manga_workflow_status",
@@ -625,6 +626,208 @@ async def test_generate_storyboard_filters_by_scene_ids(
 
     await run_subagent(context, "generate_storyboard", {"episode": 1, "scene_ids": ["2"]})
     assert seen_ids == ["2"]
+
+
+@pytest.mark.asyncio
+async def test_generate_video_carries_scene_video_settings(
+    context: SkillCallContext,
+    project_root: Path,
+    project_name: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pdir = project_root / project_name
+    (pdir / "scripts").mkdir(parents=True, exist_ok=True)
+    (pdir / "scripts" / "episode_1.json").write_text(
+        json.dumps(
+            {
+                "content_mode": "narration",
+                "segments": [
+                    {
+                        "segment_id": "E1S04",
+                        "video_prompt": {"action": "轉身", "camera_motion": "Static"},
+                        "video_backend": "byteplus/doubao-seedance-2-0-260128",
+                        "video_resolution": "480p",
+                        "duration_seconds": 4,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    captured_specs: list[Any] = []
+
+    async def fake_batch(
+        project: str, specs: list[Any], on_success: Any, on_failure: Any
+    ) -> tuple[list[Any], list[Any]]:
+        captured_specs.extend(specs)
+        return [], []
+
+    monkeypatch.setattr(
+        "lib.generation_queue_client._batch_enqueue_and_wait",
+        fake_batch,
+    )
+
+    await run_subagent(context, "generate_video", {"episode": 1, "scene_ids": ["E1S04"]})
+
+    assert len(captured_specs) == 1
+    payload = captured_specs[0].payload
+    assert payload["video_provider"] == "byteplus"
+    assert payload["video_provider_settings"] == {"model": "doubao-seedance-2-0-260128"}
+    assert payload["video_resolution"] == "480p"
+    assert payload["duration_seconds"] == 4
+
+
+@pytest.mark.asyncio
+async def test_generate_video_uses_settings_saved_by_update_video_settings(
+    context: SkillCallContext,
+    project_root: Path,
+    project_name: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pdir = project_root / project_name
+    (pdir / "scripts").mkdir(parents=True, exist_ok=True)
+    (pdir / "scripts" / "episode_1.json").write_text(
+        json.dumps(
+            {
+                "content_mode": "narration",
+                "segments": [
+                    {
+                        "segment_id": "E1S04",
+                        "video_prompt": {"action": "轉身", "camera_motion": "Static"},
+                        "video_backend": "gemini-aistudio/veo-3.1-lite-generate-preview",
+                        "video_resolution": "1080p",
+                        "duration_seconds": 8,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    captured_specs: list[Any] = []
+
+    async def fake_batch(
+        project: str, specs: list[Any], on_success: Any, on_failure: Any
+    ) -> tuple[list[Any], list[Any]]:
+        captured_specs.extend(specs)
+        return [], []
+
+    monkeypatch.setattr(
+        "lib.generation_queue_client._batch_enqueue_and_wait",
+        fake_batch,
+    )
+
+    update_result = await run_subagent(
+        context,
+        "update_video_settings",
+        {
+            "scope": "scene",
+            "episode": 1,
+            "scene_ids": ["E1S04"],
+            "backend": "byteplus/doubao-seedance-2-0-260128",
+            "duration_seconds": 4,
+            "resolution": "480p",
+        },
+    )
+    assert update_result["ok"] is True
+
+    await run_subagent(context, "generate_video", {"episode": 1, "scene_ids": ["E1S04"]})
+
+    assert len(captured_specs) == 1
+    payload = captured_specs[0].payload
+    assert payload["video_provider"] == "byteplus"
+    assert payload["video_provider_settings"] == {"model": "doubao-seedance-2-0-260128"}
+    assert payload["video_resolution"] == "480p"
+    assert payload["duration_seconds"] == 4
+
+
+@pytest.mark.asyncio
+async def test_update_video_settings_episode_scope_updates_all_items(
+    context: SkillCallContext,
+    project_root: Path,
+    project_name: str,
+) -> None:
+    pdir = project_root / project_name
+    (pdir / "scripts").mkdir(parents=True, exist_ok=True)
+    (pdir / "scripts" / "episode_1.json").write_text(
+        json.dumps(
+            {
+                "episode": 1,
+                "content_mode": "narration",
+                "segments": [
+                    {"segment_id": "E1S01", "video_prompt": "a", "duration_seconds": 8},
+                    {"segment_id": "E1S02", "video_prompt": "b", "duration_seconds": 8},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = await run_subagent(
+        context,
+        "update_video_settings",
+        {
+            "scope": "episode",
+            "episode": 1,
+            "backend": "byteplus/doubao-seedance-2-0-260128",
+            "duration_seconds": 4,
+            "resolution": "480p",
+        },
+    )
+
+    assert result["ok"] is True
+    assert sorted(result["updated_scene_ids"]) == ["E1S01", "E1S02"]
+    script = json.loads((pdir / "scripts" / "episode_1.json").read_text(encoding="utf-8"))
+    for segment in script["segments"]:
+        assert segment["video_backend"] == "byteplus/doubao-seedance-2-0-260128"
+        assert segment["video_resolution"] == "480p"
+        assert segment["duration_seconds"] == 4
+
+
+@pytest.mark.asyncio
+async def test_update_video_settings_project_scope_updates_project_defaults(
+    context: SkillCallContext,
+    project_manager: ProjectManager,
+    project_name: str,
+) -> None:
+    result = await run_subagent(
+        context,
+        "update_video_settings",
+        {
+            "scope": "project",
+            "backend": "byteplus/doubao-seedance-2-0-260128",
+            "duration_seconds": 4,
+            "resolution": "480p",
+        },
+    )
+
+    assert result["ok"] is True
+    project = project_manager.load_project(project_name)
+    assert project["video_backend"] == "byteplus/doubao-seedance-2-0-260128"
+    assert project["default_duration"] == 4
+    assert project["video_model_settings"] == {"doubao-seedance-2-0-260128": {"resolution": "480p"}}
+
+
+@pytest.mark.asyncio
+async def test_update_video_settings_endpoint_id_is_stored_as_readable_seedance_model(
+    context: SkillCallContext,
+    project_manager: ProjectManager,
+    project_name: str,
+) -> None:
+    result = await run_subagent(
+        context,
+        "update_video_settings",
+        {
+            "scope": "project",
+            "provider": "byteplus",
+            "model": "ep-20260508120826-lkcjf",
+        },
+    )
+
+    assert result["ok"] is True
+    project = project_manager.load_project(project_name)
+    assert project["video_backend"] == "byteplus/doubao-seedance-2-0-260128"
 
 
 # ---------------------------------------------------------------------------

@@ -62,6 +62,37 @@ def test_tool_use_attaches_to_preceding_assistant() -> None:
     assert tool_use_block.get("is_error") is False
 
 
+def test_split_assistant_text_before_tool_use_renders_text() -> None:
+    """一個同時帶 text 與 functionCall 的 ADK event，被持久化拆成
+    ``assistant`` text row + ``tool_use`` row（見 adk_session_service
+    ``_event_to_dicts``）。turn_grouper 應把兩者併入同一 assistant turn，
+    使 assistant 文字在重載歷史時不會遺失。回歸：先前 text 被吞進 tool_use。"""
+    raw = [
+        {"type": "user", "content": "讀一下 project.json", "uuid": "u1"},
+        {
+            "type": "assistant",
+            "content": [{"type": "text", "text": "好的，我先讀取專案檔案。"}],
+            "_adk_replay_skip": True,
+            "uuid": "a1",
+        },
+        {
+            "type": "tool_use",
+            "tool_use_id": "tu-1",
+            "name": "fs_read",
+            "input": {"path": "project.json"},
+        },
+    ]
+
+    turns = group_messages_into_turns(raw)
+    assert len(turns) == 2
+    assert turns[1]["type"] == "assistant"
+    blocks = turns[1]["content"]
+    types = [b.get("type") for b in blocks]
+    assert types == ["text", "tool_use"]
+    assert blocks[0]["text"] == "好的，我先讀取專案檔案。"
+    assert blocks[1]["name"] == "fs_read"
+
+
 def test_tool_use_without_preceding_assistant_starts_new_turn() -> None:
     """tool_use 是第一条消息时（罕见），创建新 assistant turn。"""
     raw = [

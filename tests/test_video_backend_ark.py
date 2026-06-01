@@ -100,10 +100,41 @@ class TestArkGenerate:
 
         assert isinstance(result, VideoGenerationResult)
         assert result.provider == "byteplus"
-        assert result.model == "doubao-seedance-1-5-pro-251215"
+        assert result.model == "doubao-seedance-2-0-260128"
         assert result.seed == 58944
         assert result.usage_tokens == 246840
         assert result.task_id == "cgt-20250101-test"
+
+    async def test_create_task_invalid_model_friendly_error(self, backend, tmp_path):
+        """當模型不是 ep- 開頭且 Ark API 報 InvalidEndpointOrModel 錯誤時，應丟出友善的錯誤。"""
+        output = tmp_path / "out.mp4"
+        backend._client.content_generation.tasks.create = MagicMock(
+            side_effect=Exception("InvalidEndpointOrModel.NotFound: The model or endpoint doubao-seedance-2-0-260128 does not exist")
+        )
+
+        request = VideoGenerationRequest(prompt="test", output_path=output)
+        with pytest.raises(RuntimeError) as exc_info:
+            await backend.generate(request)
+
+        assert "火山引擎 (BytePlus ModelArk) 影片生成失敗" in str(exc_info.value)
+        assert "Endpoint ID" in str(exc_info.value)
+
+    async def test_create_task_endpoint_other_error(self, tmp_path):
+        """當模型是 ep- 開頭且 Ark API 報 NotFound 錯誤時，應直接拋出原始錯誤（不由 friendly error 攔截）。"""
+        output = tmp_path / "out.mp4"
+        with patch("lib.video_backends.ark.create_ark_client", return_value=MagicMock()):
+            b = ArkVideoBackend(api_key="test", model="ep-20260508120826-lkcjf")
+            b._client.content_generation.tasks.create = MagicMock(
+                side_effect=Exception("InvalidEndpointOrModel.NotFound: The model or endpoint ep-20260508120826-lkcjf does not exist")
+            )
+
+            request = VideoGenerationRequest(prompt="test", output_path=output)
+            with pytest.raises(Exception) as exc_info:
+                await b.generate(request)
+
+            # 應直接傳播原始 Exception，且其內容不包含我們包裝的「火山引擎」中文字樣
+            assert "火山引擎" not in str(exc_info.value)
+            assert "InvalidEndpointOrModel.NotFound" in str(exc_info.value)
 
     async def test_image_to_video(self, backend, tmp_path):
         """圖生影片：有 start_image。"""
@@ -160,11 +191,11 @@ class TestArkGenerate:
         with pytest.raises(RuntimeError, match="Ark 影片生成失敗"):
             await backend.generate(request)
 
-    async def test_with_seed_and_flex(self, backend, tmp_path):
+    async def test_with_seed(self, backend, tmp_path):
         output = tmp_path / "out.mp4"
 
         create_result = MagicMock()
-        create_result.id = "cgt-flex"
+        create_result.id = "cgt-seed"
         backend._client.content_generation.tasks.create = MagicMock(return_value=create_result)
 
         get_result = MagicMock()
@@ -182,7 +213,6 @@ class TestArkGenerate:
                 prompt="test",
                 output_path=output,
                 seed=42,
-                service_tier="flex",
             )
             await backend.generate(request)
         finally:
@@ -191,7 +221,7 @@ class TestArkGenerate:
         create_call = backend._client.content_generation.tasks.create
         call_kwargs = create_call.call_args
         assert call_kwargs.kwargs.get("seed") == 42 or call_kwargs[1].get("seed") == 42
-        assert call_kwargs.kwargs.get("service_tier") == "flex" or call_kwargs[1].get("service_tier") == "flex"
+        assert "service_tier" not in call_kwargs.kwargs
 
     def test_missing_api_key_raises(self):
         with patch.dict(os.environ, {}, clear=True):
@@ -300,13 +330,6 @@ class TestArkModelCapabilities:
         assert VideoCapability.FLEX_TIER not in caps
         assert VideoCapability.VIDEO_EXTEND not in caps
 
-    def test_seedance_2_fast_no_flex_tier(self):
-        with patch("lib.video_backends.ark.create_ark_client", return_value=MagicMock()):
-            b = ArkVideoBackend(api_key="test", model="doubao-seedance-2-0-fast-260128")
-        caps = b.capabilities
-        assert VideoCapability.FLEX_TIER not in caps
-        assert VideoCapability.VIDEO_EXTEND not in caps
-
     def test_modelark_endpoint_id_uses_seedance_2_capabilities(self):
         with patch("lib.video_backends.ark.create_ark_client", return_value=MagicMock()):
             b = ArkVideoBackend(api_key="test", model="ep-20260508120826-lkcjf")
@@ -314,15 +337,9 @@ class TestArkModelCapabilities:
         assert VideoCapability.FLEX_TIER not in caps
         assert VideoCapability.SEED_CONTROL in caps
 
-    def test_seedance_1_5_has_flex_tier(self):
-        with patch("lib.video_backends.ark.create_ark_client", return_value=MagicMock()):
-            b = ArkVideoBackend(api_key="test", model="doubao-seedance-1-5-pro-251215")
-        caps = b.capabilities
-        assert VideoCapability.FLEX_TIER in caps
-        assert VideoCapability.VIDEO_EXTEND not in caps
-
     def test_unknown_model_gets_default_capabilities(self):
         with patch("lib.video_backends.ark.create_ark_client", return_value=MagicMock()):
             b = ArkVideoBackend(api_key="test", model="some-future-model")
         caps = b.capabilities
-        assert VideoCapability.FLEX_TIER in caps
+        assert VideoCapability.FLEX_TIER not in caps
+        assert VideoCapability.SEED_CONTROL in caps
