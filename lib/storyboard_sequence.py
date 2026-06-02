@@ -4,9 +4,28 @@ Helpers for storyboard sequence ordering and dependency planning.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+
+_STORYBOARD_ID_PATTERN = re.compile(r"^E(\d+)S(\d+)(?:_(\d+))?$")
+
+
+def normalize_storyboard_id(raw: object) -> tuple:
+    """將 segment/scene id 正規化為可比對的標準形。
+
+    補零與否視為同一個 id：``E2S1`` 與 ``E2S01`` 正規化後相等，
+    避免不同來源（LLM 生成、前端、規範）的補零差異造成比對斷裂。
+
+    不符 ``E{n}S{seq}(_{sub})?`` 格式者退化為原字串比較，不拋例外。
+    """
+    text = str(raw).strip()
+    match = _STORYBOARD_ID_PATTERN.match(text)
+    if not match:
+        return ("raw", text)
+    episode, seq, sub = match.groups()
+    return ("ES", int(episode), int(seq), int(sub) if sub is not None else None)
 
 
 @dataclass(frozen=True)
@@ -48,8 +67,9 @@ def find_storyboard_item(
     id_field: str,
     resource_id: str,
 ) -> tuple[dict, int] | None:
+    target = normalize_storyboard_id(resource_id)
     for index, item in enumerate(items):
-        if str(item.get(id_field)) == str(resource_id):
+        if normalize_storyboard_id(item.get(id_field)) == target:
             return item, index
     return None
 
