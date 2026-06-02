@@ -132,6 +132,9 @@ export function AgentCopilot() {
         return;
       }
     }
+    if (e.nativeEvent.isComposing) {
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();

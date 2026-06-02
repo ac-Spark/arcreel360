@@ -128,6 +128,7 @@ export function CharacterCard({
             onChange={(e) => setNameDraft(e.target.value)}
             onBlur={() => void commitRename()}
             onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
               if (e.key === "Enter") {
                 e.preventDefault();
                 void commitRename();

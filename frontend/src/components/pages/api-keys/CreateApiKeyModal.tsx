@@ -61,6 +61,7 @@ export function CreateApiKeyModal({ onClose, onCreated }: CreateApiKeyModalProps
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (e.nativeEvent.isComposing) return;
       if (e.key === "Enter" && !created && canCreate) void handleCreate();
       if (e.key === "Escape") onClose();
     },
