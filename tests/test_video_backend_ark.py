@@ -65,7 +65,8 @@ class TestArkProperties:
         assert VideoCapability.IMAGE_TO_VIDEO in caps
         assert VideoCapability.GENERATE_AUDIO in caps
         assert VideoCapability.SEED_CONTROL in caps
-        assert VideoCapability.FLEX_TIER in caps
+        # service_tier 已移除（cf356f3），ark 不再宣告 FLEX_TIER
+        assert VideoCapability.FLEX_TIER not in caps
         assert VideoCapability.NEGATIVE_PROMPT not in caps
 
 
