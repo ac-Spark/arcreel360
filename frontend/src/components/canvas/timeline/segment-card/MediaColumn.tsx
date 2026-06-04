@@ -1,13 +1,15 @@
-import { ImageIcon, Film } from "lucide-react";
+import { useState, useRef } from "react";
+import { ImageIcon, Film, Upload } from "lucide-react";
 import { API } from "@/api";
 import { useProjectsStore } from "@/stores/projects-store";
+import { useConfirm } from "@/hooks/useConfirm";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
 import { AspectFrame } from "@/components/ui/AspectFrame";
 import { GenerateButton } from "@/components/ui/GenerateButton";
 import { ImageFlipReveal } from "@/components/ui/ImageFlipReveal";
+import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { PreviewableVideoFrame } from "@/components/ui/PreviewableVideoFrame";
-import { LorebookReferenceImageField } from "@/components/canvas/lorebook/LorebookReferenceImageField";
 import type { Segment } from "./types";
 
 interface MediaColumnProps {
@@ -24,6 +26,12 @@ interface MediaColumnProps {
   onUploadReference?: (segmentId: string, file: File) => Promise<void> | void;
   onRemoveReference?: (segmentId: string) => Promise<void> | void;
   stage?: "storyboard" | "video";
+  imageModelOptions?: string[];
+  providerNames?: Record<string, string>;
+  onUpdateSceneBackend?: (
+    segmentId: string,
+    patch: { image_backend?: string | null; video_backend?: string | null }
+  ) => Promise<void> | void;
 }
 
 /** Simple video player with poster thumbnail and lazy preload. */
@@ -37,6 +45,106 @@ function VideoPlayer({ src, poster }: { src: string; poster?: string | null }) {
       playsInline
       preload={poster ? "none" : "metadata"}
     />
+  );
+}
+
+interface CompactReferenceImageFieldProps {
+  name: string;
+  savedUrl: string | null;
+  onUpload: (file: File) => Promise<void> | void;
+  onRemove?: () => Promise<void> | void;
+}
+
+function CompactReferenceImageField({
+  name,
+  savedUrl,
+  onUpload,
+  onRemove,
+}: CompactReferenceImageFieldProps) {
+  const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const confirm = useConfirm();
+
+  const openPicker = () => fileInputRef.current?.click();
+
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setSaving(true);
+    try {
+      await onUpload(file);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    if (!onRemove) return;
+    const ok = await confirm({
+      message: `確定要移除分鏡參考圖嗎？`,
+      confirmLabel: "移除",
+      danger: true,
+    });
+    if (ok) {
+      await onRemove();
+    }
+  };
+
+  return (
+    <div>
+      {savedUrl ? (
+        <PreviewableImageFrame src={savedUrl} alt={`${name} 參考圖`}>
+          <div className="flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900/40 p-2 text-xs text-gray-400">
+            <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-gray-950">
+              <img src={savedUrl} alt="分鏡參考圖" className="h-full w-full object-cover" />
+            </div>
+            <div className="flex-1 flex flex-col gap-0.5">
+              <span className="font-medium text-gray-300">分鏡參考圖</span>
+              <div className="flex items-center gap-2 text-[10px]">
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={openPicker}
+                  className="text-indigo-400 hover:text-indigo-300 disabled:opacity-50"
+                >
+                  {saving ? "上傳中..." : "替換"}
+                </button>
+                {onRemove && (
+                  <>
+                    <span className="text-gray-700">|</span>
+                    <button
+                      type="button"
+                      onClick={handleRemove}
+                      className="text-red-400/80 hover:text-red-400"
+                    >
+                      移除
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </PreviewableImageFrame>
+      ) : (
+        <button
+          type="button"
+          disabled={saving}
+          onClick={openPicker}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-gray-700 bg-gray-800/30 py-2 text-[11px] text-gray-500 hover:border-gray-500 hover:text-gray-300 transition-colors"
+        >
+          <Upload className="h-3.5 w-3.5" />
+          {saving ? "上傳中..." : "上傳參考圖"}
+        </button>
+      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".png,.jpg,.jpeg,.webp"
+        onChange={handleChange}
+        className="hidden"
+      />
+    </div>
   );
 }
 
@@ -54,6 +162,9 @@ export function MediaColumn({
   onUploadReference,
   onRemoveReference,
   stage,
+  imageModelOptions = [],
+  providerNames = {},
+  onUpdateSceneBackend,
 }: MediaColumnProps) {
   const assets = segment.generated_assets;
   const storyboardFp = useProjectsStore(
@@ -86,13 +197,13 @@ export function MediaColumn({
     aspectRatio === "9:16" || aspectRatio === "16:9" ? aspectRatio : "16:9"
   ) as "9:16" | "16:9";
 
-  const maxWClass = normalizedRatio === "9:16" ? "max-w-[180px]" : "max-w-[320px]";
+  const mediaFrameMaxWidthClass = normalizedRatio === "9:16" ? "max-w-[10rem]" : "max-w-[18rem]";
 
   return (
     <div className="flex flex-col gap-3 p-3">
       {/* ---- Storyboard image ---- */}
       {(stage === undefined || stage === "storyboard") && (
-        <div className={`mx-auto w-full ${maxWClass}`}>
+        <div data-testid="storyboard-media-frame" className={`mx-auto w-full ${mediaFrameMaxWidthClass}`}>
           <div className="mb-1.5 flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <ImageIcon className="h-3 w-3 text-gray-500" />
@@ -121,17 +232,31 @@ export function MediaColumn({
               />
             </AspectFrame>
           </PreviewableImageFrame>
-          <div className="mt-2">
+          <div data-testid="storyboard-generate-toolbar" className="mt-2 flex flex-wrap items-center gap-2">
+            {stage === "storyboard" && imageModelOptions.length > 0 && (
+              <ProviderModelSelect
+                value={segment.image_backend ?? ""}
+                options={imageModelOptions}
+                providerNames={providerNames}
+                onChange={(next) => onUpdateSceneBackend?.(segmentId, { image_backend: next || null })}
+                allowDefault
+                defaultLabel="跟隨專案全域模型"
+                placeholder="設計圖模型"
+                aria-label="選擇分鏡圖圖片模型"
+                className="min-w-[8rem] flex-1"
+                size="sm"
+              />
+            )}
             <GenerateButton
               onClick={() => onGenerateStoryboard?.(segmentId)}
               loading={generatingStoryboard}
               label="生成分鏡"
-              className="w-full justify-center"
+              className="shrink-0 justify-center"
             />
           </div>
           {onUploadReference && (
             <div className="mt-3">
-              <LorebookReferenceImageField
+              <CompactReferenceImageField
                 name={segmentId}
                 savedUrl={refImageUrl}
                 onUpload={(file) => onUploadReference(segmentId, file)}
@@ -142,36 +267,9 @@ export function MediaColumn({
         </div>
       )}
 
-      {/* ---- Read-only Storyboard Thumbnail when in video stage ---- */}
-      {stage === "video" && (
-        <div className="flex items-center gap-2 rounded-lg border border-gray-800 bg-gray-900/40 p-2 text-xs text-gray-400">
-          <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-gray-950">
-            {storyboardUrl ? (
-              <img src={storyboardUrl} alt="首幀分鏡" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-gray-700">
-                <ImageIcon className="h-4 w-4" />
-              </div>
-            )}
-          </div>
-          <div className="flex-1 flex flex-col gap-0.5">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-gray-300">首幀分鏡圖</span>
-              <VersionTimeMachine
-                projectName={projectName}
-                resourceType="storyboards"
-                resourceId={segmentId}
-                onRestore={onRestoreStoryboard}
-              />
-            </div>
-            <span className="text-[10px] text-gray-500">影片生成時將以此作為首幀預覽</span>
-          </div>
-        </div>
-      )}
-
       {/* ---- Video ---- */}
       {(stage === undefined || stage === "video") && (
-        <div className={`mx-auto w-full ${maxWClass}`}>
+        <div data-testid="video-media-frame" className={`mx-auto w-full ${mediaFrameMaxWidthClass}`}>
           <div className="mb-1.5 flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <Film className="h-3 w-3 text-gray-500" />
@@ -191,11 +289,24 @@ export function MediaColumn({
               </AspectFrame>
             </PreviewableVideoFrame>
           ) : (
-            <div className="flex items-center justify-center rounded-lg border border-dashed border-gray-700 bg-gray-800/30 py-4">
-              <span className="text-xs text-gray-600">
-                {assets?.storyboard_image ? "可生成影片" : "需先生成分鏡"}
-              </span>
-            </div>
+            <AspectFrame ratio={normalizedRatio}>
+              <div className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-gray-700 bg-gray-800/30 text-gray-600">
+                {storyboardUrl ? (
+                  <div className="relative h-full w-full overflow-hidden rounded-lg">
+                    <img src={storyboardUrl} alt="分鏡預覽" className="h-full w-full object-cover opacity-30 blur-[1px]" />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-black/40">
+                      <Film className="h-7 w-7 text-gray-500" />
+                      <span className="text-xs font-medium text-gray-400">暫無影片</span>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <Film className="h-7 w-7 text-gray-600" />
+                    <span className="text-xs">暫無影片</span>
+                  </>
+                )}
+              </div>
+            </AspectFrame>
           )}
           <div className="mt-2">
             <GenerateButton

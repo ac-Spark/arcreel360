@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ImageIcon, Film } from "lucide-react";
+import { ImageIcon, Film, Sparkles } from "lucide-react";
+import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
+import { API } from "@/api";
+import { useAppStore } from "@/stores/app-store";
 import { AutoTextarea } from "@/components/ui/AutoTextarea";
 import { ImagePromptEditor } from "../ImagePromptEditor";
 import { VideoPromptEditor } from "../VideoPromptEditor";
-import type { ImagePrompt, VideoPrompt } from "@/types";
+import type { ImagePrompt, VideoPrompt, NarrationSegment, DramaScene } from "@/types";
 import type {
   Segment,
   SegmentMentionDrafts,
@@ -19,9 +22,38 @@ import {
   type SegmentMentionContext,
 } from "./helpers";
 
+function promptToStr(prompt: unknown, key: string): string {
+  if (typeof prompt === "string") return prompt;
+  if (typeof prompt === "object" && prompt !== null) {
+    const value = (prompt as Record<string, unknown>)[key];
+    if (typeof value === "string") return value;
+  }
+  return "";
+}
+
+function getPromptSourceText(segment: Segment, contentMode: SegmentMentionContext["contentMode"]): string {
+  if (contentMode === "narration") {
+    return (segment as NarrationSegment).novel_text ?? "";
+  }
+
+  const scene = segment as DramaScene;
+  const prompt = scene.video_prompt;
+  const dialogueList = typeof prompt === "object" && prompt !== null && "dialogue" in prompt
+    ? (prompt.dialogue as Array<{ speaker?: string; text?: string }> ?? [])
+    : [];
+  const dialogueText = dialogueList.map((dialogue) => `${dialogue.speaker || "角色"}: ${dialogue.text || ""}`).join("\n");
+  const parts = [
+    scene.scene_in_scene ? `場景: ${scene.scene_in_scene}` : "",
+    dialogueText ? `對話:\n${dialogueText}` : "",
+    scene.note ? `備註: ${scene.note}` : "",
+  ].filter(Boolean);
+  return parts.join("\n");
+}
+
 interface PromptColumnProps {
   segment: Segment;
   segmentId: string;
+  projectName: string;
   onUpdatePrompt?: SegmentUpdateHandler;
   speakerOptions?: string[];
   mentionContext: SegmentMentionContext;
@@ -30,19 +62,25 @@ interface PromptColumnProps {
     patch: Partial<SegmentMentionDrafts>,
   ) => SegmentUpdateExtras | undefined;
   stage?: "storyboard" | "video";
+  textModelOptions?: string[];
+  providerNames?: Record<string, string>;
 }
 
 export function PromptColumn({
   segment,
   segmentId,
+  projectName,
   onUpdatePrompt,
   speakerOptions,
   mentionContext,
   onMentionDraftChange,
   buildMentionUpdatesForDraft,
   stage,
+  textModelOptions,
+  providerNames,
 }: PromptColumnProps) {
   const { image_prompt, video_prompt } = segment;
+  const [textModel, setTextModel] = useState<string | null>(null);
   const buildPromptMentionUpdates = (
     key: PromptMentionDraftKey,
     value: unknown,
@@ -50,16 +88,6 @@ export function PromptColumn({
 
   const isStructuredImage = isStructuredImagePromptValue(image_prompt);
   const isStructuredVideo = isStructuredVideoPromptValue(video_prompt);
-
-  // ---- String fallback state (only used when prompts are plain strings) ----
-  const promptToStr = (p: unknown, key: string): string => {
-    if (typeof p === "string") return p;
-    if (typeof p === "object" && p !== null) {
-      const val = (p as Record<string, unknown>)[key];
-      if (typeof val === "string") return val;
-    }
-    return "";
-  };
 
   const [imgText, setImgText] = useState(() => promptToStr(image_prompt, "scene"));
   const [vidText, setVidText] = useState(() => promptToStr(video_prompt, "action"));
@@ -69,6 +97,100 @@ export function PromptColumn({
   const [vidDraft, setVidDraft] = useState<VideoPrompt | null>(() =>
     isStructuredVideo ? (video_prompt as VideoPrompt) : null
   );
+  const [aiGeneratingImg, setAiGeneratingImg] = useState(false);
+  const [aiGeneratingVid, setAiGeneratingVid] = useState(false);
+
+  const runPromptGeneration = async ({
+    type,
+    description,
+    instruction,
+    isEmpty,
+    setGenerating,
+    onGenerated,
+    successMessage,
+  }: {
+    type: "image_prompt" | "video_prompt";
+    description: string;
+    instruction?: string;
+    isEmpty: boolean;
+    setGenerating: (value: boolean) => void;
+    onGenerated: (prompt: string) => void;
+    successMessage: string;
+  }) => {
+    if (isEmpty) {
+      useAppStore.getState().pushToast("沒有可用的上下文或現有提示詞，無法生成提示詞！", "error");
+      return;
+    }
+
+    setGenerating(true);
+    try {
+      const res = await API.generateAIDescription(projectName, {
+        type,
+        description,
+        instruction,
+        model: textModel || undefined,
+      });
+      onGenerated(res.prompt);
+      useAppStore.getState().pushToast(successMessage, "success");
+    } catch (err) {
+      useAppStore.getState().pushToast(`AI 提示詞生成失敗: ${(err as Error).message}`, "error");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleGeneratedImagePrompt = (newPrompt: string) => {
+    if (isStructuredImage) {
+      fireStructuredImage({ scene: newPrompt });
+      return;
+    }
+    setImgText(newPrompt);
+    fireString("image_prompt", "imagePrompt", newPrompt);
+  };
+
+  const handleGeneratedVideoPrompt = (newPrompt: string) => {
+    if (isStructuredVideo) {
+      fireStructuredVideo({ action: newPrompt });
+      return;
+    }
+    setVidText(newPrompt);
+    fireString("video_prompt", "videoPrompt", newPrompt);
+  };
+
+  const handleGenerateImagePromptAI = async () => {
+    const sourceText = getPromptSourceText(segment, mentionContext.contentMode).trim();
+    const currentImgDesc = (isStructuredImage ? imgDraft?.scene : imgText) || "";
+
+    await runPromptGeneration({
+      type: "image_prompt",
+      description: sourceText ? sourceText : `最佳化此提示詞: ${currentImgDesc}`,
+      instruction: currentImgDesc ? `請基於當前提示詞進行細化 and 最佳化: ${currentImgDesc}` : undefined,
+      isEmpty: !sourceText && !currentImgDesc.trim(),
+      setGenerating: setAiGeneratingImg,
+      onGenerated: handleGeneratedImagePrompt,
+      successMessage: "分鏡圖提示詞生成成功",
+    });
+  };
+
+  const handleGenerateVideoPromptAI = async () => {
+    const sourceText = getPromptSourceText(segment, mentionContext.contentMode).trim();
+    const currentImgDesc = (isStructuredImage ? imgDraft?.scene : imgText) || "";
+    const currentVidDesc = (isStructuredVideo ? vidDraft?.action : vidText) || "";
+
+    const descriptionParts = [];
+    if (currentImgDesc) descriptionParts.push(`分鏡預覽: ${currentImgDesc}`);
+    if (sourceText) descriptionParts.push(`上下文內容:\n${sourceText}`);
+
+    await runPromptGeneration({
+      type: "video_prompt",
+      description: descriptionParts.join("\n") || `最佳化此影片動作提示詞: ${currentVidDesc}`,
+      instruction: currentVidDesc ? `請基於當前動作提示詞進行細化 and 最佳化: ${currentVidDesc}` : undefined,
+      isEmpty: !sourceText && !currentImgDesc && !currentVidDesc,
+      setGenerating: setAiGeneratingVid,
+      onGenerated: handleGeneratedVideoPrompt,
+      successMessage: "影片提示詞生成成功",
+    });
+  };
 
   const isImagePromptEmpty = useMemo(() => {
     if (isStructuredImage) {
@@ -179,11 +301,13 @@ export function PromptColumn({
       {/* ---- Image Prompt ---- */}
       {(stage === undefined || stage === "storyboard") && (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-1.5">
-            <ImageIcon className="h-3.5 w-3.5 text-gray-500" />
-            <span className="text-[11px] font-semibold text-gray-400">
-              Image Prompt
-            </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <ImageIcon className="h-3.5 w-3.5 text-gray-500" />
+              <span className="text-[11px] font-semibold text-gray-400">
+                Image Prompt
+              </span>
+            </div>
           </div>
 
           {isStructuredImage && imgDraft ? (
@@ -205,6 +329,15 @@ export function PromptColumn({
               linkedNames={mentionContext.currentNames}
             />
           )}
+          <PromptModelToolbar
+            textModel={textModel}
+            setTextModel={setTextModel}
+            textModelOptions={textModelOptions}
+            providerNames={providerNames}
+            onGenerate={handleGenerateImagePromptAI}
+            isGenerating={aiGeneratingImg}
+            btnTitle="根據原文內容生成繪圖提示詞"
+          />
           {isImagePromptEmpty && (
             <span className="text-[10px] text-red-400 font-medium">⚠️ 描述為空，請輸入分鏡圖描述以避免生成失敗</span>
           )}
@@ -214,11 +347,13 @@ export function PromptColumn({
       {/* ---- Video Prompt ---- */}
       {(stage === undefined || stage === "video") && (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-1.5">
-            <Film className="h-3.5 w-3.5 text-gray-500" />
-            <span className="text-[11px] font-semibold text-gray-400">
-              Video Prompt
-            </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Film className="h-3.5 w-3.5 text-gray-500" />
+              <span className="text-[11px] font-semibold text-gray-400">
+                Video Prompt
+              </span>
+            </div>
           </div>
 
           {isStructuredVideo && vidDraft ? (
@@ -241,11 +376,68 @@ export function PromptColumn({
               linkedNames={mentionContext.currentNames}
             />
           )}
+          <PromptModelToolbar
+            textModel={textModel}
+            setTextModel={setTextModel}
+            textModelOptions={textModelOptions}
+            providerNames={providerNames}
+            onGenerate={handleGenerateVideoPromptAI}
+            isGenerating={aiGeneratingVid}
+            btnTitle="根據分鏡畫面與原文生成影片動作提示詞"
+          />
           {isVideoPromptEmpty && (
             <span className="text-[10px] text-red-400 font-medium">⚠️ 描述為空，請輸入影片動作描述以避免生成失敗</span>
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+interface PromptModelToolbarProps {
+  textModel: string | null;
+  setTextModel: (model: string | null) => void;
+  textModelOptions?: string[];
+  providerNames?: Record<string, string>;
+  onGenerate: () => void;
+  isGenerating: boolean;
+  btnTitle: string;
+}
+
+function PromptModelToolbar({
+  textModel,
+  setTextModel,
+  textModelOptions,
+  providerNames,
+  onGenerate,
+  isGenerating,
+  btnTitle,
+}: PromptModelToolbarProps) {
+  if (!textModelOptions || textModelOptions.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-2 mt-1.5 w-full">
+      <ProviderModelSelect
+        value={textModel || ""}
+        options={textModelOptions}
+        providerNames={providerNames || {}}
+        onChange={setTextModel}
+        placeholder="選模型..."
+        allowDefault={true}
+        defaultLabel="預設文字模型"
+        className="flex-1 text-xs"
+        size="sm"
+      />
+      <button
+        type="button"
+        onClick={onGenerate}
+        disabled={isGenerating}
+        className="flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none border border-gray-700/50 hover:border-gray-600/50 bg-gray-800/40 rounded-md hover:bg-gray-800/80 transition-all shrink-0"
+        title={btnTitle}
+      >
+        <Sparkles className={`h-3 w-3 ${isGenerating ? "animate-spin" : ""}`} />
+        {isGenerating ? "生成中..." : "AI 產生"}
+      </button>
     </div>
   );
 }
