@@ -136,6 +136,37 @@ export function StudioCanvasRouter() {
     extraUpdates?: SegmentUpdateExtras,
   ) => {
     if (!currentProjectName) return;
+
+    // 檢查更新的值是否為空 (不能留空儲存)
+    const isValueEmpty = (val: unknown, fieldName: string): boolean => {
+      if (fieldName === "image_prompt") {
+        if (!val) return true;
+        if (typeof val === "string") return !val.trim();
+        if (typeof val === "object") {
+          const p = val as { scene?: string };
+          return !p.scene || !p.scene.trim();
+        }
+      }
+      if (fieldName === "video_prompt") {
+        if (!val) return true;
+        if (typeof val === "string") return !val.trim();
+        if (typeof val === "object") {
+          const p = val as { action?: string };
+          return !p.action || !p.action.trim();
+        }
+      }
+      return false;
+    };
+
+    if (field === "image_prompt" && isValueEmpty(value, "image_prompt")) {
+      useAppStore.getState().pushToast("分鏡圖描述（Image Prompt）不能為空！儲存失敗。", "warning");
+      return;
+    }
+    if (field === "video_prompt" && isValueEmpty(value, "video_prompt")) {
+      useAppStore.getState().pushToast("影片描述（Video Prompt）不能為空！儲存失敗。", "warning");
+      return;
+    }
+
     const activeScript = scriptFile ? currentScripts?.[scriptFile] : undefined;
     const mode = resolveEpisodeContentMode(activeScript, currentProjectData?.content_mode);
     const updates = { [field]: value, ...(extraUpdates ?? {}) };
@@ -167,6 +198,23 @@ export function StudioCanvasRouter() {
       return id === segmentId;
     });
     const prompt = seg?.image_prompt ?? "";
+
+    // 檢查 Prompt 是否為空
+    const isPromptEmpty = (p: unknown): boolean => {
+      if (!p) return true;
+      if (typeof p === "string") return !p.trim();
+      if (typeof p === "object") {
+        const o = p as { scene?: string };
+        return !o.scene || !o.scene.trim();
+      }
+      return true;
+    };
+
+    if (isPromptEmpty(prompt)) {
+      useAppStore.getState().pushToast("無法提交：分鏡圖描述為空，請先填寫描述！", "error");
+      return;
+    }
+
     try {
       await API.generateStoryboard(currentProjectName, segmentId, prompt as string | Record<string, unknown>, resolvedFile);
       useAppStore.getState().pushToast(`已提交分鏡「${segmentId}」生成任務`, "success");
@@ -189,6 +237,23 @@ export function StudioCanvasRouter() {
     });
     const prompt = seg?.video_prompt ?? "";
     const duration = seg?.duration_seconds ?? 4;
+
+    // 檢查 Prompt 是否為空
+    const isPromptEmpty = (p: unknown): boolean => {
+      if (!p) return true;
+      if (typeof p === "string") return !p.trim();
+      if (typeof p === "object") {
+        const o = p as { action?: string };
+        return !o.action || !o.action.trim();
+      }
+      return true;
+    };
+
+    if (isPromptEmpty(prompt)) {
+      useAppStore.getState().pushToast("無法提交：影片描述為空，請先填寫描述！", "error");
+      return;
+    }
+
     try {
       await API.generateVideo(currentProjectName, segmentId, prompt as string | Record<string, unknown>, resolvedFile, duration);
       useAppStore.getState().pushToast(`已提交影片「${segmentId}」生成任務`, "success");
