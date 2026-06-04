@@ -10,7 +10,6 @@ import { PreprocessingView } from "./PreprocessingView";
 import { FinalVideoCard } from "./FinalVideoCard";
 import { EpisodeActionsBar } from "./EpisodeActionsBar";
 import { EpisodeSplitPanel } from "./EpisodeSplitPanel";
-import { EpisodeOverridesPopover } from "./EpisodeOverridesPopover";
 import { SourceTextPanel } from "./SourceTextPanel";
 import { useScrollTarget } from "@/hooks/useScrollTarget";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -25,6 +24,7 @@ import type {
   DramaEpisodeScript,
   NarrationSegment,
   DramaScene,
+  CostByType,
   ProjectData,
   ProviderInfo,
 } from "@/types";
@@ -127,7 +127,6 @@ export function TimelineCanvas({
   const confirm = useConfirm();
   const contentMode = resolveEpisodeContentMode(episodeScript, projectData?.content_mode);
   const currentEpisodeMeta = projectData?.episodes?.find((e) => e.episode === episode);
-  const currentEpisodeOverrides = currentEpisodeMeta?.overrides;
   const sourceFilesVersion = useAppStore((s) => s.sourceFilesVersion);
   const [sourceFiles, setSourceFiles] = useState<string[]>([]);
 
@@ -388,7 +387,7 @@ export function TimelineCanvas({
       if (index == null) {
         return false;
       }
-      virtualizer.scrollToIndex(index, { align: "center" });
+      virtualizer.scrollToIndex(index, { align: "start" });
       return true;
     },
     [segmentIndexMap, virtualizer],
@@ -449,6 +448,22 @@ export function TimelineCanvas({
   const totalDuration =
     episodeScript?.duration_seconds ??
     segments.reduce((sum, s) => sum + s.duration_seconds, 0);
+  const showEpisodeImageCost = activeTab !== "video";
+  const showEpisodeVideoCost = activeTab !== "storyboard";
+  const visibleEpisodeEstimate = useMemo<CostByType>(() => {
+    if (!episodeCost) return {};
+    return {
+      ...(showEpisodeImageCost ? { image: episodeCost.totals.estimate.image } : {}),
+      ...(showEpisodeVideoCost ? { video: episodeCost.totals.estimate.video } : {}),
+    };
+  }, [episodeCost, showEpisodeImageCost, showEpisodeVideoCost]);
+  const visibleEpisodeActual = useMemo<CostByType>(() => {
+    if (!episodeCost) return {};
+    return {
+      ...(showEpisodeImageCost ? { image: episodeCost.totals.actual.image } : {}),
+      ...(showEpisodeVideoCost ? { video: episodeCost.totals.actual.video } : {}),
+    };
+  }, [episodeCost, showEpisodeImageCost, showEpisodeVideoCost]);
 
   // Label depends on content mode
   const segmentLabel = contentMode === "narration" ? "個片段" : "個場景";
@@ -470,7 +485,7 @@ export function TimelineCanvas({
         const segId = getSegmentId(segment, contentMode);
         const targetIndex = segmentIndexMap.get(segId);
         if (targetIndex != null) {
-          virtualizer.scrollToIndex(targetIndex, { align: "center" });
+          virtualizer.scrollToIndex(targetIndex, { align: "start" });
         }
       }
     },
@@ -490,11 +505,6 @@ export function TimelineCanvas({
                 episode={episode}
                 title={episodeScript?.title ?? episodeTitle ?? ""}
               />
-              <EpisodeOverridesPopover
-                projectName={projectName}
-                episode={episode}
-                overrides={currentEpisodeOverrides}
-              />
             </div>
             {episodeScript && (
               <p className="text-xs text-gray-500">
@@ -504,14 +514,22 @@ export function TimelineCanvas({
             {episodeCost && (
               <div className="mt-2 flex items-center gap-4 rounded-lg bg-gray-900 border border-gray-800 px-3 py-2 text-xs tabular-nums">
                 <span className="text-gray-600">預估</span>
-                <span className="text-gray-500">分鏡 <span className="text-gray-300">{formatCost(episodeCost.totals.estimate.image)}</span></span>
-                <span className="text-gray-500">影片 <span className="text-gray-300">{formatCost(episodeCost.totals.estimate.video)}</span></span>
-                <span className="text-gray-500">總計 <span className="font-medium text-amber-400">{formatCost(totalBreakdown(episodeCost.totals.estimate))}</span></span>
+                {showEpisodeImageCost && (
+                  <span className="text-gray-500">分鏡 <span className="text-gray-300">{formatCost(episodeCost.totals.estimate.image)}</span></span>
+                )}
+                {showEpisodeVideoCost && (
+                  <span className="text-gray-500">影片 <span className="text-gray-300">{formatCost(episodeCost.totals.estimate.video)}</span></span>
+                )}
+                <span className="text-gray-500">總計 <span className="font-medium text-amber-400">{formatCost(totalBreakdown(visibleEpisodeEstimate))}</span></span>
                 <span className="text-gray-700">|</span>
                 <span className="text-gray-600">實際</span>
-                <span className="text-gray-500">分鏡 <span className="text-gray-300">{formatCost(episodeCost.totals.actual.image)}</span></span>
-                <span className="text-gray-500">影片 <span className="text-gray-300">{formatCost(episodeCost.totals.actual.video)}</span></span>
-                <span className="text-gray-500">總計 <span className="font-medium text-emerald-400">{formatCost(totalBreakdown(episodeCost.totals.actual))}</span></span>
+                {showEpisodeImageCost && (
+                  <span className="text-gray-500">分鏡 <span className="text-gray-300">{formatCost(episodeCost.totals.actual.image)}</span></span>
+                )}
+                {showEpisodeVideoCost && (
+                  <span className="text-gray-500">影片 <span className="text-gray-300">{formatCost(episodeCost.totals.actual.video)}</span></span>
+                )}
+                <span className="text-gray-500">總計 <span className="font-medium text-emerald-400">{formatCost(totalBreakdown(visibleEpisodeActual))}</span></span>
               </div>
             )}
             <EpisodeActionsBar
@@ -521,6 +539,8 @@ export function TimelineCanvas({
               scriptFile={scriptFile}
               hasScript={hasScript}
               activeTab={activeTab}
+              textModelOptions={modelOptions.text}
+              providerNames={modelOptions.providerNames}
             />
           </div>
 
@@ -630,6 +650,7 @@ export function TimelineCanvas({
                         stage={activeTab === "preprocessing" ? undefined : activeTab}
                         imageModelOptions={modelOptions.image}
                         videoModelOptions={modelOptions.video}
+                        textModelOptions={modelOptions.text}
                         providerNames={modelOptions.providerNames}
                         onUpdateSceneBackend={handleUpdateSceneBackend}
                       />

@@ -202,10 +202,11 @@ export const episodesApi = {
   async generateEpisodeScript(
     name: string,
     episode: number,
+    model?: string | null,
   ): Promise<{ script_file: string; segments_count: number }> {
     return getApi().request(
       `/projects/${encodeURIComponent(name)}/episodes/${episode}/script`,
-      { method: "POST", body: JSON.stringify({}) },
+      { method: "POST", body: JSON.stringify({ model: model || null }) },
     );
   },
 
@@ -215,10 +216,12 @@ export const episodesApi = {
     source?: string,
     refs?: PreprocessRefs,
     numSegments?: number,
+    model?: string | null,
   ): Promise<{ step1_path: string; content_mode: string }> {
     const body: Record<string, unknown> = { source };
     if (refs !== undefined) body.refs = refs;
     if (numSegments !== undefined) body.num_segments = numSegments;
+    if (model) body.model = model;
     return getApi().request(
       `/projects/${encodeURIComponent(name)}/episodes/${episode}/preprocess`,
       { method: "POST", body: JSON.stringify(body) },
@@ -626,6 +629,26 @@ export const episodesApi = {
       {
         method: "POST",
         body: JSON.stringify({ prompt }),
+      },
+    );
+  },
+
+  /** AI 輔助生成/最佳化角色、道具、場景繪圖提示詞 */
+  async generateAIDescription(
+    projectName: string,
+    payload: {
+      type: "character" | "clue" | "scene" | "image_prompt" | "video_prompt";
+      name?: string;
+      description: string;
+      instruction?: string;
+      model?: string;
+    },
+  ): Promise<{ success: boolean; prompt: string }> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(projectName)}/helper/generate-prompt`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
       },
     );
   },

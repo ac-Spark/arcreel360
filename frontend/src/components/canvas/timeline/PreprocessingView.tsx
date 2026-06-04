@@ -84,7 +84,7 @@ export function PreprocessingView({
   }
 
   // 尚無草稿且未在編輯：顯示「新增」入口
-  if (content === null && !editing) {
+  if ((content === null || content.trim() === "") && !editing) {
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-3 text-gray-500">
         <span>暫無預處理內容</span>
@@ -100,7 +100,7 @@ export function PreprocessingView({
     );
   }
 
-  const isCreating = content === null;
+  const isCreating = content === null || content.trim() === "";
 
   return (
     <div className="flex flex-col gap-3">

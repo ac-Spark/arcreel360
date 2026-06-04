@@ -1,10 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { TimelineCanvas } from "./TimelineCanvas";
 import { API } from "@/api";
-import type { NarrationEpisodeScript, ProjectData } from "@/types";
+import { useCostStore } from "@/stores/cost-store";
+import type { EpisodeCost, NarrationEpisodeScript, ProjectData } from "@/types";
 
 vi.mock("@/api", () => ({
   API: {
@@ -12,6 +13,12 @@ vi.mock("@/api", () => ({
     addEpisodeScene: vi.fn(),
     getProject: vi.fn().mockResolvedValue({ project: {}, scripts: {}, asset_fingerprints: {} }),
     listFiles: vi.fn().mockResolvedValue({ files: { source: [] } }),
+  },
+}));
+
+vi.mock("@/api/providers", () => ({
+  providersApi: {
+    getProviders: vi.fn().mockResolvedValue({ providers: [] }),
   },
 }));
 
@@ -69,7 +76,31 @@ function renderTimelineCanvas(ui: ReactElement) {
   return render(ui, { wrapper: ConfirmProvider });
 }
 
+function setEpisodeCost(cost: Partial<EpisodeCost> = {}) {
+  const episodeCost: EpisodeCost = {
+    episode: 1,
+    title: "第一集",
+    segments: [],
+    totals: {
+      estimate: {
+        image: { USD: 0.12 },
+        video: { USD: 0.34 },
+      },
+      actual: {
+        image: { USD: 0.02 },
+        video: { USD: 0.03 },
+      },
+    },
+    ...cost,
+  };
+  useCostStore.setState({ _episodeIndex: new Map([[1, episodeCost]]) });
+}
+
 describe("TimelineCanvas", () => {
+  beforeEach(() => {
+    useCostStore.setState(useCostStore.getInitialState(), true);
+  });
+
   it("uses scenes when a script is drama-shaped even if the project is narration mode", () => {
     renderTimelineCanvas(
       <TimelineCanvas
@@ -143,5 +174,23 @@ describe("TimelineCanvas", () => {
     fireEvent.click(screen.getByRole("button", { name: "新增片段" }));
 
     await waitFor(() => expect(API.addEpisodeSegment).toHaveBeenCalledWith("demo", 2));
+  });
+
+  it("shows only storyboard costs in the storyboard tab summary", () => {
+    setEpisodeCost();
+    renderTimelineCanvas(
+      <TimelineCanvas
+        projectName="demo"
+        episode={1}
+        episodeTitle="第一集"
+        projectData={makeProjectData()}
+        episodeScript={makeEmptyNarrationScript()}
+      />,
+    );
+
+    expect(screen.getAllByText("$0.12")).toHaveLength(2);
+    expect(screen.getAllByText("$0.02")).toHaveLength(2);
+    expect(screen.queryByText("$0.34")).not.toBeInTheDocument();
+    expect(screen.queryByText("$0.03")).not.toBeInTheDocument();
   });
 });

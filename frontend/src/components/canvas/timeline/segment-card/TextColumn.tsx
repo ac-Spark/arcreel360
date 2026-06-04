@@ -119,48 +119,52 @@ export function TextColumn({
     </div>
   );
 
+  const sourceEditor = (
+    <div className="relative rounded-lg border border-gray-800 bg-gray-900/30 hover:border-gray-700/60 focus-within:border-indigo-500/80 focus-within:bg-gray-800/20 transition-all duration-200">
+      <MentionHighlightOverlay
+        value={sourceDraft}
+        entities={mentionContext.entities}
+        linkedNames={mentionContext.currentNames}
+        className="font-sans min-h-[8rem] px-3.5 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words border border-transparent"
+      />
+      <textarea
+        ref={textareaRef}
+        className="font-sans relative min-h-[8rem] w-full resize-none overflow-hidden bg-transparent px-3.5 py-3 text-sm leading-relaxed placeholder-gray-600 border border-transparent focus:outline-none"
+        style={{ color: "transparent", caretColor: "#d1d5db" }}
+        value={sourceDraft}
+        placeholder={contentMode === "narration" ? "（暫無原文）" : "（暫無場景描述）"}
+        aria-label={contentMode === "narration" ? "原文" : "場景描述"}
+        aria-autocomplete="list"
+        aria-controls="entity-mention-menu"
+        role="combobox"
+        aria-expanded={menuOpen}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+        onBlur={() => {
+          handleBlur();
+          handleSourceBlur();
+        }}
+      />
+      {menuOpen && (
+        <EntityMentionMenu
+          id="entity-mention-menu"
+          ref={menuRef}
+          filter={filter}
+          items={items}
+          onSelect={selectItem}
+          className="absolute left-0 top-full mt-1 w-64"
+        />
+      )}
+    </div>
+  );
+
   if (contentMode === "narration") {
     return (
       <div className="flex h-full flex-col gap-1.5 p-3">
         <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
           原文
         </span>
-        <div className="relative rounded-lg border border-gray-800 bg-gray-900/30 hover:border-gray-700/60 focus-within:border-indigo-500/80 focus-within:bg-gray-800/20 transition-all duration-200">
-          <MentionHighlightOverlay
-            value={sourceDraft}
-            entities={mentionContext.entities}
-            linkedNames={mentionContext.currentNames}
-            className="font-sans min-h-[8rem] px-3.5 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words border border-transparent"
-          />
-          <textarea
-            ref={textareaRef}
-            className="font-sans relative min-h-[8rem] w-full resize-none overflow-hidden bg-transparent px-3.5 py-3 text-sm leading-relaxed placeholder-gray-600 border border-transparent focus:outline-none"
-            style={{ color: "transparent", caretColor: "#d1d5db" }}
-            value={sourceDraft}
-            placeholder="（暫無原文）"
-            aria-label="原文"
-            aria-autocomplete="list"
-            aria-controls="entity-mention-menu"
-            role="combobox"
-            aria-expanded={menuOpen}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            onBlur={() => {
-              handleBlur();
-              handleSourceBlur();
-            }}
-          />
-          {menuOpen && (
-            <EntityMentionMenu
-              id="entity-mention-menu"
-              ref={menuRef}
-              filter={filter}
-              items={items}
-              onSelect={selectItem}
-              className="absolute left-0 top-full mt-1 w-64"
-            />
-          )}
-        </div>
+        {sourceEditor}
         {noteSection}
       </div>
     );
@@ -173,7 +177,7 @@ export function TextColumn({
     ? (vp.dialogue ?? [])
     : [];
   return (
-    <div className="flex h-full flex-col gap-1.5 p-3">
+    <div className="flex h-full flex-col gap-1.5 p-3 overflow-y-auto">
       <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
         對話
       </span>
@@ -196,6 +200,12 @@ export function TextColumn({
           ))}
         </ul>
       )}
+      <div className="mt-4 pt-3 border-t border-gray-800 flex flex-col gap-1.5">
+        <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+          場景描述
+        </span>
+        {sourceEditor}
+      </div>
       {noteSection}
     </div>
   );

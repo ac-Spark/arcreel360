@@ -13,6 +13,7 @@ interface EpisodeOverridesPopoverProps {
   projectName: string;
   episode: number;
   overrides?: EpisodeOverrides;
+  mediaStage?: "storyboard" | "video";
 }
 
 type EpisodeOverrideDraft = {
@@ -38,20 +39,21 @@ function draftFromOverrides(overrides: EpisodeOverrides): EpisodeOverrideDraft {
   };
 }
 
-function patchFromDraft(draft: EpisodeOverrideDraft): EpisodeOverrides {
-  return {
-    image_backend: draft.image_backend || null,
-    video_backend: draft.video_backend || null,
-    video_resolution: draft.video_resolution || null,
-    image_size: draft.image_size || null,
-    duration_seconds: draft.duration_seconds ? parseInt(draft.duration_seconds, 10) : null,
-  };
-}
-
-function backendModelLabel(value?: string | null): string | null {
-  if (!value) return null;
-  const [provider, model] = value.split("/", 2);
-  return model || provider;
+function patchFromDraft(
+  draft: EpisodeOverrideDraft,
+  mediaStage?: EpisodeOverridesPopoverProps["mediaStage"],
+): EpisodeOverrides {
+  const patch: EpisodeOverrides = {};
+  if (mediaStage !== "video") {
+    patch.image_backend = draft.image_backend || null;
+    patch.image_size = draft.image_size || null;
+  }
+  if (mediaStage !== "storyboard") {
+    patch.video_backend = draft.video_backend || null;
+    patch.video_resolution = draft.video_resolution || null;
+    patch.duration_seconds = draft.duration_seconds ? parseInt(draft.duration_seconds, 10) : null;
+  }
+  return patch;
 }
 
 const RESOLUTION_OPTIONS = [
@@ -84,6 +86,7 @@ export function EpisodeOverridesPopover({
   projectName,
   episode,
   overrides,
+  mediaStage,
 }: EpisodeOverridesPopoverProps) {
   const anchorRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -93,6 +96,8 @@ export function EpisodeOverridesPopover({
   const [draft, setDraft] = useState<EpisodeOverrideDraft>(() => draftFromOverrides(EMPTY_OVERRIDES));
 
   const currentOverrides = overrides ?? EMPTY_OVERRIDES;
+  const showImageSettings = mediaStage !== "video";
+  const showVideoSettings = mediaStage !== "storyboard";
 
   // Sync draft states when popover opens or overrides change
   useEffect(() => {
@@ -121,18 +126,6 @@ export function EpisodeOverridesPopover({
   // Determine if overrides are currently active
   const hasActiveOverrides = Object.keys(currentOverrides).length > 0;
 
-  // Text summary label for the button
-  const displayLabel = useMemo(() => {
-    const list = [
-      backendModelLabel(currentOverrides.video_backend),
-      backendModelLabel(currentOverrides.image_backend),
-    ].filter((value): value is string => Boolean(value));
-    if (list.length > 0) {
-      return `🎬 E${episode} ${list.join(" + ")}`;
-    }
-    return `⚙️ E${episode} 模型設定`;
-  }, [currentOverrides, episode]);
-
   const updateDraft = (field: keyof EpisodeOverrideDraft, value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
   };
@@ -141,7 +134,7 @@ export function EpisodeOverridesPopover({
     setSaving(true);
     setError(null);
     try {
-      await API.updateEpisodeOverrides(projectName, episode, patchFromDraft(draft));
+      await API.updateEpisodeOverrides(projectName, episode, patchFromDraft(draft, mediaStage));
 
       // Refresh project to update store and UI
       const res = await API.getProject(projectName);
@@ -167,7 +160,8 @@ export function EpisodeOverridesPopover({
         ref={anchorRef}
         type="button"
         onClick={() => setOpen(true)}
-        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all shadow-sm focus-ring ${
+        aria-label={`編輯第 ${episode} 集模型覆蓋設定`}
+        className={`inline-flex items-center justify-center rounded-full border p-1.5 text-xs font-medium transition-all shadow-sm focus-ring ${
           hasActiveOverrides
             ? "border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
             : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600 hover:text-gray-200"
@@ -175,7 +169,6 @@ export function EpisodeOverridesPopover({
         title={`編輯第 ${episode} 集模型覆蓋設定`}
       >
         <Sliders className="h-3 w-3" />
-        <span className="max-w-[160px] truncate">{displayLabel}</span>
       </button>
 
       <Popover
@@ -200,33 +193,38 @@ export function EpisodeOverridesPopover({
           )}
 
           <div className="space-y-3.5 text-xs">
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-medium text-gray-400">🖼 圖片生成後端</label>
-              <ProviderModelSelect
-                value={draft.image_backend}
-                onChange={(value) => updateDraft("image_backend", value)}
-                options={modelOptions.image}
-                providerNames={modelOptions.providerNames}
-                placeholder="沿用專案預設"
-                allowDefault={true}
-                defaultLabel="沿用專案預設"
-              />
-            </div>
+            {showImageSettings && (
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-medium text-gray-400">🖼 圖片生成後端</label>
+                <ProviderModelSelect
+                  value={draft.image_backend}
+                  onChange={(value) => updateDraft("image_backend", value)}
+                  options={modelOptions.image}
+                  providerNames={modelOptions.providerNames}
+                  placeholder="沿用專案預設"
+                  allowDefault={true}
+                  defaultLabel="沿用專案預設"
+                />
+              </div>
+            )}
 
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-medium text-gray-400">🎬 影片生成後端</label>
-              <ProviderModelSelect
-                value={draft.video_backend}
-                onChange={(value) => updateDraft("video_backend", value)}
-                options={modelOptions.video}
-                providerNames={modelOptions.providerNames}
-                placeholder="沿用專案預設"
-                allowDefault={true}
-                defaultLabel="沿用專案預設"
-              />
-            </div>
+            {showVideoSettings && (
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-medium text-gray-400">🎬 影片生成後端</label>
+                <ProviderModelSelect
+                  value={draft.video_backend}
+                  onChange={(value) => updateDraft("video_backend", value)}
+                  options={modelOptions.video}
+                  providerNames={modelOptions.providerNames}
+                  placeholder="沿用專案預設"
+                  allowDefault={true}
+                  defaultLabel="沿用專案預設"
+                />
+              </div>
+            )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className={showImageSettings && showVideoSettings ? "grid grid-cols-2 gap-3" : "space-y-3"}>
+              {showVideoSettings && (
               <SelectField
                 id="video-resolution-select"
                 label="📐 影片解析度"
@@ -234,6 +232,8 @@ export function EpisodeOverridesPopover({
                 options={RESOLUTION_OPTIONS}
                 onChange={(value) => updateDraft("video_resolution", value)}
               />
+              )}
+              {showImageSettings && (
               <SelectField
                 id="image-size-select"
                 label="🖼 圖片尺寸"
@@ -241,15 +241,18 @@ export function EpisodeOverridesPopover({
                 options={IMAGE_SIZE_OPTIONS}
                 onChange={(value) => updateDraft("image_size", value)}
               />
+              )}
             </div>
 
-            <SelectField
-              id="video-duration-select"
-              label="⏱ 影片時長"
-              value={draft.duration_seconds}
-              options={DURATION_OPTIONS}
-              onChange={(value) => updateDraft("duration_seconds", value)}
-            />
+            {showVideoSettings && (
+              <SelectField
+                id="video-duration-select"
+                label="⏱ 影片時長"
+                value={draft.duration_seconds}
+                options={DURATION_OPTIONS}
+                onChange={(value) => updateDraft("duration_seconds", value)}
+              />
+            )}
           </div>
 
           <div className="text-[10px] text-gray-500 leading-normal">

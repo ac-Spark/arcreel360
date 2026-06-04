@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 
 from lib import PROJECT_ROOT, agent_profile
 from lib.project_change_hints import project_change_source
+from lib.step1_draft_sync import parse_draft_table
 from server.auth import CurrentUser
 from server.routers._validators import validate_backend_value
 
@@ -85,6 +86,11 @@ class PreprocessEpisodeRequest(BaseModel):
     source: str | None = None
     refs: PreprocessRefs | None = None
     num_segments: int | None = Field(default=None, ge=1, le=100)
+    model: str | None = None
+
+
+class GenerateEpisodeScriptRequest(BaseModel):
+    model: str | None = None
 
 
 def _resolve_source_file_for_split(project_name: str, source: str) -> Path:
@@ -593,7 +599,12 @@ async def compose_episode_video(name: str, episode: int, _user: CurrentUser):
 
 
 @router.post("/projects/{name}/episodes/{episode}/script")
-async def generate_episode_script(name: str, episode: int, _user: CurrentUser):
+async def generate_episode_script(
+    name: str,
+    episode: int,
+    _user: CurrentUser,
+    req: GenerateEpisodeScriptRequest = Body(default_factory=GenerateEpisodeScriptRequest),
+):
     """生成指定集的 JSON 劇本，寫入 scripts/episode_{N}.json。"""
     from lib.script_generator import ScriptGenerator
 
@@ -603,8 +614,15 @@ async def generate_episode_script(name: str, episode: int, _user: CurrentUser):
             raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
 
         project_path = manager.get_project_path(name)
+        if req.model:
+            validate_backend_value(req.model, "model")
         with project_change_source("webui"):
-            generator = await ScriptGenerator.create(project_path)
+            if req.model:
+                from lib.text_generator import TextGenerator
+
+                generator = ScriptGenerator(project_path, await TextGenerator.create_with_model_str(req.model))
+            else:
+                generator = await ScriptGenerator.create(project_path)
             output_path = await generator.generate(episode=episode)
 
         def _sync_meta():
@@ -661,6 +679,9 @@ async def preprocess_episode(
         project_path = manager.get_project_path(name)
         source = req.source if req else None
         num_segments = req.num_segments if req else None
+        model = req.model if req else None
+        if model:
+            validate_backend_value(model, "model")
         refs_dict: dict | None = None
         if req and req.refs is not None:
             refs_dict = req.refs.model_dump(mode="json")
@@ -674,6 +695,7 @@ async def preprocess_episode(
                 source=source,
                 refs=refs_dict,
                 num_segments=num_segments,
+                model=model,
             )
 
     except SourceNotReadyError as e:
@@ -759,27 +781,12 @@ async def get_source_paragraphs(name: str, episode: int, _user: CurrentUser):
                 # 若文件都不存在，說明還沒做 Step 1，回傳空陣列
                 return {"paragraphs": []}
 
-            paragraphs = []
-
             # 解析 Markdown 表格
             with open(draft_file, encoding="utf-8") as f:
-                lines = f.readlines()
+                content = f.read()
 
-            for line in lines:
-                line = line.strip()
-                if not line.startswith("|") or "---" in line:
-                    continue
-                # 解析表格行
-                # 例如: | G01 | 原文內容 | ...
-                # 或: | E1S01 | 場景描述內容 | ...
-                parts = [p.strip() for p in line.split("|")]
-                # parts[0] 是 "", parts[1] 是 ID, parts[2] 是 內容/原文
-                if len(parts) >= 3:
-                    # 排除表頭行
-                    if parts[1] in {"片段", "場景 ID", "片段 ID", "場景ID", "片段ID", "ID"}:
-                        continue
-                    paragraphs.append(parts[2])
-
+            rows = parse_draft_table(content)
+            paragraphs = [row["content"] for row in rows]
             return {"paragraphs": paragraphs}
 
         return await asyncio.to_thread(_sync)

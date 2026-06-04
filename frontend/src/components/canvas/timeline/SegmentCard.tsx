@@ -17,6 +17,7 @@ import { AvatarStack } from "@/components/ui/AvatarStack";
 import { ClueStack } from "@/components/ui/ClueStack";
 import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import { extractEntityMentionsFromValue, type EntityMentionSources } from "@/utils/entity-mentions";
+import type { SegmentCost } from "@/types";
 
 import type {
   SegmentCardProps,
@@ -41,6 +42,48 @@ import { PromptColumn } from "./segment-card/PromptColumn";
 import { MediaColumn } from "./segment-card/MediaColumn";
 
 export type { SegmentCardProps };
+
+type MediaCostKind = "image" | "video";
+
+const MEDIA_COST_LABELS: Record<MediaCostKind, string> = {
+  image: "分鏡",
+  video: "影片",
+};
+
+function getVisibleCostKinds(stage: SegmentCardProps["stage"]): MediaCostKind[] {
+  if (stage === "storyboard") return ["image"];
+  if (stage === "video") return ["video"];
+  return ["image", "video"];
+}
+
+function SegmentCostSummary({
+  cost,
+  kinds,
+}: {
+  cost: SegmentCost | undefined;
+  kinds: MediaCostKind[];
+}) {
+  if (!cost) return null;
+
+  return (
+    <span className="inline-flex items-center gap-1.5 tabular-nums text-xs">
+      <span className="text-gray-700">|</span>
+      <span className="text-gray-600">預估</span>
+      {kinds.map((kind) => (
+        <span key={`estimate-${kind}`} className="text-gray-500">
+          {MEDIA_COST_LABELS[kind]} <span className="text-gray-400">{formatCost(cost.estimate[kind])}</span>
+        </span>
+      ))}
+      <span className="text-gray-700">|</span>
+      <span className="text-gray-600">實際</span>
+      {kinds.map((kind) => (
+        <span key={`actual-${kind}`} className="text-gray-500">
+          {MEDIA_COST_LABELS[kind]} <span className="text-gray-400">{formatCost(cost.actual[kind])}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
 
 function pushDurationAdjustmentToast(previous: number, next: number, reason?: string) {
   if (!reason) return;
@@ -76,6 +119,7 @@ export function SegmentCard({
   stage,
   imageModelOptions = [],
   videoModelOptions = [],
+  textModelOptions = [],
   providerNames = {},
   onUpdateSceneBackend,
 }: SegmentCardProps) {
@@ -96,6 +140,9 @@ export function SegmentCard({
     getSegmentMentionDrafts(segment, contentMode)
   );
   const sourceMentionValue = getSourceMentionValue(segment, contentMode);
+  const showStoryboardControls = stage === undefined || stage === "storyboard";
+  const showVideoControls = stage === undefined || stage === "video";
+  const visibleCostKinds = useMemo(() => getVisibleCostKinds(stage), [stage]);
 
   useEffect(() => {
     setMentionDrafts(getSegmentMentionDrafts(segment, contentMode));
@@ -164,6 +211,7 @@ export function SegmentCard({
     getDurationConstraintReason({ currentResolution: effectiveResolution, hasReferenceImage });
 
   useEffect(() => {
+    if (!showVideoControls) return;
     if (!onUpdatePrompt || effectiveDurationOptions.includes(segment.duration_seconds)) return;
     const nextDuration = coerceDurationToOptions(segment.duration_seconds, effectiveDurationOptions);
     if (nextDuration === segment.duration_seconds) return;
@@ -176,6 +224,7 @@ export function SegmentCard({
     onUpdatePrompt,
     segment.duration_seconds,
     segmentId,
+    showVideoControls,
   ]);
 
   return (
@@ -192,46 +241,27 @@ export function SegmentCard({
             <span className="font-mono text-xs bg-gray-800 rounded px-1.5 py-0.5 text-gray-300">
               {segmentId}
             </span>
-            <DurationSelector
-              seconds={segment.duration_seconds}
-              segmentId={segmentId}
-              onUpdatePrompt={onUpdatePrompt}
-              durationOptions={effectiveDurationOptions}
-              durationConstraintReason={effectiveDurationReason}
-            />
-            <OptionPillSelector
-              value={currentVideoResolution}
-              options={resolutionOptions}
-              icon={<Monitor aria-hidden="true" className="h-3 w-3" />}
-              ariaLabel="影片解析度選擇"
-              onSelect={
-                onUpdatePrompt
-                  ? (next) => onUpdatePrompt(segmentId, "video_resolution", next)
-                  : undefined
-              }
-            />
-            <OptionPillSelector
-              value={currentImageSize}
-              options={imageSizeOptions}
-              icon={<ImageIcon aria-hidden="true" className="h-3 w-3" />}
-              ariaLabel="圖片解析度選擇"
-              onSelect={
-                onUpdatePrompt
-                  ? (next) => onUpdatePrompt(segmentId, "image_size", next)
-                  : undefined
-              }
-            />
-            {stage === "storyboard" && imageModelOptions.length > 0 && (
-              <ProviderModelSelect
-                value={segment.image_backend ?? ""}
-                options={imageModelOptions}
-                providerNames={providerNames}
-                onChange={(next) => onUpdateSceneBackend?.(segmentId, { image_backend: next || null })}
-                allowDefault
-                defaultLabel="沿用專案預設"
-                aria-label="選擇分鏡圖圖片模型"
-                className="w-44"
-              />
+            {showVideoControls && (
+              <>
+                <DurationSelector
+                  seconds={segment.duration_seconds}
+                  segmentId={segmentId}
+                  onUpdatePrompt={onUpdatePrompt}
+                  durationOptions={effectiveDurationOptions}
+                  durationConstraintReason={effectiveDurationReason}
+                />
+                <OptionPillSelector
+                  value={currentVideoResolution}
+                  options={resolutionOptions}
+                  icon={<Monitor aria-hidden="true" className="h-3 w-3" />}
+                  ariaLabel="影片解析度選擇"
+                  onSelect={
+                    onUpdatePrompt
+                      ? (next) => onUpdatePrompt(segmentId, "video_resolution", next)
+                      : undefined
+                  }
+                />
+              </>
             )}
             {stage === "video" && videoModelOptions.length > 0 && (
               <ProviderModelSelect
@@ -245,18 +275,20 @@ export function SegmentCard({
                 className="w-44"
               />
             )}
-            {segCost && (
-              <span className="tabular-nums contents">
-                <span className="text-gray-700">|</span>
-                <span className="text-[11px] text-gray-600">預估</span>
-                <span className="text-[11px] text-gray-500">分鏡 <span className="text-gray-400">{formatCost(segCost.estimate.image)}</span></span>
-                <span className="text-[11px] text-gray-500">影片 <span className="text-gray-400">{formatCost(segCost.estimate.video)}</span></span>
-                <span className="text-gray-700">|</span>
-                <span className="text-[11px] text-gray-600">實際</span>
-                <span className="text-[11px] text-gray-500">分鏡 <span className="text-gray-400">{formatCost(segCost.actual.image)}</span></span>
-                <span className="text-[11px] text-gray-500">影片 <span className="text-gray-400">{formatCost(segCost.actual.video)}</span></span>
-              </span>
+            {showStoryboardControls && (
+              <OptionPillSelector
+                value={currentImageSize}
+                options={imageSizeOptions}
+                icon={<ImageIcon aria-hidden="true" className="h-3 w-3" />}
+                ariaLabel="圖片解析度選擇"
+                onSelect={
+                  onUpdatePrompt
+                    ? (next) => onUpdatePrompt(segmentId, "image_size", next)
+                    : undefined
+                }
+              />
             )}
+            <SegmentCostSummary cost={segCost} kinds={visibleCostKinds} />
           </div>
 
           {/* Right: AvatarStack + ClueStack */}
@@ -312,12 +344,15 @@ export function SegmentCard({
           <PromptColumn
             segment={segment}
             segmentId={segmentId}
+            projectName={projectName}
             onUpdatePrompt={onUpdatePrompt}
             speakerOptions={charNames}
             mentionContext={mentionContext}
             onMentionDraftChange={onMentionDraftChange}
             buildMentionUpdatesForDraft={buildMentionUpdatesForDraft}
             stage={stage}
+            textModelOptions={textModelOptions}
+            providerNames={providerNames}
           />
 
           {/* Column 3 — Media */}
@@ -335,6 +370,9 @@ export function SegmentCard({
             onUploadReference={onUploadReference}
             onRemoveReference={onRemoveReference}
             stage={stage}
+            imageModelOptions={imageModelOptions}
+            providerNames={providerNames}
+            onUpdateSceneBackend={onUpdateSceneBackend}
           />
         </div>
       </div>

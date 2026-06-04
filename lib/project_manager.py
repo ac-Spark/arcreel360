@@ -689,5 +689,17 @@ class ProjectManager:
     def _read_source_files(self, project_name: str, max_chars: int = 50000) -> str:
         return overview_generator._read_source_files(self._paths, project_name, max_chars)
 
-    async def generate_overview(self, project_name: str) -> dict:
-        return await overview_generator.generate_overview(self._store, self._paths, project_name)
+    async def generate_overview(
+        self,
+        project_name: str,
+        *,
+        model: str | None = None,
+        instruction: str | None = None,
+    ) -> dict:
+        return await overview_generator.generate_overview(
+            self._store,
+            self._paths,
+            project_name,
+            model=model,
+            instruction=instruction,
+        )

@@ -3,7 +3,9 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SegmentCard } from "./SegmentCard";
 import { useAppStore } from "@/stores/app-store";
+import { useCostStore } from "@/stores/cost-store";
 import { useVideoDurationOptions } from "@/hooks/useVideoDurationOptions";
+import type { SegmentCost } from "@/types";
 import type { DramaScene, NarrationSegment } from "@/types";
 
 vi.mock("@/hooks/useVideoDurationOptions", () => ({
@@ -105,9 +107,27 @@ function renderSegmentCard(overrides: Partial<SegmentCardProps> = {}) {
   return render(<SegmentCard {...props} />);
 }
 
+function setSegmentCost(cost: Partial<SegmentCost> = {}) {
+  const segmentCost: SegmentCost = {
+    segment_id: "SEG-1",
+    duration_seconds: 4,
+    estimate: {
+      image: { USD: 0.12 },
+      video: { USD: 0.34 },
+    },
+    actual: {
+      image: { USD: 0.02 },
+      video: { USD: 0.03 },
+    },
+    ...cost,
+  };
+  useCostStore.setState({ _segmentIndex: new Map([["SEG-1", segmentCost]]) });
+}
+
 describe("SegmentCard", () => {
   beforeEach(() => {
     useAppStore.setState(useAppStore.getInitialState(), true);
+    useCostStore.setState(useCostStore.getInitialState(), true);
     vi.restoreAllMocks();
     vi.mocked(useVideoDurationOptions).mockReturnValue(undefined);
   });
@@ -342,5 +362,79 @@ describe("SegmentCard", () => {
     expect(screen.getByRole("radio", { name: "12s" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "15s" })).toBeInTheDocument();
     expect(screen.queryByRole("radio", { name: "4s" })).not.toBeInTheDocument();
+  });
+
+  it("scopes storyboard controls to image model, image size, and image cost", () => {
+    setSegmentCost();
+    renderSegmentCard({
+      stage: "storyboard",
+      imageModelOptions: ["gemini-vertex/imagen-4"],
+      videoModelOptions: ["gemini-aistudio/veo-3.1"],
+      onUpdateSceneBackend: vi.fn(),
+      onUpdatePrompt: vi.fn(),
+    });
+
+    expect(screen.getByRole("combobox", { name: "選擇分鏡圖圖片模型" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "選擇分鏡影片模型" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /4s/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "影片解析度選擇" })).not.toBeInTheDocument();
+    expect(screen.getByText("1K")).toBeInTheDocument();
+    expect(screen.getByText("$0.12")).toBeInTheDocument();
+    expect(screen.getByText("$0.02")).toBeInTheDocument();
+    expect(screen.queryByText("$0.34")).not.toBeInTheDocument();
+    expect(screen.queryByText("$0.03")).not.toBeInTheDocument();
+  });
+
+  it("renders the storyboard image model selector and the storyboard generate button", () => {
+    renderSegmentCard({
+      stage: "storyboard",
+      imageModelOptions: ["gemini-vertex/imagen-4"],
+      onUpdateSceneBackend: vi.fn(),
+      onGenerateStoryboard: vi.fn(),
+    });
+
+    expect(screen.getByRole("combobox", { name: "選擇分鏡圖圖片模型" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "生成分鏡" })).toBeInTheDocument();
+  });
+
+  it("does not auto-adjust video duration while editing storyboard image controls", () => {
+    const onUpdatePrompt = vi.fn();
+    renderSegmentCard({
+      stage: "storyboard",
+      segment: makeSegment({ duration_seconds: 4 }),
+      durationOptions: [8],
+      durationConstraintReason: "1080p 限制",
+      onUpdatePrompt,
+    });
+
+    expect(onUpdatePrompt).not.toHaveBeenCalledWith("SEG-1", "duration_seconds", 8);
+  });
+
+  it("scopes video controls to video model, video resolution, duration, and video cost", () => {
+    setSegmentCost();
+    renderSegmentCard({
+      stage: "video",
+      imageModelOptions: ["gemini-vertex/imagen-4"],
+      videoModelOptions: ["gemini-aistudio/veo-3.1"],
+      onUpdateSceneBackend: vi.fn(),
+      onUpdatePrompt: vi.fn(),
+    });
+
+    expect(screen.getByRole("combobox", { name: "選擇分鏡影片模型" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "選擇分鏡圖圖片模型" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /4s/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "影片解析度選擇" })).toBeInTheDocument();
+    expect(screen.queryByText("1K")).not.toBeInTheDocument();
+    expect(screen.getByText("$0.34")).toBeInTheDocument();
+    expect(screen.getByText("$0.03")).toBeInTheDocument();
+    expect(screen.queryByText("$0.12")).not.toBeInTheDocument();
+    expect(screen.queryByText("$0.02")).not.toBeInTheDocument();
+  });
+
+  it("keeps storyboard and video media frames capped when the workspace expands", () => {
+    renderSegmentCard();
+
+    expect(screen.getByTestId("storyboard-media-frame")).toHaveClass("max-w-[18rem]");
+    expect(screen.getByTestId("video-media-frame")).toHaveClass("max-w-[18rem]");
   });
 });

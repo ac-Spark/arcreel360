@@ -10,7 +10,6 @@ import { EpisodeActionsBar } from "./EpisodeActionsBar";
 vi.mock("@/api", () => ({
   API: {
     batchGenerateStoryboards: vi.fn(),
-    batchGenerateVideos: vi.fn(),
   },
 }));
 
@@ -35,7 +34,6 @@ describe("EpisodeActionsBar", () => {
     useProjectsStore.setState(useProjectsStore.getInitialState(), true);
     vi.clearAllMocks();
     vi.mocked(API.batchGenerateStoryboards).mockResolvedValue({ enqueued: ["SEG-1"], skipped: [] });
-    vi.mocked(API.batchGenerateVideos).mockResolvedValue({ enqueued: ["SEG-1"], skipped: [] });
   });
 
   it("opens storyboard generation choices from the batch button", async () => {
@@ -65,17 +63,9 @@ describe("EpisodeActionsBar", () => {
     });
   });
 
-  it("can generate only missing videos from the choice dialog", async () => {
+  it("does not render the batch video generation action", () => {
     renderTimelineActions();
 
-    fireEvent.click(screen.getByRole("button", { name: "批次生成影片" }));
-    fireEvent.click(await screen.findByRole("button", { name: "只生成缺少的影片" }));
-
-    await waitFor(() => {
-      expect(API.batchGenerateVideos).toHaveBeenCalledWith("demo", {
-        script_file: "scripts/episode_1.json",
-        force: false,
-      });
-    });
+    expect(screen.queryByRole("button", { name: "批次生成影片" })).not.toBeInTheDocument();
   });
 });

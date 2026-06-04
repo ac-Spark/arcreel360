@@ -68,7 +68,9 @@ export function getSceneName(segment: Segment, mode: "narration" | "drama"): str
 }
 
 export function getSourceMentionValue(segment: Segment, mode: "narration" | "drama"): string {
-  return mode === "narration" ? ((segment as NarrationSegment).novel_text ?? "") : "";
+  return mode === "narration"
+    ? ((segment as NarrationSegment).novel_text ?? "")
+    : ((segment as DramaScene).scene_description ?? "");
 }
 
 export function getSegmentMentionDrafts(

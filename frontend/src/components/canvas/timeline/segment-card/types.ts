@@ -52,6 +52,7 @@ export interface SegmentCardProps {
   stage?: "storyboard" | "video";
   imageModelOptions?: string[];
   videoModelOptions?: string[];
+  textModelOptions?: string[];
   providerNames?: Record<string, string>;
   onUpdateSceneBackend?: (
     segmentId: string,
