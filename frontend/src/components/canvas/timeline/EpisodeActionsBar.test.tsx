@@ -83,7 +83,7 @@ describe("EpisodeActionsBar", () => {
     const textarea = await screen.findByLabelText(/劇本生成提示詞/);
     fireEvent.change(textarea, { target: { value: "語氣輕鬆詼諧" } });
 
-    fireEvent.click(screen.getByRole("button", { name: "重新生成劇本" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成劇本" }));
     // 重新生成會跳確認框
     fireEvent.click(await screen.findByRole("button", { name: "確定" }));
 

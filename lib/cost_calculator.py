@@ -145,9 +145,9 @@ class CostCalculator:
 
     # OpenAI 文字 token 費率（美元/百萬 token）
     OPENAI_TEXT_COST = {
-        "gpt-5.4": {"input": 2.50, "output": 15.00},
-        "gpt-5.4-mini": {"input": 0.75, "output": 4.50},
-        "gpt-5.4-nano": {"input": 0.20, "output": 1.25},
+        "gpt-5.5": {"input": 2.50, "output": 15.00},
+        "gpt-5.5-mini": {"input": 0.75, "output": 4.50},
+        "gpt-5.5-nano": {"input": 0.20, "output": 1.25},
     }
     # OpenAI 圖片費用（美元/張），按 (quality, size) 二維查表
     # 來源：https://platform.openai.com/docs/pricing — GPT Image
@@ -355,7 +355,7 @@ class CostCalculator:
         # provider -> (cost_table_attr, default_model, currency)
         PROVIDER_BYTEPLUS: ("ARK_TEXT_COST", "doubao-seed-2-0-lite-260215", "CNY"),
         PROVIDER_GROK: ("GROK_TEXT_COST", "grok-4-1-fast-reasoning", "USD"),
-        PROVIDER_OPENAI: ("OPENAI_TEXT_COST", "gpt-5.4-mini", "USD"),
+        PROVIDER_OPENAI: ("OPENAI_TEXT_COST", "gpt-5.5-mini", "USD"),
     }
     _TEXT_COST_DEFAULT = ("GEMINI_TEXT_COST", "gemini-3.1-flash-lite", "USD")
 

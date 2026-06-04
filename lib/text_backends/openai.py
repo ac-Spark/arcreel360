@@ -18,7 +18,7 @@ from lib.text_backends.base import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "gpt-5.4-mini"
+DEFAULT_MODEL = "gpt-5.5-mini"
 
 
 class OpenAITextBackend:

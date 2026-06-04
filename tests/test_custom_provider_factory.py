@@ -31,12 +31,12 @@ class TestOpenAIFormat:
     @patch("lib.custom_provider.factory.OpenAITextBackend")
     def test_text_backend(self, mock_cls):
         provider = _make_provider(api_format="openai")
-        result = create_custom_backend(provider=provider, model_id="gpt-5.4", media_type="text")
+        result = create_custom_backend(provider=provider, model_id="gpt-5.5", media_type="text")
 
         assert isinstance(result, CustomTextBackend)
         assert result.name == "custom-42"
-        assert result.model == "gpt-5.4"
-        mock_cls.assert_called_once_with(api_key="sk-test", base_url="https://api.example.com/v1", model="gpt-5.4")
+        assert result.model == "gpt-5.5"
+        mock_cls.assert_called_once_with(api_key="sk-test", base_url="https://api.example.com/v1", model="gpt-5.5")
 
     @patch("lib.custom_provider.factory.OpenAIImageBackend")
     def test_image_backend(self, mock_cls):
@@ -141,34 +141,34 @@ class TestOpenAIUrlAutoCompletion:
     @patch("lib.custom_provider.factory.OpenAITextBackend")
     def test_appends_v1_when_missing(self, mock_cls):
         provider = _make_provider(api_format="openai", base_url="https://api.example.com")
-        create_custom_backend(provider=provider, model_id="gpt-5.4", media_type="text")
+        create_custom_backend(provider=provider, model_id="gpt-5.5", media_type="text")
 
         mock_cls.assert_called_once_with(
             api_key="sk-test",
             base_url="https://api.example.com/v1",
-            model="gpt-5.4",
+            model="gpt-5.5",
         )
 
     @patch("lib.custom_provider.factory.OpenAITextBackend")
     def test_preserves_existing_v1(self, mock_cls):
         provider = _make_provider(api_format="openai", base_url="https://api.example.com/v1")
-        create_custom_backend(provider=provider, model_id="gpt-5.4", media_type="text")
+        create_custom_backend(provider=provider, model_id="gpt-5.5", media_type="text")
 
         mock_cls.assert_called_once_with(
             api_key="sk-test",
             base_url="https://api.example.com/v1",
-            model="gpt-5.4",
+            model="gpt-5.5",
         )
 
     @patch("lib.custom_provider.factory.OpenAITextBackend")
     def test_strips_trailing_slash_and_appends_v1(self, mock_cls):
         provider = _make_provider(api_format="openai", base_url="https://api.example.com/")
-        create_custom_backend(provider=provider, model_id="gpt-5.4", media_type="text")
+        create_custom_backend(provider=provider, model_id="gpt-5.5", media_type="text")
 
         mock_cls.assert_called_once_with(
             api_key="sk-test",
             base_url="https://api.example.com/v1",
-            model="gpt-5.4",
+            model="gpt-5.5",
         )
 
     @patch("lib.custom_provider.factory.OpenAIVideoBackend")
@@ -198,4 +198,4 @@ class TestErrors:
     def test_unknown_media_type(self):
         provider = _make_provider(api_format="openai")
         with pytest.raises(ValueError, match="media_type"):
-            create_custom_backend(provider=provider, model_id="gpt-5.4", media_type="audio")
+            create_custom_backend(provider=provider, model_id="gpt-5.5", media_type="audio")

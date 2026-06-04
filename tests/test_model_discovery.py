@@ -36,8 +36,8 @@ class TestInferMediaType:
             ("pika-2.2", "video"),
             ("Video-Generator", "video"),
             # text (預設)
-            ("gpt-5.4", "text"),
-            ("gpt-5.4-mini", "text"),
+            ("gpt-5.5", "text"),
+            ("gpt-5.5-mini", "text"),
             ("gemini-3-flash", "text"),
             ("deepseek-v3", "text"),
             ("qwen3-32b", "text"),
@@ -50,7 +50,7 @@ class TestInferMediaType:
     def test_case_insensitive(self):
         assert infer_media_type("DALL-E-4") == "image"
         assert infer_media_type("Sora-2") == "video"
-        assert infer_media_type("GPT-5.4") == "text"
+        assert infer_media_type("GPT-5.5") == "text"
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +67,7 @@ class TestDiscoverModelsOpenAI:
 
         # 模擬 models.list() 返回
         model_a = MagicMock()
-        model_a.id = "gpt-5.4"
+        model_a.id = "gpt-5.5"
         model_b = MagicMock()
         model_b.id = "dall-e-4"
         model_c = MagicMock()
@@ -79,7 +79,7 @@ class TestDiscoverModelsOpenAI:
         assert len(result) == 3
         # 按 id 排序
         ids = [m["model_id"] for m in result]
-        assert ids == ["dall-e-4", "gpt-5.4", "sora-2"]
+        assert ids == ["dall-e-4", "gpt-5.5", "sora-2"]
 
         mock_openai_cls.assert_called_once_with(api_key="sk-test", base_url="https://api.example.com/v1")
 
@@ -90,9 +90,9 @@ class TestDiscoverModelsOpenAI:
         mock_openai_cls.return_value = mock_client
 
         model_a = MagicMock()
-        model_a.id = "gpt-5.4"
+        model_a.id = "gpt-5.5"
         model_b = MagicMock()
-        model_b.id = "gpt-5.4-mini"
+        model_b.id = "gpt-5.5-mini"
         model_c = MagicMock()
         model_c.id = "dall-e-4"
         model_d = MagicMock()
@@ -101,8 +101,8 @@ class TestDiscoverModelsOpenAI:
 
         result = await discover_models("openai", "https://api.example.com/v1", "sk-test")
 
-        # 按 id 排序: dall-e-4, gpt-5.4, gpt-5.4-mini, gpt-image-2
-        # text: gpt-5.4 (default), gpt-5.4-mini
+        # 按 id 排序: dall-e-4, gpt-5.5, gpt-5.5-mini, gpt-image-2
+        # text: gpt-5.5 (default), gpt-5.5-mini
         # image: dall-e-4 (default), gpt-image-2
         text_models = [m for m in result if m["media_type"] == "text"]
         image_models = [m for m in result if m["media_type"] == "image"]
@@ -119,7 +119,7 @@ class TestDiscoverModelsOpenAI:
         mock_openai_cls.return_value = mock_client
 
         model_a = MagicMock()
-        model_a.id = "gpt-5.4"
+        model_a.id = "gpt-5.5"
         mock_client.models.list.return_value = [model_a]
 
         result = await discover_models("openai", "https://api.example.com/v1", "sk-test")
@@ -133,12 +133,12 @@ class TestDiscoverModelsOpenAI:
         mock_openai_cls.return_value = mock_client
 
         model_a = MagicMock()
-        model_a.id = "gpt-5.4"
+        model_a.id = "gpt-5.5"
         mock_client.models.list.return_value = [model_a]
 
         result = await discover_models("openai", "https://api.example.com/v1", "sk-test")
 
-        assert result[0]["display_name"] == "gpt-5.4"
+        assert result[0]["display_name"] == "gpt-5.5"
 
     @patch("lib.custom_provider.discovery.OpenAI")
     async def test_api_unreachable(self, mock_openai_cls):

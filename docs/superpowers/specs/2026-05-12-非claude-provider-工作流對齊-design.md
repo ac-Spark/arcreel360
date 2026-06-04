@@ -160,7 +160,7 @@ handler 實作：
 2. 工作區偵測 `episodes == []` 且 `source/` 非空 → 顯示 `EpisodeSplitPanel`。
 3. 使用者填 target=3000 → 按「預覽切點」→ `POST .../episodes/peek {source:"source/novel.txt", target_chars:3000}` → 後端 `episode_splitter.peek_split(text, 3000)` → 回前後文 + 候選斷點。
 4. 使用者選候選斷點（其 `text` 當作 anchor）→ 按「執行切分」→ `POST .../episodes/split {source, episode:1, target_chars:3000, anchor:"...選的文字..."}` → 後端：`episode_splitter.split_episode_text(...)` 算切點 → `pm.commit_episode_split("proj", "source/novel.txt", 1, part_before, part_after)` 寫 `source/episode_1.txt` + `source/_remaining.txt` + project.json episodes += `{episode:1}` → 寫入後驗證 → 回 `{episode:1, episode_file:"source/episode_1.txt", ...}`。
-5. 前端收到成功 → toast + 重新載入專案 → 工作區出現第 1 集 tab、`EpisodeActionsBar`（可按「重新拆段」「重新生成劇本」…）。
+5. 前端收到成功 → toast + 重新載入專案 → 工作區出現第 1 集 tab、`EpisodeActionsBar`（可按「重新拆段」「生成劇本」…）。
 6. agent 路徑同理：gemini/openai agent 呼叫 `peek_split_point` → `split_episode` function，走同一套 lib 邏輯。
 
 ## 錯誤處理

@@ -195,7 +195,7 @@ class TestOpenAICost:
             input_tokens=1_000_000,
             output_tokens=1_000_000,
             provider="openai",
-            model="gpt-5.4-mini",
+            model="gpt-5.5-mini",
         )
         assert currency == "USD"
         assert amount == pytest.approx(0.75 + 4.50)

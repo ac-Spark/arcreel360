@@ -291,18 +291,7 @@ export function LorebookGallery({
                   >
                     批次生成（缺圖）
                   </BatchButton>
-                  <BatchButton
-                    variant="warning"
-                    loading={batchBusy === "characters"}
-                    disabled={batchBusy !== null}
-                    onClick={async () => {
-                      if (await confirm({ message: "會覆寫所有角色設計圖。確定？", danger: true })) {
-                        void runBatch("characters", true);
-                      }
-                    }}
-                  >
-                    全部重生
-                  </BatchButton>
+
                 </div>
                 <div className={gridClassName}>
                   {charEntries.map(([charName, character]) => (
@@ -393,18 +382,7 @@ export function LorebookGallery({
                   >
                     批次生成（缺圖）
                   </BatchButton>
-                  <BatchButton
-                    variant="warning"
-                    loading={batchBusy === "clues"}
-                    disabled={batchBusy !== null}
-                    onClick={async () => {
-                      if (await confirm({ message: "會覆寫所有道具設計圖。確定？", danger: true })) {
-                        void runBatch("clues", true);
-                      }
-                    }}
-                  >
-                    全部重生
-                  </BatchButton>
+
                 </div>
                 <div className={gridClassName}>
                   {clueEntries.map(([clueName, clue]) => (
@@ -500,18 +478,7 @@ export function LorebookGallery({
                   >
                     批次生成（缺圖）
                   </BatchButton>
-                  <BatchButton
-                    variant="warning"
-                    loading={batchBusy === "scenes"}
-                    disabled={batchBusy !== null}
-                    onClick={async () => {
-                      if (await confirm({ message: "會覆寫所有場景設計圖。確定？", danger: true })) {
-                        void runBatch("scenes", true);
-                      }
-                    }}
-                  >
-                    全部重生
-                  </BatchButton>
+
                 </div>
                 <div className={gridClassName}>
                   {sceneEntries.map(([sceneName, scene]) => (

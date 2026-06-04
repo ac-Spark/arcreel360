@@ -18,8 +18,8 @@ class TestTestOpenAI:
         """應只返回匹配關鍵詞的模型。"""
         mock_models = MagicMock()
         mock_models.data = [
-            _make_model("gpt-5.4"),
-            _make_model("gpt-5.4-mini"),
+            _make_model("gpt-5.5"),
+            _make_model("gpt-5.5-mini"),
             _make_model("sora-2"),
             _make_model("dall-e-3"),
             _make_model("text-embedding-ada-002"),
@@ -35,7 +35,7 @@ class TestTestOpenAI:
 
         assert result.success is True
         assert result.message == "連線成功"
-        assert "gpt-5.4" in result.available_models
+        assert "gpt-5.5" in result.available_models
         assert "sora-2" in result.available_models
         assert "dall-e-3" in result.available_models
         assert "text-embedding-ada-002" not in result.available_models
@@ -63,7 +63,7 @@ class TestTestOpenAI:
         mock_models = MagicMock()
         mock_models.data = [
             _make_model("sora-2"),
-            _make_model("gpt-5.4"),
+            _make_model("gpt-5.5"),
             _make_model("dall-e-3"),
         ]
 
@@ -73,12 +73,12 @@ class TestTestOpenAI:
         with patch("openai.OpenAI", return_value=mock_client):
             result = _test_openai({"api_key": "sk-test"})
 
-        assert result.available_models == ["dall-e-3", "gpt-5.4", "sora-2"]
+        assert result.available_models == ["dall-e-3", "gpt-5.5", "sora-2"]
 
     def test_custom_base_url(self):
         """傳入 base_url 時應轉發到 OpenAI 客戶端。"""
         mock_models = MagicMock()
-        mock_models.data = [_make_model("gpt-5.4")]
+        mock_models.data = [_make_model("gpt-5.5")]
 
         mock_client = MagicMock()
         mock_client.models.list.return_value = mock_models

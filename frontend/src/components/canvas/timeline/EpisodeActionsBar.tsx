@@ -118,12 +118,12 @@ function pruneRefsAgainstCatalog(refs: RefsValue, catalog: RefsCatalog): RefsVal
 function preprocessConfirmMessage(hasScript: boolean, selectedCount: number): string {
   if (selectedCount > 0) {
     return hasScript
-      ? `重新拆段會覆蓋目前的片段拆分結果。確定要使用選取的 ${selectedCount} 個原文檔案重新拆段？`
-      : `確定要使用選取的 ${selectedCount} 個原文檔案進行拆段？`;
+      ? `重新生成草稿會覆蓋目前的片段拆分結果。確定要使用選取的 ${selectedCount} 個原文檔案生成劇本草稿？`
+      : `確定要使用選取的 ${selectedCount} 個原文檔案生成劇本草稿？`;
   }
   return hasScript
-    ? "重新拆段會覆蓋目前的片段拆分結果。確定要自動均分原文進行重新拆段？"
-    : "拆段會把這集原文切成片段。確定要自動均分原文進行拆段？";
+    ? "重新生成草稿會覆蓋目前的片段拆分結果。確定要自動均分原文生成劇本草稿？"
+    : "生成劇本草稿會把這集原文切成片段。確定要自動均分原文生成劇本草稿？";
 }
 
 /**
@@ -146,8 +146,8 @@ export function EpisodeActionsBar({
 
   const toast = (msg: string, kind: "success" | "error" | "info" = "info") =>
     useAppStore.getState().pushToast(msg, kind);
-  const preprocessLabel = hasScript ? "重新拆段" : "拆段";
-  const scriptLabel = hasScript ? "重新生成劇本" : "生成劇本";
+  const preprocessLabel = hasScript ? "重新生成草稿" : "生成劇本草稿";
+  const scriptLabel = hasScript ? "生成劇本" : "生成劇本";
 
   const run = async (
     label: Busy,
@@ -195,6 +195,7 @@ export function EpisodeActionsBar({
   // 重新拆段的自由提示詞，按專案+集數持久化。
   const [preprocessInstruction, setPreprocessInstruction] = useState("");
   const preprocessInstructionKey = preprocessInstructionStorageKey(projectName, episode);
+  const [preprocessSettingsOpen, setPreprocessSettingsOpen] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem(preprocessInstructionKey) ?? "";
@@ -235,6 +236,12 @@ export function EpisodeActionsBar({
   }, [activeTab, projectName, episode, refsCatalog]);
   const refsDirty = hasCustomRefs(refs, refsCatalog);
 
+  const sourcesInitialized = useRef(false);
+
+  useEffect(() => {
+    sourcesInitialized.current = false;
+  }, [projectName, episode]);
+
   const fetchSources = async () => {
     setLoadingSources(true);
     try {
@@ -243,7 +250,14 @@ export function EpisodeActionsBar({
       setSources(sourceFiles);
       // 修剪掉已不存在的舊選項,保留仍存在的勾選
       const validNames = new Set(sourceFiles.map((f) => f.name));
-      setSelectedSources((prev) => prev.filter((name) => validNames.has(name)));
+      setSelectedSources((prev) => {
+        const filtered = prev.filter((name) => validNames.has(name));
+        if (filtered.length === 0 && sourceFiles.length > 0 && !sourcesInitialized.current) {
+          sourcesInitialized.current = true;
+          return sourceFiles.map((f) => f.name);
+        }
+        return filtered;
+      });
     } catch (err) {
       toast(`取得原文列表失敗：${(err as Error).message}`, "error");
     } finally {
@@ -299,8 +313,8 @@ export function EpisodeActionsBar({
 
   const confirmAndRunScript = async () => {
     const message = hasScript
-      ? "重新生成劇本會覆寫現有劇本。確定？"
-      : "生成劇本會根據拆段結果產生劇本。確定？";
+      ? "生成劇本會覆寫現有劇本。確定？"
+      : "生成劇本會根據劇本草稿產生劇本。確定？";
     if (await confirm({ message })) {
       void handleScript();
     }
@@ -344,7 +358,7 @@ export function EpisodeActionsBar({
       onChange={setTextModel}
       placeholder="文字模型"
       allowDefault
-      defaultLabel="跟隨專案文字模型"
+      defaultLabel="沿用專案預設"
       aria-label={activeTab === "preprocessing" ? "預處理文字模型" : "劇本文字模型"}
       className="w-52"
       size="sm"
@@ -355,23 +369,44 @@ export function EpisodeActionsBar({
     <>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {activeTab === "preprocessing" ? (
-          <PreprocessOptionsPanel
-            loadingSources={loadingSources}
-            sources={sources}
-            selectedSources={selectedSources}
-            onToggleSource={toggleSourceSelection}
-            refsCatalog={refsCatalog}
-            refs={refs}
-            onRefsChange={setRefs}
-            numSegments={numSegments}
-            onNumSegmentsChange={updateNumSegments}
-            confirmText={confirmBtnText}
-            onConfirm={handleMultiSourceConfirm}
-            textModelSelect={textModelSelect}
-            instructionValue={preprocessInstruction}
-            onInstructionChange={updatePreprocessInstruction}
-            busy={busy}
-          />
+          <div className="flex w-full flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {textModelSelect}
+              <ActionButton
+                icon={<Wand2 className="h-3.5 w-3.5" />}
+                label={preprocessLabel}
+                loading={busy === "preprocess"}
+                disabled={busy !== null}
+                onClick={() => void handleMultiSourceConfirm()}
+                tone="primary"
+              />
+              <ActionButton
+                icon={<Scissors className="h-3.5 w-3.5" />}
+                label="生成設定"
+                onClick={() => setPreprocessSettingsOpen((v) => !v)}
+                tone={preprocessSettingsOpen ? "primary" : "neutral"}
+              />
+            </div>
+
+            <PreprocessInstructionPanel
+              value={preprocessInstruction}
+              onChange={updatePreprocessInstruction}
+            />
+
+            {preprocessSettingsOpen && (
+              <PreprocessOptionsPanel
+                loadingSources={loadingSources}
+                sources={sources}
+                selectedSources={selectedSources}
+                onToggleSource={toggleSourceSelection}
+                refsCatalog={refsCatalog}
+                refs={refs}
+                onRefsChange={setRefs}
+                numSegments={numSegments}
+                onNumSegmentsChange={updateNumSegments}
+              />
+            )}
+          </div>
         ) : (
           <div className="flex w-full flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -391,11 +426,10 @@ export function EpisodeActionsBar({
                 onClick={() => setScriptPromptOpen((v) => !v)}
                 aria-expanded={scriptPromptOpen}
                 title="自訂這集劇本的生成提示詞"
-                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60 ${
-                  scriptInstruction.trim()
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60 ${scriptInstruction.trim()
                     ? "border-indigo-500/50 text-indigo-300 hover:border-indigo-400"
                     : "border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
-                }`}
+                  }`}
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 <span>劇本提示詞{scriptInstruction.trim() ? "（已設定）" : ""}</span>
@@ -447,6 +481,36 @@ export function EpisodeActionsBar({
   );
 }
 
+function PreprocessInstructionPanel({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="rounded-lg border border-gray-800 bg-gray-950/60 p-2.5">
+      <label
+        htmlFor="preprocess-instruction"
+        className="mb-1.5 block text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500"
+      >
+        重新拆段提示詞（引導 AI 怎麼拆段，可留空）
+      </label>
+      <textarea
+        id="preprocess-instruction"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={3}
+        placeholder="例如：請著重保留戰鬥場景、把長對話拆成更多短片段、強化環境描寫的細節、著重凸顯重要人物的登場動作..."
+        className="w-full resize-y rounded-md border border-gray-700 bg-gray-900 px-2.5 py-2 text-xs leading-relaxed text-gray-200 placeholder-gray-600 outline-none focus:border-indigo-500 focus:ring-0"
+      />
+      <p className="mt-1.5 text-[0.625rem] leading-snug text-gray-500">
+        此提示詞將引導 AI 在分析小說及提取分鏡時更注重哪些層面，按集數自動保存。
+      </p>
+    </div>
+  );
+}
+
 function PreprocessOptionsPanel({
   loadingSources,
   sources,
@@ -457,12 +521,6 @@ function PreprocessOptionsPanel({
   onRefsChange,
   numSegments,
   onNumSegmentsChange,
-  confirmText,
-  onConfirm,
-  textModelSelect,
-  instructionValue,
-  onInstructionChange,
-  busy,
 }: {
   loadingSources: boolean;
   sources: SourceFile[];
@@ -473,37 +531,18 @@ function PreprocessOptionsPanel({
   onRefsChange: (value: RefsValue) => void;
   numSegments: number | undefined;
   onNumSegmentsChange: (value: string) => void;
-  confirmText: string;
-  onConfirm: () => Promise<void>;
-  textModelSelect: React.ReactNode;
-  instructionValue: string;
-  onInstructionChange: (value: string) => void;
-  busy: Busy;
 }) {
   return (
     <div className="w-full rounded-xl border border-gray-800 bg-gray-950/40 p-4 flex flex-col gap-4">
-      {/* 頂部設定列：文字模型與生成段數 */}
-      <div className="flex flex-wrap items-end gap-4">
-        {textModelSelect && (
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500">
-              預處理文字模型
-            </label>
-            {textModelSelect}
-          </div>
-        )}
-        <NumSegmentsInput value={numSegments} onChange={onNumSegmentsChange} />
-      </div>
-
       {/* 原文與參考資源選擇區 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* 左側：原文來源 */}
-        <div className="flex flex-col rounded-lg border border-gray-800 bg-gray-905/20 p-3">
+        <div className="flex flex-col rounded-lg border border-gray-800 bg-gray-900/20 p-3">
           <div className="text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500">
             選擇原文檔案
           </div>
           <div className="pb-1 pt-0.5 text-[0.625rem] text-gray-500 normal-case leading-snug">
-            不勾選則自動按集數均分整本原文
+            如果不勾選任何原文檔案，將自動按集數均分整本原文；預設已為您勾選全部檔案。
           </div>
           <div className="my-2 h-px bg-gray-800" />
           {loadingSources ? (
@@ -521,7 +560,7 @@ function PreprocessOptionsPanel({
         </div>
 
         {/* 右側：參考資源 */}
-        <div className="flex flex-col rounded-lg border border-gray-800 bg-gray-905/20 p-3">
+        <div className="flex flex-col rounded-lg border border-gray-800 bg-gray-900/20 p-3">
           <div className="text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500">
             參考資源
           </div>
@@ -533,42 +572,9 @@ function PreprocessOptionsPanel({
         </div>
       </div>
 
-      {/* 拆段提示詞輸入框 */}
-      <div className="rounded-lg border border-gray-800 bg-gray-905/20 p-3">
-        <label
-          htmlFor="preprocess-instruction"
-          className="mb-1.5 block text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500"
-        >
-          重新拆段提示詞（引導 AI 怎麼拆段/引導風格，可留空）
-        </label>
-        <textarea
-          id="preprocess-instruction"
-          value={instructionValue}
-          onChange={(e) => onInstructionChange(e.target.value)}
-          rows={3}
-          placeholder="例如：請著重保留戰鬥場景、把長對話拆成更多短片段、強化環境描寫的細節、著重凸顯重要人物的登場動作..."
-          className="w-full resize-y rounded-md border border-gray-700 bg-gray-900 px-2.5 py-2 text-xs leading-relaxed text-gray-200 placeholder-gray-600 outline-none focus:border-indigo-500 focus:ring-0"
-        />
-        <p className="mt-1.5 text-[0.625rem] leading-snug text-gray-500">
-          此提示詞將引導 AI 在分析小說及提取分鏡時更注重哪些層面，按集數自動保存。
-        </p>
-      </div>
-
-      {/* 底部執行按鈕 */}
-      <div className="flex justify-end items-center gap-3">
-        <button
-          type="button"
-          disabled={busy !== null}
-          onClick={() => void onConfirm()}
-          className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-center text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {busy === "preprocess" ? (
-            <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border border-white border-t-transparent" />
-          ) : (
-            <Scissors className="h-3.5 w-3.5" />
-          )}
-          {confirmText}
-        </button>
+      {/* 底部設定列：生成段數 */}
+      <div className="flex flex-wrap items-end gap-4">
+        <NumSegmentsInput value={numSegments} onChange={onNumSegmentsChange} />
       </div>
     </div>
   );

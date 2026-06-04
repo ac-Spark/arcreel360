@@ -42,14 +42,14 @@ class TestOpenAITextBackend:
 
             backend = OpenAITextBackend(api_key="test-key")
             assert backend.name == PROVIDER_OPENAI
-            assert backend.model == "gpt-5.4-mini"
+            assert backend.model == "gpt-5.5-mini"
 
     def test_custom_model(self):
         with patch("lib.openai_shared.AsyncOpenAI"):
             from lib.text_backends.openai import OpenAITextBackend
 
-            backend = OpenAITextBackend(api_key="test-key", model="gpt-5.4")
-            assert backend.model == "gpt-5.4"
+            backend = OpenAITextBackend(api_key="test-key", model="gpt-5.5")
+            assert backend.model == "gpt-5.5"
 
     def test_capabilities(self):
         with patch("lib.openai_shared.AsyncOpenAI"):
@@ -73,12 +73,12 @@ class TestOpenAITextBackend:
 
         assert result.text == "Test output"
         assert result.provider == PROVIDER_OPENAI
-        assert result.model == "gpt-5.4-mini"
+        assert result.model == "gpt-5.5-mini"
         assert result.input_tokens == 15
         assert result.output_tokens == 8
 
         call_kwargs = mock_client.chat.completions.create.call_args[1]
-        assert call_kwargs["model"] == "gpt-5.4-mini"
+        assert call_kwargs["model"] == "gpt-5.5-mini"
         assert len(call_kwargs["messages"]) == 1
         assert call_kwargs["messages"][0]["role"] == "user"
         assert call_kwargs["messages"][0]["content"] == "Say hello"

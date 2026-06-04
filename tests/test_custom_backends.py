@@ -33,7 +33,7 @@ class TestCustomTextBackend:
             TextCapability.STRUCTURED_OUTPUT,
             TextCapability.VISION,
         }
-        backend = CustomTextBackend(provider_id="my-provider", delegate=delegate, model="gpt-5.4")
+        backend = CustomTextBackend(provider_id="my-provider", delegate=delegate, model="gpt-5.5")
 
         assert backend.capabilities is delegate.capabilities
 
