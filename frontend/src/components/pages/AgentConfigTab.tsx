@@ -66,7 +66,7 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
       savedRef.current = newDraft;
       setDraft(newDraft);
       useConfigStatusStore.getState().refresh();
-      useAppStore.getState().pushToast("ArcReel 智慧體設定已儲存", "success");
+      useAppStore.getState().pushToast("ArcReel AI Agent 設定已儲存", "success");
     } catch (err) {
       setSaveError((err as Error).message);
     } finally {
@@ -141,7 +141,7 @@ export function AgentConfigTab({ visible }: AgentConfigTabProps) {
             </div>
             <div>
               <div className="workbench-kicker text-[11px] font-semibold">助理執行階段</div>
-              <h2 className="mt-1 text-lg font-semibold text-[color:var(--wb-text-primary)]">ArcReel 智慧體</h2>
+              <h2 className="mt-1 text-lg font-semibold text-[color:var(--wb-text-primary)]">ArcReel AI Agent</h2>
               <p className="text-sm text-[color:var(--wb-text-muted)]">
                 透過可切換的執行階段供應商，驅動對話式 AI 助手與自動化工作流程
               </p>

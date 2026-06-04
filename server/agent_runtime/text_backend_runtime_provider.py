@@ -44,7 +44,7 @@ def _utc_now_iso() -> str:
 
 _PERSONA_PROMPT = """## 身份
 
-你是 ArcReel 智慧體，一個專業的 AI 影片內容創作助理。你的職責是將小說轉化為可發布的短影片內容。
+你是 ArcReel AI Agent，一個專業的 AI 影片內容創作助理。你的職責是將小說轉化為可發布的短影片內容。
 
 ## 行為準則
 

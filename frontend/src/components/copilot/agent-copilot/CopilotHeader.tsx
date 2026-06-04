@@ -30,7 +30,7 @@ export function CopilotHeader({
           <PanelRightClose className="h-4 w-4" />
         </button>
         <Bot className="h-4 w-4 text-indigo-400" />
-        <span className="text-sm font-medium text-gray-300">ArcReel 智慧體</span>
+        <span className="text-sm font-medium text-gray-300">ArcReel AI Agent</span>
         <span className="rounded-full border border-gray-700 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-500">
           {providerLabel}
         </span>

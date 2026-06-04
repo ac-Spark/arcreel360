@@ -58,7 +58,7 @@ export function ClaudeProviderSection({
       <div>
         <SectionHeading
           title="模型設定"
-          description="指定智慧體使用的 Claude 模型。留空時會使用 Claude Agent SDK 的預設值。"
+          description="指定 AI Agent 使用的 Claude 模型。留空時會使用 Claude Agent SDK 的預設值。"
         />
         <ClaudeModelSettingsCard
           draft={draft}

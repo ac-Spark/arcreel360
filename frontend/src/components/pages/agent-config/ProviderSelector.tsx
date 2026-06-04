@@ -17,7 +17,7 @@ export function ProviderSelector({ available, value, onChange, saving }: Provide
     <div>
       <SectionHeading
         title="執行階段供應商"
-        description="選擇目前智慧體使用的執行階段供應商；不同供應商支援的能力層級不同。"
+        description="選擇目前 AI Agent 使用的執行階段供應商；不同供應商支援的能力層級不同。"
       />
 
       <div className={`${cardClassName} space-y-4`}>

@@ -45,7 +45,7 @@ export function AdvancedSettingsSection({
               最大並行會話數
             </label>
             <p className="mt-0.5 text-xs text-gray-500">
-              同時維持活躍智慧體會話的上限，超出時會自動釋放最久未使用的會話（被清理的會話會持久化，下一次對話時可恢復）
+              同時維持活躍 AI Agent 會話的上限，超出時會自動釋放最久未使用的會話（被清理的會話會持久化，下一次對話時可恢復）
             </p>
             <input
               type="number"

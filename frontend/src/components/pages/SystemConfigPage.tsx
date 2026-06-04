@@ -19,7 +19,7 @@ type SettingsSection = "agent" | "providers" | "media" | "usage" | "api-keys";
 // ---------------------------------------------------------------------------
 
 const SECTION_LIST: { id: SettingsSection; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: "agent", label: "智慧體", Icon: Bot },
+  { id: "agent", label: "AI Agent", Icon: Bot },
   { id: "providers", label: "供應商", Icon: Plug },
   { id: "media", label: "模型選擇", Icon: Film },
   { id: "usage", label: "用量統計", Icon: BarChart3 },
@@ -92,7 +92,7 @@ export function SystemConfigPage() {
             </div>
             <div className="rounded-2xl border border-white/6 bg-black/12 px-4 py-3">
               <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--wb-text-dim)]">目前分割槽</div>
-              <div className="mt-1 text-sm font-medium text-[color:var(--wb-text-secondary)]">{SECTION_LIST.find((section) => section.id === activeSection)?.label ?? "智慧體"}</div>
+              <div className="mt-1 text-sm font-medium text-[color:var(--wb-text-secondary)]">{SECTION_LIST.find((section) => section.id === activeSection)?.label ?? "AI Agent"}</div>
             </div>
           </div>
         </div>

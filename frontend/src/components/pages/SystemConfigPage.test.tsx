@@ -106,16 +106,16 @@ describe("SystemConfigPage", () => {
 
   it("renders all 5 sidebar sections", () => {
     renderPage();
-    expect(screen.getByRole("button", { name: /智慧體/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /AI Agent/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /供應商/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /模型選擇/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /用量統計/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /API 管理/ })).toBeInTheDocument();
   });
 
-  it("defaults to the 智慧體 section", () => {
+  it("defaults to the AI Agent section", () => {
     renderPage();
-    const agentButton = screen.getByRole("button", { name: /智慧體/ });
+    const agentButton = screen.getByRole("button", { name: /AI Agent/ });
     expect(agentButton.className).toContain("workbench-panel-strong");
   });
 
@@ -202,7 +202,7 @@ describe("SystemConfigPage", () => {
       expect(screen.getByText("以下必填設定尚未完成：")).toBeInTheDocument();
     });
     expect(
-      screen.getByRole("button", { name: /Gemini 智慧體未設定可用的 Gemini 文字供應商/ }),
+      screen.getByRole("button", { name: /Gemini AI Agent 未設定可用的 Gemini 文字供應商/ }),
     ).toBeInTheDocument();
   });
 
