@@ -35,6 +35,7 @@ class UpdateClueRequest(BaseModel):
     importance: str | None = None
     clue_sheet: str | None = None
     reference_image: str | None = None
+    image_backend: str | None = None
 
 
 @router.post("/projects/{project_name}/clues")
@@ -87,6 +88,8 @@ async def update_clue(project_name: str, clue_name: str, req: UpdateClueRequest,
                     clue["clue_sheet"] = req.clue_sheet
                 if req.reference_image is not None:
                     clue["reference_image"] = req.reference_image
+                if req.image_backend is not None:
+                    clue["image_backend"] = req.image_backend if req.image_backend else None
                 result_clue.update(clue)
 
             with project_change_source("webui"):
@@ -186,3 +189,39 @@ async def delete_clue(project_name: str, clue_name: str, _user: CurrentUser):
     except Exception as e:
         logger.exception("請求處理失敗")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class BatchCreateClueRequest(BaseModel):
+    items: list[CreateClueRequest]
+
+
+@router.post("/projects/{project_name}/clues/batch_create")
+async def batch_add_clues(project_name: str, req: BatchCreateClueRequest, _user: CurrentUser):
+    """批次新增線索"""
+    try:
+
+        def _sync():
+            manager = get_project_manager()
+
+            def _mutate(project):
+                clues = project.setdefault("clues", {})
+                for item in req.items:
+                    clues[item.name] = {
+                        "description": item.description,
+                        "importance": item.importance or "major",
+                        "clue_sheet": "",
+                    }
+
+            with project_change_source("webui"):
+                manager.update_project(project_name, _mutate)
+
+            project = manager.load_project(project_name)
+            return {"success": True, "clues": project.get("clues", {})}
+
+        return await asyncio.to_thread(_sync)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"專案 '{project_name}' 不存在")
+    except Exception as e:
+        logger.exception("批次新增線索失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+

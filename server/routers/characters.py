@@ -36,6 +36,7 @@ class UpdateCharacterRequest(BaseModel):
     voice_style: str | None = None
     character_sheet: str | None = None
     reference_image: str | None = None
+    image_backend: str | None = None
 
 
 @router.post("/projects/{project_name}/characters")
@@ -86,6 +87,8 @@ async def update_character(
                     char["character_sheet"] = req.character_sheet
                 if req.reference_image is not None:
                     char["reference_image"] = req.reference_image
+                if req.image_backend is not None:
+                    char["image_backend"] = req.image_backend if req.image_backend else None
                 result_char.update(char)
 
             with project_change_source("webui"):
@@ -185,3 +188,39 @@ async def delete_character(project_name: str, char_name: str, _user: CurrentUser
     except Exception as e:
         logger.exception("請求處理失敗")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class BatchCreateCharacterRequest(BaseModel):
+    items: list[CreateCharacterRequest]
+
+
+@router.post("/projects/{project_name}/characters/batch_create")
+async def batch_add_characters(project_name: str, req: BatchCreateCharacterRequest, _user: CurrentUser):
+    """批次新增角色"""
+    try:
+
+        def _sync():
+            manager = get_project_manager()
+
+            def _mutate(project):
+                chars = project.setdefault("characters", {})
+                for item in req.items:
+                    chars[item.name] = {
+                        "description": item.description,
+                        "voice_style": item.voice_style or "",
+                        "character_sheet": "",
+                    }
+
+            with project_change_source("webui"):
+                manager.update_project(project_name, _mutate)
+
+            project = manager.load_project(project_name)
+            return {"success": True, "characters": project.get("characters", {})}
+
+        return await asyncio.to_thread(_sync)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"專案 '{project_name}' 不存在")
+    except Exception as e:
+        logger.exception("批次新增角色失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+

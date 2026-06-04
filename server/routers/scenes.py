@@ -33,6 +33,7 @@ class UpdateSceneRequest(BaseModel):
     description: str | None = None
     scene_sheet: str | None = None
     scene_ref: str | None = None
+    image_backend: str | None = None
 
 
 class RenameSceneRequest(BaseModel):
@@ -88,10 +89,10 @@ async def update_scene(project_name: str, scene_name: str, req: UpdateSceneReque
                 if scene_name not in project.get("scenes", {}):
                     raise KeyError(scene_name)
                 scene = project["scenes"][scene_name]
-                for field in ("description", "scene_sheet", "scene_ref"):
+                for field in ("description", "scene_sheet", "scene_ref", "image_backend"):
                     value = getattr(req, field)
                     if value is not None:
-                        scene[field] = value
+                        scene[field] = value if value else None
                 result_scene.update(scene)
 
             with project_change_source("webui"):
@@ -187,3 +188,39 @@ async def delete_scene(project_name: str, scene_name: str, _user: CurrentUser):
     except Exception as e:
         logger.exception("請求處理失敗")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class BatchCreateSceneRequest(BaseModel):
+    items: list[CreateSceneRequest]
+
+
+@router.post("/projects/{project_name}/project-scenes/batch_create")
+async def batch_add_scenes(project_name: str, req: BatchCreateSceneRequest, _user: CurrentUser):
+    """批次新增場景"""
+    try:
+
+        def _sync():
+            manager = get_project_manager()
+
+            def _mutate(project):
+                scenes = project.setdefault("scenes", {})
+                for item in req.items:
+                    scenes[item.name] = {
+                        "description": item.description,
+                        "scene_sheet": "",
+                        "scene_ref": "",
+                    }
+
+            with project_change_source("webui"):
+                manager.update_project(project_name, _mutate)
+
+            project = manager.load_project(project_name)
+            return {"success": True, "scenes": project.get("scenes", {})}
+
+        return await asyncio.to_thread(_sync)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"專案 '{project_name}' 不存在")
+    except Exception as e:
+        logger.exception("批次新增場景失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+

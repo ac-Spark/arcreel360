@@ -85,3 +85,20 @@ class TestCluesRouter:
                 json={"importance": "bad"},
             )
             assert bad_importance.status_code == 400
+
+    def test_batch_add_clues(self, monkeypatch):
+        fake_pm = _FakePM()
+        with _client(monkeypatch, fake_pm) as client:
+            resp = client.post(
+                "/api/v1/projects/demo/clues/batch_create",
+                json={
+                    "items": [
+                        {"name": "懷錶", "description": "陰森 1", "importance": "major"},
+                        {"name": "玉石", "description": "溫潤 2", "importance": "minor"}
+                    ]
+                }
+            )
+            assert resp.status_code == 200
+            clues = resp.json()["clues"]
+            assert clues["懷錶"]["description"] == "陰森 1"
+            assert clues["玉石"]["description"] == "溫潤 2"

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useId, useRef } from "react";
+import { Sparkles } from "lucide-react";
+import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 
 interface LorebookDescriptionFieldProps {
   value: string;
@@ -7,6 +9,12 @@ interface LorebookDescriptionFieldProps {
   className?: string;
   label?: string;
   rows?: number;
+  onGenerateAI?: () => Promise<void> | void;
+  aiGenerating?: boolean;
+  textModel?: string | null;
+  onTextModelChange?: (model: string | null) => void;
+  textModelOptions?: string[];
+  providerNames?: Record<string, string>;
 }
 
 const TEXTAREA_CLASS =
@@ -19,6 +27,12 @@ export function LorebookDescriptionField({
   className,
   label = "描述",
   rows = 3,
+  onGenerateAI,
+  aiGenerating,
+  textModel,
+  onTextModelChange,
+  textModelOptions,
+  providerNames,
 }: LorebookDescriptionFieldProps) {
   const id = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -37,9 +51,38 @@ export function LorebookDescriptionField({
 
   return (
     <div className={className}>
-      <label htmlFor={id} className="block text-xs font-medium text-gray-400">
-        {label}
-      </label>
+      <div className="flex items-center justify-between">
+        <label htmlFor={id} className="block text-xs font-medium text-gray-400">
+          {label}
+        </label>
+        {onGenerateAI && (
+          <div className="flex items-center gap-1.5">
+            {textModelOptions && textModelOptions.length > 0 && (
+              <ProviderModelSelect
+                value={textModel || ""}
+                options={textModelOptions}
+                providerNames={providerNames || {}}
+                onChange={(val) => onTextModelChange?.(val || null)}
+                placeholder="選模型..."
+                allowDefault={true}
+                defaultLabel="預設文字模型"
+                className="w-32 text-xs"
+                size="sm"
+              />
+            )}
+            <button
+              type="button"
+              onClick={onGenerateAI}
+              disabled={aiGenerating}
+              className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-indigo-400 hover:bg-gray-800 hover:text-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none"
+              title="調用 AI 擴寫並生成英文生圖提示詞"
+            >
+              <Sparkles className={`h-3 w-3 ${aiGenerating ? "animate-spin" : ""}`} />
+              {aiGenerating ? "生成中..." : "AI 產生"}
+            </button>
+          </div>
+        )}
+      </div>
       <textarea
         id={id}
         ref={textareaRef}

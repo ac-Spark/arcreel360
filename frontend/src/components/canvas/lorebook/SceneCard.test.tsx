@@ -77,6 +77,7 @@ describe("SceneCard", () => {
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith("廢棄醫院", {
         description: "陰森的走廊與破窗",
+        imageBackend: null,
       });
     });
   });

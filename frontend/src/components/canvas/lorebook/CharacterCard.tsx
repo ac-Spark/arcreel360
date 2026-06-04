@@ -7,14 +7,17 @@ import { GenerateButton } from "@/components/ui/GenerateButton";
 import { ImageFlipReveal } from "@/components/ui/ImageFlipReveal";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useProjectsStore } from "@/stores/projects-store";
+import { useAppStore } from "@/stores/app-store";
 import { useConfirm } from "@/hooks/useConfirm";
 import type { Character } from "@/types";
 import { LorebookDescriptionField } from "./LorebookDescriptionField";
 import { LorebookReferenceImageField } from "./LorebookReferenceImageField";
+import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 
 interface CharacterSavePayload {
   description: string;
   voiceStyle: string;
+  imageBackend?: string | null;
 }
 
 interface CharacterCardProps {
@@ -29,6 +32,11 @@ interface CharacterCardProps {
   onRename?: (oldName: string, newName: string) => Promise<void> | void;
   onRestoreVersion?: () => Promise<void> | void;
   generating?: boolean;
+  modelOptions?: {
+    image: string[];
+    text?: string[];
+    providerNames: Record<string, string>;
+  };
 }
 
 export function CharacterCard({
@@ -43,8 +51,11 @@ export function CharacterCard({
   onRename,
   onRestoreVersion,
   generating = false,
+  modelOptions,
 }: CharacterCardProps) {
   const confirm = useConfirm();
+  const [isEditing, setIsEditing] = useState(false);
+  const [textModel, setTextModel] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState(name);
 
@@ -69,14 +80,16 @@ export function CharacterCard({
   );
   const [description, setDescription] = useState(character.description);
   const [voiceStyle, setVoiceStyle] = useState(character.voice_style ?? "");
+  const [imageBackend, setImageBackend] = useState(character.image_backend ?? "");
   const [imgError, setImgError] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   useEffect(() => {
     setDescription(character.description);
     setVoiceStyle(character.voice_style ?? "");
-  }, [character.description, character.voice_style]);
+    setImageBackend(character.image_backend ?? "");
+  }, [character.description, character.voice_style, character.image_backend]);
 
   useEffect(() => {
     setImgError(false);
@@ -84,7 +97,8 @@ export function CharacterCard({
 
   const isDirty =
     description !== character.description ||
-    voiceStyle !== (character.voice_style ?? "");
+    voiceStyle !== (character.voice_style ?? "") ||
+    imageBackend !== (character.image_backend ?? "");
 
   const handleSave = async () => {
     setSaving(true);
@@ -92,9 +106,45 @@ export function CharacterCard({
       await onSave(name, {
         description,
         voiceStyle,
+        imageBackend: imageBackend || null,
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleModelChange = async (value: string) => {
+    setImageBackend(value);
+    setSaving(true);
+    try {
+      await onSave(name, {
+        description,
+        voiceStyle,
+        imageBackend: value || null,
+      });
+      useAppStore.getState().pushToast("模型設定已更新", "success");
+    } catch (err) {
+      useAppStore.getState().pushToast(`模型設定更新失敗: ${(err as Error).message}`, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleGenerateAI = async () => {
+    setAiGenerating(true);
+    try {
+      const res = await API.generateAIDescription(projectName, {
+        type: "character",
+        name,
+        description: description || name,
+        model: textModel || undefined,
+      });
+      setDescription(res.prompt);
+      useAppStore.getState().pushToast("提示詞生成成功", "success");
+    } catch (err) {
+      useAppStore.getState().pushToast(`AI 提示詞生成失敗: ${(err as Error).message}`, "error");
+    } finally {
+      setAiGenerating(false);
     }
   };
 
@@ -205,6 +255,20 @@ export function CharacterCard({
               />
             </AspectFrame>
           </PreviewableImageFrame>
+
+          {/* 圖片模型選擇 */}
+          <div className="mt-2 space-y-1">
+            <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider">設計圖模型</label>
+            <ProviderModelSelect
+              value={imageBackend}
+              onChange={handleModelChange}
+              options={modelOptions?.image ?? []}
+              providerNames={modelOptions?.providerNames ?? {}}
+              placeholder="跟隨專案全域模型"
+              allowDefault={true}
+              defaultLabel="跟隨專案全域模型"
+            />
+          </div>
         </div>
 
         <LorebookReferenceImageField
@@ -220,6 +284,12 @@ export function CharacterCard({
         value={description}
         onChange={setDescription}
         placeholder="輸入角色描述..."
+        onGenerateAI={handleGenerateAI}
+        aiGenerating={aiGenerating}
+        textModel={textModel}
+        onTextModelChange={setTextModel}
+        textModelOptions={modelOptions?.text ?? []}
+        providerNames={modelOptions?.providerNames ?? {}}
       />
 
       <label className="mt-3 block text-xs font-medium text-gray-400">聲音風格</label>

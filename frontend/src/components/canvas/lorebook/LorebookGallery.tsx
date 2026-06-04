@@ -4,10 +4,13 @@ import { API } from "@/api";
 import { CharacterCard } from "./CharacterCard";
 import { ClueCard } from "./ClueCard";
 import { SceneCard } from "./SceneCard";
+import { LorebookAIExtractModal } from "./LorebookAIExtractModal";
 import { useScrollTarget } from "@/hooks/useScrollTarget";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useAppStore } from "@/stores/app-store";
-import type { Character, Clue, Scene } from "@/types";
+import type { Character, Clue, Scene, ProviderInfo } from "@/types";
+import { providersApi } from "@/api/providers";
+import { buildMediaModelOptions } from "@/utils/provider-models";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -26,6 +29,7 @@ interface LorebookGalleryProps {
     payload: {
       description: string;
       voiceStyle: string;
+      imageBackend?: string | null;
     }
   ) => Promise<void>;
   onUploadCharacterReference: (name: string, file: File) => Promise<void> | void;
@@ -51,7 +55,10 @@ interface LorebookGalleryProps {
   /** ---- Scene 相關 ---- */
   onSaveScene: (
     name: string,
-    payload: { description: string },
+    payload: {
+      description: string;
+      imageBackend?: string | null;
+    },
   ) => Promise<void>;
   onDeleteScene?: (name: string) => Promise<void> | void;
   onRestoreSceneVersion?: () => Promise<void> | void;
@@ -61,6 +68,8 @@ interface LorebookGalleryProps {
   onAddClue?: () => void;
   /** Called when the user clicks "新增場景". */
   onAddScene?: () => void;
+  /** AI 批次匯入後，通知父元件重新獲取資料 */
+  onRefresh?: () => Promise<void> | void;
 }
 
 // ---------------------------------------------------------------------------
@@ -113,11 +122,33 @@ export function LorebookGallery({
   onAddCharacter,
   onAddClue,
   onAddScene,
+  onRefresh,
 }: LorebookGalleryProps) {
   const confirm = useConfirm();
   const assistantPanelOpen = useAppStore((s) => s.assistantPanelOpen);
   const [activeTab, setActiveTab] = useState<Tab>(mode ?? "characters");
   const showTabs = !mode;
+
+  const [extractingType, setExtractingType] = useState<"character" | "clue" | "scene" | null>(null);
+
+  const [providers, setProviders] = useState<ProviderInfo[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    providersApi
+      .getProviders()
+      .then((res) => {
+        if (!cancelled) setProviders(res.providers);
+      })
+      .catch((err) => {
+        console.error("Failed to load providers in LorebookGallery:", err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const modelOptions = useMemo(() => buildMediaModelOptions(providers), [providers]);
 
   const gridClassName = useMemo(() => {
     return assistantPanelOpen
@@ -224,8 +255,16 @@ export function LorebookGallery({
           ) : (
             <>
               {onAddCharacter && (
-                <div className="flex justify-start mb-4">
-                  <AddButton onClick={onAddCharacter} className="">新增角色</AddButton>
+                <div className="flex justify-start gap-2 mb-4">
+                  <AddButton onClick={onAddCharacter} className="mx-0">新增角色</AddButton>
+                  <button
+                    type="button"
+                    onClick={() => setExtractingType("character")}
+                    className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
+                  >
+                    <Sparkles className="h-4 w-4 text-indigo-400" />
+                    AI 匯入角色
+                  </button>
                 </div>
               )}
               <div className={gridClassName}>
@@ -243,6 +282,7 @@ export function LorebookGallery({
                     onRename={onRenameCharacter}
                     onRestoreVersion={onRestoreCharacterVersion}
                     generating={isGeneratingCharacter(charName)}
+                    modelOptions={modelOptions}
                   />
                 </div>
               ))}
@@ -250,9 +290,19 @@ export function LorebookGallery({
           </>
         )}
 
-          <div className="flex flex-wrap items-center justify-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
             {onAddCharacter && (
-              <AddButton onClick={onAddCharacter}>新增角色</AddButton>
+              <AddButton onClick={onAddCharacter} className="mx-0">新增角色</AddButton>
+            )}
+            {onAddCharacter && (
+              <button
+                type="button"
+                onClick={() => setExtractingType("character")}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
+              >
+                <Sparkles className="h-4 w-4 text-indigo-400" />
+                AI 匯入角色
+              </button>
             )}
             {charCount > 0 && (
               <>
@@ -292,8 +342,16 @@ export function LorebookGallery({
           ) : (
             <>
               {onAddClue && (
-                <div className="flex justify-start mb-4">
-                  <AddButton onClick={onAddClue} className="">新增道具</AddButton>
+                <div className="flex justify-start gap-2 mb-4">
+                  <AddButton onClick={onAddClue} className="mx-0">新增道具</AddButton>
+                  <button
+                    type="button"
+                    onClick={() => setExtractingType("clue")}
+                    className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
+                  >
+                    <Sparkles className="h-4 w-4 text-indigo-400" />
+                    AI 匯入道具
+                  </button>
                 </div>
               )}
               <div className={gridClassName}>
@@ -303,7 +361,12 @@ export function LorebookGallery({
                     name={clueName}
                     clue={clue}
                     projectName={projectName}
-                    onSave={(n, payload) => onUpdateClue(n, payload)}
+                    onSave={(n, payload) =>
+                      onUpdateClue(n, {
+                        description: payload.description,
+                        image_backend: payload.imageBackend,
+                      })
+                    }
                     onGenerate={onGenerateClue}
                     onUploadReference={onUploadClueReference}
                     onRemoveReference={onRemoveClueReference}
@@ -311,6 +374,7 @@ export function LorebookGallery({
                     onRename={onRenameClue}
                     onRestoreVersion={onRestoreClueVersion}
                     generating={isGeneratingClue(clueName)}
+                    modelOptions={modelOptions}
                   />
                 </div>
               ))}
@@ -318,8 +382,20 @@ export function LorebookGallery({
           </>
         )}
 
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {onAddClue && <AddButton onClick={onAddClue}>新增道具</AddButton>}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+            {onAddClue && (
+              <AddButton onClick={onAddClue} className="mx-0">新增道具</AddButton>
+            )}
+            {onAddClue && (
+              <button
+                type="button"
+                onClick={() => setExtractingType("clue")}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
+              >
+                <Sparkles className="h-4 w-4 text-indigo-400" />
+                AI 匯入道具
+              </button>
+            )}
             {clueCount > 0 && (
               <>
                 <BatchButton
@@ -358,8 +434,16 @@ export function LorebookGallery({
           ) : (
             <>
               {onAddScene && (
-                <div className="flex justify-start mb-4">
-                  <AddButton onClick={onAddScene} className="">新增場景</AddButton>
+                <div className="flex justify-start gap-2 mb-4">
+                  <AddButton onClick={onAddScene} className="mx-0">新增場景</AddButton>
+                  <button
+                    type="button"
+                    onClick={() => setExtractingType("scene")}
+                    className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
+                  >
+                    <Sparkles className="h-4 w-4 text-indigo-400" />
+                    AI 匯入場景
+                  </button>
                 </div>
               )}
               <div className={gridClassName}>
@@ -377,6 +461,7 @@ export function LorebookGallery({
                     onRename={onRenameScene}
                     onRestoreVersion={onRestoreSceneVersion}
                     generating={isGeneratingScene(sceneName)}
+                    modelOptions={modelOptions}
                   />
                 </div>
               ))}
@@ -384,8 +469,20 @@ export function LorebookGallery({
           </>
         )}
 
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {onAddScene && <AddButton onClick={onAddScene}>新增場景</AddButton>}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+            {onAddScene && (
+              <AddButton onClick={onAddScene} className="mx-0">新增場景</AddButton>
+            )}
+            {onAddScene && (
+              <button
+                type="button"
+                onClick={() => setExtractingType("scene")}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
+              >
+                <Sparkles className="h-4 w-4 text-indigo-400" />
+                AI 匯入場景
+              </button>
+            )}
             {sceneCount > 0 && (
               <>
                 <BatchButton
@@ -412,6 +509,15 @@ export function LorebookGallery({
           </div>
         </>
       )}
+
+      <LorebookAIExtractModal
+        isOpen={extractingType !== null}
+        onClose={() => setExtractingType(null)}
+        projectName={projectName}
+        entityType={extractingType ?? "character"}
+        modelOptions={modelOptions}
+        onImported={() => { void onRefresh?.(); }}
+      />
     </div>
   );
 }

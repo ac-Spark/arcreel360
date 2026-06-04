@@ -6,10 +6,12 @@ import { AspectFrame } from "@/components/ui/AspectFrame";
 import { GenerateButton } from "@/components/ui/GenerateButton";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useProjectsStore } from "@/stores/projects-store";
+import { useAppStore } from "@/stores/app-store";
 import { useConfirm } from "@/hooks/useConfirm";
 import type { Clue } from "@/types";
 import { LorebookDescriptionField } from "./LorebookDescriptionField";
 import { LorebookReferenceImageField } from "./LorebookReferenceImageField";
+import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -17,6 +19,7 @@ import { LorebookReferenceImageField } from "./LorebookReferenceImageField";
 
 interface ClueSavePayload {
   description: string;
+  imageBackend?: string | null;
 }
 
 interface ClueCardProps {
@@ -32,6 +35,11 @@ interface ClueCardProps {
   onRename?: (oldName: string, newName: string) => Promise<void> | void;
   onRestoreVersion?: () => Promise<void> | void;
   generating?: boolean;
+  modelOptions?: {
+    image: string[];
+    text?: string[];
+    providerNames: Record<string, string>;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -50,8 +58,10 @@ export function ClueCard({
   onRename,
   onRestoreVersion,
   generating = false,
+  modelOptions,
 }: ClueCardProps) {
   const confirm = useConfirm();
+  const [textModel, setTextModel] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState(name);
 
@@ -75,15 +85,20 @@ export function ClueCard({
     (s) => clue.reference_image ? s.getAssetFingerprint(clue.reference_image) : null,
   );
   const [description, setDescription] = useState(clue.description);
+  const [imageBackend, setImageBackend] = useState(clue.image_backend ?? "");
   const [imgError, setImgError] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
 
-  const isDirty = description !== clue.description;
+  const isDirty =
+    description !== clue.description ||
+    imageBackend !== (clue.image_backend ?? "");
 
   useEffect(() => {
     setDescription(clue.description);
-  }, [clue.description]);
+    setImageBackend(clue.image_backend ?? "");
+  }, [clue.description, clue.image_backend]);
 
   useEffect(() => {
     setImgError(false);
@@ -92,9 +107,46 @@ export function ClueCard({
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave(name, { description });
+      await onSave(name, {
+        description,
+        imageBackend: imageBackend || null,
+      });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleModelChange = async (value: string) => {
+    setImageBackend(value);
+    setSaving(true);
+    try {
+      await onSave(name, {
+        description,
+        imageBackend: value || null,
+      });
+      useAppStore.getState().pushToast("模型設定已更新", "success");
+    } catch (err) {
+      useAppStore.getState().pushToast(`模型設定更新失敗: ${(err as Error).message}`, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleGenerateAI = async () => {
+    setAiGenerating(true);
+    try {
+      const res = await API.generateAIDescription(projectName, {
+        type: "clue",
+        name,
+        description: description || name,
+        model: textModel || undefined,
+      });
+      setDescription(res.prompt);
+      useAppStore.getState().pushToast("提示詞生成成功", "success");
+    } catch (err) {
+      useAppStore.getState().pushToast(`AI 提示詞生成失敗: ${(err as Error).message}`, "error");
+    } finally {
+      setAiGenerating(false);
     }
   };
 
@@ -218,6 +270,20 @@ export function ClueCard({
               )}
             </AspectFrame>
           </PreviewableImageFrame>
+
+          {/* 圖片模型選擇 */}
+          <div className="mt-2 space-y-1">
+            <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider">設計圖模型</label>
+            <ProviderModelSelect
+              value={imageBackend}
+              onChange={handleModelChange}
+              options={modelOptions?.image ?? []}
+              providerNames={modelOptions?.providerNames ?? {}}
+              placeholder="跟隨專案全域模型"
+              allowDefault={true}
+              defaultLabel="跟隨專案全域模型"
+            />
+          </div>
         </div>
 
         {onUploadReference && (
@@ -235,6 +301,12 @@ export function ClueCard({
         value={description}
         onChange={setDescription}
         placeholder="輸入道具描述..."
+        onGenerateAI={handleGenerateAI}
+        aiGenerating={aiGenerating}
+        textModel={textModel}
+        onTextModelChange={setTextModel}
+        textModelOptions={modelOptions?.text ?? []}
+        providerNames={modelOptions?.providerNames ?? {}}
       />
 
       {isDirty && (
