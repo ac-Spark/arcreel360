@@ -82,6 +82,114 @@ function CollapsibleSection({
 }
 
 // ---------------------------------------------------------------------------
+// Lorebook sub-section collapse state (角色 / 道具 / 場景)
+// ---------------------------------------------------------------------------
+
+type LorebookSub = "characters" | "clues" | "scenes";
+
+const LOREBOOK_SUB_BY_ROUTE: Record<string, LorebookSub> = {
+  "/characters": "characters",
+  "/clues": "clues",
+  "/scenes": "scenes",
+};
+
+const LOREBOOK_OPEN_STORAGE_KEY = "arcreel:lorebook_sub_open";
+
+const DEFAULT_LOREBOOK_OPEN_STATE: Record<LorebookSub, boolean> = {
+  characters: true,
+  clues: true,
+  scenes: true,
+};
+
+function readLorebookOpenState(): Record<LorebookSub, boolean> {
+  try {
+    const raw = localStorage.getItem(LOREBOOK_OPEN_STORAGE_KEY);
+    if (!raw) return DEFAULT_LOREBOOK_OPEN_STATE;
+    const parsed = JSON.parse(raw) as Partial<Record<LorebookSub, boolean>>;
+    return {
+      characters: parsed.characters ?? DEFAULT_LOREBOOK_OPEN_STATE.characters,
+      clues: parsed.clues ?? DEFAULT_LOREBOOK_OPEN_STATE.clues,
+      scenes: parsed.scenes ?? DEFAULT_LOREBOOK_OPEN_STATE.scenes,
+    };
+  } catch {
+    return DEFAULT_LOREBOOK_OPEN_STATE;
+  }
+}
+
+function persistLorebookOpenState(state: Record<LorebookSub, boolean>): void {
+  try {
+    localStorage.setItem(LOREBOOK_OPEN_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // localStorage 不可用時靜默略過，收合僅在本次 session 生效。
+  }
+}
+
+// ---------------------------------------------------------------------------
+// CollapsibleSubSection — nested collapsible group (角色 / 道具 / 場景)
+// header: [chevron toggle] [icon + label → navigates] [count]
+// ---------------------------------------------------------------------------
+
+function CollapsibleSubSection({
+  title,
+  icon: Icon,
+  count,
+  active,
+  open,
+  onToggle,
+  onNavigate,
+  children,
+}: {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  count: number;
+  active: boolean;
+  open: boolean;
+  onToggle: () => void;
+  onNavigate: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-0.5">
+      <div
+        className={`group flex w-full items-center gap-1 rounded-md pr-2 transition-colors ${
+          active ? "bg-black/16" : "hover:bg-black/8"
+        }`}
+      >
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-label={open ? `收合${title}` : `展開${title}`}
+          className="focus-ring rounded-md p-1.5 text-[color:var(--wb-text-dim)] transition-colors hover:text-[color:var(--wb-text-secondary)]"
+        >
+          {open ? (
+            <ChevronDown className="h-3 w-3 shrink-0" />
+          ) : (
+            <ChevronRight className="h-3 w-3 shrink-0" />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={onNavigate}
+          className={`focus-ring flex flex-1 items-center gap-1.5 rounded-md py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${
+            active
+              ? "text-[color:var(--wb-text-primary)]"
+              : "text-[color:var(--wb-text-dim)] hover:text-[color:var(--wb-text-secondary)]"
+          }`}
+        >
+          <Icon className="h-3 w-3" />
+          <span>{title}</span>
+        </button>
+        <span className="shrink-0 text-[0.625rem] tabular-nums text-[color:var(--wb-text-muted)]">
+          {count}
+        </span>
+      </div>
+      {open && <div className="pl-2">{children}</div>}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Status dot color mapping
 // ---------------------------------------------------------------------------
 
@@ -468,6 +576,29 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
   // Check if a path is active (matches current nested location)
   const isActive = (path: string) => location === path;
 
+  // 設定集三個子區段（角色/道具/場景）各自的收合狀態，持久化到 localStorage。
+  const [lorebookOpen, setLorebookOpen] = useState<Record<LorebookSub, boolean>>(
+    () => readLorebookOpenState(),
+  );
+  const toggleLorebookSub = (key: LorebookSub) => {
+    setLorebookOpen((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      persistLorebookOpenState(next);
+      return next;
+    });
+  };
+  // 切換路由到某子區段時，自動展開它（避免「點了卻看不到內容」）。
+  useEffect(() => {
+    const sub = LOREBOOK_SUB_BY_ROUTE[location];
+    if (!sub) return;
+    setLorebookOpen((prev) => {
+      if (prev[sub]) return prev;
+      const next = { ...prev, [sub]: true };
+      persistLorebookOpenState(next);
+      return next;
+    });
+  }, [location]);
+
   return (
     <aside
       className={`workbench-panel-subtle flex flex-col overflow-y-auto ${className ?? ""}`}
@@ -557,18 +688,15 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
       {/* ---- Section 2: Lorebook (Characters + Clues) ---- */}
       <CollapsibleSection title="設定集" icon={Users} defaultOpen={true}>
         {/* Characters sub-section */}
-        <div className="mb-1">
-          <button
-            type="button"
-            onClick={() => setLocation("/characters")}
-            className={`focus-ring flex w-full items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${isActive("/characters")
-              ? "text-[color:var(--wb-text-primary)]"
-              : "text-[color:var(--wb-text-dim)] hover:text-[color:var(--wb-text-secondary)]"
-              }`}
-          >
-            <Users className="h-3 w-3" />
-            <span>角色</span>
-          </button>
+        <CollapsibleSubSection
+          title="角色"
+          icon={Users}
+          count={characterEntries.length}
+          active={isActive("/characters")}
+          open={lorebookOpen.characters}
+          onToggle={() => toggleLorebookSub("characters")}
+          onNavigate={() => setLocation("/characters")}
+        >
           {characterEntries.length === 0 ? (
             <button
               type="button"
@@ -600,21 +728,18 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
               ))}
             </ul>
           )}
-        </div>
+        </CollapsibleSubSection>
 
         {/* Clues sub-section */}
-        <div>
-          <button
-            type="button"
-            onClick={() => setLocation("/clues")}
-            className={`focus-ring flex w-full items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${isActive("/clues")
-              ? "text-[color:var(--wb-text-primary)]"
-              : "text-[color:var(--wb-text-dim)] hover:text-[color:var(--wb-text-secondary)]"
-              }`}
-          >
-            <Puzzle className="h-3 w-3" />
-            <span>道具</span>
-          </button>
+        <CollapsibleSubSection
+          title="道具"
+          icon={Puzzle}
+          count={clueEntries.length}
+          active={isActive("/clues")}
+          open={lorebookOpen.clues}
+          onToggle={() => toggleLorebookSub("clues")}
+          onNavigate={() => setLocation("/clues")}
+        >
           {clueEntries.length === 0 ? (
             <button
               type="button"
@@ -646,21 +771,18 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
               ))}
             </ul>
           )}
-        </div>
+        </CollapsibleSubSection>
 
         {/* Scenes sub-section */}
-        <div>
-          <button
-            type="button"
-            onClick={() => setLocation("/scenes")}
-            className={`focus-ring flex w-full items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors ${isActive("/scenes")
-              ? "text-[color:var(--wb-text-primary)]"
-              : "text-[color:var(--wb-text-dim)] hover:text-[color:var(--wb-text-secondary)]"
-              }`}
-          >
-            <Mountain className="h-3 w-3" />
-            <span>場景</span>
-          </button>
+        <CollapsibleSubSection
+          title="場景"
+          icon={Mountain}
+          count={sceneEntries.length}
+          active={isActive("/scenes")}
+          open={lorebookOpen.scenes}
+          onToggle={() => toggleLorebookSub("scenes")}
+          onNavigate={() => setLocation("/scenes")}
+        >
           {sceneEntries.length === 0 ? (
             <button
               type="button"
@@ -692,7 +814,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
               ))}
             </ul>
           )}
-        </div>
+        </CollapsibleSubSection>
       </CollapsibleSection>
 
       {/* ---- Divider ---- */}

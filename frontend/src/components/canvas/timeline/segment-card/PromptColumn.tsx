@@ -422,9 +422,9 @@ function PromptModelToolbar({
         options={textModelOptions}
         providerNames={providerNames || {}}
         onChange={setTextModel}
-        placeholder="選模型..."
+        placeholder="選擇文字模型..."
         allowDefault={true}
-        defaultLabel="預設文字模型"
+        defaultLabel="跟隨專案文字模型"
         className="flex-1 text-xs"
         size="sm"
       />
@@ -436,7 +436,7 @@ function PromptModelToolbar({
         title={btnTitle}
       >
         <Sparkles className={`h-3 w-3 ${isGenerating ? "animate-spin" : ""}`} />
-        {isGenerating ? "生成中..." : "AI 產生"}
+        {isGenerating ? "生成中..." : "AI 生成"}
       </button>
     </div>
   );

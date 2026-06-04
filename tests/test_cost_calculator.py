@@ -115,6 +115,7 @@ class TestArkCost:
         assert currency == "USD"
         assert amount == pytest.approx(cny(46.00))
 
+
 class TestGrokCost:
     def test_default_model_per_second(self):
         calculator = CostCalculator()

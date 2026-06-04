@@ -77,6 +77,27 @@ def _scene_catalog_block(scenes: dict | None) -> tuple[str, str]:
     return catalog_xml, rule_text
 
 
+def _user_instruction_block(extra_instruction: str | None) -> str:
+    """使用者於 WebUI 輸入的自由提示詞，包成高優先級區塊插入 prompt。
+
+    回傳空字串代表使用者未填寫。內容只影響改編語氣/取向，
+    不得凌駕段數/場景數、segment_id 格式、逐段對應等硬約束。
+    """
+    text = (extra_instruction or "").strip()
+    if not text:
+        return ""
+    return f"""
+
+## 使用者額外指示（高優先級，但不得違反上方硬約束）
+
+以下為使用者針對本次劇本生成提出的額外要求，請在不違反「段數/場景數約束」「ID 格式」「逐段對應原文」等硬性規則的前提下，盡量遵循：
+
+<user_instruction>
+{text}
+</user_instruction>
+"""
+
+
 def _count_step1_rows(step1_md: str, row_prefix: str) -> int:
     """數 step1 markdown 表格的資料行數。
 
@@ -100,6 +121,7 @@ def build_narration_prompt(
     aspect_ratio: str = "9:16",
     episode: int | None = None,
     scenes: dict | None = None,
+    extra_instruction: str | None = None,
 ) -> str:
     """
     構建說書模式的 Prompt
@@ -143,7 +165,7 @@ def build_narration_prompt(
 
 {PROMPT_LANGUAGE_RULE}
 **集數：本次處理的是第 {episode_no} 集,所有 segment_id 必須使用 `E{episode_no}S{{序號}}` 格式,不得寫成其他集數。**
-{count_block}
+{count_block}{_user_instruction_block(extra_instruction)}
 1. 你將獲得故事概述、視覺風格、角色列表、線索列表，以及已拆分的小說片段。
 
 2. 為每個片段生成：
@@ -247,6 +269,7 @@ def build_drama_prompt(
     aspect_ratio: str = "16:9",
     episode: int | None = None,
     scenes: dict | None = None,
+    extra_instruction: str | None = None,
 ) -> str:
     """
     構建劇集動畫模式的 Prompt
@@ -292,7 +315,7 @@ def build_drama_prompt(
 
 {PROMPT_LANGUAGE_RULE}
 **集數：本次處理的是第 {episode_no} 集,所有 scene_id 必須使用 `E{episode_no}S{{序號}}` 格式,不得寫成其他集數。**
-{count_block}
+{count_block}{_user_instruction_block(extra_instruction)}
 1. 你將獲得故事概述、視覺風格、角色列表、線索列表，以及已拆分的場景列表。
 
 2. 為每個場景生成：

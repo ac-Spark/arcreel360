@@ -61,6 +61,7 @@ def run_preprocess(
     refs: dict | None = None,
     num_segments: int | None = None,
     model: str | None = None,
+    instruction: str | None = None,
 ) -> dict:
     """執行某集的 Step 1 預處理。
 
@@ -108,6 +109,8 @@ def run_preprocess(
         cmd.extend(["--num-segments", str(num_segments)])
     if model:
         cmd.extend(["--model", model])
+    if instruction:
+        cmd.extend(["--instruction", instruction])
 
     if refs:
         _append_ref_flags(cmd, refs)

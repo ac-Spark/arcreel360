@@ -136,7 +136,7 @@ class _FakePM:
     def save_script(self, name, payload, script_file):
         self.scripts[(name, script_file)] = payload
 
-    async def generate_overview(self, name):
+    async def generate_overview(self, name, model=None, instruction=None):
         if name == "ready":
             return {"synopsis": "generated"}
         raise ValueError("source missing")

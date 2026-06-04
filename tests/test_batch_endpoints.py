@@ -319,7 +319,12 @@ class TestEpisodeFlow:
             async def create(cls, project_path):
                 return cls()
 
-            async def generate(self, episode):
+            async def generate(
+                self,
+                episode,
+                output_path=None,
+                extra_instruction=None,
+            ):
                 out = pm.base / "demo" / "scripts" / f"episode_{episode}.json"
                 out.parent.mkdir(parents=True, exist_ok=True)
                 out.write_text('{"segments": [{}, {}]}', encoding="utf-8")

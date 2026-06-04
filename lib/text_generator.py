@@ -53,6 +53,7 @@ class TextGenerator:
     ) -> TextGenerator:
         """根據指定的 model_str 建立對應的 backend + usage_tracker。"""
         from lib.text_backends.factory import create_text_backend_by_model_str
+
         backend = await create_text_backend_by_model_str(model_str)
         usage_tracker = UsageTracker()
         return cls(backend, usage_tracker)

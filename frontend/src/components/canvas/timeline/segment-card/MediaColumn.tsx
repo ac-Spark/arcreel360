@@ -240,8 +240,8 @@ export function MediaColumn({
                 providerNames={providerNames}
                 onChange={(next) => onUpdateSceneBackend?.(segmentId, { image_backend: next || null })}
                 allowDefault
-                defaultLabel="跟隨專案全域模型"
-                placeholder="設計圖模型"
+                defaultLabel="跟隨專案圖片模型"
+                placeholder="選擇圖片模型..."
                 aria-label="選擇分鏡圖圖片模型"
                 className="min-w-[8rem] flex-1"
                 size="sm"

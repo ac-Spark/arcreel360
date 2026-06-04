@@ -87,10 +87,12 @@ class PreprocessEpisodeRequest(BaseModel):
     refs: PreprocessRefs | None = None
     num_segments: int | None = Field(default=None, ge=1, le=100)
     model: str | None = None
+    instruction: str | None = None
 
 
 class GenerateEpisodeScriptRequest(BaseModel):
     model: str | None = None
+    instruction: str | None = None
 
 
 def _resolve_source_file_for_split(project_name: str, source: str) -> Path:
@@ -623,7 +625,8 @@ async def generate_episode_script(
                 generator = ScriptGenerator(project_path, await TextGenerator.create_with_model_str(req.model))
             else:
                 generator = await ScriptGenerator.create(project_path)
-            output_path = await generator.generate(episode=episode)
+            instruction = (req.instruction or "").strip() or None
+            output_path = await generator.generate(episode=episode, extra_instruction=instruction)
 
         def _sync_meta():
             project = manager.load_project(name)
@@ -680,6 +683,7 @@ async def preprocess_episode(
         source = req.source if req else None
         num_segments = req.num_segments if req else None
         model = req.model if req else None
+        instruction = req.instruction if req else None
         if model:
             validate_backend_value(model, "model")
         refs_dict: dict | None = None
@@ -696,6 +700,7 @@ async def preprocess_episode(
                 refs=refs_dict,
                 num_segments=num_segments,
                 model=model,
+                instruction=instruction,
             )
 
     except SourceNotReadyError as e:

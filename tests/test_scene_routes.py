@@ -141,15 +141,11 @@ def test_batch_add_scenes(tmp_path, monkeypatch):
         response = client.post(
             "/api/v1/projects/demo/project-scenes/batch_create",
             json={
-                "items": [
-                    {"name": "大雄寶殿", "description": "莊嚴 1"},
-                    {"name": "藏經閣", "description": "幽暗 2"}
-                ]
-            }
+                "items": [{"name": "大雄寶殿", "description": "莊嚴 1"}, {"name": "藏經閣", "description": "幽暗 2"}]
+            },
         )
 
     assert response.status_code == 200, response.text
     scenes = response.json()["scenes"]
     assert scenes["大雄寶殿"]["description"] == "莊嚴 1"
     assert scenes["藏經閣"]["description"] == "幽暗 2"
-

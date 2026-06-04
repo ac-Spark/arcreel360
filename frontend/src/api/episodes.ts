@@ -203,10 +203,14 @@ export const episodesApi = {
     name: string,
     episode: number,
     model?: string | null,
+    instruction?: string | null,
   ): Promise<{ script_file: string; segments_count: number }> {
+    const body: Record<string, unknown> = { model: model || null };
+    const trimmed = (instruction || "").trim();
+    if (trimmed) body.instruction = trimmed;
     return getApi().request(
       `/projects/${encodeURIComponent(name)}/episodes/${episode}/script`,
-      { method: "POST", body: JSON.stringify({ model: model || null }) },
+      { method: "POST", body: JSON.stringify(body) },
     );
   },
 
@@ -217,11 +221,13 @@ export const episodesApi = {
     refs?: PreprocessRefs,
     numSegments?: number,
     model?: string | null,
+    instruction?: string,
   ): Promise<{ step1_path: string; content_mode: string }> {
     const body: Record<string, unknown> = { source };
     if (refs !== undefined) body.refs = refs;
     if (numSegments !== undefined) body.num_segments = numSegments;
     if (model) body.model = model;
+    if (instruction) body.instruction = instruction;
     return getApi().request(
       `/projects/${encodeURIComponent(name)}/episodes/${episode}/preprocess`,
       { method: "POST", body: JSON.stringify(body) },

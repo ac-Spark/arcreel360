@@ -132,9 +132,7 @@ class AgentMessagesSessionService(BaseSessionService):
         # replay reconstructs the full event from the tool_use row's dump, so
         # carrying the text here too would duplicate it on replay.
         if primary_type == "tool_use" and content:
-            rows.append(
-                {"type": "assistant", "content": content, "timestamp": timestamp, "_adk_replay_skip": True}
-            )
+            rows.append({"type": "assistant", "content": content, "timestamp": timestamp, "_adk_replay_skip": True})
             content = []
 
         result = {

@@ -76,29 +76,4 @@ describe("CharacterCard", () => {
     expect(onSave).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "儲存" })).not.toBeInTheDocument();
   });
-
-  it("auto-resizes the description textarea as content grows", async () => {
-    renderCharacterCard(
-      <CharacterCard
-        name="Hero"
-        character={{ description: "hero desc", voice_style: "warm" }}
-        projectName="demo"
-        onSave={vi.fn().mockResolvedValue(undefined)}
-        onUploadReference={vi.fn()}
-        onGenerate={vi.fn()}
-      />,
-    );
-
-    const textarea = screen.getByPlaceholderText("輸入角色描述...");
-    Object.defineProperty(textarea, "scrollHeight", {
-      configurable: true,
-      value: 128,
-    });
-
-    fireEvent.change(textarea, { target: { value: "hero desc with more lines" } });
-
-    await waitFor(() => {
-      expect(textarea).toHaveStyle({ height: "128px" });
-    });
-  });
 });

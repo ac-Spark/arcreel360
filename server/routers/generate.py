@@ -1037,4 +1037,3 @@ async def helper_generate_prompt(
     except Exception as e:
         logger.exception("AI 提示詞生成失敗")
         raise HTTPException(status_code=500, detail=str(e))
-

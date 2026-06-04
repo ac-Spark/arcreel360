@@ -60,6 +60,7 @@ class ScriptGenerator:
         self,
         episode: int,
         output_path: Path | None = None,
+        extra_instruction: str | None = None,
     ) -> Path:
         """
         非同步生成劇集劇本
@@ -67,6 +68,8 @@ class ScriptGenerator:
         Args:
             episode: 劇集編號
             output_path: 輸出路徑，預設為 scripts/episode_{episode}.json
+            extra_instruction: 使用者於 WebUI 輸入的自由提示詞（可選），
+                會包成高優先級區塊注入 prompt，不得凌駕段數/ID 等硬約束。
 
         Returns:
             生成的 JSON 檔案路徑
@@ -95,6 +98,7 @@ class ScriptGenerator:
                 aspect_ratio=self._resolve_aspect_ratio(),
                 episode=episode,
                 scenes=self.project_json.get("scenes", {}),
+                extra_instruction=extra_instruction,
             )
             schema = NarrationEpisodeScript
         else:
@@ -110,6 +114,7 @@ class ScriptGenerator:
                 aspect_ratio=self._resolve_aspect_ratio(),
                 episode=episode,
                 scenes=self.project_json.get("scenes", {}),
+                extra_instruction=extra_instruction,
             )
             schema = DramaEpisodeScript
 

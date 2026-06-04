@@ -104,12 +104,11 @@ class TestCharactersRouter:
                 json={
                     "items": [
                         {"name": "Bob", "description": "new char 1", "voice_style": "calm"},
-                        {"name": "Charlie", "description": "new char 2", "voice_style": "loud"}
+                        {"name": "Charlie", "description": "new char 2", "voice_style": "loud"},
                     ]
-                }
+                },
             )
             assert resp.status_code == 200
             chars = resp.json()["characters"]
             assert chars["Bob"]["description"] == "new char 1"
             assert chars["Charlie"]["description"] == "new char 2"
-

@@ -100,4 +100,3 @@ async def create_text_backend_by_model_str(
     resolver = ConfigResolver(async_session_factory)
     async with resolver.session() as r:
         return await _create_backend_instance(r, provider_id, model_id)
-

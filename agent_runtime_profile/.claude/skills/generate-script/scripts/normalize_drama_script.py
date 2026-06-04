@@ -42,6 +42,7 @@ def build_normalize_prompt(
     include_style: bool = True,
     scenes: dict | None = None,
     num_segments: int | None = None,
+    extra_instruction: str | None = None,
 ) -> str:
     """構建規範化劇本的 Prompt。
 
@@ -95,7 +96,34 @@ def build_normalize_prompt(
     else:
         rule_num_segments = ""
 
+    instruction_block = ""
+    if extra_instruction and extra_instruction.strip():
+        instruction_block = (
+            "\n## 額外調整指示 (User Instruction)\n"
+            "請在符合上述硬性格式要求的前提下，特別遵照以下指示進行生成與微調：\n"
+            "<user_instruction>\n"
+            f"{extra_instruction.strip()}\n"
+            "</user_instruction>\n"
+        )
+
     return f"""你的任務是將小說原文改編為結構化的分鏡場景表（Markdown 格式），用於後續 AI 影片生成。
+
+## 核心原則
+
+1. **忠於原作**：保留小說的核心情節、角色對話與氛圍，僅在必要時進行精簡或改編為旁白。
+2. **場景切換**：以時間跳躍、空間轉換、視角切換或重大情節轉折為基準拆分場景。{rule_num_segments}
+3. **角色與線索關聯**：準確提取每個場景中「出場的角色」與「出現的道具/線索」，使用 bare name，多個以逗號分隔，若無則填「-」。
+
+## 輸出欄位說明
+
+- **場景 ID**：格式為 `E{{episode:02d}}S{{scene_idx:02d}}`（例如第一集第一個場景為 `E01S01`）
+- **有對話**：如果本場景內有角色的直接台詞對話，填「是」，否則填「否」
+- **出場的角色**：該場景內說話、被提及或出鏡的角色名字（必須是 `characters` 清單中已定義的裸名，如「林克」而非「@林克」），多個以逗號分隔，無則填「-」
+- **出現的道具**：該場景中關鍵物品/線索名字（必須是 `clues` 清單中已定義的裸名），多個以逗號分隔，無則填「-」
+- **場景**：指明本場景的地點名字（必須是 `scenes` 清單中已定義的裸名），無則填「-」
+- **時長**：該場景預估播放時間（秒），必須為整數且在 4 到 15 秒之間（預設為 8 秒）
+- **場景描述**：詳細刻畫該場景的畫面內容，用自然語言描述，為後續生圖/生影片 Prompt 奠定基礎
+- **旁白/台詞**：該場景的旁白配音文字，或是角色直接對話台詞
 
 {info_block}## 小說原文
 
@@ -134,7 +162,7 @@ def build_normalize_prompt(
 - 直接寫角色名、道具名、場景名即可（例如「天安門」而非「@天安門」），下游會自動比對白名單。
 
 僅輸出 Markdown 表格，不要包含其他解釋文字。
-"""
+{instruction_block}"""
 
 
 def _filter_by_names(items: dict, names_csv: str | None) -> dict:
@@ -334,6 +362,12 @@ def main():
         default=None,
         help="逗號分隔字串，只把這些場景名帶入 prompt；空字串代表完全不帶；不指定代表全帶",
     )
+    parser.add_argument(
+        "--instruction",
+        type=str,
+        default=None,
+        help="使用者於 WebUI 輸入的自由提示詞，用於引導改編",
+    )
 
     args = parser.parse_args()
 
@@ -373,6 +407,7 @@ def main():
         include_style=not args.no_style,
         scenes=scenes,
         num_segments=args.num_segments,
+        extra_instruction=args.instruction,
     )
 
     if args.dry_run:

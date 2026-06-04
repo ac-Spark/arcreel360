@@ -1083,6 +1083,7 @@ async def extract_lorebook_entities(
             generator = await TextGenerator.create_with_model_str(req.model)
         else:
             from lib.text_backends.base import TextTaskType
+
             generator = await TextGenerator.create(TextTaskType.OVERVIEW, name)
 
         # 6. 呼叫 LLM

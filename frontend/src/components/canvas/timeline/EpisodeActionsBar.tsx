@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FileText, Image as ImageIcon, RotateCcw, Scissors, Wand2 } from "lucide-react";
+import { ChevronDown, FileText, Image as ImageIcon, RotateCcw, Scissors, Sparkles, Wand2 } from "lucide-react";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
 import { useProjectsStore } from "@/stores/projects-store";
@@ -32,6 +32,8 @@ type SourceFile = { name: string; size: number; url?: string };
 const SOURCE_TEXT_SUFFIXES = [".txt", ".md", ".text"];
 const OVERVIEW_FIELDS = ["synopsis", "genre", "theme", "world_setting"] as const;
 const NUM_SEGMENTS_STORAGE_PREFIX = "arcreel:num_segments";
+const SCRIPT_INSTRUCTION_STORAGE_PREFIX = "arcreel:script_instruction";
+const PREPROCESS_INSTRUCTION_STORAGE_PREFIX = "arcreel:preprocess_instruction";
 
 function isSourceTextFile(file: SourceFile) {
   const lower = file.name.toLowerCase();
@@ -54,6 +56,30 @@ function readStoredNumSegments(storageKey: string): number | undefined {
 function persistNumSegments(storageKey: string, value: number | undefined): void {
   if (value !== undefined && !Number.isNaN(value)) {
     localStorage.setItem(storageKey, value.toString());
+    return;
+  }
+  localStorage.removeItem(storageKey);
+}
+
+function scriptInstructionStorageKey(projectName: string, episode: number): string {
+  return `${SCRIPT_INSTRUCTION_STORAGE_PREFIX}:${projectName}:${episode}`;
+}
+
+function persistScriptInstruction(storageKey: string, value: string): void {
+  if (value.trim()) {
+    localStorage.setItem(storageKey, value);
+    return;
+  }
+  localStorage.removeItem(storageKey);
+}
+
+function preprocessInstructionStorageKey(projectName: string, episode: number): string {
+  return `${PREPROCESS_INSTRUCTION_STORAGE_PREFIX}:${projectName}:${episode}`;
+}
+
+function persistPreprocessInstruction(storageKey: string, value: string): void {
+  if (value.trim()) {
+    localStorage.setItem(storageKey, value);
     return;
   }
   localStorage.removeItem(storageKey);
@@ -140,7 +166,6 @@ export function EpisodeActionsBar({
     }
   };
 
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [sources, setSources] = useState<{ name: string; size: number }[]>([]);
   const [loadingSources, setLoadingSources] = useState(false);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
@@ -150,6 +175,36 @@ export function EpisodeActionsBar({
   useEffect(() => {
     setNumSegments(readStoredNumSegments(numSegmentsKey));
   }, [numSegmentsKey]);
+
+  // 生成劇本的自由提示詞（引導 AI 怎麼改編），按專案+集數持久化。
+  const [scriptInstruction, setScriptInstruction] = useState("");
+  const [scriptPromptOpen, setScriptPromptOpen] = useState(false);
+  const scriptInstructionKey = scriptInstructionStorageKey(projectName, episode);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(scriptInstructionKey) ?? "";
+    setScriptInstruction(saved);
+    setScriptPromptOpen(saved.trim().length > 0);
+  }, [scriptInstructionKey]);
+
+  const updateScriptInstruction = (value: string) => {
+    setScriptInstruction(value);
+    persistScriptInstruction(scriptInstructionKey, value);
+  };
+
+  // 重新拆段的自由提示詞，按專案+集數持久化。
+  const [preprocessInstruction, setPreprocessInstruction] = useState("");
+  const preprocessInstructionKey = preprocessInstructionStorageKey(projectName, episode);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(preprocessInstructionKey) ?? "";
+    setPreprocessInstruction(saved);
+  }, [preprocessInstructionKey]);
+
+  const updatePreprocessInstruction = (value: string) => {
+    setPreprocessInstruction(value);
+    persistPreprocessInstruction(preprocessInstructionKey, value);
+  };
 
   // 拆段時可勾選的「參考來源」清單,來自當前 project。
   const currentProjectData = useProjectsStore((s) => s.currentProjectData);
@@ -166,18 +221,18 @@ export function EpisodeActionsBar({
   // 首次掛載時 currentProjectData 可能還沒載入,refsCatalog 為空 → defaultRefsValue 算出的預設不準。
   // 用 ref 紀錄是否已用「真實 catalog」初始化過,首次開啟下拉時補一次預設。
   const refsInitialized = useRef(false);
-  // 開啟下拉時保留上次選擇,只修剪已不存在的項目(避免狀態與 catalog 失同步)。
-  // 首次開啟仍會用最新 catalog 重算預設,確保新角色/道具/場景自動帶入。
-  const openDropdown = () => {
-    if (!refsInitialized.current) {
-      setRefs(defaultRefsValue(refsCatalog));
-      refsInitialized.current = true;
-    } else {
-      setRefs((prev) => pruneRefsAgainstCatalog(prev, refsCatalog));
+
+  useEffect(() => {
+    if (activeTab === "preprocessing") {
+      if (!refsInitialized.current && refsCatalog.characters.length > 0) {
+        setRefs(defaultRefsValue(refsCatalog));
+        refsInitialized.current = true;
+      } else {
+        setRefs((prev) => pruneRefsAgainstCatalog(prev, refsCatalog));
+      }
+      void fetchSources();
     }
-    void fetchSources();
-    setDropdownOpen(true);
-  };
+  }, [activeTab, projectName, episode, refsCatalog]);
   const refsDirty = hasCustomRefs(refs, refsCatalog);
 
   const fetchSources = async () => {
@@ -209,7 +264,6 @@ export function EpisodeActionsBar({
   };
 
   const handleMultiSourceConfirm = async () => {
-    setDropdownOpen(false);
     const hasSelectedSources = selectedSources.length > 0;
     const sourceStr = hasSelectedSources ? selectedSources.map((name) => `source/${name}`).join(",") : undefined;
     if (await confirm({ message: preprocessConfirmMessage(hasScript, selectedSources.length) })) {
@@ -226,6 +280,7 @@ export function EpisodeActionsBar({
         refsDirty ? refs : undefined,
         numSegments,
         textModel || undefined,
+        preprocessInstruction || undefined,
       );
       useAppStore.getState().invalidateEntities([`draft:episode_${episode}_step1`]);
       return res.step1_path;
@@ -233,7 +288,12 @@ export function EpisodeActionsBar({
 
   const handleScript = () =>
     run("script", scriptLabel, async () => {
-      const res = await API.generateEpisodeScript(projectName, episode, textModel || undefined);
+      const res = await API.generateEpisodeScript(
+        projectName,
+        episode,
+        textModel || undefined,
+        scriptInstruction || undefined,
+      );
       return `${res.script_file}（${res.segments_count} 段）`;
     });
 
@@ -295,148 +355,85 @@ export function EpisodeActionsBar({
     <>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {activeTab === "preprocessing" ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {textModelSelect}
-            <div className="relative">
+          <PreprocessOptionsPanel
+            loadingSources={loadingSources}
+            sources={sources}
+            selectedSources={selectedSources}
+            onToggleSource={toggleSourceSelection}
+            refsCatalog={refsCatalog}
+            refs={refs}
+            onRefsChange={setRefs}
+            numSegments={numSegments}
+            onNumSegmentsChange={updateNumSegments}
+            confirmText={confirmBtnText}
+            onConfirm={handleMultiSourceConfirm}
+            textModelSelect={textModelSelect}
+            instructionValue={preprocessInstruction}
+            onInstructionChange={updatePreprocessInstruction}
+            busy={busy}
+          />
+        ) : (
+          <div className="flex w-full flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {textModelSelect}
+
               <ActionButton
-                icon={<Scissors className="h-3.5 w-3.5" />}
-                label={`${preprocessLabel} ▾`}
-                loading={busy === "preprocess"}
+                icon={<Wand2 className="h-3.5 w-3.5" />}
+                label={scriptLabel}
+                loading={busy === "script"}
                 disabled={busy !== null}
-                onClick={() => {
-                  if (!dropdownOpen) {
-                    openDropdown();
-                  } else {
-                    setDropdownOpen(false);
-                  }
-                }}
+                onClick={() => void confirmAndRunScript()}
                 tone="neutral"
               />
 
-              {dropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
-                  <div className="absolute left-0 z-50 mt-1 min-w-[12rem] w-64 rounded-lg border border-gray-800 bg-gray-950 p-1.5 shadow-2xl">
-                    <div className="px-2.5 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500">
-                      選擇 source 檔案
-                    </div>
-                    <div className="px-2.5 pb-1 text-[0.625rem] text-gray-500 normal-case leading-snug">
-                      不勾選則自動按集數均分整本原文
-                    </div>
-                    <div className="my-1 h-px bg-gray-800" />
-                    {loadingSources ? (
-                      <div className="flex items-center justify-center py-4 text-xs text-gray-400">
-                        <span className="mr-2 inline-block h-3.5 w-3.5 animate-spin rounded-full border border-gray-600 border-t-transparent" />
-                        載入中...
-                      </div>
-                    ) : sources.length === 0 ? (
-                      <div className="px-2.5 py-3 text-center text-xs text-gray-500">
-                        source/ 目錄下無可用文字檔
-                      </div>
-                    ) : (
-                      <>
-                        <div className="max-h-60 overflow-y-auto">
-                          {sources.map((file) => {
-                            const isSelected = selectedSources.includes(file.name);
-                            return (
-                              <button
-                                key={file.name}
-                                type="button"
-                                onClick={() => toggleSourceSelection(file.name)}
-                                className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
-                              >
-                                <div className="flex items-center gap-2 truncate">
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    readOnly
-                                    className="h-3.5 w-3.5 rounded border-gray-700 bg-gray-900 text-indigo-600 focus:ring-0 focus:ring-offset-0"
-                                  />
-                                  <span className="truncate font-mono">{file.name}</span>
-                                </div>
-                                <span className="shrink-0 ml-2 text-[0.625rem] text-gray-500">
-                                  {(file.size / 1024).toFixed(1)} KB
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <div className="my-1.5 h-px bg-gray-800" />
-                        <RefsPicker
-                          catalog={refsCatalog}
-                          value={refs}
-                          onChange={setRefs}
-                        />
-                        <div className="my-1.5 h-px bg-gray-800" />
-                        <div className="px-2.5 py-1">
-                          <label
-                            title="留空 = LLM 自動判斷"
-                            className="block text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500 mb-1 cursor-help"
-                          >
-                            指定生成段數 / 場景數
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={100}
-                            placeholder="預設自動控制"
-                            value={numSegments ?? ""}
-                            onChange={(e) => updateNumSegments(e.target.value)}
-                            className="w-full rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-gray-300 placeholder-gray-600 outline-none focus:border-indigo-500 focus:ring-0"
-                          />
-                        </div>
-                        <div className="my-1.5 h-px bg-gray-800" />
-                        <div className="p-1">
-                          <button
-                            type="button"
-                            onClick={() => void handleMultiSourceConfirm()}
-                            className="flex w-full items-center justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-center text-xs font-medium text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {confirmBtnText}
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </>
-              )}
+              <button
+                type="button"
+                onClick={() => setScriptPromptOpen((v) => !v)}
+                aria-expanded={scriptPromptOpen}
+                title="自訂這集劇本的生成提示詞"
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60 ${
+                  scriptInstruction.trim()
+                    ? "border-indigo-500/50 text-indigo-300 hover:border-indigo-400"
+                    : "border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
+                }`}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>劇本提示詞{scriptInstruction.trim() ? "（已設定）" : ""}</span>
+                <ChevronDown
+                  className={`h-3 w-3 transition-transform ${scriptPromptOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              <Divider />
+
+              <ActionButton
+                icon={<ImageIcon className="h-3.5 w-3.5" />}
+                label="批次生成分鏡"
+                loading={busy === "storyboards"}
+                disabled={!hasScript || !scriptFile || busy !== null}
+                onClick={() => setBatchDialogOpen(true)}
+                tone="primary"
+              />
+
+              <Divider />
+
+              <ActionButton
+                icon={<FileText className="h-3.5 w-3.5" />}
+                label="合成成片"
+                loading={busy === "compose"}
+                disabled={!hasScript || busy !== null}
+                onClick={() => void confirmAndCompose()}
+                tone="success"
+              />
             </div>
+
+            {scriptPromptOpen && (
+              <ScriptInstructionPanel
+                value={scriptInstruction}
+                onChange={updateScriptInstruction}
+              />
+            )}
           </div>
-        ) : (
-          <>
-            {textModelSelect}
-
-            <ActionButton
-              icon={<Wand2 className="h-3.5 w-3.5" />}
-              label={scriptLabel}
-              loading={busy === "script"}
-              disabled={busy !== null}
-              onClick={() => void confirmAndRunScript()}
-              tone="neutral"
-            />
-
-            <Divider />
-
-            <ActionButton
-              icon={<ImageIcon className="h-3.5 w-3.5" />}
-              label="批次生成分鏡"
-              loading={busy === "storyboards"}
-              disabled={!hasScript || !scriptFile || busy !== null}
-              onClick={() => setBatchDialogOpen(true)}
-              tone="primary"
-            />
-
-            <Divider />
-
-            <ActionButton
-              icon={<FileText className="h-3.5 w-3.5" />}
-              label="合成成片"
-              loading={busy === "compose"}
-              disabled={!hasScript || busy !== null}
-              onClick={() => void confirmAndCompose()}
-              tone="success"
-            />
-          </>
         )}
       </div>
 
@@ -447,6 +444,238 @@ export function EpisodeActionsBar({
         />
       )}
     </>
+  );
+}
+
+function PreprocessOptionsPanel({
+  loadingSources,
+  sources,
+  selectedSources,
+  onToggleSource,
+  refsCatalog,
+  refs,
+  onRefsChange,
+  numSegments,
+  onNumSegmentsChange,
+  confirmText,
+  onConfirm,
+  textModelSelect,
+  instructionValue,
+  onInstructionChange,
+  busy,
+}: {
+  loadingSources: boolean;
+  sources: SourceFile[];
+  selectedSources: string[];
+  onToggleSource: (name: string) => void;
+  refsCatalog: RefsCatalog;
+  refs: RefsValue;
+  onRefsChange: (value: RefsValue) => void;
+  numSegments: number | undefined;
+  onNumSegmentsChange: (value: string) => void;
+  confirmText: string;
+  onConfirm: () => Promise<void>;
+  textModelSelect: React.ReactNode;
+  instructionValue: string;
+  onInstructionChange: (value: string) => void;
+  busy: Busy;
+}) {
+  return (
+    <div className="w-full rounded-xl border border-gray-800 bg-gray-950/40 p-4 flex flex-col gap-4">
+      {/* 頂部設定列：文字模型與生成段數 */}
+      <div className="flex flex-wrap items-end gap-4">
+        {textModelSelect && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500">
+              預處理文字模型
+            </label>
+            {textModelSelect}
+          </div>
+        )}
+        <NumSegmentsInput value={numSegments} onChange={onNumSegmentsChange} />
+      </div>
+
+      {/* 原文與參考資源選擇區 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* 左側：原文來源 */}
+        <div className="flex flex-col rounded-lg border border-gray-800 bg-gray-905/20 p-3">
+          <div className="text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500">
+            選擇原文檔案
+          </div>
+          <div className="pb-1 pt-0.5 text-[0.625rem] text-gray-500 normal-case leading-snug">
+            不勾選則自動按集數均分整本原文
+          </div>
+          <div className="my-2 h-px bg-gray-800" />
+          {loadingSources ? (
+            <div className="flex items-center justify-center py-6 text-xs text-gray-400">
+              <span className="mr-2 inline-block h-3.5 w-3.5 animate-spin rounded-full border border-gray-600 border-t-transparent" />
+              載入中...
+            </div>
+          ) : (
+            <SourceFilePicker
+              sources={sources}
+              selectedSources={selectedSources}
+              onToggleSource={onToggleSource}
+            />
+          )}
+        </div>
+
+        {/* 右側：參考資源 */}
+        <div className="flex flex-col rounded-lg border border-gray-800 bg-gray-905/20 p-3">
+          <div className="text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500">
+            參考資源
+          </div>
+          <div className="pb-1 pt-0.5 text-[0.625rem] text-gray-500 normal-case leading-snug">
+            勾選需要 AI 參考的設定集資源
+          </div>
+          <div className="my-2 h-px bg-gray-800" />
+          <RefsPicker catalog={refsCatalog} value={refs} onChange={onRefsChange} />
+        </div>
+      </div>
+
+      {/* 拆段提示詞輸入框 */}
+      <div className="rounded-lg border border-gray-800 bg-gray-905/20 p-3">
+        <label
+          htmlFor="preprocess-instruction"
+          className="mb-1.5 block text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500"
+        >
+          重新拆段提示詞（引導 AI 怎麼拆段/引導風格，可留空）
+        </label>
+        <textarea
+          id="preprocess-instruction"
+          value={instructionValue}
+          onChange={(e) => onInstructionChange(e.target.value)}
+          rows={3}
+          placeholder="例如：請著重保留戰鬥場景、把長對話拆成更多短片段、強化環境描寫的細節、著重凸顯重要人物的登場動作..."
+          className="w-full resize-y rounded-md border border-gray-700 bg-gray-900 px-2.5 py-2 text-xs leading-relaxed text-gray-200 placeholder-gray-600 outline-none focus:border-indigo-500 focus:ring-0"
+        />
+        <p className="mt-1.5 text-[0.625rem] leading-snug text-gray-500">
+          此提示詞將引導 AI 在分析小說及提取分鏡時更注重哪些層面，按集數自動保存。
+        </p>
+      </div>
+
+      {/* 底部執行按鈕 */}
+      <div className="flex justify-end items-center gap-3">
+        <button
+          type="button"
+          disabled={busy !== null}
+          onClick={() => void onConfirm()}
+          className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-center text-xs font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {busy === "preprocess" ? (
+            <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border border-white border-t-transparent" />
+          ) : (
+            <Scissors className="h-3.5 w-3.5" />
+          )}
+          {confirmText}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SourceFilePicker({
+  sources,
+  selectedSources,
+  onToggleSource,
+}: {
+  sources: SourceFile[];
+  selectedSources: string[];
+  onToggleSource: (name: string) => void;
+}) {
+  if (sources.length === 0) {
+    return (
+      <div className="py-3 text-center text-xs text-gray-500">
+        source/ 目錄下無可用文字檔，將自動按集數均分整本原文
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid max-h-48 grid-cols-1 gap-0.5 overflow-y-auto sm:grid-cols-2">
+      {sources.map((file) => {
+        const isSelected = selectedSources.includes(file.name);
+        return (
+          <button
+            key={file.name}
+            type="button"
+            onClick={() => onToggleSource(file.name)}
+            className="flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-xs text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
+          >
+            <div className="flex items-center gap-2 truncate">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                readOnly
+                className="h-3.5 w-3.5 rounded border-gray-700 bg-gray-900 text-indigo-600 focus:ring-0 focus:ring-offset-0"
+              />
+              <span className="truncate font-mono">{file.name}</span>
+            </div>
+            <span className="shrink-0 ml-2 text-[0.625rem] text-gray-500">
+              {(file.size / 1024).toFixed(1)} KB
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function NumSegmentsInput({
+  value,
+  onChange,
+}: {
+  value: number | undefined;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="py-1">
+      <label
+        title="留空 = LLM 自動判斷"
+        className="block text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500 mb-1 cursor-help"
+      >
+        指定生成段數 / 場景數
+      </label>
+      <input
+        type="number"
+        min={1}
+        max={100}
+        placeholder="預設自動控制"
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full max-w-[12rem] rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-gray-300 placeholder-gray-600 outline-none focus:border-indigo-500 focus:ring-0"
+      />
+    </div>
+  );
+}
+
+function ScriptInstructionPanel({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="rounded-lg border border-gray-800 bg-gray-950/60 p-2.5">
+      <label
+        htmlFor="script-instruction"
+        className="mb-1.5 block text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500"
+      >
+        劇本生成提示詞（引導 AI 怎麼改編，可留空）
+      </label>
+      <textarea
+        id="script-instruction"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={3}
+        placeholder="例如：語氣輕鬆詼諧、強調主角內心戲、每段保留原文金句、避免暴力血腥描寫…"
+        className="w-full resize-y rounded-md border border-gray-700 bg-gray-900 px-2.5 py-2 text-xs leading-relaxed text-gray-200 placeholder-gray-600 outline-none focus:border-indigo-500 focus:ring-0"
+      />
+      <p className="mt-1.5 text-[0.625rem] leading-snug text-gray-500">
+        此提示詞只影響改編語氣與取向，不會凌駕段數、片段對應原文等硬性規則；按集數自動保存。
+      </p>
+    </div>
   );
 }
 

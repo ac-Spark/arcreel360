@@ -223,4 +223,3 @@ async def batch_add_scenes(project_name: str, req: BatchCreateSceneRequest, _use
     except Exception as e:
         logger.exception("批次新增場景失敗")
         raise HTTPException(status_code=500, detail=str(e))
-

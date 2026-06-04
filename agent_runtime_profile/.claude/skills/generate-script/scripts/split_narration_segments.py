@@ -38,6 +38,7 @@ def build_split_prompt(
     include_style: bool = True,
     scenes: dict | None = None,
     num_segments: int | None = None,
+    extra_instruction: str | None = None,
 ) -> str:
     """構建說書片段拆分的 Prompt。
 
@@ -87,6 +88,16 @@ def build_split_prompt(
         rule_num_segments = f"\n4. **指定片段數量**：必須將輸入的小說原文合理且均勻地拆分為**剛好 {num_segments}** 個片段（輸出 {num_segments} 列 Markdown 表格，序號從 G01 到 G{num_segments:02d}）。確保不丟失、不重複原文內容。"
     else:
         rule_num_segments = ""
+
+    instruction_block = ""
+    if extra_instruction and extra_instruction.strip():
+        instruction_block = (
+            "\n## 額外調整指示 (User Instruction)\n"
+            "請在符合上述硬性格式要求的前提下，特別遵照以下指示進行生成與微調：\n"
+            "<user_instruction>\n"
+            f"{extra_instruction.strip()}\n"
+            "</user_instruction>\n"
+        )
 
     return f"""你的任務是將中文小說原文按朗讀節奏拆分為適合短影片配音的片段，輸出 Markdown 表格。
 
@@ -150,7 +161,7 @@ def build_split_prompt(
 - 系統下游使用結構化欄位（characters_in_segment / clues_in_segment / scene）及白名單裸名比對來建立實體關聯，標記符號不會被解析。
 - 即使原文裡的某個名詞（例如「書房」「客廳」）讓你聯想到場景，也**不可**加 @ 標。未列於角色、線索或場景清單的名稱一律不得標記。
 - 若清單為空或未提供，原文一律保持純文字，不得自創任何標記語法。
-"""
+{instruction_block}"""
 
 
 def _filter_by_names(items: dict, names_csv: str | None) -> dict:
@@ -348,6 +359,12 @@ def main():
         default=None,
         help="逗號分隔字串，只把這些場景名帶入 prompt；空字串代表完全不帶；不指定代表全帶",
     )
+    parser.add_argument(
+        "--instruction",
+        type=str,
+        default=None,
+        help="使用者於 WebUI 輸入的自由提示詞，用於引導拆分",
+    )
 
     args = parser.parse_args()
 
@@ -385,6 +402,7 @@ def main():
         include_style=not args.no_style,
         scenes=scenes,
         num_segments=args.num_segments,
+        extra_instruction=args.instruction,
     )
 
     if args.dry_run:

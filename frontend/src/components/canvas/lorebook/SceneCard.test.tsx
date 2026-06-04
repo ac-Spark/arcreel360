@@ -94,7 +94,7 @@ describe("SceneCard", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "生成設計圖" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成場景" }));
 
     expect(onGenerate).toHaveBeenCalledWith("廢棄醫院");
   });

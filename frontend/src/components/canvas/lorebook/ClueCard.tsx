@@ -3,15 +3,14 @@ import { Pencil, Puzzle, Trash2 } from "lucide-react";
 import { API } from "@/api";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
 import { AspectFrame } from "@/components/ui/AspectFrame";
-import { GenerateButton } from "@/components/ui/GenerateButton";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useAppStore } from "@/stores/app-store";
 import { useConfirm } from "@/hooks/useConfirm";
 import type { Clue } from "@/types";
 import { LorebookDescriptionField } from "./LorebookDescriptionField";
+import { LorebookImageGenerateControls } from "./LorebookImageGenerateControls";
 import { LorebookReferenceImageField } from "./LorebookReferenceImageField";
-import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -238,6 +237,33 @@ export function ClueCard({
       </div>
 
       <div className="mb-4 space-y-3">
+        {/* 提示詞 (描述) 與模型選擇 / AI 生成按鈕 */}
+        <LorebookDescriptionField
+          value={description}
+          onChange={setDescription}
+          placeholder="輸入道具描述..."
+          onGenerateAI={handleGenerateAI}
+          aiGenerating={aiGenerating}
+          textModel={textModel}
+          onTextModelChange={setTextModel}
+          textModelOptions={modelOptions?.text ?? []}
+          providerNames={modelOptions?.providerNames ?? {}}
+        />
+
+        {isDirty && (
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={saving}
+            className="mt-3 w-full rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {saving ? "儲存中..." : "儲存"}
+          </button>
+        )}
+      </div>
+
+      {/* 下面是圖跟模型選單與生圖的按鈕 */}
+      <div className="mt-4 pt-4 border-t border-gray-800 space-y-3">
         <div>
           <div className="mb-1.5 flex items-center justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
@@ -270,20 +296,6 @@ export function ClueCard({
               )}
             </AspectFrame>
           </PreviewableImageFrame>
-
-          {/* 圖片模型選擇 */}
-          <div className="mt-2 space-y-1">
-            <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wider">設計圖模型</label>
-            <ProviderModelSelect
-              value={imageBackend}
-              onChange={handleModelChange}
-              options={modelOptions?.image ?? []}
-              providerNames={modelOptions?.providerNames ?? {}}
-              placeholder="跟隨專案全域模型"
-              allowDefault={true}
-              defaultLabel="跟隨專案全域模型"
-            />
-          </div>
         </div>
 
         {onUploadReference && (
@@ -295,41 +307,19 @@ export function ClueCard({
             onRemove={onRemoveReference ? () => onRemoveReference(name) : undefined}
           />
         )}
-      </div>
 
-      <LorebookDescriptionField
-        value={description}
-        onChange={setDescription}
-        placeholder="輸入道具描述..."
-        onGenerateAI={handleGenerateAI}
-        aiGenerating={aiGenerating}
-        textModel={textModel}
-        onTextModelChange={setTextModel}
-        textModelOptions={modelOptions?.text ?? []}
-        providerNames={modelOptions?.providerNames ?? {}}
-      />
-
-      {isDirty && (
-        <button
-          type="button"
-          onClick={() => void handleSave()}
-          disabled={saving}
-          className="mt-3 rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {saving ? "儲存中..." : "儲存"}
-        </button>
-      )}
-
-      {clue.importance === "major" && (
-        <div className="mt-3">
-          <GenerateButton
-            onClick={() => onGenerate(name)}
+        {clue.importance === "major" && (
+          <LorebookImageGenerateControls
+            value={imageBackend}
+            onChange={handleModelChange}
+            options={modelOptions?.image}
+            providerNames={modelOptions?.providerNames}
+            onGenerate={() => onGenerate(name)}
             loading={generating}
-            label={clue.clue_sheet ? "重新生成設計圖" : "生成設計圖"}
-            className="w-full justify-center"
+            label={clue.clue_sheet ? "重新生成道具" : "生成道具"}
           />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

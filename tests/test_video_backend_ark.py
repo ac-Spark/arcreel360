@@ -110,7 +110,9 @@ class TestArkGenerate:
         """當模型不是 ep- 開頭且 Ark API 報 InvalidEndpointOrModel 錯誤時，應丟出友善的錯誤。"""
         output = tmp_path / "out.mp4"
         backend._client.content_generation.tasks.create = MagicMock(
-            side_effect=Exception("InvalidEndpointOrModel.NotFound: The model or endpoint doubao-seedance-2-0-260128 does not exist")
+            side_effect=Exception(
+                "InvalidEndpointOrModel.NotFound: The model or endpoint doubao-seedance-2-0-260128 does not exist"
+            )
         )
 
         request = VideoGenerationRequest(prompt="test", output_path=output)
@@ -126,7 +128,9 @@ class TestArkGenerate:
         with patch("lib.video_backends.ark.create_ark_client", return_value=MagicMock()):
             b = ArkVideoBackend(api_key="test", model="ep-20260508120826-lkcjf")
             b._client.content_generation.tasks.create = MagicMock(
-                side_effect=Exception("InvalidEndpointOrModel.NotFound: The model or endpoint ep-20260508120826-lkcjf does not exist")
+                side_effect=Exception(
+                    "InvalidEndpointOrModel.NotFound: The model or endpoint ep-20260508120826-lkcjf does not exist"
+                )
             )
 
             request = VideoGenerationRequest(prompt="test", output_path=output)

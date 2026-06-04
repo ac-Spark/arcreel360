@@ -10,6 +10,7 @@ import { EpisodeActionsBar } from "./EpisodeActionsBar";
 vi.mock("@/api", () => ({
   API: {
     batchGenerateStoryboards: vi.fn(),
+    generateEpisodeScript: vi.fn(),
   },
 }));
 
@@ -33,7 +34,12 @@ describe("EpisodeActionsBar", () => {
     useAppStore.setState(useAppStore.getInitialState(), true);
     useProjectsStore.setState(useProjectsStore.getInitialState(), true);
     vi.clearAllMocks();
+    localStorage.clear();
     vi.mocked(API.batchGenerateStoryboards).mockResolvedValue({ enqueued: ["SEG-1"], skipped: [] });
+    vi.mocked(API.generateEpisodeScript).mockResolvedValue({
+      script_file: "scripts/episode_1.json",
+      segments_count: 3,
+    });
   });
 
   it("opens storyboard generation choices from the batch button", async () => {
@@ -67,5 +73,37 @@ describe("EpisodeActionsBar", () => {
     renderTimelineActions();
 
     expect(screen.queryByRole("button", { name: "批次生成影片" })).not.toBeInTheDocument();
+  });
+
+  it("passes the custom script instruction to generateEpisodeScript", async () => {
+    renderTimelineActions();
+
+    // 提示詞框預設收合，點開後輸入
+    fireEvent.click(screen.getByRole("button", { name: /劇本提示詞/ }));
+    const textarea = await screen.findByLabelText(/劇本生成提示詞/);
+    fireEvent.change(textarea, { target: { value: "語氣輕鬆詼諧" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "重新生成劇本" }));
+    // 重新生成會跳確認框
+    fireEvent.click(await screen.findByRole("button", { name: "確定" }));
+
+    await waitFor(() => {
+      expect(API.generateEpisodeScript).toHaveBeenCalledWith(
+        "demo",
+        1,
+        undefined,
+        "語氣輕鬆詼諧",
+      );
+    });
+  });
+
+  it("persists the script instruction per episode in localStorage", async () => {
+    renderTimelineActions();
+
+    fireEvent.click(screen.getByRole("button", { name: /劇本提示詞/ }));
+    const textarea = await screen.findByLabelText(/劇本生成提示詞/);
+    fireEvent.change(textarea, { target: { value: "強調主角內心戲" } });
+
+    expect(localStorage.getItem("arcreel:script_instruction:demo:1")).toBe("強調主角內心戲");
   });
 });

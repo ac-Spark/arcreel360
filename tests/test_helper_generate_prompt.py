@@ -1,5 +1,6 @@
 def test_helper_system_prompt_traditional_chinese():
     from server.routers.generate import _build_helper_system_prompt
+
     for is_video in (True, False):
         sp = _build_helper_system_prompt(is_video)
         assert "繁體中文" in sp

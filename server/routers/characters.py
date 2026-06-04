@@ -223,4 +223,3 @@ async def batch_add_characters(project_name: str, req: BatchCreateCharacterReque
     except Exception as e:
         logger.exception("批次新增角色失敗")
         raise HTTPException(status_code=500, detail=str(e))
-

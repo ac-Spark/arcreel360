@@ -761,9 +761,7 @@ async def update_style_description(
 
 
 @router.patch("/projects/{project_name}/style")
-async def update_style(
-    project_name: str, _user: CurrentUser, style: str = Body(..., embed=True)
-):
+async def update_style(project_name: str, _user: CurrentUser, style: str = Body(..., embed=True)):
     """
     更新專案風格標籤
     """

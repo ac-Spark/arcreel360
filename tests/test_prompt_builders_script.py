@@ -78,6 +78,7 @@ class TestPromptBuildersScript:
 
     def test_narration_prompt_embeds_language_rule(self):
         from lib.prompt_language import PROMPT_LANGUAGE_RULE
+
         prompt = build_narration_prompt(
             project_overview={"synopsis": "故事", "genre": "懸疑", "theme": "真相", "world_setting": "古代"},
             style="古風",
@@ -94,6 +95,7 @@ class TestPromptBuildersScript:
 
     def test_drama_prompt_embeds_language_rule(self):
         from lib.prompt_language import PROMPT_LANGUAGE_RULE
+
         prompt = build_drama_prompt(
             project_overview={"synopsis": "動作", "genre": "動作", "theme": "成長", "world_setting": "近未來"},
             style="賽博",
@@ -107,4 +109,3 @@ class TestPromptBuildersScript:
         )
         assert PROMPT_LANGUAGE_RULE in prompt
         assert "繁體中文" in prompt
-

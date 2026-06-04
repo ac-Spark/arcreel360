@@ -94,9 +94,9 @@ class TestCluesRouter:
                 json={
                     "items": [
                         {"name": "懷錶", "description": "陰森 1", "importance": "major"},
-                        {"name": "玉石", "description": "溫潤 2", "importance": "minor"}
+                        {"name": "玉石", "description": "溫潤 2", "importance": "minor"},
                     ]
-                }
+                },
             )
             assert resp.status_code == 200
             clues = resp.json()["clues"]
