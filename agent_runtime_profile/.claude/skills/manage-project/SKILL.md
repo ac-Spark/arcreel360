@@ -94,7 +94,7 @@ python .claude/skills/manage-project/scripts/split_episode.py --source {原始�
 `update_overview` 用於把已在對話中產出的世界觀寫入 `project.json.overview`；純文字回覆不會推進專案進度。
 角色/線索/場景更新工具只改 `description`。改名/刪除是破壞性操作，必須經 permission gate 確認，不可無條件執行。
 
-> ⚠️ **嚴禁用 `fs_write` 改 `project.json`。** `fs_write` 是通用寫檔工具，不校驗結構——用它寫世界觀會落到錯誤的欄位名（例如 `world_view` 而非 `overview`），系統讀不到、進度永遠卡在「準備中」。
+> ⚠️ **嚴禁用 `fs_write` 改 `project.json`。** `fs_write` 是通用寫檔工具，不校驗結構——用它寫世界觀會落到錯誤的欄位名（例如 `world_view` 而非 `overview`），系統讀不到、進度永遠卡在「專案概述」。
 >
 > | 你要做的事 | 唯一正確工具 | 寫入欄位 |
 > |---|---|---|

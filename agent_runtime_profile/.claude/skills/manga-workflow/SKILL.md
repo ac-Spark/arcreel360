@@ -35,7 +35,7 @@ description: 將小說轉換為短影片的端到端工作流編排器。當使�
 
 - `gemini-full` / `openai-full`：呼叫 `generate_overview` 從 `source/` 生成並儲存；若已在對話中整理好內容，呼叫 `update_overview` 保存。
 - Claude legacy：直接更新 `project.json.overview`，必須寫入物件而不是字串。
-- 完成後重新檢查狀態；只有 `project.json.overview` 實際存在時，專案卡片進度才會從「準備中」推進。
+- 完成後重新檢查狀態；只有 `project.json.overview` 實際存在時，專案卡片進度才會從「專案概述」推進。
 
 ### 現有專案
 

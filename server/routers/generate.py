@@ -17,6 +17,7 @@ from lib import PROJECT_ROOT
 from lib.episode_overrides import read_episode_override as _read_episode_override
 from lib.generation_queue import get_generation_queue
 from lib.project_manager import ProjectManager
+from lib.prompt_language import helper_prompt_language_clause
 from lib.prompt_utils import (
     is_structured_image_prompt,
     is_structured_video_prompt,
@@ -127,14 +128,33 @@ def _snapshot_image_backend(
     *,
     script_file: str | None = None,
     resource_id: str | None = None,
+    project: dict | None = None,
+    character_name: str | None = None,
+    clue_name: str | None = None,
+    scene_name: str | None = None,
 ) -> dict:
     """快照圖片供應商配置，返回可合併到 payload 的字典。
 
-    優先順序：scene-level image_backend > episode-level image_backend > 專案級 image_backend > 系統級預設。
+    優先順序：entity-level image_backend > scene-level image_backend > episode-level image_backend > 專案級 image_backend > 系統級預設。
     傳入 script_file + resource_id 啟用 scene-level 覆蓋查詢。
     """
-    project = get_project_manager().load_project(project_name)
+    if project is None:
+        project = get_project_manager().load_project(project_name)
 
+    # 1. 實體級（角色、道具、專案場景）的覆蓋
+    entity_backend = None
+    if character_name:
+        entity_backend = project.get("characters", {}).get(character_name, {}).get("image_backend")
+    elif clue_name:
+        entity_backend = project.get("clues", {}).get(clue_name, {}).get("image_backend")
+    elif scene_name:
+        entity_backend = project.get("scenes", {}).get(scene_name, {}).get("image_backend")
+
+    if entity_backend:
+        provider, model = _split_backend_str(entity_backend)
+        return {"image_provider": provider, "image_model": model}
+
+    # 2. 場景與分集覆蓋
     scene_backend = _snapshot_scene_backend(
         project_name,
         script_file=script_file,
@@ -400,7 +420,7 @@ async def generate_character(
             project = get_project_manager().load_project(project_name)
             if char_name not in project.get("characters", {}):
                 raise HTTPException(status_code=404, detail=f"角色「{char_name}」不存在")
-            return _snapshot_image_backend(project_name)
+            return _snapshot_image_backend(project_name, character_name=char_name, project=project)
 
         image_snapshot = await asyncio.to_thread(_sync)
 
@@ -640,7 +660,6 @@ async def generate_characters_batch(
         def _sync():
             project = get_project_manager().load_project(project_name)
             characters: dict = project.get("characters", {})
-            image_snapshot = _snapshot_image_backend(project_name)
 
             requested = [str(n) for n in (req.names if req.names is not None else list(characters.keys()))]
 
@@ -654,14 +673,15 @@ async def generate_characters_batch(
                     skipped.append({"id": name, "reason": "already_exists"})
                     continue
                 to_enqueue.append(name)
-            return to_enqueue, skipped, image_snapshot, characters
+            return to_enqueue, skipped, project, characters
 
-        to_enqueue, skipped, image_snapshot, characters = await asyncio.to_thread(_sync)
+        to_enqueue, skipped, project, characters = await asyncio.to_thread(_sync)
 
         queue = get_generation_queue()
         enqueued: list[str] = []
         for name in to_enqueue:
             prompt = characters[name].get("description", "")
+            char_snapshot = _snapshot_image_backend(project_name, character_name=name, project=project)
             await queue.enqueue_task(
                 project_name=project_name,
                 task_type="character",
@@ -670,7 +690,7 @@ async def generate_characters_batch(
                 payload={
                     "prompt": prompt,
                     "from_batch": True,
-                    **image_snapshot,
+                    **char_snapshot,
                 },
                 source="webui",
                 user_id=_user.id,
@@ -703,7 +723,6 @@ async def generate_clues_batch(
         def _sync():
             project = get_project_manager().load_project(project_name)
             clues: dict = project.get("clues", {})
-            image_snapshot = _snapshot_image_backend(project_name)
 
             requested = [str(n) for n in (req.names if req.names is not None else list(clues.keys()))]
 
@@ -717,14 +736,15 @@ async def generate_clues_batch(
                     skipped.append({"id": name, "reason": "already_exists"})
                     continue
                 to_enqueue.append(name)
-            return to_enqueue, skipped, image_snapshot, clues
+            return to_enqueue, skipped, project, clues
 
-        to_enqueue, skipped, image_snapshot, clues = await asyncio.to_thread(_sync)
+        to_enqueue, skipped, project, clues = await asyncio.to_thread(_sync)
 
         queue = get_generation_queue()
         enqueued: list[str] = []
         for name in to_enqueue:
             prompt = clues[name].get("description", "")
+            clue_snapshot = _snapshot_image_backend(project_name, clue_name=name, project=project)
             await queue.enqueue_task(
                 project_name=project_name,
                 task_type="clue",
@@ -733,7 +753,7 @@ async def generate_clues_batch(
                 payload={
                     "prompt": prompt,
                     "from_batch": True,
-                    **image_snapshot,
+                    **clue_snapshot,
                 },
                 source="webui",
                 user_id=_user.id,
@@ -766,7 +786,6 @@ async def generate_scenes_batch(
         def _sync():
             project = get_project_manager().load_project(project_name)
             scenes: dict = project.get("scenes", {})
-            image_snapshot = _snapshot_image_backend(project_name)
 
             requested = [str(n) for n in (req.names if req.names is not None else list(scenes.keys()))]
 
@@ -780,14 +799,15 @@ async def generate_scenes_batch(
                     skipped.append({"id": name, "reason": "already_exists"})
                     continue
                 to_enqueue.append(name)
-            return to_enqueue, skipped, image_snapshot, scenes
+            return to_enqueue, skipped, project, scenes
 
-        to_enqueue, skipped, image_snapshot, scenes = await asyncio.to_thread(_sync)
+        to_enqueue, skipped, project, scenes = await asyncio.to_thread(_sync)
 
         queue = get_generation_queue()
         enqueued: list[str] = []
         for name in to_enqueue:
             prompt = scenes[name].get("description", "")
+            scene_snapshot = _snapshot_image_backend(project_name, scene_name=name, project=project)
             await queue.enqueue_task(
                 project_name=project_name,
                 task_type="scene",
@@ -796,7 +816,7 @@ async def generate_scenes_batch(
                 payload={
                     "prompt": prompt,
                     "from_batch": True,
-                    **image_snapshot,
+                    **scene_snapshot,
                 },
                 source="webui",
                 user_id=_user.id,
@@ -828,7 +848,7 @@ async def generate_clue(project_name: str, clue_name: str, req: GenerateClueRequ
             project = get_project_manager().load_project(project_name)
             if clue_name not in project.get("clues", {}):
                 raise HTTPException(status_code=404, detail=f"道具「{clue_name}」不存在")
-            return _snapshot_image_backend(project_name)
+            return _snapshot_image_backend(project_name, clue_name=clue_name, project=project)
 
         image_snapshot = await asyncio.to_thread(_sync)
 
@@ -876,7 +896,7 @@ async def generate_scene(project_name: str, scene_name: str, req: GenerateSceneR
             project = get_project_manager().load_project(project_name)
             if scene_name not in project.get("scenes", {}):
                 raise HTTPException(status_code=404, detail=f"場景「{scene_name}」不存在")
-            return _snapshot_image_backend(project_name)
+            return _snapshot_image_backend(project_name, scene_name=scene_name, project=project)
 
         image_snapshot = await asyncio.to_thread(_sync)
 
@@ -907,3 +927,114 @@ async def generate_scene(project_name: str, scene_name: str, req: GenerateSceneR
     except Exception as e:
         logger.exception("請求處理失敗")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class OptimizePromptRequest(BaseModel):
+    type: str  # "character" | "clue" | "scene"
+    name: str | None = None
+    description: str
+    instruction: str | None = None
+    model: str | None = None
+
+
+def _build_helper_system_prompt(is_video: bool) -> str:
+    kind = "Text-to-Video" if is_video else "Text-to-Image"
+    focus = (
+        "4. 著重於描述主體動作、相機運動（如 推近、向右橫搖）、光影變化與動態效果。"
+        if is_video
+        else "4. 根據提供的專案視覺風格進行渲染，描述畫面構圖、光影與物件細節。"
+    )
+    return (
+        "你是一個專業的 AI 繪圖與影片動作提示詞生成助手。\n"
+        f"你的任務是根據使用者提供的基本描述、專案故事背景與整體風格，生成一段精緻、細節豐富、適合 {kind} 模型的繁體中文提示詞（Prompt）。\n"
+        "【規則】\n"
+        f"1. {helper_prompt_language_clause()}\n"
+        "2. 請直接輸出 Prompt 本身，不要包含 markdown 格式、引號、任何前綴或額外的解釋文字。\n"
+        "3. 長度控制在 50 至 120 個字之間。\n"
+        f"{focus}"
+    )
+
+
+@router.post("/projects/{project_name}/helper/generate-prompt")
+async def helper_generate_prompt(
+    project_name: str,
+    req: OptimizePromptRequest,
+    _user: CurrentUser,
+):
+    """
+    調用 AI 文字生成服務，為角色、道具、場景、分鏡圖或影片生成/最佳化提示詞（Prompt）。
+    """
+    if req.type not in ("character", "clue", "scene", "image_prompt", "video_prompt"):
+        raise HTTPException(
+            status_code=400,
+            detail="不支援的類型。必須是 'character'、'clue'、'scene'、'image_prompt' 或 'video_prompt'",
+        )
+
+    try:
+        from lib.text_backends.base import TextGenerationRequest, TextTaskType
+        from lib.text_generator import TextGenerator
+
+        # 載入專案 overview 取得世界設定、題材、風格描述，使生成的 prompt 更契合專案
+        project = get_project_manager().load_project(project_name)
+        project_style = project.get("style", "")
+        project_overview = project.get("overview", {})
+        genre = project_overview.get("genre", "")
+        synopsis = project_overview.get("synopsis", "")
+
+        # 構造系統 Prompt 與使用者 Prompt
+        if req.type == "character":
+            type_zh = "角色"
+        elif req.type == "clue":
+            type_zh = "道具/線索"
+        elif req.type == "scene":
+            type_zh = "場景"
+        elif req.type == "image_prompt":
+            type_zh = "分鏡圖提示詞"
+        else:
+            type_zh = "影片動作提示詞"
+
+        is_video = req.type == "video_prompt"
+        system_prompt = _build_helper_system_prompt(is_video)
+
+        user_content = [
+            f"專案故事大綱: {synopsis}" if synopsis else "",
+            f"專案題材類型: {genre}" if genre else "",
+            f"整體視覺風格: {project_style}" if project_style else "",
+            f"實體類型: {type_zh}",
+            f"名稱: {req.name}" if req.name else "",
+            f"基本描述/分鏡旁白內容: {req.description}",
+            f"額外指示: {req.instruction}" if req.instruction else "",
+            f"請為該{type_zh}生成對應的提示詞：",
+        ]
+        user_prompt = "\n".join([line for line in user_content if line])
+
+        if req.model:
+            generator = await TextGenerator.create_with_model_str(req.model)
+        else:
+            generator = await TextGenerator.create(TextTaskType.OVERVIEW, project_name)
+        result = await generator.generate(
+            TextGenerationRequest(
+                prompt=user_prompt,
+                system_prompt=system_prompt,
+                max_output_tokens=300,
+            ),
+            project_name=project_name,
+        )
+
+        prompt_output = result.text.strip()
+        # 清除可能被 LLM 加上去的引號
+        if prompt_output.startswith('"') and prompt_output.endswith('"'):
+            prompt_output = prompt_output[1:-1].strip()
+        if prompt_output.startswith("'") and prompt_output.endswith("'"):
+            prompt_output = prompt_output[1:-1].strip()
+
+        return {
+            "success": True,
+            "prompt": prompt_output,
+        }
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"專案 '{project_name}' 不存在")
+    except Exception as e:
+        logger.exception("AI 提示詞生成失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+

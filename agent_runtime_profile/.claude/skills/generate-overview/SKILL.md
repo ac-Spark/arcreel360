@@ -1,6 +1,6 @@
 ---
 name: generate-overview
-description: 生成或更新專案世界觀/概述。當使用者說"生成世界觀"、"寫入世界觀"、"重新生成概述"、"整理故事設定"、或專案進度卡在「準備中」時使用。把 synopsis/genre/theme/world_setting 結構化寫入 project.json。
+description: 生成或更新專案世界觀/概述。當使用者說"生成世界觀"、"寫入世界觀"、"重新生成概述"、"整理故事設定"、或專案進度卡在「專案概述」時使用。把 synopsis/genre/theme/world_setting 結構化寫入 project.json。
 ---
 
 # 生成專案世界觀/概述
@@ -8,7 +8,7 @@ description: 生成或更新專案世界觀/概述。當使用者說"生成世�
 把專案的世界觀整理成結構化資料寫入 `project.json.overview`，包含
 `synopsis`(故事梗概)、`genre`(題材類型)、`theme`(核心主題)、
 `world_setting`(世界觀與時代背景設定)四個欄位。專案必須有結構化 overview，
-製作流程才會從「準備中」推進到「世界觀」階段。
+製作流程才會從「專案概述」推進到「角色場景」階段。
 
 > 🔴 **鋼定規則 — 違反即視為任務失敗:**
 >

@@ -24,7 +24,7 @@ import asyncio
 
 from lib.project_manager import ProjectManager
 from lib.text_backends.base import TextGenerationRequest, TextTaskType
-from lib.text_backends.factory import create_text_backend_for_task
+from lib.text_backends.factory import create_text_backend_by_model_str, create_text_backend_for_task
 
 
 def build_split_prompt(
@@ -313,6 +313,12 @@ def main():
         default=None,
         help="指定生成的片段數量",
     )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="指定文字模型，格式為 provider/model；不指定則使用專案或全域劇本模型",
+    )
     parser.add_argument("--dry-run", action="store_true", help="僅顯示 Prompt，不實際呼叫 API")
     parser.add_argument(
         "--no-overview",
@@ -391,7 +397,11 @@ def main():
         return
 
     async def _run():
-        backend = await create_text_backend_for_task(TextTaskType.SCRIPT)
+        backend = (
+            await create_text_backend_by_model_str(args.model)
+            if args.model
+            else await create_text_backend_for_task(TextTaskType.SCRIPT, project_name)
+        )
         print(f"正在使用 {backend.model} 拆分片段...")
         result = await backend.generate(TextGenerationRequest(prompt=prompt))
         return result.text

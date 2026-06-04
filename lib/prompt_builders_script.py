@@ -6,6 +6,8 @@ prompt_builders_script.py - 劇本生成 Prompt 構建器
 3. 可選值列表約束輸出
 """
 
+from lib.prompt_language import PROMPT_LANGUAGE_RULE
+
 
 def _format_named_entries(items: dict, *, separator: str = "：") -> str:
     lines = []
@@ -139,7 +141,7 @@ def build_narration_prompt(
 
     prompt = f"""你的任務是為短影片生成分鏡劇本。請仔細遵循以下指示：
 
-**重要：所有輸出內容必須使用中文。僅 JSON 鍵名和列舉值使用英文。**
+{PROMPT_LANGUAGE_RULE}
 **集數：本次處理的是第 {episode_no} 集,所有 segment_id 必須使用 `E{episode_no}S{{序號}}` 格式,不得寫成其他集數。**
 {count_block}
 1. 你將獲得故事概述、視覺風格、角色列表、線索列表，以及已拆分的小說片段。
@@ -288,7 +290,7 @@ def build_drama_prompt(
 
     prompt = f"""你的任務是為劇集動畫生成分鏡劇本。請仔細遵循以下指示：
 
-**重要：所有輸出內容必須使用中文。僅 JSON 鍵名和列舉值使用英文。**
+{PROMPT_LANGUAGE_RULE}
 **集數：本次處理的是第 {episode_no} 集,所有 scene_id 必須使用 `E{episode_no}S{{序號}}` 格式,不得寫成其他集數。**
 {count_block}
 1. 你將獲得故事概述、視覺風格、角色列表、線索列表，以及已拆分的場景列表。

@@ -20,12 +20,12 @@ user-invocable: false
 ### Step 1: 預處理（拆段 / 規範化）
 ```bash
 # 執行說書模式拆段
-python .claude/skills/generate-script/scripts/split_narration_segments.py --episode {N} [--source {path}] [--dry-run]
+python .claude/skills/generate-script/scripts/split_narration_segments.py --episode {N} [--source {path}] [--model {provider/model}] [--dry-run]
 
 # 執行戲劇模式規範化
-python .claude/skills/generate-script/scripts/normalize_drama_script.py --episode {N} [--source {path}] [--dry-run]
+python .claude/skills/generate-script/scripts/normalize_drama_script.py --episode {N} [--source {path}] [--model {provider/model}] [--dry-run]
 ```
-> `--source {path}` 可選。指定時直接使用該檔；未指定時會先找 `source/episode_{N}.txt`。若仍不存在，narration 會串接 `source/` 目錄下的原文並按 `project.json` 集數均分；drama 目前會串接並使用整本原文。
+> `--source {path}` 可選。指定時直接使用該檔；未指定時會先找 `source/episode_{N}.txt`。若仍不存在，narration 會串接 `source/` 目錄下的原文並按 `project.json` 集數均分；drama 目前會串接並使用整本原文。`--model {provider/model}` 可選；未指定時使用專案或全域劇本模型。
 
 ### Step 2: 生成劇本
 ```bash

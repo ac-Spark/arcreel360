@@ -27,7 +27,8 @@
 
 ## Prompt 語言
 
-- 圖片/影片生成 prompt 使用**中文**
-- 採用敘事式描述，不使用關鍵詞羅列
+- 圖片/影片生成 prompt 使用**繁體中文**；JSON 鍵名與模型列舉值可用英文。
+- 採用敘事式描述，不使用關鍵詞羅列。
+- （Python 側真相源：`lib/prompt_language.py` 的 `PROMPT_LANGUAGE_RULE`。新增生成入口時請引用該常數，勿自寫一份。）
 
 > 參考 `docs/google-genai-docs/nano-banana.md` 第 365 行起的 Prompting guide and strategies。

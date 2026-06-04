@@ -75,3 +75,36 @@ class TestPromptBuildersScript:
             aspect_ratio="16:9",
         )
         assert "橫屏構圖" in prompt
+
+    def test_narration_prompt_embeds_language_rule(self):
+        from lib.prompt_language import PROMPT_LANGUAGE_RULE
+        prompt = build_narration_prompt(
+            project_overview={"synopsis": "故事", "genre": "懸疑", "theme": "真相", "world_setting": "古代"},
+            style="古風",
+            style_description="cinematic",
+            characters={"姜月茴": {}},
+            clues={"玉佩": {}},
+            segments_md="E1S01 | 文字",
+            supported_durations=[4, 6, 8],
+            default_duration=4,
+            aspect_ratio="9:16",
+        )
+        assert PROMPT_LANGUAGE_RULE in prompt
+        assert "繁體中文" in prompt
+
+    def test_drama_prompt_embeds_language_rule(self):
+        from lib.prompt_language import PROMPT_LANGUAGE_RULE
+        prompt = build_drama_prompt(
+            project_overview={"synopsis": "動作", "genre": "動作", "theme": "成長", "world_setting": "近未來"},
+            style="賽博",
+            style_description="high contrast",
+            characters={"林": {}},
+            clues={"晶片": {}},
+            scenes_md="E1S01 | 追逐",
+            supported_durations=[4, 8, 12],
+            default_duration=8,
+            aspect_ratio="9:16",
+        )
+        assert PROMPT_LANGUAGE_RULE in prompt
+        assert "繁體中文" in prompt
+
