@@ -159,4 +159,27 @@ describe("OverviewCanvas", () => {
       expect(API.getProject).toHaveBeenCalled();
     });
   });
+
+  it("updates the project style using the style select dropdown", async () => {
+    vi.spyOn(API, "updateStyle").mockResolvedValue({ success: true });
+    vi.spyOn(API, "getProject").mockResolvedValue({
+      project: makeProjectData({ style: "3D Animation" }),
+      scripts: {},
+    });
+
+    renderOverviewCanvas(
+      <OverviewCanvas projectName="demo" projectData={makeProjectData()} />,
+    );
+
+    const select = screen.getByLabelText("風格標籤：");
+    expect(select).toBeInTheDocument();
+    expect(select).toHaveValue("Anime");
+
+    fireEvent.change(select, { target: { value: "3D Animation" } });
+
+    await waitFor(() => {
+      expect(API.updateStyle).toHaveBeenCalledWith("demo", "3D Animation");
+      expect(API.getProject).toHaveBeenCalled();
+    });
+  });
 });

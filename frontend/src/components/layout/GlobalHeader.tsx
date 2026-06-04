@@ -32,9 +32,10 @@ function triggerBrowserDownload(url: string) {
 
 const PHASES = [
   { key: "setup", label: "準備中" },
-  { key: "worldbuilding", label: "世界觀" },
+  { key: "lorebook", label: "角色場景" },
   { key: "scripting", label: "劇本創作" },
-  { key: "production", label: "製作中" },
+  { key: "storyboard", label: "分鏡圖" },
+  { key: "video", label: "影片" },
   { key: "completed", label: "已完成" },
 ] as const;
 
@@ -166,13 +167,16 @@ export function GlobalHeader({ onNavigateBack }: GlobalHeaderProps) {
     .join(" + ") || "$0.00";
 
   const handlePhaseNavigate = (phase: PhaseKey) => {
-    // scripting / production 為集內階段，跳到第一集工作區；其餘跳全域頁
+    // lorebook 跳到全域圖鑑頁，scripting / storyboard / video 為集內階段，跳到第一集工作區；其餘跳全域頁
     const firstEpisode = sortEpisodesForDisplay(currentProjectData?.episodes ?? [])[0];
     let route: string;
-    if (phase === "worldbuilding") {
+    if (phase === "lorebook") {
       route = "/lorebook";
-    } else if (phase === "scripting" || phase === "production") {
-      route = firstEpisode ? `/episodes/${firstEpisode.episode}` : "/";
+    } else if (phase === "scripting" || phase === "storyboard" || phase === "video") {
+      let tabName = "preprocessing";
+      if (phase === "storyboard") tabName = "storyboard";
+      if (phase === "video") tabName = "video";
+      route = firstEpisode ? `/episodes/${firstEpisode.episode}?tab=${tabName}` : "/";
     } else {
       route = "/";
     }

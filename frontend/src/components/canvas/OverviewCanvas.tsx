@@ -9,6 +9,7 @@ import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useConfirm } from "@/hooks/useConfirm";
 import { formatCost, totalBreakdown } from "@/utils/cost-format";
 import { sortEpisodesForDisplay } from "@/utils/episodes";
+import { STYLE_OPTIONS } from "@/utils/project-style";
 
 import { OverviewSection } from "./OverviewSection";
 import { WelcomeCanvas } from "./WelcomeCanvas";
@@ -162,8 +163,29 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
             參考圖會參與後續畫面生成；風格描述用於補充視覺規則，校準整體調性、材質與鏡頭氣質。
           </p>
         </div>
-        <div className="inline-flex items-center rounded-full border border-gray-700 bg-gray-800 px-3 py-1 text-xs text-gray-300">
-          {projectData.style || "未設定風格標籤"}
+        <div className="flex items-center gap-2">
+          <label htmlFor="project-style-select" className="text-xs text-gray-500">風格標籤：</label>
+          <select
+            id="project-style-select"
+            value={projectData.style || ""}
+            onChange={async (e) => {
+              const value = e.target.value;
+              try {
+                await API.updateStyle(projectName, value);
+                await refreshProject();
+                useAppStore.getState().pushToast("專案風格已更新", "success");
+              } catch (err) {
+                useAppStore.getState().pushToast(`更新失敗: ${(err as Error).message}`, "error");
+              }
+            }}
+            className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-gray-300 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          >
+            {STYLE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

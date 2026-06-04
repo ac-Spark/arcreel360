@@ -142,8 +142,10 @@ class TestGenerationTasks:
         mode_items = get_storyboard_items({"content_mode": "drama", "scenes": []})
         assert mode_items[1] == "scene_id"
 
+        # 字串型 prompt：有風格時前綴注入，無風格時原樣回傳
         prompt = generation_tasks._normalize_storyboard_prompt("text", "Anime")
-        assert prompt == "text"
+        assert prompt == "Anime\n\ntext"
+        assert generation_tasks._normalize_storyboard_prompt("text", "") == "text"
 
         with pytest.raises(ValueError):
             generation_tasks._normalize_storyboard_prompt({"scene": ""}, "Anime")

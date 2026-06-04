@@ -121,36 +121,71 @@ class StatusCalculator:
             return False
         return any(str(overview.get(field) or "").strip() for field in OVERVIEW_FIELDS)
 
-    def calculate_current_phase(self, project: dict, episodes_stats: list[dict]) -> str:
+    @staticmethod
+    def _sum_progress(episodes_stats: list[dict], key: str) -> tuple[int, int]:
+        total = sum(s.get(key, {}).get("total", 0) for s in episodes_stats)
+        completed = sum(s.get(key, {}).get("completed", 0) for s in episodes_stats)
+        return total, completed
+
+    def calculate_current_phase(
+        self, project: dict, episodes_stats: list[dict], lorebook_completed: bool = True
+    ) -> str:
         """根據專案和集狀態推斷當前階段"""
         if not self._has_structured_overview(project):
             return "setup"
+        if not lorebook_completed:
+            return "lorebook"
         if not episodes_stats:
-            return "worldbuilding"
+            return "lorebook"
         any_generated = any(s["script_status"] == "generated" for s in episodes_stats)
-        all_generated = all(s["script_status"] == "generated" for s in episodes_stats)
         if not any_generated:
-            return "worldbuilding"
+            return "lorebook"
+        all_generated = all(s["script_status"] == "generated" for s in episodes_stats)
         if not all_generated:
             return "scripting"
-        all_completed = all(s["status"] == "completed" for s in episodes_stats)
-        return "completed" if all_completed else "production"
 
-    def _calculate_phase_progress(self, project: dict, phase: str, episodes_stats: list[dict]) -> float:
+        # 檢查分鏡圖完成率
+        total_storyboards, completed_storyboards = self._sum_progress(episodes_stats, "storyboards")
+        if total_storyboards > 0 and completed_storyboards < total_storyboards:
+            return "storyboard"
+
+        # 檢查影片完成率
+        total_videos, completed_videos = self._sum_progress(episodes_stats, "videos")
+        if total_videos > 0 and completed_videos < total_videos:
+            return "video"
+
+        return "completed"
+
+    def _calculate_phase_progress(
+        self, phase: str, episodes_stats: list[dict], lorebook_stats: dict | None = None
+    ) -> float:
         """計算當前階段完成率 0.0–1.0"""
         if phase == "setup":
             return 0.0
-        if phase == "worldbuilding":
-            return 0.0
+        if phase == "lorebook":
+            if not lorebook_stats:
+                return 0.0
+            chars_total = lorebook_stats.get("chars_total", 0)
+            chars_done = lorebook_stats.get("chars_done", 0)
+            clues_total = lorebook_stats.get("clues_total", 0)
+            clues_done = lorebook_stats.get("clues_done", 0)
+            scenes_total = lorebook_stats.get("scenes_total", 0)
+            scenes_done = lorebook_stats.get("scenes_done", 0)
+
+            total_assets = chars_total + clues_total + scenes_total
+            done_assets = chars_done + clues_done + scenes_done
+            return done_assets / total_assets if total_assets > 0 else 1.0
         if phase == "scripting":
             total = len(episodes_stats)
             if total == 0:
                 return 0.0
             done = sum(1 for s in episodes_stats if s["script_status"] == "generated")
             return done / total
-        if phase == "production":
-            total_videos = sum(s.get("videos", {}).get("total", 0) for s in episodes_stats)
-            done_videos = sum(s.get("videos", {}).get("completed", 0) for s in episodes_stats)
+        if phase == "storyboard":
+            total_storyboards, done_storyboards = self._sum_progress(episodes_stats, "storyboards")
+            return done_storyboards / total_storyboards if total_storyboards > 0 else 0.0
+        if phase == "video":
+            total_videos, done_videos = self._sum_progress(episodes_stats, "videos")
             return done_videos / total_videos if total_videos > 0 else 0.0
         return 1.0  # completed
 
@@ -201,7 +236,7 @@ class StatusCalculator:
             _preloaded_episodes_stats: 若已由 enrich_project 預先計算，直接傳入以避免重複 I/O。
 
         Returns:
-            ProjectStatus 字典：current_phase, phase_progress, characters, clues, episodes_summary
+            ProjectStatus 字典：current_phase, phase_progress, characters, clues, scenes, episodes_summary
         """
         project_dir = self.pm.get_project_path(project_name)
 
@@ -215,23 +250,36 @@ class StatusCalculator:
         clues_total = len(clues)
         clues_done = sum(1 for c in clues.values() if self._safe_exists(project_dir, c.get("clue_sheet", "")))
 
+        # 場景統計
+        scenes = project.get("scenes", {})
+        scenes_total = len(scenes)
+        scenes_done = sum(1 for s in scenes.values() if self._safe_exists(project_dir, s.get("scene_sheet", "")))
+
         # 每集狀態：優先使用預載入資料，否則自行載入
         if _preloaded_episodes_stats is not None:
             episodes_stats = _preloaded_episodes_stats
         else:
             episodes_stats = self._build_episodes_stats(project_name, project)
 
-        phase = self.calculate_current_phase(project, episodes_stats)
-        phase_progress = self._calculate_phase_progress(project, phase, episodes_stats)
-        if phase == "worldbuilding":
-            total_assets = chars_total + clues_total
-            phase_progress = (chars_done + clues_done) / total_assets if total_assets > 0 else 0.0
+        lorebook_completed = chars_done == chars_total and clues_done == clues_total and scenes_done == scenes_total
+        phase = self.calculate_current_phase(project, episodes_stats, lorebook_completed=lorebook_completed)
+
+        lorebook_stats = {
+            "chars_total": chars_total,
+            "chars_done": chars_done,
+            "clues_total": clues_total,
+            "clues_done": clues_done,
+            "scenes_total": scenes_total,
+            "scenes_done": scenes_done,
+        }
+        phase_progress = self._calculate_phase_progress(phase, episodes_stats, lorebook_stats=lorebook_stats)
 
         return {
             "current_phase": phase,
             "phase_progress": phase_progress,
             "characters": {"total": chars_total, "completed": chars_done},
             "clues": {"total": clues_total, "completed": clues_done},
+            "scenes": {"total": scenes_total, "completed": scenes_done},
             "episodes_summary": {
                 "total": len(episodes_stats),
                 "scripted": sum(1 for s in episodes_stats if s["script_status"] == "generated"),

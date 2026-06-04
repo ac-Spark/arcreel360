@@ -283,4 +283,18 @@ export const projectsApi = {
       },
     );
   },
+
+  /** 更新專案風格標籤 */
+  async updateStyle(
+    projectName: string,
+    style: string,
+  ): Promise<SuccessResponse> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(projectName)}/style`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ style }),
+      },
+    );
+  },
 };

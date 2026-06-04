@@ -20,7 +20,7 @@ from lib.gemini_shared import get_shared_rate_limiter
 from lib.media_generator import MediaGenerator
 from lib.project_change_hints import emit_project_change_batch, project_change_source
 from lib.project_manager import ProjectManager
-from lib.prompt_builders import build_character_prompt, build_clue_prompt, build_scene_prompt
+from lib.prompt_builders import build_character_prompt, build_clue_prompt, build_scene_prompt, build_style_prompt
 from lib.prompt_utils import (
     image_prompt_to_yaml,
     is_structured_image_prompt,
@@ -358,6 +358,8 @@ def get_aspect_ratio(project: dict, resource_type: str) -> str:
 
 def _normalize_storyboard_prompt(prompt: str | dict, style: str) -> str:
     if isinstance(prompt, str):
+        if style:
+            return f"{style}\n\n{prompt}"
         return prompt
 
     if not isinstance(prompt, dict):
@@ -670,7 +672,8 @@ async def execute_storyboard_task(
 
         _effective_prompt = _require_item_prompt(prompt, _target_item, "image_prompt", resource_id)
         _prev_path = resolve_previous_storyboard_path(_project_path, _items, _id_field, resource_id)
-        _prompt_text = _normalize_storyboard_prompt(_effective_prompt, _project.get("style", ""))
+        _combined_style = build_style_prompt(_project)
+        _prompt_text = _normalize_storyboard_prompt(_effective_prompt, _combined_style)
         _ref_images = _collect_reference_images(
             _project,
             _project_path,

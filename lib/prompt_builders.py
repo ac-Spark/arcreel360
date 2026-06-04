@@ -31,14 +31,11 @@ def build_character_prompt(name: str, description: str, style: str = "", style_d
     Returns:
         完整的 Prompt 字串
     """
-    style_part = f"，{style}" if style else ""
-
     # 構建風格字首
-    style_prefix = ""
-    if style_description:
-        style_prefix = f"Visual style: {style_description}\n\n"
+    combined_style = build_style_prompt(style=style, style_description=style_description)
+    style_prefix = f"{combined_style}\n\n" if combined_style else ""
 
-    return f"""{style_prefix}角色設計參考圖{style_part}。
+    return f"""{style_prefix}角色設計參考圖。
 
 「{name}」的全身立繪。
 
@@ -99,14 +96,11 @@ def build_prop_prompt(name: str, description: str, style: str = "", style_descri
     Returns:
         完整的 Prompt 字串
     """
-    style_suffix = f"，{style}" if style else ""
-
     # 構建風格字首
-    style_prefix = ""
-    if style_description:
-        style_prefix = f"Visual style: {style_description}\n\n"
+    combined_style = build_style_prompt(style=style, style_description=style_description)
+    style_prefix = f"{combined_style}\n\n" if combined_style else ""
 
-    return f"""{style_prefix}一張專業的道具設計參考圖{style_suffix}。
+    return f"""{style_prefix}一張專業的道具設計參考圖。
 
 道具「{name}」的多視角展示。{description}
 
@@ -128,14 +122,11 @@ def build_location_prompt(name: str, description: str, style: str = "", style_de
     Returns:
         完整的 Prompt 字串
     """
-    style_suffix = f"，{style}" if style else ""
-
     # 構建風格字首
-    style_prefix = ""
-    if style_description:
-        style_prefix = f"Visual style: {style_description}\n\n"
+    combined_style = build_style_prompt(style=style, style_description=style_description)
+    style_prefix = f"{combined_style}\n\n" if combined_style else ""
 
-    return f"""{style_prefix}一張專業的場景設計參考圖{style_suffix}。
+    return f"""{style_prefix}一張專業的場景設計參考圖。
 
 標誌性場景「{name}」的視覺參考。{description}
 
@@ -159,27 +150,31 @@ def build_storyboard_suffix(content_mode: str = "narration", *, aspect_ratio: st
     return ""
 
 
-def build_style_prompt(project_data: dict) -> str:
+def build_style_prompt(project_data: dict | None = None, *, style: str = "", style_description: str = "") -> str:
     """
     構建風格描述 Prompt 片段
 
-    合併 style（使用者手動填寫）和 style_description（AI 分析生成）。
+    合併 style 和 style_description。可接收 project_data 字典，或單獨接收 style / style_description。
 
     Args:
-        project_data: project.json 資料
+        project_data: project.json 資料 (可選)
+        style: 專案風格標籤 (可選)
+        style_description: AI 分析的風格描述 (可選)
 
     Returns:
         風格描述字串，用於拼接到生成 Prompt 中
     """
+    if project_data is not None:
+        style = project_data.get("style", "")
+        style_description = project_data.get("style_description", "")
+
     parts = []
 
     # 基礎風格標籤
-    style = project_data.get("style", "")
     if style:
         parts.append(f"Style: {style}")
 
     # AI 分析的風格描述
-    style_description = project_data.get("style_description", "")
     if style_description:
         parts.append(f"Visual style: {style_description}")
 

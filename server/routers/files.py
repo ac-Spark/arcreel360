@@ -753,6 +753,37 @@ async def update_style_description(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.patch("/projects/{project_name}/style")
+async def update_style(
+    project_name: str, _user: CurrentUser, style: str = Body(..., embed=True)
+):
+    """
+    更新專案風格標籤
+    """
+    if style not in {"Photographic", "Anime", "3D Animation"}:
+        raise HTTPException(status_code=400, detail="不支援的專案風格")
+
+    try:
+
+        def _sync():
+            project_data = get_project_manager().load_project(project_name)
+            project_data["style"] = style
+            with project_change_source("webui"):
+                get_project_manager().save_project(project_name, project_data)
+
+            return {"success": True, "style": style}
+
+        return await asyncio.to_thread(_sync)
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"專案「{project_name}」不存在")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete("/projects/{project_name}/reference-image/{resource_type}/{resource_id}")
 async def delete_reference_image(
     project_name: str,

@@ -241,6 +241,31 @@ class TestFilesRouter:
             assert patch_style.status_code == 200
             assert patch_style.json()["style_description"] == "manual style"
 
+            # 測試更新專案風格標籤
+            patch_style_tag = client.patch(
+                "/api/v1/projects/demo/style",
+                json={"style": "Anime"},
+            )
+            assert patch_style_tag.status_code == 200
+            assert patch_style_tag.json()["style"] == "Anime"
+
+            project_updated = pm.load_project("demo")
+            assert project_updated["style"] == "Anime"
+
+            # 測試不支援的專案風格白名單
+            bad_style_tag = client.patch(
+                "/api/v1/projects/demo/style",
+                json={"style": "Graffiti"},
+            )
+            assert bad_style_tag.status_code == 400
+
+            # 測試不存在的專案
+            missing_project_style = client.patch(
+                "/api/v1/projects/missing-project/style",
+                json={"style": "Anime"},
+            )
+            assert missing_project_style.status_code == 404
+
             delete_style = client.delete("/api/v1/projects/demo/style-image")
             assert delete_style.status_code == 200
 

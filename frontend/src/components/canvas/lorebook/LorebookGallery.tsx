@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { User, Puzzle, Mountain, Plus, Sparkles } from "lucide-react";
 import { API } from "@/api";
 import { CharacterCard } from "./CharacterCard";
@@ -115,8 +115,15 @@ export function LorebookGallery({
   onAddScene,
 }: LorebookGalleryProps) {
   const confirm = useConfirm();
+  const assistantPanelOpen = useAppStore((s) => s.assistantPanelOpen);
   const [activeTab, setActiveTab] = useState<Tab>(mode ?? "characters");
   const showTabs = !mode;
+
+  const gridClassName = useMemo(() => {
+    return assistantPanelOpen
+      ? "grid grid-cols-1 lg:grid-cols-2 gap-4"
+      : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4";
+  }, [assistantPanelOpen]);
 
   // Sync activeTab when mode prop changes (avoids stale tab on route switch)
   useEffect(() => {
@@ -221,7 +228,7 @@ export function LorebookGallery({
                   <AddButton onClick={onAddCharacter} className="">新增角色</AddButton>
                 </div>
               )}
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className={gridClassName}>
               {charEntries.map(([charName, character]) => (
                 <div id={`character-${charName}`} key={charName}>
                   <CharacterCard
@@ -289,7 +296,7 @@ export function LorebookGallery({
                   <AddButton onClick={onAddClue} className="">新增道具</AddButton>
                 </div>
               )}
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className={gridClassName}>
               {clueEntries.map(([clueName, clue]) => (
                 <div id={`clue-${clueName}`} key={clueName}>
                   <ClueCard
@@ -355,7 +362,7 @@ export function LorebookGallery({
                   <AddButton onClick={onAddScene} className="">新增場景</AddButton>
                 </div>
               )}
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className={gridClassName}>
               {sceneEntries.map(([sceneName, scene]) => (
                 <div id={`scene-${sceneName}`} key={sceneName}>
                   <SceneCard

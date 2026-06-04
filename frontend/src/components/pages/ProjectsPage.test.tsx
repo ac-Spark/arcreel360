@@ -35,6 +35,7 @@ function makeProjectSummary(overrides: Partial<ProjectSummary> = {}): ProjectSum
       phase_progress: 0.1,
       characters: { total: 0, completed: 0 },
       clues: { total: 0, completed: 0 },
+      scenes: { total: 0, completed: 0 },
       episodes_summary: { total: 0, scripted: 0, in_production: 0, completed: 0 },
     },
     ...overrides,
@@ -77,10 +78,11 @@ describe("ProjectsPage", () => {
           style: "Anime",
           thumbnail: null,
           status: {
-            current_phase: "production",
+            current_phase: "storyboard",
             phase_progress: 0.5,
             characters: { total: 2, completed: 2 },
             clues: { total: 2, completed: 1 },
+            scenes: { total: 0, completed: 0 },
             episodes_summary: { total: 1, scripted: 1, in_production: 1, completed: 0 },
           },
         },
@@ -90,7 +92,7 @@ describe("ProjectsPage", () => {
     renderPage();
 
     expect(await screen.findByText("Demo Project")).toBeInTheDocument();
-    expect(screen.getByText("Anime · 製作中")).toBeInTheDocument();
+    expect(screen.getByText("Anime · 分鏡圖")).toBeInTheDocument();
     expect(screen.getByText("50%")).toBeInTheDocument();
   });
 
@@ -123,6 +125,7 @@ describe("ProjectsPage", () => {
               phase_progress: 1,
               characters: { total: 1, completed: 1 },
               clues: { total: 1, completed: 1 },
+              scenes: { total: 0, completed: 0 },
               episodes_summary: { total: 1, scripted: 1, in_production: 0, completed: 1 },
             },
           },
@@ -224,6 +227,7 @@ describe("ProjectsPage", () => {
               phase_progress: 1,
               characters: { total: 1, completed: 1 },
               clues: { total: 1, completed: 1 },
+              scenes: { total: 0, completed: 0 },
               episodes_summary: { total: 1, scripted: 1, in_production: 0, completed: 1 },
             },
           },

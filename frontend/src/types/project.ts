@@ -19,14 +19,14 @@ export interface Character {
   description: string;
   character_sheet?: string;
   voice_style?: string;
-  reference_image?: string;
+  reference_image?: string; // TODO: 未來若支援三視圖（正/側/背），可擴充為 reference_images?: string[] 預留空間
 }
 
 export interface Clue {
   description: string;
   importance: "major" | "minor";
   clue_sheet?: string;
-  reference_image?: string;
+  reference_image?: string; // TODO: 同樣可擴充為 reference_images?: string[] 預留空間
 }
 
 /**
@@ -58,12 +58,21 @@ export interface EpisodesSummary {
   completed: number;
 }
 
+export interface EpisodeOverrides {
+  video_backend?: string | null;
+  image_backend?: string | null;
+  video_resolution?: string | null;
+  image_size?: string | null;
+  duration_seconds?: number | null;
+}
+
 /** Injected by StatusCalculator.calculate_project_status at read time */
 export interface ProjectStatus {
-  current_phase: "setup" | "worldbuilding" | "scripting" | "production" | "completed";
+  current_phase: "setup" | "lorebook" | "scripting" | "storyboard" | "video" | "completed";
   phase_progress: number;
   characters: ProgressCategory;
   clues: ProgressCategory;
+  scenes: ProgressCategory;
   episodes_summary: EpisodesSummary;
 }
 
@@ -73,6 +82,7 @@ export interface EpisodeMeta {
   script_file: string;
   /** Display order (lower = earlier). Falls back to `episode` when absent. */
   order?: number;
+  overrides?: EpisodeOverrides;
   /** Injected by StatusCalculator at read time */
   scenes_count?: number;
   /** Injected by StatusCalculator at read time */

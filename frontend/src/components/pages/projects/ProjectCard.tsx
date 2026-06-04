@@ -4,9 +4,10 @@ import type { ProjectStatus, ProjectSummary } from "@/types";
 
 const PHASE_LABELS: Record<string, string> = {
   setup: "準備中",
-  worldbuilding: "世界觀",
+  lorebook: "角色場景",
   scripting: "劇本創作",
-  production: "製作中",
+  storyboard: "分鏡圖",
+  video: "影片",
   completed: "已完成",
 };
 
@@ -28,6 +29,7 @@ export function ProjectCard({
   const phaseLabel = PHASE_LABELS[phase] ?? phase;
   const characters = hasStatus ? (status as ProjectStatus).characters : null;
   const clues = hasStatus ? (status as ProjectStatus).clues : null;
+  const scenes = hasStatus ? (status as ProjectStatus).scenes : null;
   const summary = hasStatus ? (status as ProjectStatus).episodes_summary : null;
 
   const openProject = () => navigate(projectPath);
@@ -105,14 +107,17 @@ export function ProjectCard({
         </div>
       </div>
 
-      {/* Characters & Clues — always shown */}
-      {(characters || clues) && (
+      {/* Characters, Clues & Scenes — always shown */}
+      {(characters || clues || scenes) && (
         <div className="flex flex-wrap gap-2 text-xs text-[color:var(--wb-text-muted)]">
           {characters && (
             <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">角色 {characters.completed}/{characters.total}</span>
           )}
           {clues && (
             <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">道具 {clues.completed}/{clues.total}</span>
+          )}
+          {scenes && (
+            <span className="rounded-full border border-white/6 bg-black/12 px-2.5 py-1">場景 {scenes.completed}/{scenes.total}</span>
           )}
         </div>
       )}

@@ -6,12 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useAppStore } from "@/stores/app-store";
 import { DEFAULT_DURATIONS } from "@/utils/provider-models";
-
-const STYLE_OPTIONS = [
-  { value: "Photographic", label: "寫實攝影" },
-  { value: "Anime", label: "動漫風格" },
-  { value: "3D Animation", label: "3D 動畫" },
-] as const;
+import { STYLE_OPTIONS } from "@/utils/project-style";
 
 export function CreateProjectModal() {
   const [, navigate] = useLocation();
