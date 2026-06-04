@@ -51,37 +51,10 @@ export function LorebookDescriptionField({
 
   return (
     <div className={className}>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-1">
         <label htmlFor={id} className="block text-xs font-medium text-gray-400">
           {label}
         </label>
-        {onGenerateAI && (
-          <div className="flex items-center gap-1.5">
-            {textModelOptions && textModelOptions.length > 0 && (
-              <ProviderModelSelect
-                value={textModel || ""}
-                options={textModelOptions}
-                providerNames={providerNames || {}}
-                onChange={(val) => onTextModelChange?.(val || null)}
-                placeholder="選模型..."
-                allowDefault={true}
-                defaultLabel="預設文字模型"
-                className="w-32 text-xs"
-                size="sm"
-              />
-            )}
-            <button
-              type="button"
-              onClick={onGenerateAI}
-              disabled={aiGenerating}
-              className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-indigo-400 hover:bg-gray-800 hover:text-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none"
-              title="調用 AI 擴寫並生成英文生圖提示詞"
-            >
-              <Sparkles className={`h-3 w-3 ${aiGenerating ? "animate-spin" : ""}`} />
-              {aiGenerating ? "生成中..." : "AI 產生"}
-            </button>
-          </div>
-        )}
       </div>
       <textarea
         id={id}
@@ -93,6 +66,33 @@ export function LorebookDescriptionField({
         className={TEXTAREA_CLASS}
         placeholder={placeholder}
       />
+      {onGenerateAI && (
+        <div className="flex items-center gap-2 mt-1.5 w-full">
+          {textModelOptions && textModelOptions.length > 0 && (
+            <ProviderModelSelect
+              value={textModel || ""}
+              options={textModelOptions}
+              providerNames={providerNames || {}}
+              onChange={(val) => onTextModelChange?.(val || null)}
+              placeholder="選模型..."
+              allowDefault={true}
+              defaultLabel="預設文字模型"
+              className="flex-1 text-xs"
+              size="sm"
+            />
+          )}
+          <button
+            type="button"
+            onClick={onGenerateAI}
+            disabled={aiGenerating}
+            className="flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none border border-gray-700/50 hover:border-gray-600/50 bg-gray-800/40 rounded-md hover:bg-gray-800/80 transition-all shrink-0"
+            title="調用 AI 擴寫並生成英文生圖提示詞"
+          >
+            <Sparkles className={`h-3 w-3 ${aiGenerating ? "animate-spin" : ""}`} />
+            {aiGenerating ? "生成中..." : "AI 產生"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
