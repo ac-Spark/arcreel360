@@ -74,4 +74,11 @@ describe("CreateProjectModal", () => {
     expect(screen.getByRole("button", { name: "建立專案" })).toBeDisabled();
     expect(API.createProject).not.toHaveBeenCalled();
   });
+
+  it("does not render project-level default duration controls", () => {
+    renderModal();
+
+    expect(screen.queryByText("預設時長")).not.toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: "預設時長" })).not.toBeInTheDocument();
+  });
 });

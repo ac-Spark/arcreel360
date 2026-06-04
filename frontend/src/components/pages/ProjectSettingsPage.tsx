@@ -7,21 +7,16 @@ import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import { PROVIDER_NAMES } from "@/components/ui/ProviderIcon";
 import { useConfirm } from "@/hooks/useConfirm";
 import {
-  coerceDurationToOptions,
-  DEFAULT_DURATIONS,
   DEFAULT_IMAGE_SIZES,
   DEFAULT_RESOLUTIONS,
   getProviderModels,
-  getCustomProviderModels,
   lookupDefaultResolution,
-  lookupSupportedDurations,
   lookupSupportedImageSizes,
   lookupSupportedResolutions,
-  lookupVideoModelInfo,
-  resolveVideoDurationOptions,
+  shouldHideTextModelOption,
 } from "@/utils/provider-models";
 import { UI_LAYERS } from "@/utils/ui-layers";
-import type { CustomProviderInfo, ProviderInfo } from "@/types";
+import type { ProviderInfo } from "@/types";
 
 export function ProjectSettingsPage() {
   const params = useParams<{ projectName: string }>();
@@ -54,16 +49,14 @@ export function ProjectSettingsPage() {
   const [textOverview, setTextOverview] = useState<string>("");
   const [textStyle, setTextStyle] = useState<string>("");
   const [aspectRatio, setAspectRatio] = useState<string>("");
-  const [defaultDuration, setDefaultDuration] = useState<number | null>(null);
   const [videoModelSettings, setVideoModelSettings] = useState<Record<string, { resolution?: string | null }>>({});
   const [imageModelSettings, setImageModelSettings] = useState<Record<string, { image_size?: string | null }>>({});
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
-  const [customProviders, setCustomProviders] = useState<CustomProviderInfo[]>([]);
   const [saving, setSaving] = useState(false);
   const initialRef = useRef({
     videoBackend: "", imageBackend: "", audioOverride: null as boolean | null,
     textScript: "", textOverview: "", textStyle: "",
-    aspectRatio: "", defaultDuration: null as number | null,
+    aspectRatio: "",
     videoModelSettings: {} as Record<string, { resolution?: string | null }>,
     imageModelSettings: {} as Record<string, { image_size?: string | null }>,
   });
@@ -75,14 +68,13 @@ export function ProjectSettingsPage() {
       API.getSystemConfig(),
       API.getProject(projectName),
       getProviderModels().catch(() => [] as ProviderInfo[]),
-      getCustomProviderModels().catch(() => [] as CustomProviderInfo[]),
-    ]).then(([configRes, projectRes, providerList, customProviderList]) => {
+    ]).then(([configRes, projectRes, providerList]) => {
       if (disposed) return;
 
       setOptions({
         video_backends: configRes.options?.video_backends ?? [],
         image_backends: configRes.options?.image_backends ?? [],
-        text_backends: configRes.options?.text_backends ?? [],
+        text_backends: (configRes.options?.text_backends ?? []).filter((value) => !shouldHideTextModelOption(value)),
         provider_names: configRes.options?.provider_names,
       });
       setGlobalDefaults({
@@ -90,7 +82,6 @@ export function ProjectSettingsPage() {
         image: configRes.settings?.default_image_backend ?? "",
       });
       setProviders(providerList);
-      setCustomProviders(customProviderList);
 
       const project = projectRes.project as unknown as Record<string, unknown>;
       const vb = (project.video_backend as string | undefined) ?? "";
@@ -104,7 +95,6 @@ export function ProjectSettingsPage() {
       const ar = typeof project.aspect_ratio === "string"
         ? project.aspect_ratio
         : "";
-      const dd = project.default_duration != null ? (project.default_duration as number) : null;
       const vms = (project.video_model_settings as Record<string, { resolution?: string | null }> | undefined) ?? {};
       const ims = (project.image_model_settings as Record<string, { image_size?: string | null }> | undefined) ?? {};
 
@@ -115,13 +105,12 @@ export function ProjectSettingsPage() {
       setTextOverview(to);
       setTextStyle(tst);
       setAspectRatio(ar);
-      setDefaultDuration(dd);
       setVideoModelSettings(vms);
       setImageModelSettings(ims);
       initialRef.current = {
         videoBackend: vb, imageBackend: ib, audioOverride: ao,
         textScript: ts, textOverview: to, textStyle: tst,
-        aspectRatio: ar, defaultDuration: dd,
+        aspectRatio: ar,
         videoModelSettings: vms,
         imageModelSettings: ims,
       };
@@ -134,10 +123,6 @@ export function ProjectSettingsPage() {
   const effectiveVideoModelId = effectiveVideoBackend.includes("/")
     ? effectiveVideoBackend.split("/")[1]
     : "";
-  const supportedDurations = useMemo(
-    () => lookupSupportedDurations(providers, effectiveVideoBackend, customProviders),
-    [providers, effectiveVideoBackend, customProviders],
-  );
   const supportedResolutions = useMemo(
     () => lookupSupportedResolutions(providers, effectiveVideoBackend),
     [providers, effectiveVideoBackend],
@@ -150,10 +135,6 @@ export function ProjectSettingsPage() {
     modelResolution && resolutionOptions.includes(modelResolution)
       ? modelResolution
       : (lookupDefaultResolution(effectiveVideoBackend) ?? resolutionOptions[0] ?? "1080p");
-  const effectiveVideoModel = useMemo(
-    () => lookupVideoModelInfo(providers, effectiveVideoBackend),
-    [providers, effectiveVideoBackend],
-  );
 
   // ---- Image resolution (size) ----
   const effectiveImageBackend = imageBackend || globalDefaults.image;
@@ -182,31 +163,9 @@ export function ProjectSettingsPage() {
       },
     }));
   }, [effectiveImageModelId]);
-  const defaultDurationOptions = useMemo(
-    () =>
-      resolveVideoDurationOptions(effectiveVideoModel, supportedDurations, {
-        currentResolution: effectiveResolution,
-      }),
-    [effectiveResolution, effectiveVideoModel, supportedDurations],
-  );
-
-  // Derive effective default duration during render — if current value
-  // is not in the model's supported list, treat it as "auto" (null).
-  const effectiveDefaultDuration =
-    defaultDurationOptions && defaultDuration !== null && !defaultDurationOptions.includes(defaultDuration)
-      ? null
-      : defaultDuration;
-
   const handleVideoBackendChange = useCallback((value: string) => {
     setVideoBackend(value);
-    // When video model changes, reset default duration so the UI
-    // re-evaluates against the new model's supported durations.
-    const effective = value || globalDefaults.video;
-    const durations = lookupSupportedDurations(providers, effective, customProviders);
-    if (durations && defaultDuration !== null && !durations.includes(defaultDuration)) {
-      setDefaultDuration(null);
-    }
-  }, [globalDefaults.video, providers, customProviders, defaultDuration]);
+  }, []);
 
   const handleResolutionChange = useCallback((resolution: string) => {
     if (!effectiveVideoModelId) return;
@@ -218,25 +177,7 @@ export function ProjectSettingsPage() {
       },
     }));
 
-    const allowedDurations = resolveVideoDurationOptions(effectiveVideoModel, supportedDurations, {
-      currentResolution: resolution,
-    });
-    if (defaultDuration !== null && allowedDurations?.length && !allowedDurations.includes(defaultDuration)) {
-      const nextDuration = coerceDurationToOptions(defaultDuration, allowedDurations);
-      setDefaultDuration(nextDuration);
-      useAppStore
-        .getState()
-        .pushToast(
-          `已自動將秒數從 ${defaultDuration} 調整為 ${nextDuration}（${resolution} 限制）`,
-          "warning",
-        );
-    }
-  }, [
-    defaultDuration,
-    effectiveVideoModel,
-    effectiveVideoModelId,
-    supportedDurations,
-  ]);
+  }, [effectiveVideoModelId]);
 
   const isDirty =
     videoBackend !== initialRef.current.videoBackend ||
@@ -246,7 +187,6 @@ export function ProjectSettingsPage() {
     textOverview !== initialRef.current.textOverview ||
     textStyle !== initialRef.current.textStyle ||
     aspectRatio !== initialRef.current.aspectRatio ||
-    defaultDuration !== initialRef.current.defaultDuration ||
     JSON.stringify(videoModelSettings) !== JSON.stringify(initialRef.current.videoModelSettings) ||
     JSON.stringify(imageModelSettings) !== JSON.stringify(initialRef.current.imageModelSettings);
 
@@ -279,14 +219,14 @@ export function ProjectSettingsPage() {
         text_backend_overview: textOverview || null,
         text_backend_style: textStyle || null,
         aspect_ratio: aspectRatio || undefined,
-        default_duration: defaultDuration,
+        default_duration: null,
         video_model_settings: videoModelSettings,
         image_model_settings: imageModelSettings,
       } as Record<string, unknown>);
       initialRef.current = {
         videoBackend, imageBackend, audioOverride,
         textScript, textOverview, textStyle,
-        aspectRatio, defaultDuration,
+        aspectRatio,
         videoModelSettings,
         imageModelSettings,
       };
@@ -304,7 +244,6 @@ export function ProjectSettingsPage() {
     textOverview,
     textStyle,
     aspectRatio,
-    defaultDuration,
     videoModelSettings,
     imageModelSettings,
     projectName,
@@ -417,44 +356,7 @@ export function ProjectSettingsPage() {
               </fieldset>
             </div>
 
-            {/* Default duration */}
-            <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">
-              <div className="mb-3 text-sm font-medium text-gray-100">預設時長</div>
-              <p className="mb-2 text-xs text-gray-500">
-                新分鏡的預設影片時長，「自動」表示由 AI 根據內容決定
-              </p>
-              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="預設時長選擇">
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={effectiveDefaultDuration === null}
-                  onClick={() => setDefaultDuration(null)}
-                  className={`rounded-lg border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                    effectiveDefaultDuration === null
-                      ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
-                      : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-                  }`}
-                >
-                  自動
-                </button>
-                {(defaultDurationOptions ?? DEFAULT_DURATIONS).map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    role="radio"
-                    aria-checked={effectiveDefaultDuration === d}
-                    onClick={() => setDefaultDuration(d)}
-                    className={`rounded-lg border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                      effectiveDefaultDuration === d
-                        ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
-                        : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-                    }`}
-                  >
-                    {d}s
-                  </button>
-                ))}
-              </div>
-            </div>
+
 
             {/* Image model override */}
             <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">

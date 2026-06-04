@@ -6,6 +6,7 @@ import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import { PROVIDER_NAMES } from "@/components/ui/ProviderIcon";
 import { useAppStore } from "@/stores/app-store";
 import { useConfigStatusStore } from "@/stores/config-status-store";
+import { shouldHideTextModelOption } from "@/utils/provider-models";
 
 const TEXT_MODEL_FIELDS = [
   ["default_text_backend", "助手對話"],
@@ -61,7 +62,7 @@ export function MediaModelSection() {
   const currentBytePlusEndpoint = draft.byteplus_video_endpoint_id ?? settings?.byteplus_video_endpoint_id ?? "";
   const videoBackends = options?.video_backends ?? [];
   const imageBackends: string[] = options?.image_backends ?? [];
-  const textBackends: string[] = options?.text_backends ?? [];
+  const textBackends: string[] = (options?.text_backends ?? []).filter((value) => !shouldHideTextModelOption(value));
 
   if (!settings || !options) {
     return <div className="p-6 text-sm text-gray-500">載入中…</div>;

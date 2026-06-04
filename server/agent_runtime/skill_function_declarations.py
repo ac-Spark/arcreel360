@@ -538,7 +538,7 @@ GENERATE_OVERVIEW_DECL = FunctionDeclaration(
     description=(
         "讀取 source/ 原文並生成 project.json 的結構化專案概述。"
         "輸出包含 synopsis、genre、theme、world_setting，會直接儲存到 project.json，"
-        "用於把專案從準備中推進到世界觀階段。"
+        "用於把專案從專案概述推進到角色場景階段。"
     ),
     parameters={
         "type": "object",

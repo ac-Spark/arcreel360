@@ -58,7 +58,14 @@ def _read_source_files(paths: ProjectPaths, project_name: str, max_chars: int = 
     return "\n\n".join(contents)
 
 
-async def generate_overview(store: ProjectStore, paths: ProjectPaths, project_name: str) -> dict:
+async def generate_overview(
+    store: ProjectStore,
+    paths: ProjectPaths,
+    project_name: str,
+    *,
+    model: str | None = None,
+    instruction: str | None = None,
+) -> dict:
     """使用 Gemini API 非同步生成專案概述"""
     from lib.text_backends.base import TextGenerationRequest, TextTaskType
     from lib.text_generator import TextGenerator
@@ -69,10 +76,17 @@ async def generate_overview(store: ProjectStore, paths: ProjectPaths, project_na
         raise ValueError("source 目錄為空，無法生成概述")
 
     # 建立 TextGenerator（自動追蹤用量）
-    generator = await TextGenerator.create(TextTaskType.OVERVIEW, project_name)
+    generator = (
+        await TextGenerator.create_with_model_str(model)
+        if model
+        else await TextGenerator.create(TextTaskType.OVERVIEW, project_name)
+    )
 
     # 呼叫 TextGenerator（Structured Outputs）
+    guidance = (instruction or "").strip()
     prompt = f"請分析以下小說內容，提取關鍵資訊：\n\n{source_content}"
+    if guidance:
+        prompt = f"請依照以下使用者方向生成專案概述：\n{guidance}\n\n{prompt}"
 
     result = await generator.generate(
         TextGenerationRequest(

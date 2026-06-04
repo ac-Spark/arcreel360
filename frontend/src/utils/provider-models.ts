@@ -8,14 +8,21 @@ export const DEFAULT_IMAGE_SIZES: readonly string[] = ["1K"];
 export interface MediaModelOptions {
   image: string[];
   video: string[];
+  text: string[];
   providerNames: Record<string, string>;
 }
 
 export const EMPTY_MEDIA_MODEL_OPTIONS: MediaModelOptions = {
   image: [],
   video: [],
+  text: [],
   providerNames: {},
 };
+
+export function shouldHideTextModelOption(value: string): boolean {
+  const lower = value.toLowerCase();
+  return lower.startsWith("byteplus/doubao-seed") || lower.startsWith("ark/doubao-seed");
+}
 
 const CUSTOM_PREFIX = "custom-";
 const LEGACY_PROVIDER_IDS: Record<string, string> = {
@@ -100,6 +107,7 @@ export function buildMediaModelOptions(providers: ProviderInfo[] | null | undefi
 
   const image: string[] = [];
   const video: string[] = [];
+  const text: string[] = [];
   const providerNames: Record<string, string> = {};
 
   for (const provider of providers) {
@@ -112,11 +120,13 @@ export function buildMediaModelOptions(providers: ProviderInfo[] | null | undefi
         image.push(value);
       } else if (info.media_type === "video") {
         video.push(value);
+      } else if (info.media_type === "text" && !shouldHideTextModelOption(value)) {
+        text.push(value);
       }
     }
   }
 
-  return { image, video, providerNames };
+  return { image, video, text, providerNames };
 }
 
 // ---------------------------------------------------------------------------

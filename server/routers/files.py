@@ -18,6 +18,7 @@ from lib import PROJECT_ROOT
 from lib.image_utils import normalize_uploaded_image
 from lib.project_change_hints import emit_project_change_batch, project_change_source
 from lib.project_manager import ProjectManager
+from lib.step1_draft_sync import sync_draft_to_segments
 from lib.version_manager import VersionManager
 from server.auth import CurrentUser
 
@@ -556,6 +557,12 @@ async def update_draft_content(
             draft_path = drafts_dir / step_files[step_num]
             is_new = not draft_path.exists()
             draft_path.write_text(content, encoding="utf-8")
+
+            if step_num == 1:
+                try:
+                    sync_draft_to_segments(project_dir, episode, content, content_mode, get_project_manager())
+                except Exception as e:
+                    logger.error(f"Sync draft to segments failed in update_draft_content: {e}")
 
             # 發射 draft 事件通知前端
             action = "created" if is_new else "updated"

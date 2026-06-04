@@ -17,6 +17,7 @@ interface ProviderModelSelectProps {
   defaultHint?: string; // "當前: gemini-aistudio/veo-3.1-generate-001"
   /** Accessible label for the trigger button */
   "aria-label"?: string;
+  size?: "sm" | "md";
 }
 
 interface FlatOption {
@@ -50,6 +51,7 @@ export function ProviderModelSelect({
   defaultLabel,
   defaultHint,
   "aria-label": ariaLabel,
+  size = "md",
 }: ProviderModelSelectProps) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -184,9 +186,9 @@ export function ProviderModelSelect({
         aria-label={ariaLabel}
         onClick={() => setOpen(!open)}
         onKeyDown={handleKeyDown}
-        className="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-700 bg-gray-900/80 px-3 py-2 text-sm text-gray-200 transition-colors hover:border-gray-600 hover:bg-gray-800/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900"
+        className={`flex w-full items-center justify-between gap-1.5 rounded-lg border border-gray-700 bg-gray-900/80 ${size === "sm" ? "px-2 py-0.5 text-[11px]" : "px-3 py-2 text-sm"} text-gray-200 transition-colors hover:border-gray-600 hover:bg-gray-800/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900`}
       >
-        <span className="truncate">{displayText}</span>
+        <span className="truncate leading-none">{displayText}</span>
         <ChevronDown
           className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
         />

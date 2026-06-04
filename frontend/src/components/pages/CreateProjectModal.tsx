@@ -5,7 +5,6 @@ import { API } from "@/api";
 import { Modal } from "@/components/ui/Modal";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useAppStore } from "@/stores/app-store";
-import { DEFAULT_DURATIONS } from "@/utils/provider-models";
 import { STYLE_OPTIONS } from "@/utils/project-style";
 
 export function CreateProjectModal() {
@@ -17,7 +16,6 @@ export function CreateProjectModal() {
   const [contentMode, setContentMode] = useState<"narration" | "drama">("narration");
   const [aspectRatio, setAspectRatio] = useState<"9:16" | "16:9">("9:16");
   const [style, setStyle] = useState("Photographic");
-  const [defaultDuration, setDefaultDuration] = useState<number | null>(null);
   const [titleError, setTitleError] = useState("");
   const [styleImageFile, setStyleImageFile] = useState<File | null>(null);
   const [styleImagePreview, setStyleImagePreview] = useState<string | null>(null);
@@ -51,7 +49,7 @@ export function CreateProjectModal() {
 
     setCreatingProject(true);
     try {
-      const response = await API.createProject(title.trim(), style, contentMode, aspectRatio, defaultDuration);
+      const response = await API.createProject(title.trim(), style, contentMode, aspectRatio, null);
       const projectName = response.name;
 
       // 如果使用者選擇了風格參考圖，在專案建立後上傳
@@ -189,45 +187,6 @@ export function CreateProjectModal() {
                 />
                 橫屏 16:9
               </label>
-            </div>
-          </div>
-
-          {/* Default Duration */}
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-0.5">
-              預設時長
-            </label>
-            <p className="text-xs text-gray-600 mb-1.5">
-              由 AI 根據內容自動決定時長，或指定固定時長
-            </p>
-            <div className="flex gap-2" role="radiogroup" aria-label="預設時長">
-              <button
-                type="button"
-                role="radio"
-                aria-checked={defaultDuration === null}
-                onClick={() => setDefaultDuration(null)}
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${defaultDuration === null
-                    ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
-                    : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-                  }`}
-              >
-                自動
-              </button>
-              {DEFAULT_DURATIONS.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  role="radio"
-                  aria-checked={defaultDuration === d}
-                  onClick={() => setDefaultDuration(d)}
-                  className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${defaultDuration === d
-                      ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
-                      : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-                    }`}
-                >
-                  {d}s
-                </button>
-              ))}
             </div>
           </div>
 

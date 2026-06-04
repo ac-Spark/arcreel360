@@ -121,7 +121,10 @@ describe("OverviewCanvas", () => {
     fireEvent.click(screen.getByRole("button", { name: "生成概述" }));
 
     await waitFor(() => {
-      expect(API.generateOverview).toHaveBeenCalledWith("demo");
+      expect(API.generateOverview).toHaveBeenCalledWith("demo", {
+        model: null,
+        instruction: null,
+      });
     });
   });
 

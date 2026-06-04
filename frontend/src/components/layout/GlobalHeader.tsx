@@ -31,7 +31,7 @@ function triggerBrowserDownload(url: string) {
 // ---------------------------------------------------------------------------
 
 const PHASES = [
-  { key: "setup", label: "準備中" },
+  { key: "setup", label: "專案概述" },
   { key: "lorebook", label: "角色場景" },
   { key: "scripting", label: "劇本創作" },
   { key: "storyboard", label: "分鏡圖" },

@@ -3,7 +3,7 @@ import { FolderOpen, Trash2 } from "lucide-react";
 import type { ProjectStatus, ProjectSummary } from "@/types";
 
 const PHASE_LABELS: Record<string, string> = {
-  setup: "準備中",
+  setup: "專案概述",
   lorebook: "角色場景",
   scripting: "劇本創作",
   storyboard: "分鏡圖",

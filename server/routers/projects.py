@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import shutil
 import tempfile
 from pathlib import Path
@@ -17,7 +18,7 @@ from typing import TYPE_CHECKING, Annotated
 if TYPE_CHECKING:
     from server.services.jianying_draft_service import JianyingDraftService
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Body, File, Form, HTTPException, Query, UploadFile
 from fastapi import Path as FastAPIPath
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
@@ -30,6 +31,7 @@ from lib.asset_fingerprints import compute_asset_fingerprints
 from lib.project_change_hints import project_change_source
 from lib.project_manager import ProjectManager
 from lib.status_calculator import StatusCalculator
+from lib.step1_draft_sync import sync_segment_to_draft
 from server.auth import CurrentUser, create_download_token, verify_download_token
 from server.routers._validators import validate_backend_value
 from server.services.project_archive import (
@@ -46,6 +48,13 @@ _MISSING_VIDEO_ERROR_FRAGMENTS = ("缺少影片片段", "影片檔案不存在",
 # 初始化專案管理器和狀態計算器
 pm = ProjectManager(PROJECT_ROOT / "projects")
 calc = StatusCalculator(pm)
+
+
+def extract_episode_num(script_file: str) -> int:
+    match = re.search(r"episode_(\d+)", script_file)
+    if not match:
+        raise ValueError(f"無法從檔案名 {script_file} 解析出劇集編號")
+    return int(match.group(1))
 
 
 def get_project_manager() -> ProjectManager:
@@ -83,6 +92,11 @@ class UpdateProjectRequest(BaseModel):
     text_backend_script: str | None = None
     text_backend_overview: str | None = None
     text_backend_style: str | None = None
+
+
+class GenerateOverviewRequest(BaseModel):
+    model: str | None = None
+    instruction: str | None = None
 
 
 class CreateEpisodeRequest(BaseModel):
@@ -589,6 +603,7 @@ async def update_scene(name: str, scene_id: str, req: UpdateSceneRequest, _user:
                             "scene_in_scene",
                             "segment_break",
                             "note",
+                            "scene_description",
                         ]:
                             if value is None and key not in {"note", "scene_in_scene"}:
                                 continue
@@ -600,6 +615,15 @@ async def update_scene(name: str, scene_id: str, req: UpdateSceneRequest, _user:
 
             with project_change_source("webui"):
                 manager.save_script(name, script, req.script_file)
+                try:
+                    ep = extract_episode_num(req.script_file)
+                    project_path = manager.get_project_path(name)
+                    if "scene_description" in req.updates:
+                        new_desc = req.updates["scene_description"]
+                        if new_desc is not None:
+                            sync_segment_to_draft(project_path, ep, scene_id, new_desc, "drama")
+                except Exception as e:
+                    logger.error(f"Sync scene to draft failed in update_scene: {e}")
             return {"success": True, "scene": scene}
 
         return await asyncio.to_thread(_sync)
@@ -648,6 +672,12 @@ def _verify_episode_script(project: dict, episode: int, requested_script_file: s
         raise HTTPException(status_code=404, detail=f"集 {episode} 不存在")
 
     actual_script = target.get("script_file") or requested_script_file
+
+    # 寬鬆匹配：若兩者都包含 episode_{episode} 特徵（如 scripts/episode_1.json 和 drafts/episode_1/step2_storyboard.json），則視為匹配
+    ep_pattern = f"episode_{episode}"
+    if ep_pattern in actual_script.lower() and ep_pattern in requested_script_file.lower():
+        return
+
     if actual_script.removeprefix("scripts/") != requested_script_file.removeprefix("scripts/"):
         raise HTTPException(
             status_code=400,
@@ -772,6 +802,13 @@ async def update_segment(name: str, segment_id: str, req: UpdateSegmentRequest, 
 
             with project_change_source("webui"):
                 manager.save_script(name, script, req.script_file)
+                try:
+                    ep = extract_episode_num(req.script_file)
+                    project_path = manager.get_project_path(name)
+                    if "novel_text" in req.model_fields_set and req.novel_text is not None:
+                        sync_segment_to_draft(project_path, ep, segment_id, req.novel_text, "narration")
+                except Exception as e:
+                    logger.error(f"Sync segment to draft failed in update_segment: {e}")
             return {"success": True, "segment": segment}
 
         return await asyncio.to_thread(_sync)
@@ -882,11 +919,21 @@ async def set_project_source(
 
 
 @router.post("/projects/{name}/generate-overview")
-async def generate_overview(name: str, _user: CurrentUser):
+async def generate_overview(
+    name: str,
+    _user: CurrentUser,
+    req: GenerateOverviewRequest = Body(default_factory=GenerateOverviewRequest),
+):
     """使用 AI 生成專案概述"""
     try:
+        if req.model:
+            validate_backend_value(req.model, "model")
         with project_change_source("webui"):
-            overview = await get_project_manager().generate_overview(name)
+            overview = await get_project_manager().generate_overview(
+                name,
+                model=req.model,
+                instruction=req.instruction,
+            )
         return {"success": True, "overview": overview}
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
@@ -931,6 +978,132 @@ async def update_overview(name: str, req: UpdateOverviewRequest, _user: CurrentU
         raise
     except Exception as e:
         logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class ExtractedCharacter(BaseModel):
+    name: str = Field(description="角色名稱，必須是故事中出現的名稱。例如：'林黛玉'")
+    description: str = Field(description="角色外貌、性格與背景描述，50-100字。將用於生成分鏡時的提示詞參考。")
+    voice_style: str = Field(description="角色的說話風格，如 '沉穩男中音'、'溫柔少婦音'。")
+
+
+class ExtractedCharactersList(BaseModel):
+    characters: list[ExtractedCharacter]
+
+
+class ExtractedClue(BaseModel):
+    name: str = Field(description="道具名稱。例如：'七星寶劍'")
+    description: str = Field(description="道具外觀、功能與細節描述，30-80字。將用於生成分鏡時的提示詞參考。")
+    importance: str = Field(description="道具重要性，必須是 'major' 或 'minor'。")
+
+
+class ExtractedCluesList(BaseModel):
+    clues: list[ExtractedClue]
+
+
+class ExtractedScene(BaseModel):
+    name: str = Field(description="場景名稱。例如：'大雄寶殿'")
+    description: str = Field(description="場景的佈置、氛圍與外觀描述，50-100字。將用於生成分鏡時的提示詞參考。")
+
+
+class ExtractedScenesList(BaseModel):
+    scenes: list[ExtractedScene]
+
+
+class LorebookExtractRequest(BaseModel):
+    model: str | None = None
+    entity_type: str  # "character", "clue", "scene"
+    instruction: str | None = ""
+
+
+@router.post("/projects/{name}/lorebook/extract")
+async def extract_lorebook_entities(
+    name: str,
+    req: LorebookExtractRequest,
+    _user: CurrentUser,
+):
+    """利用 AI 從小說原文和專案概述中，批次提取角色、道具或場景定義"""
+    try:
+        # 1. 取得原始檔內容
+        manager = get_project_manager()
+        source_content = await asyncio.to_thread(manager._read_source_files, name, 35000)
+
+        # 2. 取得專案概述
+        project = await asyncio.to_thread(manager.load_project, name)
+        overview = project.get("overview", {})
+        overview_text = (
+            f"故事梗概：{overview.get('synopsis', '無')}\n"
+            f"題材類型：{overview.get('genre', '無')}\n"
+            f"核心主題：{overview.get('theme', '無')}\n"
+            f"世界設定：{overview.get('world_setting', '無')}"
+        )
+
+        if not source_content and not overview:
+            raise HTTPException(status_code=400, detail="專案 source 原文與專案概述皆為空，無法進行 AI 提取。")
+
+        # 3. 根據 entity_type 決定 schema 和 prompt
+        from lib.text_backends.base import TextGenerationRequest
+        from lib.text_generator import TextGenerator
+
+        if req.entity_type == "character":
+            schema = ExtractedCharactersList
+            system_prompt = (
+                "你是一個專業的角色提取專家。請仔細閱讀以下專案概述和小說原文，"
+                "根據使用者的具體指示，提取出符合要求的角色列表。"
+                "每個角色必須包含：名稱（不可重覆）、詳細描述（包括特徵、身份、性格，50-100字）、說話風格。"
+            )
+        elif req.entity_type == "clue":
+            schema = ExtractedCluesList
+            system_prompt = (
+                "你是一個專業的小說道具與線索提取專家。請仔細閱讀以下專案概述和小說原文，"
+                "根據使用者的具體指示，提取出符合要求的道具、線索或物品列表。"
+                "每個物品必須包含：名稱、詳細描述（30-80字）、重要程度（必須為 'major' 或 'minor'）。"
+            )
+        elif req.entity_type == "scene":
+            schema = ExtractedScenesList
+            system_prompt = (
+                "你是一個專業的場景提取專家。請仔細閱讀以下專案概述和小說原文，"
+                "根據使用者的具體指示，提取出符合要求的場景或地點列表。"
+                "每個場景必須包含：名稱、詳細佈置與氛圍描述（50-100字）。"
+            )
+        else:
+            raise HTTPException(status_code=400, detail=f"不支援的實體類型: {req.entity_type}")
+
+        # 4. 組合 prompt
+        prompt = (
+            f"{system_prompt}\n\n"
+            f"【專案概述】\n{overview_text}\n\n"
+            f"【小說內容片段（前35000字）】\n{source_content}\n\n"
+            f"【使用者指令】\n{req.instruction or '請提取出主要項目'}\n\n"
+            f"請直接回傳符合 JSON Schema 的 JSON 資料。"
+        )
+
+        # 5. 初始化 TextGenerator
+        if req.model:
+            generator = await TextGenerator.create_with_model_str(req.model)
+        else:
+            from lib.text_backends.base import TextTaskType
+            generator = await TextGenerator.create(TextTaskType.OVERVIEW, name)
+
+        # 6. 呼叫 LLM
+        result = await generator.generate(
+            TextGenerationRequest(
+                prompt=prompt,
+                response_schema=schema,
+            ),
+            project_name=name,
+        )
+
+        # 7. 解析
+        parsed = schema.model_validate_json(result.text)
+        return {"success": True, "data": parsed.model_dump()}
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("AI 提取實體失敗")
         raise HTTPException(status_code=500, detail=str(e))
 
 

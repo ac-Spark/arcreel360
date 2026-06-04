@@ -268,6 +268,7 @@ export function StudioCanvasRouter() {
     payload: {
       description: string;
       voiceStyle: string;
+      imageBackend?: string | null;
     },
   ) => {
     if (!currentProjectName) return;
@@ -275,6 +276,7 @@ export function StudioCanvasRouter() {
       await API.updateCharacter(currentProjectName, name, {
         description: payload.description,
         voice_style: payload.voiceStyle,
+        image_backend: payload.imageBackend,
       });
 
       await refreshProject();
@@ -497,12 +499,13 @@ export function StudioCanvasRouter() {
   const handleSaveScene = useCallback(
     async (
       name: string,
-      payload: { description: string },
+      payload: { description: string; imageBackend?: string | null },
     ) => {
       if (!currentProjectName) return;
       try {
         await API.updateProjectScene(currentProjectName, name, {
           description: payload.description,
+          image_backend: payload.imageBackend,
         });
         await refreshProject();
         useAppStore.getState().pushToast(`場景「${name}」已更新`, "success");
@@ -673,6 +676,7 @@ export function StudioCanvasRouter() {
             onAddCharacter={() => setAddingCharacter(true)}
             onAddClue={() => setAddingClue(true)}
             onAddScene={() => setAddingScene(true)}
+            onRefresh={refreshProject}
           />
           {addingCharacter && lorebookMode === "characters" && (
             <AddCharacterForm

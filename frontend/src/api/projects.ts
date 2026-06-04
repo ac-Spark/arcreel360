@@ -211,10 +211,17 @@ export const projectsApi = {
   /** 使用 AI 生成專案概述 */
   async generateOverview(
     projectName: string,
+    options: { model?: string | null; instruction?: string | null } = {},
   ): Promise<{ success: boolean; overview: ProjectOverview }> {
     return getApi().request(
       `/projects/${encodeURIComponent(projectName)}/generate-overview`,
-      { method: "POST" },
+      {
+        method: "POST",
+        body: JSON.stringify({
+          model: options.model || null,
+          instruction: options.instruction || null,
+        }),
+      },
     );
   },
 
@@ -294,6 +301,73 @@ export const projectsApi = {
       {
         method: "PATCH",
         body: JSON.stringify({ style }),
+      },
+    );
+  },
+
+  /** 利用 AI 從原文與概述中提取設定集實體 */
+  async extractLorebook(
+    projectName: string,
+    body: {
+      model?: string | null;
+      entity_type: "character" | "clue" | "scene";
+      instruction?: string;
+    },
+  ): Promise<{
+    success: boolean;
+    data: {
+      characters?: Array<{ name: string; description: string; voice_style?: string }>;
+      clues?: Array<{ name: string; description: string; importance: string }>;
+      scenes?: Array<{ name: string; description: string }>;
+    };
+  }> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(projectName)}/lorebook/extract`,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    );
+  },
+
+  /** 批次新增角色 */
+  async batchCreateCharacters(
+    projectName: string,
+    items: Array<{ name: string; description: string; voice_style?: string }>,
+  ): Promise<{ success: boolean; characters: Record<string, any> }> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(projectName)}/characters/batch_create`,
+      {
+        method: "POST",
+        body: JSON.stringify({ items }),
+      },
+    );
+  },
+
+  /** 批次新增道具 */
+  async batchCreateClues(
+    projectName: string,
+    items: Array<{ name: string; description: string; importance?: string }>,
+  ): Promise<{ success: boolean; clues: Record<string, any> }> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(projectName)}/clues/batch_create`,
+      {
+        method: "POST",
+        body: JSON.stringify({ items }),
+      },
+    );
+  },
+
+  /** 批次新增場景 */
+  async batchCreateScenes(
+    projectName: string,
+    items: Array<{ name: string; description: string }>,
+  ): Promise<{ success: boolean; scenes: Record<string, any> }> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(projectName)}/project-scenes/batch_create`,
+      {
+        method: "POST",
+        body: JSON.stringify({ items }),
       },
     );
   },

@@ -19,14 +19,23 @@ function renderOverviewSection(
   options: {
     overview?: ProjectOverview | null;
     onRefresh?: () => Promise<void> | void;
+    textModelOptions?: string[];
+    providerNames?: Record<string, string>;
   } = {},
 ) {
-  const { overview = makeOverview(), onRefresh = vi.fn() } = options;
+  const {
+    overview = makeOverview(),
+    onRefresh = vi.fn(),
+    textModelOptions = [],
+    providerNames = {},
+  } = options;
   render(
     <OverviewSection
       projectName="demo"
       overview={overview}
       onRefresh={onRefresh}
+      textModelOptions={textModelOptions}
+      providerNames={providerNames}
     />,
   );
 }
@@ -91,18 +100,31 @@ describe("OverviewSection", () => {
     expect(worldSetting).toHaveValue("");
   });
 
-  it("regenerates the overview via API.generateOverview", async () => {
+  it("regenerates the overview with the selected text model and guidance prompt", async () => {
     const generateOverview = vi
       .spyOn(API, "generateOverview")
       .mockResolvedValue({ success: true, overview: makeOverview() });
     const onRefresh = vi.fn().mockResolvedValue(undefined);
 
-    renderOverviewSection({ overview: null, onRefresh });
+    renderOverviewSection({
+      overview: null,
+      onRefresh,
+      textModelOptions: ["openai/gpt-4.1"],
+      providerNames: { openai: "OpenAI" },
+    });
 
+    fireEvent.click(screen.getByRole("combobox", { name: "概述文字模型" }));
+    fireEvent.click(screen.getByRole("option", { name: /gpt-4.1/ }));
+    fireEvent.change(screen.getByLabelText("概述生成提示詞"), {
+      target: { value: "偏向黑色幽默，凸顯女主復仇動機。" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "生成概述" }));
 
     await waitFor(() => {
-      expect(generateOverview).toHaveBeenCalledWith("demo");
+      expect(generateOverview).toHaveBeenCalledWith("demo", {
+        model: "openai/gpt-4.1",
+        instruction: "偏向黑色幽默，凸顯女主復仇動機。",
+      });
       expect(onRefresh).toHaveBeenCalled();
     });
   });

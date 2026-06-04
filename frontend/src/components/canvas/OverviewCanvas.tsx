@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ImagePlus, Trash2, Upload } from "lucide-react";
-import type { ProjectData } from "@/types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, ImagePlus, Trash2, Upload } from "lucide-react";
+import type { ProjectData, ProviderInfo } from "@/types";
 import { API } from "@/api";
+import { providersApi } from "@/api/providers";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useAppStore } from "@/stores/app-store";
 import { useCostStore } from "@/stores/cost-store";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { useConfirm } from "@/hooks/useConfirm";
 import { formatCost, totalBreakdown } from "@/utils/cost-format";
+import { buildMediaModelOptions } from "@/utils/provider-models";
 import { sortEpisodesForDisplay } from "@/utils/episodes";
 import { STYLE_OPTIONS } from "@/utils/project-style";
 
@@ -38,6 +40,7 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
   const [uploadingStyleImage, setUploadingStyleImage] = useState(false);
   const [deletingStyleImage, setDeletingStyleImage] = useState(false);
   const [savingStyleDescription, setSavingStyleDescription] = useState(false);
+  const [providers, setProviders] = useState<ProviderInfo[] | null>(null);
   const [styleDescriptionDraft, setStyleDescriptionDraft] = useState(
     projectData?.style_description ?? "",
   );
@@ -59,6 +62,23 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
   useEffect(() => {
     setStyleDescriptionDraft(projectData?.style_description ?? "");
   }, [projectData?.style_description]);
+
+  useEffect(() => {
+    let disposed = false;
+    providersApi
+      .getProviders()
+      .then((res) => {
+        if (!disposed) setProviders(res.providers);
+      })
+      .catch(() => {
+        if (!disposed) setProviders([]);
+      });
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
+  const modelOptions = useMemo(() => buildMediaModelOptions(providers), [providers]);
 
   const handleUpload = useCallback(
     async (file: File) => {
@@ -165,27 +185,30 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
         </div>
         <div className="flex items-center gap-2">
           <label htmlFor="project-style-select" className="text-xs text-gray-500">風格標籤：</label>
-          <select
-            id="project-style-select"
-            value={projectData.style || ""}
-            onChange={async (e) => {
-              const value = e.target.value;
-              try {
-                await API.updateStyle(projectName, value);
-                await refreshProject();
-                useAppStore.getState().pushToast("專案風格已更新", "success");
-              } catch (err) {
-                useAppStore.getState().pushToast(`更新失敗: ${(err as Error).message}`, "error");
-              }
-            }}
-            className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-gray-300 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-          >
-            {STYLE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              id="project-style-select"
+              value={projectData.style || ""}
+              onChange={async (e) => {
+                const value = e.target.value;
+                try {
+                  await API.updateStyle(projectName, value);
+                  await refreshProject();
+                  useAppStore.getState().pushToast("專案風格已更新", "success");
+                } catch (err) {
+                  useAppStore.getState().pushToast(`更新失敗: ${(err as Error).message}`, "error");
+                }
+              }}
+              className="appearance-none rounded-lg border border-gray-700 bg-gray-800 py-1.5 pl-3 pr-8 text-xs text-gray-300 outline-none transition-colors hover:border-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            >
+              {STYLE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-500" />
+          </div>
         </div>
       </div>
 
@@ -324,6 +347,8 @@ export function OverviewCanvas({ projectName, projectData }: OverviewCanvasProps
               projectName={projectName}
               overview={overview}
               onRefresh={refreshProject}
+              textModelOptions={modelOptions.text}
+              providerNames={modelOptions.providerNames}
             />
 
             {status && (

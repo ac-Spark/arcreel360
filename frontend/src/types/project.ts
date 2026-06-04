@@ -20,6 +20,7 @@ export interface Character {
   character_sheet?: string;
   voice_style?: string;
   reference_image?: string; // TODO: 未來若支援三視圖（正/側/背），可擴充為 reference_images?: string[] 預留空間
+  image_backend?: string | null;
 }
 
 export interface Clue {
@@ -27,6 +28,7 @@ export interface Clue {
   importance: "major" | "minor";
   clue_sheet?: string;
   reference_image?: string; // TODO: 同樣可擴充為 reference_images?: string[] 預留空間
+  image_backend?: string | null;
 }
 
 /**
@@ -37,6 +39,7 @@ export interface Scene {
   description: string;
   scene_sheet?: string;
   scene_ref?: string;
+  image_backend?: string | null;
 }
 
 export interface AspectRatio {
