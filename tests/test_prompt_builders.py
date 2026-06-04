@@ -1,7 +1,6 @@
 from lib.prompt_builders import (
     build_character_prompt,
     build_clue_prompt,
-    build_prop_prompt,
     build_storyboard_suffix,
     build_style_prompt,
 )
