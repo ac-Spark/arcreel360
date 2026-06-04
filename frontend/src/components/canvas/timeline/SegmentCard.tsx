@@ -1,316 +1,46 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ImageIcon, Film, Clock, Monitor, Trash2 } from "lucide-react";
-import { API } from "@/api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Monitor, ImageIcon, Trash2 } from "lucide-react";
 import {
   coerceDurationToOptions,
   DEFAULT_DURATIONS,
-  DEFAULT_IMAGE_SIZES,
   DEFAULT_RESOLUTIONS,
+  DEFAULT_IMAGE_SIZES,
   getDurationConstraintReason,
 } from "@/utils/provider-models";
 import { useImageSizeOptions } from "@/hooks/useImageSizeOptions";
 import { useVideoResolutionOptions } from "@/hooks/useVideoResolutionOptions";
-import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
+import { useVideoDurationOptions } from "@/hooks/useVideoDurationOptions";
+import { useCostStore } from "@/stores/cost-store";
+import { useAppStore } from "@/stores/app-store";
+import { formatCost } from "@/utils/cost-format";
 import { AvatarStack } from "@/components/ui/AvatarStack";
 import { ClueStack } from "@/components/ui/ClueStack";
-import { AspectFrame } from "@/components/ui/AspectFrame";
-import { AutoTextarea } from "@/components/ui/AutoTextarea";
-import { GenerateButton } from "@/components/ui/GenerateButton";
-import { ImageFlipReveal } from "@/components/ui/ImageFlipReveal";
-import { Popover } from "@/components/ui/Popover";
-import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
-import { PreviewableVideoFrame } from "@/components/ui/PreviewableVideoFrame";
-import { useVideoDurationOptions } from "@/hooks/useVideoDurationOptions";
-import { useAppStore } from "@/stores/app-store";
-import { useProjectsStore } from "@/stores/projects-store";
-import { useCostStore } from "@/stores/cost-store";
-import { EntityMentionMenu } from "./EntityMentionMenu";
-import { MentionHighlightedText, MentionHighlightOverlay } from "./MentionHighlightOverlay";
-import { useEntityMentionInput } from "./useEntityMentionInput";
-import { ImagePromptEditor } from "./ImagePromptEditor";
-import { VideoPromptEditor } from "./VideoPromptEditor";
-import { SceneBackendPopover } from "./SceneBackendPopover";
-import { formatCost } from "@/utils/cost-format";
-import { LorebookReferenceImageField } from "@/components/canvas/lorebook/LorebookReferenceImageField";
-import {
-  extractEntityMentionsFromValue,
-  stripKnownEntityMentionMarkers,
-  type EntityMentionNames,
-  type EntityMentionSources,
-} from "@/utils/entity-mentions";
+import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
+import { extractEntityMentionsFromValue, type EntityMentionSources } from "@/utils/entity-mentions";
+
 import type {
-  NarrationSegment,
-  DramaScene,
-  Character,
-  Clue,
-  ImagePrompt,
-  VideoPrompt,
-  TransitionType,
-  Scene,
-} from "@/types";
+  SegmentCardProps,
+  SegmentMentionDrafts,
+  SegmentMentionDraftKey,
+  SegmentUpdateExtras,
+} from "./segment-card/types";
+import {
+  getSegmentId,
+  getCharacterNames,
+  getClueNames,
+  getSceneName,
+  getSourceMentionValue,
+  getSegmentMentionDrafts,
+  getMentionDraftValues,
+  buildMentionFieldUpdates,
+} from "./segment-card/helpers";
+import { DurationSelector } from "./segment-card/DurationSelector";
+import { OptionPillSelector, SegmentBreakSeparator, TransitionIndicator } from "./segment-card/TransitionIndicator";
+import { TextColumn } from "./segment-card/TextColumn";
+import { PromptColumn } from "./segment-card/PromptColumn";
+import { MediaColumn } from "./segment-card/MediaColumn";
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const TRANSITION_LABELS: Record<TransitionType, string> = {
-  cut: "Cut",
-  fade: "Fade",
-  dissolve: "Dissolve",
-};
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-type Segment = NarrationSegment | DramaScene;
-type SegmentUpdateExtras = Record<string, unknown>;
-interface SegmentMentionDrafts {
-  source: unknown;
-  imagePrompt: unknown;
-  videoPrompt: unknown;
-}
-type SegmentMentionDraftKey = keyof SegmentMentionDrafts;
-type PromptMentionDraftKey = Exclude<SegmentMentionDraftKey, "source">;
-type SegmentUpdateHandler = (
-  segmentId: string,
-  field: string,
-  value: unknown,
-  extraUpdates?: SegmentUpdateExtras,
-) => void;
-interface SegmentMentionContext {
-  contentMode: "narration" | "drama";
-  currentNames: EntityMentionNames;
-  entities: EntityMentionSources;
-}
-
-const MENTION_UPDATE_FIELDS = {
-  narration: {
-    characters: "characters_in_segment",
-    clues: "clues_in_segment",
-    scene: "scene_in_segment",
-  },
-  drama: {
-    characters: "characters_in_scene",
-    clues: "clues_in_scene",
-    scene: "scene_in_scene",
-  },
-} as const;
-
-function getSegmentId(segment: Segment, mode: "narration" | "drama"): string {
-  return mode === "narration"
-    ? (segment as NarrationSegment).segment_id
-    : (segment as DramaScene).scene_id;
-}
-
-// 空值回共用凍結常數而非新 []，否則每 render 產生新引用會讓 mentionContext
-// memo 失效，連帶使下游 tokenizeForHighlight memo 每 render 重算。
-const EMPTY_NAMES: readonly string[] = Object.freeze([]);
-
-function getSegmentField(
-  segment: Segment,
-  mode: "narration" | "drama",
-  narrationKey: keyof NarrationSegment,
-  dramaKey: keyof DramaScene,
-): string[] {
-  return mode === "narration"
-    ? (((segment as NarrationSegment)[narrationKey] as string[] | undefined) ?? (EMPTY_NAMES as string[]))
-    : (((segment as DramaScene)[dramaKey] as string[] | undefined) ?? (EMPTY_NAMES as string[]));
-}
-
-function getCharacterNames(segment: Segment, mode: "narration" | "drama"): string[] {
-  return getSegmentField(segment, mode, "characters_in_segment", "characters_in_scene");
-}
-
-function getClueNames(segment: Segment, mode: "narration" | "drama"): string[] {
-  return getSegmentField(segment, mode, "clues_in_segment", "clues_in_scene");
-}
-
-function getSceneName(segment: Segment, mode: "narration" | "drama"): string | null {
-  return mode === "narration"
-    ? ((segment as NarrationSegment).scene_in_segment ?? null)
-    : ((segment as DramaScene).scene_in_scene ?? null);
-}
-
-function getSourceMentionValue(segment: Segment, mode: "narration" | "drama"): string {
-  return mode === "narration" ? ((segment as NarrationSegment).novel_text ?? "") : "";
-}
-
-function getSegmentMentionDrafts(
-  segment: Segment,
-  mode: "narration" | "drama",
-): SegmentMentionDrafts {
-  return {
-    source: getSourceMentionValue(segment, mode),
-    imagePrompt: segment.image_prompt ?? "",
-    videoPrompt: segment.video_prompt ?? "",
-  };
-}
-
-function getMentionDraftValues(drafts: SegmentMentionDrafts): unknown[] {
-  return [drafts.source, drafts.imagePrompt, drafts.videoPrompt];
-}
-
-function sameNames(a: string[], b: string[]): boolean {
-  if (a.length !== b.length) return false;
-  const bSet = new Set(b);
-  return a.every((name) => bSet.has(name));
-}
-
-function sameMentionNames(a: EntityMentionNames, b: EntityMentionNames): boolean {
-  return (
-    sameNames(a.characterNames, b.characterNames) &&
-    sameNames(a.clueNames, b.clueNames) &&
-    a.sceneName === b.sceneName
-  );
-}
-
-function buildMentionFieldUpdates(
-  value: unknown,
-  mentionContext: SegmentMentionContext,
-): SegmentUpdateExtras | undefined {
-  const { contentMode, currentNames, entities } = mentionContext;
-  const mentions = extractEntityMentionsFromValue(value, entities);
-  if (sameMentionNames(mentions, currentNames)) {
-    return undefined;
-  }
-
-  const fields = MENTION_UPDATE_FIELDS[contentMode];
-  const updates: SegmentUpdateExtras = {};
-
-  if (
-    !sameNames(mentions.characterNames, currentNames.characterNames) ||
-    !sameNames(mentions.clueNames, currentNames.clueNames)
-  ) {
-    updates[fields.characters] = mentions.characterNames;
-    updates[fields.clues] = mentions.clueNames;
-  }
-
-  if (mentions.sceneName !== currentNames.sceneName) {
-    updates[fields.scene] = mentions.sceneName;
-  }
-
-  return Object.keys(updates).length > 0 ? updates : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function isStructuredImagePromptValue(value: unknown): value is ImagePrompt {
-  if (!isRecord(value) || typeof value.scene !== "string") {
-    return false;
-  }
-
-  const composition = value.composition;
-  if (!isRecord(composition)) {
-    return false;
-  }
-
-  return (
-    typeof composition.shot_type === "string" &&
-    typeof composition.lighting === "string" &&
-    typeof composition.ambiance === "string"
-  );
-}
-
-function isStructuredVideoPromptValue(value: unknown): value is VideoPrompt {
-  if (
-    !isRecord(value) ||
-    typeof value.action !== "string" ||
-    typeof value.camera_motion !== "string" ||
-    typeof value.ambiance_audio !== "string"
-  ) {
-    return false;
-  }
-
-  const dialogue = value.dialogue;
-  if (dialogue === undefined) {
-    return true;
-  }
-  if (!Array.isArray(dialogue)) {
-    return false;
-  }
-
-  return dialogue.every(
-    (item) =>
-      isRecord(item) &&
-      typeof item.speaker === "string" &&
-      typeof item.line === "string"
-  );
-}
-
-function mergePromptPatch<T extends Record<string, unknown>>(
-  base: T,
-  patch: Record<string, unknown>
-): T {
-  const merged: Record<string, unknown> = { ...base };
-
-  for (const [k, v] of Object.entries(patch)) {
-    if (
-      isRecord(v) &&
-      isRecord(base[k]) &&
-      !Array.isArray(v) &&
-      !Array.isArray(base[k])
-    ) {
-      merged[k] = { ...(base[k] as Record<string, unknown>), ...v };
-    } else {
-      merged[k] = v;
-    }
-  }
-
-  return merged as T;
-}
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
-interface SegmentCardProps {
-  segment: Segment;
-  contentMode: "narration" | "drama";
-  aspectRatio: string; // "9:16" or "16:9"
-  characters: Record<string, Character>;
-  clues: Record<string, Clue>;
-  scenes?: Record<string, Scene>;
-  projectName: string;
-  episode?: number;
-  scriptFile?: string;
-  videoBackend?: string | null;
-  currentResolution?: string | null;
-  durationOptions?: number[];
-  durationConstraintReason?: string;
-  onUpdatePrompt?: SegmentUpdateHandler;
-  onGenerateStoryboard?: (segmentId: string) => void;
-  onGenerateVideo?: (segmentId: string) => void;
-  onRestoreStoryboard?: () => Promise<void> | void;
-  onRestoreVideo?: () => Promise<void> | void;
-  onDelete?: () => void;
-  generatingStoryboard?: boolean;
-  generatingVideo?: boolean;
-  onUploadReference?: (segmentId: string, file: File) => Promise<void> | void;
-  onRemoveReference?: (segmentId: string) => Promise<void> | void;
-}
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function getDurationDisplayOptions(seconds: number, durationOptions: readonly number[]): number[] {
-  const options =
-    durationOptions.length === 1
-      ? [...DEFAULT_DURATIONS, seconds]
-      : [...durationOptions, seconds];
-  return Array.from(new Set(options)).sort((a, b) => a - b);
-}
-
-function getDurationOptionClassName(active: boolean, disabled: boolean): string {
-  const base =
-    "rounded px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500";
-  if (active) return `${base} bg-indigo-600 text-white`;
-  if (disabled) return `${base} cursor-not-allowed text-gray-600`;
-  return `${base} text-gray-300 hover:bg-gray-700`;
-}
+export type { SegmentCardProps };
 
 function pushDurationAdjustmentToast(previous: number, next: number, reason?: string) {
   if (!reason) return;
@@ -318,764 +48,6 @@ function pushDurationAdjustmentToast(previous: number, next: number, reason?: st
     .getState()
     .pushToast(`已自動將秒數從 ${previous} 調整為 ${next}（${reason}）`, "warning");
 }
-
-/** Duration selector — clickable when onUpdatePrompt is provided, read-only otherwise. */
-function DurationSelector({
-  seconds,
-  segmentId,
-  onUpdatePrompt,
-  durationOptions = DEFAULT_DURATIONS as number[],
-  durationConstraintReason,
-}: {
-  seconds: number;
-  segmentId: string;
-  onUpdatePrompt?: SegmentUpdateHandler;
-  durationOptions?: number[];
-  durationConstraintReason?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLButtonElement>(null);
-  const displayOptions = useMemo(
-    () => getDurationDisplayOptions(seconds, durationOptions),
-    [durationOptions, seconds],
-  );
-  const allowedOptions = useMemo(() => new Set(durationOptions), [durationOptions]);
-
-  if (!onUpdatePrompt) {
-    return (
-      <span className="inline-flex items-center gap-0.5 rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">
-        <Clock aria-hidden="true" className="h-3 w-3" />
-        {seconds}s
-      </span>
-    );
-  }
-
-  return (
-    <>
-      <button
-        ref={ref}
-        onClick={() => setOpen((o) => !o)}
-        className="inline-flex cursor-pointer items-center gap-0.5 rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300 hover:bg-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-      >
-        <Clock aria-hidden="true" className="h-3 w-3" />
-        {seconds}s
-      </button>
-      <Popover
-        open={open}
-        onClose={() => setOpen(false)}
-        anchorRef={ref}
-        width="w-auto"
-        className="rounded-lg border border-gray-700 p-1.5 shadow-xl"
-        align="start"
-        sideOffset={6}
-      >
-        <div className="flex gap-1" role="radiogroup" aria-label="時長選擇">
-          {displayOptions.map((d) => {
-            const disabled = !allowedOptions.has(d);
-            return (
-              <button
-                key={d}
-                role="radio"
-                aria-checked={d === seconds}
-                disabled={disabled}
-                title={disabled ? durationConstraintReason : undefined}
-                onClick={() => {
-                  if (disabled) return;
-                  onUpdatePrompt(segmentId, "duration_seconds", d);
-                  setOpen(false);
-                }}
-                className={getDurationOptionClassName(d === seconds, disabled)}
-              >
-                {d}s
-              </button>
-            );
-          })}
-        </div>
-      </Popover>
-    </>
-  );
-}
-
-function getPillOptionClassName(active: boolean): string {
-  const base =
-    "rounded px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500";
-  return active ? `${base} bg-indigo-600 text-white` : `${base} text-gray-300 hover:bg-gray-700`;
-}
-
-/**
- * Generic string-option pill selector (used for video resolution & image size).
- * Read-only chip when onSelect is absent or only one option is available.
- */
-function OptionPillSelector({
-  value,
-  options,
-  icon,
-  ariaLabel,
-  onSelect,
-}: {
-  value: string;
-  options: readonly string[];
-  icon: React.ReactNode;
-  ariaLabel: string;
-  onSelect?: (next: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLButtonElement>(null);
-  // Always include the current value so an out-of-range override is still shown.
-  const displayOptions = useMemo(
-    () => Array.from(new Set([...options, value])).filter(Boolean),
-    [options, value],
-  );
-  const interactive = Boolean(onSelect) && displayOptions.length > 1;
-
-  if (!interactive) {
-    return (
-      <span className="inline-flex items-center gap-0.5 rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">
-        {icon}
-        {value}
-      </span>
-    );
-  }
-
-  return (
-    <>
-      <button
-        ref={ref}
-        onClick={() => setOpen((o) => !o)}
-        aria-label={ariaLabel}
-        className="inline-flex cursor-pointer items-center gap-0.5 rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300 hover:bg-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-      >
-        {icon}
-        {value}
-      </button>
-      <Popover
-        open={open}
-        onClose={() => setOpen(false)}
-        anchorRef={ref}
-        width="w-auto"
-        className="rounded-lg border border-gray-700 p-1.5 shadow-xl"
-        align="start"
-        sideOffset={6}
-      >
-        <div className="flex gap-1" role="radiogroup" aria-label={ariaLabel}>
-          {displayOptions.map((opt) => (
-            <button
-              key={opt}
-              role="radio"
-              aria-checked={opt === value}
-              onClick={() => {
-                onSelect?.(opt);
-                setOpen(false);
-              }}
-              className={getPillOptionClassName(opt === value)}
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
-      </Popover>
-    </>
-  );
-}
-
-/** Segment break separator rendered above a card when segment_break is true. */
-function SegmentBreakSeparator() {
-  return (
-    <div className="flex items-center gap-3 py-2">
-      <div className="flex-1 border-t-2 border-dashed border-amber-600/40" />
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-500/70">
-        Segment Break
-      </span>
-      <div className="flex-1 border-t-2 border-dashed border-amber-600/40" />
-    </div>
-  );
-}
-
-/** Transition indicator between cards. */
-function TransitionIndicator({ type }: { type: TransitionType }) {
-  return (
-    <div className="flex items-center justify-center py-1.5">
-      <span className="rounded bg-gray-800 px-2 py-0.5 text-[10px] font-medium text-gray-500">
-        {TRANSITION_LABELS[type] ?? type}
-      </span>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Column 1 — Text area
-// ---------------------------------------------------------------------------
-
-function TextColumn({
-  segment,
-  contentMode,
-  mentionContext,
-  onMentionDraftChange,
-  buildMentionUpdatesForDraft,
-  onUpdateNote,
-  onUpdateSourceText,
-}: {
-  segment: Segment;
-  contentMode: "narration" | "drama";
-  mentionContext: SegmentMentionContext;
-  onMentionDraftChange: (key: SegmentMentionDraftKey, value: unknown) => void;
-  buildMentionUpdatesForDraft: (
-    patch: Partial<SegmentMentionDrafts>,
-  ) => SegmentUpdateExtras | undefined;
-  onUpdateNote?: (value: string) => void;
-  onUpdateSourceText?: (value: string, extraUpdates?: SegmentUpdateExtras) => void;
-}) {
-  const noteValue = segment.note ?? "";
-  const sourceFromSegment = getSourceMentionValue(segment, contentMode);
-  const [noteDraft, setNoteDraft] = useState(noteValue);
-  const committedRef = useRef(noteValue);
-  const [sourceDraft, setSourceDraft] = useState(sourceFromSegment);
-  const sourceCommittedRef = useRef(sourceFromSegment);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const updateSourceDraft = useCallback(
-    (next: string) => {
-      setSourceDraft(next);
-      onMentionDraftChange("source", next);
-    },
-    [onMentionDraftChange],
-  );
-  const {
-    menuOpen,
-    filter,
-    items,
-    handleInputChange,
-    handleKeyDown,
-    handleBlur,
-    selectItem,
-    menuRef,
-  } = useEntityMentionInput({
-    value: sourceDraft,
-    onChange: updateSourceDraft,
-    entities: mentionContext.entities,
-    textareaRef,
-  });
-
-  useEffect(() => {
-    setNoteDraft(noteValue);
-    committedRef.current = noteValue;
-  }, [noteValue]);
-
-  useEffect(() => {
-    setSourceDraft(sourceFromSegment);
-    sourceCommittedRef.current = sourceFromSegment;
-  }, [sourceFromSegment]);
-
-  const resizeTextarea = useCallback(() => {
-    const el = textareaRef.current;
-    if (el) {
-      el.style.height = "auto";
-      el.style.height = `${el.scrollHeight}px`;
-    }
-  }, []);
-
-  useEffect(() => {
-    resizeTextarea();
-  }, [sourceDraft, resizeTextarea]);
-
-  const handleNoteBlur = () => {
-    if (noteDraft !== committedRef.current) {
-      committedRef.current = noteDraft;
-      onUpdateNote?.(noteDraft);
-    }
-  };
-
-  const handleSourceBlur = () => {
-    const cleanSource = stripKnownEntityMentionMarkers(sourceDraft, mentionContext.entities);
-    const extraUpdates = buildMentionUpdatesForDraft({ source: sourceDraft });
-
-    if (cleanSource !== sourceDraft) {
-      setSourceDraft(cleanSource);
-      onMentionDraftChange("source", cleanSource);
-    }
-
-    if (cleanSource !== sourceCommittedRef.current || extraUpdates) {
-      sourceCommittedRef.current = cleanSource;
-      onUpdateSourceText?.(cleanSource, extraUpdates);
-    }
-  };
-
-  const noteSection = (
-    <div className="mt-auto pt-3 border-t border-gray-800">
-      <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 block">
-        備註
-      </span>
-      <textarea
-        className="w-full resize-none rounded-lg border border-gray-700 bg-gray-800/50 px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:border-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-        rows={4}
-        placeholder="新增備註..."
-        aria-label="備註"
-        value={noteDraft}
-        onChange={(e) => setNoteDraft(e.target.value)}
-        onBlur={handleNoteBlur}
-      />
-    </div>
-  );
-
-  if (contentMode === "narration") {
-    return (
-      <div className="flex h-full flex-col gap-1.5 p-3">
-        <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
-          原文
-        </span>
-        <div className="relative rounded-lg border border-gray-800 bg-gray-900/30 hover:border-gray-700/60 focus-within:border-indigo-500/80 focus-within:bg-gray-800/20 transition-all duration-200">
-          <MentionHighlightOverlay
-            value={sourceDraft}
-            entities={mentionContext.entities}
-            linkedNames={mentionContext.currentNames}
-            className="font-sans min-h-[8rem] px-3.5 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words border border-transparent"
-          />
-          <textarea
-            ref={textareaRef}
-            className="font-sans relative min-h-[8rem] w-full resize-none overflow-hidden bg-transparent px-3.5 py-3 text-sm leading-relaxed placeholder-gray-600 border border-transparent focus:outline-none"
-            style={{ color: "transparent", caretColor: "#d1d5db" }}
-            value={sourceDraft}
-            placeholder="（暫無原文）"
-            aria-label="原文"
-            aria-autocomplete="list"
-            aria-controls="entity-mention-menu"
-            role="combobox"
-            aria-expanded={menuOpen}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            onBlur={() => {
-              handleBlur();
-              handleSourceBlur();
-            }}
-          />
-          {menuOpen && (
-            <EntityMentionMenu
-              id="entity-mention-menu"
-              ref={menuRef}
-              filter={filter}
-              items={items}
-              onSelect={selectItem}
-              className="absolute left-0 top-full mt-1 w-64"
-            />
-          )}
-        </div>
-        {noteSection}
-      </div>
-    );
-  }
-
-  // Drama mode — show dialogue list
-  const s = segment as DramaScene;
-  const vp = s.video_prompt;
-  const dialogue = (typeof vp === "object" && vp !== null && "dialogue" in vp)
-    ? (vp.dialogue ?? [])
-    : [];
-  return (
-    <div className="flex h-full flex-col gap-1.5 p-3">
-      <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
-        對話
-      </span>
-      {dialogue.length === 0 ? (
-        <p className="text-sm text-gray-500 italic">（暫無對話）</p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {dialogue.map((d: { speaker: string; line: string }, i: number) => (
-            <li key={i} className="text-sm text-gray-300">
-              <span className="font-bold text-indigo-400">{d.speaker}</span>
-              <span className="mx-1 text-gray-600">:</span>
-              <span>
-                <MentionHighlightedText
-                  value={d.line}
-                  entities={mentionContext.entities}
-                  linkedNames={mentionContext.currentNames}
-                />
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {noteSection}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Column 2 — Prompt area
-// ---------------------------------------------------------------------------
-
-function PromptColumn({
-  segment,
-  segmentId,
-  onUpdatePrompt,
-  speakerOptions,
-  mentionContext,
-  onMentionDraftChange,
-  buildMentionUpdatesForDraft,
-}: {
-  segment: Segment;
-  segmentId: string;
-  onUpdatePrompt?: SegmentUpdateHandler;
-  speakerOptions?: string[];
-  mentionContext: SegmentMentionContext;
-  onMentionDraftChange: (key: SegmentMentionDraftKey, value: unknown) => void;
-  buildMentionUpdatesForDraft: (
-    patch: Partial<SegmentMentionDrafts>,
-  ) => SegmentUpdateExtras | undefined;
-}) {
-  const { image_prompt, video_prompt } = segment;
-  const buildPromptMentionUpdates = (
-    key: PromptMentionDraftKey,
-    value: unknown,
-  ) => buildMentionUpdatesForDraft({ [key]: value });
-
-  const isStructuredImage = isStructuredImagePromptValue(image_prompt);
-  const isStructuredVideo = isStructuredVideoPromptValue(video_prompt);
-
-  // ---- String fallback state (only used when prompts are plain strings) ----
-  const promptToStr = (p: unknown, key: string): string => {
-    if (typeof p === "string") return p;
-    if (typeof p === "object" && p !== null) {
-      const val = (p as Record<string, unknown>)[key];
-      if (typeof val === "string") return val;
-    }
-    return "";
-  };
-
-  const [imgText, setImgText] = useState(() => promptToStr(image_prompt, "scene"));
-  const [vidText, setVidText] = useState(() => promptToStr(video_prompt, "action"));
-  const [imgDraft, setImgDraft] = useState<ImagePrompt | null>(() =>
-    isStructuredImage ? image_prompt : null
-  );
-  const [vidDraft, setVidDraft] = useState<VideoPrompt | null>(() =>
-    isStructuredVideo ? video_prompt : null
-  );
-  const prevSegmentIdRef = useRef(segmentId);
-
-  useEffect(() => {
-    if (prevSegmentIdRef.current === segmentId) {
-      return;
-    }
-
-    prevSegmentIdRef.current = segmentId;
-    setImgText(promptToStr(image_prompt, "scene"));
-    setVidText(promptToStr(video_prompt, "action"));
-    setImgDraft(isStructuredImage ? image_prompt : null);
-    setVidDraft(isStructuredVideo ? video_prompt : null);
-  }, [
-    segmentId,
-    image_prompt,
-    video_prompt,
-    isStructuredImage,
-    isStructuredVideo,
-  ]);
-
-  useEffect(() => {
-    if (!isStructuredImage) {
-      setImgDraft(null);
-      setImgText(promptToStr(image_prompt, "scene"));
-    }
-  }, [image_prompt, isStructuredImage]);
-
-  useEffect(() => {
-    if (!isStructuredVideo) {
-      setVidDraft(null);
-      setVidText(promptToStr(video_prompt, "action"));
-    }
-  }, [video_prompt, isStructuredVideo]);
-
-  // ---- Firing helpers ----
-  const fireStructuredImage = (patch: Partial<ImagePrompt>) => {
-    setImgDraft((prev) => {
-      const base = prev ?? (isStructuredImage ? image_prompt : null);
-      if (!base) {
-        return prev;
-      }
-      const merged = mergePromptPatch(
-        base as unknown as Record<string, unknown>,
-        patch as Record<string, unknown>
-      ) as unknown as ImagePrompt;
-      onMentionDraftChange("imagePrompt", merged);
-      onUpdatePrompt?.(
-        segmentId,
-        "image_prompt",
-        merged,
-        buildPromptMentionUpdates("imagePrompt", merged),
-      );
-      return merged;
-    });
-  };
-
-  const fireStructuredVideo = (patch: Partial<VideoPrompt>) => {
-    setVidDraft((prev) => {
-      const base = prev ?? (isStructuredVideo ? video_prompt : null);
-      if (!base) {
-        return prev;
-      }
-      const merged = mergePromptPatch(
-        base as unknown as Record<string, unknown>,
-        patch as Record<string, unknown>
-      ) as unknown as VideoPrompt;
-      onMentionDraftChange("videoPrompt", merged);
-      onUpdatePrompt?.(
-        segmentId,
-        "video_prompt",
-        merged,
-        buildPromptMentionUpdates("videoPrompt", merged),
-      );
-      return merged;
-    });
-  };
-
-  const fireString = (
-    field: "image_prompt" | "video_prompt",
-    key: PromptMentionDraftKey,
-    value: string,
-  ) => {
-    onMentionDraftChange(key, value);
-    onUpdatePrompt?.(segmentId, field, value, buildPromptMentionUpdates(key, value));
-  };
-
-  return (
-    <div className="flex flex-col gap-3 p-3">
-      <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
-        提示詞
-      </span>
-
-      {/* ---- Image Prompt ---- */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-1.5">
-          <ImageIcon className="h-3.5 w-3.5 text-gray-500" />
-          <span className="text-[11px] font-semibold text-gray-400">
-            Image Prompt
-          </span>
-        </div>
-
-        {isStructuredImage && imgDraft ? (
-          <ImagePromptEditor
-            prompt={imgDraft}
-            onUpdate={fireStructuredImage}
-            entities={mentionContext.entities}
-            linkedNames={mentionContext.currentNames}
-          />
-        ) : (
-          <AutoTextarea
-            value={imgText}
-            onChange={(v) => {
-              setImgText(v);
-              fireString("image_prompt", "imagePrompt", v);
-            }}
-            placeholder="分鏡圖描述..."
-            entities={mentionContext.entities}
-            linkedNames={mentionContext.currentNames}
-          />
-        )}
-      </div>
-
-      {/* ---- Video Prompt ---- */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-1.5">
-          <Film className="h-3.5 w-3.5 text-gray-500" />
-          <span className="text-[11px] font-semibold text-gray-400">
-            Video Prompt
-          </span>
-        </div>
-
-        {isStructuredVideo && vidDraft ? (
-          <VideoPromptEditor
-            prompt={vidDraft}
-            onUpdate={fireStructuredVideo}
-            speakerOptions={speakerOptions}
-            entities={mentionContext.entities}
-            linkedNames={mentionContext.currentNames}
-          />
-        ) : (
-          <AutoTextarea
-            value={vidText}
-            onChange={(v) => {
-              setVidText(v);
-              fireString("video_prompt", "videoPrompt", v);
-            }}
-            placeholder="影片動作描述..."
-            entities={mentionContext.entities}
-            linkedNames={mentionContext.currentNames}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Column 3 — Visual media area
-// ---------------------------------------------------------------------------
-
-/** Simple video player with poster thumbnail and lazy preload. */
-function VideoPlayer({ src, poster }: { src: string; poster?: string | null }) {
-  return (
-    <video
-      src={src}
-      poster={poster ?? undefined}
-      className="h-full w-full bg-black object-contain"
-      controls
-      playsInline
-      preload={poster ? "none" : "metadata"}
-    />
-  );
-}
-
-function MediaColumn({
-  segment,
-  aspectRatio,
-  projectName,
-  segmentId,
-  onGenerateStoryboard,
-  onGenerateVideo,
-  onRestoreStoryboard,
-  onRestoreVideo,
-  generatingStoryboard,
-  generatingVideo,
-  onUploadReference,
-  onRemoveReference,
-}: {
-  segment: Segment;
-  aspectRatio: string;
-  projectName: string;
-  segmentId: string;
-  onGenerateStoryboard?: (segmentId: string) => void;
-  onGenerateVideo?: (segmentId: string) => void;
-  onRestoreStoryboard?: () => Promise<void> | void;
-  onRestoreVideo?: () => Promise<void> | void;
-  generatingStoryboard?: boolean;
-  generatingVideo?: boolean;
-  onUploadReference?: (segmentId: string, file: File) => Promise<void> | void;
-  onRemoveReference?: (segmentId: string) => Promise<void> | void;
-}) {
-  const assets = segment.generated_assets;
-  const storyboardFp = useProjectsStore(
-    (s) => assets?.storyboard_image ? s.getAssetFingerprint(assets.storyboard_image) : null,
-  );
-  const videoFp = useProjectsStore(
-    (s) => assets?.video_clip ? s.getAssetFingerprint(assets.video_clip) : null,
-  );
-  const thumbnailFp = useProjectsStore(
-    (s) => assets?.video_thumbnail ? s.getAssetFingerprint(assets.video_thumbnail) : null,
-  );
-  const refImageFp = useProjectsStore(
-    (s) => segment.reference_image ? s.getAssetFingerprint(segment.reference_image) : null,
-  );
-  const storyboardUrl = assets?.storyboard_image
-    ? API.getFileUrl(projectName, assets.storyboard_image, storyboardFp)
-    : null;
-  const refImageUrl = segment.reference_image
-    ? API.getFileUrl(projectName, segment.reference_image, refImageFp)
-    : null;
-  const videoUrl = assets?.video_clip
-    ? API.getFileUrl(projectName, assets.video_clip, videoFp)
-    : null;
-  const thumbnailUrl = assets?.video_thumbnail
-    ? API.getFileUrl(projectName, assets.video_thumbnail, thumbnailFp)
-    : null;
-
-  // Normalize aspect ratio to the union type expected by AspectFrame
-  const normalizedRatio = (
-    aspectRatio === "9:16" || aspectRatio === "16:9" ? aspectRatio : "16:9"
-  ) as "9:16" | "16:9";
-
-  return (
-    <div className="flex flex-col gap-3 p-3">
-      {/* ---- Storyboard image (always shown) ---- */}
-      <div>
-        <div className="mb-1.5 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <ImageIcon className="h-3 w-3 text-gray-500" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">分鏡圖</span>
-          </div>
-          <VersionTimeMachine
-            projectName={projectName}
-            resourceType="storyboards"
-            resourceId={segmentId}
-            onRestore={onRestoreStoryboard}
-          />
-        </div>
-        <PreviewableImageFrame src={storyboardUrl} alt={`${segmentId} 分鏡圖`}>
-          <AspectFrame ratio={normalizedRatio}>
-            <ImageFlipReveal
-              src={storyboardUrl}
-              alt={`${segmentId} 分鏡圖`}
-              loading="lazy"
-              className="h-full w-full object-cover"
-              fallback={
-                <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-600">
-                  <ImageIcon className="h-8 w-8" />
-                  <span className="text-xs">暫無分鏡</span>
-                </div>
-              }
-            />
-          </AspectFrame>
-        </PreviewableImageFrame>
-        <div className="mt-2">
-          <GenerateButton
-            onClick={() => onGenerateStoryboard?.(segmentId)}
-            loading={generatingStoryboard}
-            label="生成分鏡"
-            className="w-full justify-center"
-          />
-        </div>
-        {onUploadReference && (
-          <div className="mt-3">
-            <LorebookReferenceImageField
-              name={segmentId}
-              savedUrl={refImageUrl}
-              onUpload={(file) => onUploadReference(segmentId, file)}
-              onRemove={onRemoveReference ? () => onRemoveReference(segmentId) : undefined}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* ---- Video (shown when available or as placeholder) ---- */}
-      <div>
-        <div className="mb-1.5 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Film className="h-3 w-3 text-gray-500" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">影片</span>
-          </div>
-          <VersionTimeMachine
-            projectName={projectName}
-            resourceType="videos"
-            resourceId={segmentId}
-            onRestore={onRestoreVideo}
-          />
-        </div>
-        {videoUrl ? (
-          <PreviewableVideoFrame src={videoUrl} poster={thumbnailUrl} alt={`${segmentId} 影片`}>
-            <AspectFrame ratio={normalizedRatio}>
-              <VideoPlayer src={videoUrl} poster={thumbnailUrl} />
-            </AspectFrame>
-          </PreviewableVideoFrame>
-        ) : (
-          <div className="flex items-center justify-center rounded-lg border border-dashed border-gray-700 bg-gray-800/30 py-4">
-            <span className="text-xs text-gray-600">
-              {assets?.storyboard_image ? "可生成影片" : "需先生成分鏡"}
-            </span>
-          </div>
-        )}
-        <div className="mt-2">
-          <GenerateButton
-            onClick={() => onGenerateVideo?.(segmentId)}
-            loading={generatingVideo}
-            label="生成影片"
-            className="w-full justify-center"
-            disabled={!assets?.storyboard_image}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// SegmentCard (main export)
-// ---------------------------------------------------------------------------
 
 export function SegmentCard({
   segment,
@@ -1101,6 +73,11 @@ export function SegmentCard({
   generatingVideo = false,
   onUploadReference,
   onRemoveReference,
+  stage,
+  imageModelOptions = [],
+  videoModelOptions = [],
+  providerNames = {},
+  onUpdateSceneBackend,
 }: SegmentCardProps) {
   const segmentId = getSegmentId(segment, contentMode);
   const segCost = useCostStore((s) => s.getSegmentCost(segmentId));
@@ -1139,7 +116,7 @@ export function SegmentCard({
     });
   }, []);
 
-  const mentionContext: SegmentMentionContext = useMemo(
+  const mentionContext = useMemo(
     () => ({
       contentMode,
       currentNames: {
@@ -1151,6 +128,7 @@ export function SegmentCard({
     }),
     [charNames, clueNames, contentMode, mentionEntities, sceneName],
   );
+
   const buildMentionUpdatesForDraft = useCallback(
     (patch: Partial<SegmentMentionDrafts>): SegmentUpdateExtras | undefined => {
       const nextDrafts = { ...mentionDrafts, ...patch };
@@ -1158,6 +136,7 @@ export function SegmentCard({
     },
     [mentionContext, mentionDrafts],
   );
+
   const { characterNames: liveCharNames, clueNames: liveClueNames } = useMemo(
     () => extractEntityMentionsFromValue(getMentionDraftValues(mentionDrafts), mentionEntities),
     [mentionDrafts, mentionEntities],
@@ -1242,6 +221,30 @@ export function SegmentCard({
                   : undefined
               }
             />
+            {stage === "storyboard" && imageModelOptions.length > 0 && (
+              <ProviderModelSelect
+                value={segment.image_backend ?? ""}
+                options={imageModelOptions}
+                providerNames={providerNames}
+                onChange={(next) => onUpdateSceneBackend?.(segmentId, { image_backend: next || null })}
+                allowDefault
+                defaultLabel="沿用專案預設"
+                aria-label="選擇分鏡圖圖片模型"
+                className="w-44"
+              />
+            )}
+            {stage === "video" && videoModelOptions.length > 0 && (
+              <ProviderModelSelect
+                value={segment.video_backend ?? ""}
+                options={videoModelOptions}
+                providerNames={providerNames}
+                onChange={(next) => onUpdateSceneBackend?.(segmentId, { video_backend: next || null })}
+                allowDefault
+                defaultLabel="沿用專案預設"
+                aria-label="選擇分鏡影片模型"
+                className="w-44"
+              />
+            )}
             {segCost && (
               <span className="tabular-nums contents">
                 <span className="text-gray-700">|</span>
@@ -1271,16 +274,6 @@ export function SegmentCard({
               clues={clues}
               projectName={projectName}
             />
-            {episode != null && scriptFile && (
-              <SceneBackendPopover
-                projectName={projectName}
-                episode={episode}
-                sceneId={segmentId}
-                scriptFile={scriptFile}
-                sceneImageBackend={segment.image_backend ?? null}
-                sceneVideoBackend={segment.video_backend ?? null}
-              />
-            )}
             {onDelete && (
               <button
                 type="button"
@@ -1324,6 +317,7 @@ export function SegmentCard({
             mentionContext={mentionContext}
             onMentionDraftChange={onMentionDraftChange}
             buildMentionUpdatesForDraft={buildMentionUpdatesForDraft}
+            stage={stage}
           />
 
           {/* Column 3 — Media */}
@@ -1340,6 +334,7 @@ export function SegmentCard({
             generatingVideo={generatingVideo}
             onUploadReference={onUploadReference}
             onRemoveReference={onRemoveReference}
+            stage={stage}
           />
         </div>
       </div>

@@ -2,7 +2,7 @@
  * 集數工作流：建立/更新/刪除集、片段、場景、生成劇本/分鏡/影片 等。
  */
 
-import type { EpisodeMeta, EpisodeScript, ProjectData, Scene } from "@/types";
+import type { EpisodeMeta, EpisodeOverrides, EpisodeScript, ProjectData, Scene } from "@/types";
 import { getApi, withScriptFileQuery } from "./_http";
 import type { SuccessResponse } from "./types";
 
@@ -99,6 +99,29 @@ export const episodesApi = {
         method: "PATCH",
         body: JSON.stringify(updates),
       },
+    );
+  },
+
+  async updateEpisodeOverrides(
+    name: string,
+    episode: number,
+    overrides: EpisodeOverrides,
+  ): Promise<{ success: boolean; overrides: EpisodeOverrides }> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(name)}/episodes/${episode}/overrides`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(overrides),
+      },
+    );
+  },
+
+  async getSourceParagraphs(
+    name: string,
+    episode: number,
+  ): Promise<{ paragraphs: string[] }> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(name)}/episodes/${episode}/source-paragraphs`
     );
   },
 

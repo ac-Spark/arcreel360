@@ -19,7 +19,7 @@ interface EpisodeActionsBarProps {
   episode: number;
   scriptFile?: string;
   hasScript: boolean;
-  activeTab?: "preprocessing" | "timeline";
+  activeTab?: "preprocessing" | "storyboard" | "video";
 }
 
 type Busy =
@@ -114,7 +114,7 @@ export function EpisodeActionsBar({
   episode,
   scriptFile,
   hasScript,
-  activeTab = "timeline",
+  activeTab = "storyboard",
 }: EpisodeActionsBarProps) {
   const [busy, setBusy] = useState<Busy>(null);
   const [batchDialog, setBatchDialog] = useState<BatchKind | null>(null);

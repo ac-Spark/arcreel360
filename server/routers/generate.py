@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from lib import PROJECT_ROOT
+from lib.episode_overrides import read_episode_override as _read_episode_override
 from lib.generation_queue import get_generation_queue
 from lib.project_manager import ProjectManager
 from lib.prompt_utils import (
@@ -129,32 +130,37 @@ def _snapshot_image_backend(
 ) -> dict:
     """快照圖片供應商配置，返回可合併到 payload 的字典。
 
-    優先順序：scene-level image_backend > 專案級 image_backend > 系統級預設。
+    優先順序：scene-level image_backend > episode-level image_backend > 專案級 image_backend > 系統級預設。
     傳入 script_file + resource_id 啟用 scene-level 覆蓋查詢。
     """
+    project = get_project_manager().load_project(project_name)
+
     scene_backend = _snapshot_scene_backend(
         project_name,
         script_file=script_file,
         resource_id=resource_id,
         field="image_backend",
     )
-    # scene-level 解析度覆蓋（image_size），與 backend 覆蓋獨立
+    # scene-level 與 episode-level 圖片尺寸覆蓋（image_size）
     scene_image_size = _read_scene_backend_override(project_name, script_file, resource_id, "image_size")
-    size_patch = {"image_size": scene_image_size} if scene_image_size else {}
+    episode_image_size = _read_episode_override(project, script_file, "image_size")
+    img_size = scene_image_size or episode_image_size
+    size_patch = {"image_size": img_size} if img_size else {}
 
     if scene_backend:
         provider, model = scene_backend
         return {"image_provider": provider, "image_model": model, **size_patch}
 
-    project = get_project_manager().load_project(project_name)
+    episode_image_backend = _read_episode_override(project, script_file, "image_backend")
+    if episode_image_backend:
+        provider, model = _split_backend_str(episode_image_backend)
+        return {"image_provider": provider, "image_model": model, **size_patch}
+
     project_image_backend = project.get("image_backend")  # 格式: "provider_id/model"
-    if project_image_backend and "/" in project_image_backend:
-        image_provider, image_model = project_image_backend.split("/", 1)
-    elif project_image_backend:
-        image_provider = _normalize_provider_id(project_image_backend)
-        image_model = ""
-    else:
-        return {**size_patch}  # 無專案級覆蓋，使用全域性預設
+    if not project_image_backend:
+        return size_patch  # 無專案級覆蓋，使用全域性預設
+
+    image_provider, image_model = _split_backend_str(project_image_backend)
     return {
         "image_provider": image_provider,
         "image_model": image_model,
@@ -170,17 +176,21 @@ def _snapshot_video_backend(
 ) -> dict:
     """快照影片供應商配置，返回可合併到 payload 的字典。
 
-    優先順序：scene-level video_backend > 專案級 video_backend > 系統級預設。
+    優先順序：scene-level video_backend > episode-level video_backend > 專案級 video_backend > 系統級預設。
     """
+    project = get_project_manager().load_project(project_name)
+
     scene_backend = _snapshot_scene_backend(
         project_name,
         script_file=script_file,
         resource_id=resource_id,
         field="video_backend",
     )
-    # scene-level 解析度覆蓋（video_resolution），與 backend 覆蓋獨立
+    # scene-level 與 episode-level 解析度覆蓋（video_resolution）
     scene_resolution = _read_scene_backend_override(project_name, script_file, resource_id, "video_resolution")
-    res_patch = {"video_resolution": scene_resolution} if scene_resolution else {}
+    episode_resolution = _read_episode_override(project, script_file, "video_resolution")
+    res = scene_resolution or episode_resolution
+    res_patch = {"video_resolution": res} if res else {}
 
     if scene_backend:
         provider, model = scene_backend
@@ -189,8 +199,18 @@ def _snapshot_video_backend(
             "video_provider_settings": {"model": model} if model else {},
             **res_patch,
         }
+
+    episode_video_backend = _read_episode_override(project, script_file, "video_backend")
+    if episode_video_backend:
+        provider, model = _split_backend_str(episode_video_backend)
+        return {
+            "video_provider": provider,
+            "video_provider_settings": {"model": model} if model else {},
+            **res_patch,
+        }
+
     # 專案級由 _resolve_video_backend 處理，這裡不提前快照（保持原行為）
-    return {**res_patch}
+    return res_patch
 
 
 # ==================== 分鏡圖生成 ====================
@@ -285,18 +305,31 @@ async def generate_video(project_name: str, segment_id: str, req: GenerateVideoR
 
         def _sync():
             manager = get_project_manager()
-            manager.load_project(project_name)
+            project = manager.load_project(project_name)
             project_path = manager.get_project_path(project_name)
             storyboard_file = project_path / "storyboards" / f"scene_{segment_id}.png"
             if not storyboard_file.exists():
                 raise HTTPException(status_code=400, detail=f"請先生成分鏡圖 scene_{segment_id}.png")
-            return _snapshot_video_backend(
+
+            script = manager.load_script(project_name, req.script_file)
+            items, id_field, _, _, _ = get_storyboard_items(script)
+            resolved = find_storyboard_item(items, id_field, segment_id)
+
+            duration = req.duration_seconds
+            if duration is None and resolved:
+                item, _ = resolved
+                duration = item.get("duration_seconds")
+            if duration is None:
+                duration = _read_episode_override(project, req.script_file, "duration_seconds")
+
+            snapshot = _snapshot_video_backend(
                 project_name,
                 script_file=req.script_file,
                 resource_id=segment_id,
             )
+            return snapshot, duration
 
-        video_snapshot = await asyncio.to_thread(_sync)
+        video_snapshot, duration = await asyncio.to_thread(_sync)
 
         # 驗證 prompt 格式
         if isinstance(req.prompt, dict):
@@ -325,7 +358,7 @@ async def generate_video(project_name: str, segment_id: str, req: GenerateVideoR
             payload={
                 "prompt": req.prompt,
                 "script_file": req.script_file,
-                "duration_seconds": req.duration_seconds,
+                "duration_seconds": duration,
                 **video_snapshot,
                 "seed": req.seed,
             },

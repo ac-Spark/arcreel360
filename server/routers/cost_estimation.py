@@ -12,6 +12,7 @@ from lib import PROJECT_ROOT
 from lib.config.resolver import ConfigResolver
 from lib.cost_calculator import CostCalculator
 from lib.db import async_session_factory
+from lib.episode_overrides import read_episode_override as _read_episode_override
 from lib.project_manager import ProjectManager
 from lib.providers import CallType, normalize_provider_id
 from lib.storyboard_sequence import find_storyboard_item, get_storyboard_items
@@ -82,12 +83,13 @@ def _parse_backend(raw: str | None) -> tuple[str | None, str | None]:
 
 def _resolve_effective(
     scene_value: str | None,
+    episode_value: str | None,
     project_value: str | None,
     default_provider: str | None,
     default_model: str | None,
 ) -> tuple[str | None, str | None]:
-    """scene → project → global default 三層回退。"""
-    for raw in (scene_value, project_value):
+    """scene → episode → project → global default 四層回退。"""
+    for raw in (scene_value, episode_value, project_value):
         provider, model = _parse_backend(raw)
         if provider:
             return provider, model
@@ -128,6 +130,23 @@ def _project_video_resolution(project: dict, model: str | None) -> str | None:
     return resolution if isinstance(resolution, str) and resolution else None
 
 
+def _resolve_duration(project: dict, scene: dict, script_file: str) -> int:
+    duration = scene.get("duration_seconds")
+    if duration is None:
+        duration = _read_episode_override(project, script_file, "duration_seconds")
+    if duration is None:
+        duration = project.get("default_duration")
+    return int(duration if duration is not None else 8)
+
+
+def _resolve_video_resolution(project: dict, scene: dict, script_file: str, model: str | None) -> str | None:
+    return (
+        scene.get("video_resolution")
+        or _read_episode_override(project, script_file, "video_resolution")
+        or _project_video_resolution(project, model)
+    )
+
+
 def _cost_breakdown(current: float, next_value: float, currency: str) -> dict:
     return {
         "current": current,
@@ -152,8 +171,7 @@ def _load_scene_cost_context(project_name: str, script_file: str, scene_id: str)
         raise HTTPException(status_code=404, detail=f"分鏡 '{scene_id}' 不存在")
 
     scene, _ = resolved
-    duration = int(scene.get("duration_seconds") or project.get("default_duration") or 8)
-    return project, scene, duration
+    return project, scene, _resolve_duration(project, scene, script_file)
 
 
 @router.post("/cost-estimation/scene")
@@ -179,17 +197,29 @@ async def estimate_scene_cost(req: SceneCostEstimateRequest, _user: CurrentUser)
     scene_img = scene.get("image_backend")
     scene_vid = scene.get("video_backend")
 
+    episode_img = _read_episode_override(project, req.script_file, "image_backend")
+    episode_vid = _read_episode_override(project, req.script_file, "video_backend")
+
     # current：使用當前 scene 設定
-    cur_img_p, cur_img_m = _resolve_effective(scene_img, project_img, default_img_provider, default_img_model)
-    cur_vid_p, cur_vid_m = _resolve_effective(scene_vid, project_vid, default_vid_provider, default_vid_model)
+    cur_img_p, cur_img_m = _resolve_effective(
+        scene_img, episode_img, project_img, default_img_provider, default_img_model
+    )
+    cur_vid_p, cur_vid_m = _resolve_effective(
+        scene_vid, episode_vid, project_vid, default_vid_provider, default_vid_model
+    )
 
     # next：使用 request 候選值取代 scene 層
-    next_img_p, next_img_m = _resolve_effective(req.image_backend, project_img, default_img_provider, default_img_model)
-    next_vid_p, next_vid_m = _resolve_effective(req.video_backend, project_vid, default_vid_provider, default_vid_model)
+    next_img_p, next_img_m = _resolve_effective(
+        req.image_backend, episode_img, project_img, default_img_provider, default_img_model
+    )
+    next_vid_p, next_vid_m = _resolve_effective(
+        req.video_backend, episode_vid, project_vid, default_vid_provider, default_vid_model
+    )
 
     calculator = CostCalculator()
-    cur_vid_res = _project_video_resolution(project, cur_vid_m)
-    next_vid_res = _project_video_resolution(project, next_vid_m)
+    cur_vid_res = _resolve_video_resolution(project, scene, req.script_file, cur_vid_m)
+    next_vid_res = _resolve_video_resolution(project, scene, req.script_file, next_vid_m)
+
     img_cur, img_currency = _cost(calculator, cur_img_p, cur_img_m, "image", duration=duration)
     img_next, _ = _cost(calculator, next_img_p, next_img_m, "image", duration=duration)
     vid_cur, vid_currency = _cost(calculator, cur_vid_p, cur_vid_m, "video", duration=duration, resolution=cur_vid_res)

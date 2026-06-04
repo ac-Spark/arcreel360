@@ -145,10 +145,11 @@ class _FakePM:
 class _FakeCalc:
     def calculate_project_status(self, name, project):
         return {
-            "current_phase": "production",
+            "current_phase": "storyboard",
             "phase_progress": 0.5,
             "characters": {"total": 1, "completed": 0},
             "clues": {"total": 1, "completed": 0},
+            "scenes": {"total": 1, "completed": 0},
             "episodes_summary": {"total": 1, "scripted": 1, "in_production": 1, "completed": 0},
         }
 
@@ -556,6 +557,43 @@ class TestProjectsRouter:
         with client:
             r = client.post("/api/v1/projects/ready/episodes/2/preprocess")
             assert r.status_code == 500
+
+    def test_get_source_paragraphs_endpoint(self, tmp_path, monkeypatch):
+        """測試獲取 Step 1 原文段落的 API。"""
+        fake_pm = _FakePM(tmp_path)
+        client = _client(monkeypatch, fake_pm, _FakeCalc())
+
+        # 建立假的專案草稿目錄 (ready 專案的實際路徑是 base / "ready")
+        draft_dir = tmp_path / "ready" / "drafts" / "episode_1"
+        draft_dir.mkdir(parents=True, exist_ok=True)
+
+        # 寫入一個假表格
+        draft_file = draft_dir / "step1_segments.md"
+        draft_file.write_text(
+            "| 片段 | 原文 | 字數 | 時長 |\n"
+            "|------|------|------|------|\n"
+            "| G01 | 這是第一段原文 | 7 | 4s |\n"
+            "| G02 | 這是第二段原文 | 7 | 4s |\n",
+            encoding="utf-8",
+        )
+
+        with client:
+            # 專案不存在
+            r_missing_project = client.get("/api/v1/projects/nope/episodes/1/source-paragraphs")
+            assert r_missing_project.status_code == 404
+
+            # 成功獲取段落
+            r_ok = client.get("/api/v1/projects/ready/episodes/1/source-paragraphs")
+            assert r_ok.status_code == 200
+            paragraphs = r_ok.json()["paragraphs"]
+            assert len(paragraphs) == 2
+            assert paragraphs[0] == "這是第一段原文"
+            assert paragraphs[1] == "這是第二段原文"
+
+            # 草稿不存在，回傳空陣列
+            r_no_draft = client.get("/api/v1/projects/ready/episodes/99/source-paragraphs")
+            assert r_no_draft.status_code == 200
+            assert r_no_draft.json()["paragraphs"] == []
 
     def test_preprocess_episode_with_source(self, tmp_path, monkeypatch):
         """測試 preprocess 路由能接收並傳遞可選的 source 欄位。"""

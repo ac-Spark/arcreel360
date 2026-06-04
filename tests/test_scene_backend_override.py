@@ -12,6 +12,7 @@ def pm_env(tmp_path):
     pm = ProjectManager(str(tmp_path))
     project_name = "demo"
     pm.create_project(project_name)
+    pm.create_project_metadata(project_name, "Demo", "Anime", "narration")
     return pm, project_name
 
 

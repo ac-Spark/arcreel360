@@ -5,6 +5,18 @@ export const DEFAULT_DURATIONS: readonly number[] = [4, 6, 8];
 export const DEFAULT_RESOLUTIONS: readonly string[] = ["720p", "1080p", "4k"];
 export const DEFAULT_IMAGE_SIZES: readonly string[] = ["1K"];
 
+export interface MediaModelOptions {
+  image: string[];
+  video: string[];
+  providerNames: Record<string, string>;
+}
+
+export const EMPTY_MEDIA_MODEL_OPTIONS: MediaModelOptions = {
+  image: [],
+  video: [],
+  providerNames: {},
+};
+
 const CUSTOM_PREFIX = "custom-";
 const LEGACY_PROVIDER_IDS: Record<string, string> = {
   ark: "byteplus",
@@ -81,6 +93,30 @@ export function invalidateProviderModelsCache(): void {
   _promise = null;
   _customCache = null;
   _customPromise = null;
+}
+
+export function buildMediaModelOptions(providers: ProviderInfo[] | null | undefined): MediaModelOptions {
+  if (!providers) return EMPTY_MEDIA_MODEL_OPTIONS;
+
+  const image: string[] = [];
+  const video: string[] = [];
+  const providerNames: Record<string, string> = {};
+
+  for (const provider of providers) {
+    if (provider.status !== "ready") continue;
+
+    providerNames[provider.id] = provider.display_name;
+    for (const [modelId, info] of Object.entries(provider.models ?? {})) {
+      const value = `${provider.id}/${modelId}`;
+      if (info.media_type === "image") {
+        image.push(value);
+      } else if (info.media_type === "video") {
+        video.push(value);
+      }
+    }
+  }
+
+  return { image, video, providerNames };
 }
 
 // ---------------------------------------------------------------------------

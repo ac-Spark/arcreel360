@@ -23,6 +23,10 @@ vi.mock("./EpisodeActionsBar", () => ({
   EpisodeActionsBar: () => <div data-testid="episode-actions" />,
 }));
 
+vi.mock("./SourceTextPanel", () => ({
+  SourceTextPanel: () => <div data-testid="source-text-panel" />,
+}));
+
 vi.mock("./FinalVideoCard", () => ({
   FinalVideoCard: () => <div data-testid="final-video" />,
 }));

@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from lib import PROJECT_ROOT, agent_profile
 from lib.project_change_hints import project_change_source
 from server.auth import CurrentUser
+from server.routers._validators import validate_backend_value
 
 
 def get_project_manager():
@@ -354,6 +355,79 @@ async def update_episode(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class EpisodeOverridesRequest(BaseModel):
+    video_backend: str | None = Field(default=None)
+    image_backend: str | None = Field(default=None)
+    video_resolution: str | None = Field(default=None)
+    image_size: str | None = Field(default=None)
+    duration_seconds: int | None = Field(default=None)
+
+
+def _validate_episode_override_updates(updates: dict) -> None:
+    for field in ("image_backend", "video_backend"):
+        value = updates.get(field)
+        if field in updates and value is not None:
+            validate_backend_value(value, field)
+
+    for field in ("video_resolution", "image_size"):
+        value = updates.get(field)
+        if field in updates and value is not None and (not isinstance(value, str) or not value.strip()):
+            raise HTTPException(status_code=400, detail=f"{field} 必須是有效的字串")
+
+    duration = updates.get("duration_seconds")
+    if "duration_seconds" in updates and duration is not None and (not isinstance(duration, int) or duration < 0):
+        raise HTTPException(status_code=400, detail="duration_seconds 必須是正整數")
+
+
+def _apply_episode_override_updates(overrides: dict, updates: dict) -> None:
+    for field, value in updates.items():
+        if value is None:
+            overrides.pop(field, None)
+        else:
+            overrides[field] = value
+
+
+@router.patch("/projects/{name}/episodes/{episode}/overrides")
+async def update_episode_overrides(
+    name: str,
+    episode: int,
+    req: EpisodeOverridesRequest,
+    _user: CurrentUser,
+):
+    """更新劇集層級的模型與生成配置覆蓋。
+
+    各欄位若傳入值，則設定該層覆蓋；若傳入 null，則清除該層覆蓋。
+    """
+    updates = {k: getattr(req, k) for k in req.model_fields_set}
+    _validate_episode_override_updates(updates)
+
+    try:
+
+        def _sync():
+            manager = get_project_manager()
+            project = manager.load_project(name)
+            episodes = project.get("episodes", [])
+            target = next((e for e in episodes if e.get("episode") == episode), None)
+            if target is None:
+                raise HTTPException(status_code=404, detail=f"劇集 E{episode} 不存在")
+
+            overrides = target.setdefault("overrides", {})
+            _apply_episode_override_updates(overrides, updates)
+
+            with project_change_source("webui"):
+                manager.save_project(name, project)
+            return {"success": True, "episode": episode, "overrides": overrides}
+
+        return await asyncio.to_thread(_sync)
+    except HTTPException:
+        raise
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+    except Exception as e:
+        logger.exception("更新劇集覆蓋失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete("/projects/{name}/episodes/{episode}")
 async def delete_episode(name: str, episode: int, _user: CurrentUser):
     """刪除一整集：移除劇本檔、預處理草稿、該集分鏡/影片/縮圖與版本檔、合成輸出。"""
@@ -650,4 +724,68 @@ async def delete_scene(name: str, scene_id: str, script_file: Annotated[str, Que
         raise
     except Exception as e:
         logger.exception("請求處理失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/projects/{name}/episodes/{episode}/source-paragraphs")
+async def get_source_paragraphs(name: str, episode: int, _user: CurrentUser):
+    """
+    獲取特定劇集的 Step 1 原文對照段落陣列。
+    如果是 narration 模式，從 step1_segments.md 解析「原文」欄位。
+    如果是 drama 模式，從 step1_normalized_script.md 解析「場景描述」欄位。
+    """
+    try:
+
+        def _sync():
+            manager = get_project_manager()
+            if not manager.project_exists(name):
+                raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+
+            project_path = manager.get_project_path(name)
+            project_data = manager.load_project(name)
+            content_mode = project_data.get("content_mode", "narration")
+
+            draft_dir = project_path / "drafts" / f"episode_{episode}"
+            filename = "step1_segments.md" if content_mode == "narration" else "step1_normalized_script.md"
+            draft_file = draft_dir / filename
+
+            # 如果不存在，退化回 fallback 檔案名
+            if not draft_file.exists():
+                fallback = "step1_normalized_script.md" if content_mode == "narration" else "step1_segments.md"
+                if (draft_dir / fallback).exists():
+                    draft_file = draft_dir / fallback
+
+            if not draft_file.exists():
+                # 若文件都不存在，說明還沒做 Step 1，回傳空陣列
+                return {"paragraphs": []}
+
+            paragraphs = []
+
+            # 解析 Markdown 表格
+            with open(draft_file, encoding="utf-8") as f:
+                lines = f.readlines()
+
+            for line in lines:
+                line = line.strip()
+                if not line.startswith("|") or "---" in line:
+                    continue
+                # 解析表格行
+                # 例如: | G01 | 原文內容 | ...
+                # 或: | E1S01 | 場景描述內容 | ...
+                parts = [p.strip() for p in line.split("|")]
+                # parts[0] 是 "", parts[1] 是 ID, parts[2] 是 內容/原文
+                if len(parts) >= 3:
+                    # 排除表頭行
+                    if parts[1] in {"片段", "場景 ID", "片段 ID", "場景ID", "片段ID", "ID"}:
+                        continue
+                    paragraphs.append(parts[2])
+
+            return {"paragraphs": paragraphs}
+
+        return await asyncio.to_thread(_sync)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("獲取原文段落失敗")
         raise HTTPException(status_code=500, detail=str(e))

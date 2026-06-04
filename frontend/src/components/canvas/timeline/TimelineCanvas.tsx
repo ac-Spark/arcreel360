@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useLocation, useSearch } from "wouter";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
@@ -9,11 +10,15 @@ import { PreprocessingView } from "./PreprocessingView";
 import { FinalVideoCard } from "./FinalVideoCard";
 import { EpisodeActionsBar } from "./EpisodeActionsBar";
 import { EpisodeSplitPanel } from "./EpisodeSplitPanel";
+import { EpisodeOverridesPopover } from "./EpisodeOverridesPopover";
+import { SourceTextPanel } from "./SourceTextPanel";
 import { useScrollTarget } from "@/hooks/useScrollTarget";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useCostStore } from "@/stores/cost-store";
 import { resolveEpisodeContentMode } from "@/utils/content-mode";
 import { formatCost, totalBreakdown } from "@/utils/cost-format";
+import { buildMediaModelOptions } from "@/utils/provider-models";
+import { providersApi } from "@/api/providers";
 import type {
   EpisodeScript,
   NarrationEpisodeScript,
@@ -21,6 +26,7 @@ import type {
   NarrationSegment,
   DramaScene,
   ProjectData,
+  ProviderInfo,
 } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -29,11 +35,32 @@ import type {
 
 type Segment = NarrationSegment | DramaScene;
 type SegmentUpdateExtras = Record<string, unknown>;
+type TimelineTab = "preprocessing" | "storyboard" | "video";
 
 function getSegmentId(segment: Segment, mode: "narration" | "drama"): string {
   return mode === "narration"
     ? (segment as NarrationSegment).segment_id
     : (segment as DramaScene).scene_id;
+}
+
+function getEpisodeItems(
+  episodeScript: EpisodeScript,
+  contentMode: "narration" | "drama",
+): Segment[] {
+  if (contentMode === "narration") {
+    return (episodeScript as NarrationEpisodeScript).segments ?? [];
+  }
+  return (episodeScript as DramaEpisodeScript).scenes ?? [];
+}
+
+function getTabButtonClass(active: boolean, disabled: boolean): string {
+  let stateClass = "border-transparent text-gray-500 hover:text-gray-300";
+  if (active) {
+    stateClass = "border-indigo-500 text-indigo-400 font-medium";
+  } else if (disabled) {
+    stateClass = "border-transparent text-gray-700 cursor-not-allowed";
+  }
+  return `border-b-2 px-4 py-2 text-sm transition-colors focus-ring rounded-t ${stateClass}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -99,18 +126,94 @@ export function TimelineCanvas({
   const scrollRef = useRef<HTMLDivElement>(null);
   const confirm = useConfirm();
   const contentMode = resolveEpisodeContentMode(episodeScript, projectData?.content_mode);
+  const currentEpisodeMeta = projectData?.episodes?.find((e) => e.episode === episode);
+  const currentEpisodeOverrides = currentEpisodeMeta?.overrides;
   const sourceFilesVersion = useAppStore((s) => s.sourceFilesVersion);
   const [sourceFiles, setSourceFiles] = useState<string[]>([]);
 
+  const [location, navigate] = useLocation();
+  const search = useSearch();
   const hasScript = Boolean(episodeScript);
   const showTabs = Boolean(hasDraft);
-  const defaultTab = hasScript ? "timeline" : "preprocessing";
-  const [activeTab, setActiveTab] = useState<"preprocessing" | "timeline">(defaultTab);
+  const wasScriptAvailableRef = useRef(hasScript);
 
-  // Auto-switch to timeline when script becomes available
+  const deducedDefaultTab = useMemo<TimelineTab>(() => {
+    if (!hasScript) return "preprocessing";
+
+    const videoCompleted = currentEpisodeMeta?.videos?.completed ?? 0;
+    const storyboardCompleted = currentEpisodeMeta?.storyboards?.completed ?? 0;
+
+    if (videoCompleted > 0 || projectData?.status?.current_phase === "video") {
+      return "video";
+    }
+    if (storyboardCompleted > 0 || projectData?.status?.current_phase === "storyboard") {
+      return "storyboard";
+    }
+    return "storyboard";
+  }, [currentEpisodeMeta, hasScript, projectData?.status?.current_phase]);
+
+  const queryTab = useMemo<TimelineTab | null>(() => {
+    const params = new URLSearchParams(search);
+    const t = params.get("tab");
+    if (t === "preprocessing" || t === "storyboard" || t === "video") {
+      return t;
+    }
+    return null;
+  }, [search]);
+  const hasQueryTab = useMemo(() => new URLSearchParams(search).has("tab"), [search]);
+
+  const [activeTab, setActiveTab] = useState<TimelineTab>(() => {
+    return queryTab || deducedDefaultTab;
+  });
+
+  const [activeSegmentIndex, setActiveSegmentIndex] = useState<number | null>(null);
+  const [providers, setProviders] = useState<ProviderInfo[] | null>(null);
+
   useEffect(() => {
-    if (hasScript) setActiveTab("timeline");
-  }, [hasScript]);
+    providersApi
+      .getProviders()
+      .then((res) => {
+        setProviders(res.providers);
+      })
+      .catch((err) => {
+        console.error("Failed to load providers:", err);
+      });
+  }, []);
+
+  const modelOptions = useMemo(() => buildMediaModelOptions(providers), [providers]);
+
+  // 當 URL 上的 tab 改變時更新 activeTab
+  useEffect(() => {
+    if (queryTab) {
+      setActiveTab(queryTab);
+    }
+  }, [queryTab]);
+
+  // 當沒有 URL tab 參數且 deducedDefaultTab 改變時更新 activeTab (例如剛生成劇本)
+  useEffect(() => {
+    if (!hasQueryTab) {
+      setActiveTab(deducedDefaultTab);
+    }
+  }, [deducedDefaultTab, hasQueryTab]);
+
+  // Auto-switch to default tab when script state changes
+  useEffect(() => {
+    const scriptBecameAvailable = hasScript && !wasScriptAvailableRef.current;
+    wasScriptAvailableRef.current = hasScript;
+    if (scriptBecameAvailable && activeTab === "preprocessing") {
+      setActiveTab(deducedDefaultTab);
+    }
+  }, [activeTab, deducedDefaultTab, hasScript]);
+
+  const handleTabChange = useCallback(
+    (tab: TimelineTab) => {
+      setActiveTab(tab);
+      const params = new URLSearchParams(search);
+      params.set("tab", tab);
+      navigate(`${location}?${params.toString()}`, { replace: true });
+    },
+    [location, navigate, search],
+  );
 
   useEffect(() => {
     if (!projectName || (projectData?.episodes?.length ?? 0) > 0) {
@@ -146,6 +249,25 @@ export function TimelineCanvas({
     );
     useAppStore.getState().invalidateSourceFiles();
   }, [projectName]);
+
+  const handleUpdateSceneBackend = useCallback(
+    async (
+      segmentId: string,
+      patch: { image_backend?: string | null; video_backend?: string | null },
+    ) => {
+      if (!scriptFile) return;
+      try {
+        await API.updateSceneBackend(projectName, episode, segmentId, scriptFile, patch);
+        await refreshProject();
+        useAppStore.getState().pushToast("已更新模型設定", "success");
+      } catch (err) {
+        useAppStore
+          .getState()
+          .pushToast(`更新模型設定失敗：${(err as Error).message}`, "error");
+      }
+    },
+    [projectName, episode, scriptFile, refreshProject],
+  );
 
   const handleDeleteSegment = useCallback(
     async (segmentId: string) => {
@@ -243,12 +365,7 @@ export function TimelineCanvas({
 
   // Pick the correct array (segments for narration, scenes for drama)
   const segments = useMemo<Segment[]>(
-    () =>
-      !episodeScript || !projectData
-        ? []
-        : contentMode === "narration"
-          ? ((episodeScript as NarrationEpisodeScript).segments ?? [])
-          : ((episodeScript as DramaEpisodeScript).scenes ?? []),
+    () => (!episodeScript || !projectData ? [] : getEpisodeItems(episodeScript, contentMode)),
     [contentMode, episodeScript, projectData],
   );
   const segmentIndexMap = useMemo(
@@ -337,174 +454,253 @@ export function TimelineCanvas({
   const segmentLabel = contentMode === "narration" ? "個片段" : "個場景";
   const virtualItems = virtualizer.getVirtualItems();
 
+  // 滾動聯動：當滾動使可見的第一個項目改變時，更新 activeSegmentIndex
+  const firstVisibleIndex = virtualItems[0]?.index;
+  useEffect(() => {
+    if (firstVisibleIndex != null) {
+      setActiveSegmentIndex(firstVisibleIndex);
+    }
+  }, [firstVisibleIndex]);
+
+  const handleSelectSegmentIndex = useCallback(
+    (index: number) => {
+      setActiveSegmentIndex(index);
+      const segment = segments[index];
+      if (segment) {
+        const segId = getSegmentId(segment, contentMode);
+        const targetIndex = segmentIndexMap.get(segId);
+        if (targetIndex != null) {
+          virtualizer.scrollToIndex(targetIndex, { align: "center" });
+        }
+      }
+    },
+    [segments, segmentIndexMap, virtualizer, contentMode],
+  );
+
   return (
-    <div ref={scrollRef} className="h-full overflow-y-auto">
-      <div className="p-4">
-        {/* ---- Episode header ---- */}
-        <div className="mb-4">
-          <EpisodeTitleEditor
-            projectName={projectName}
-            episode={episode}
-            title={episodeScript?.title ?? episodeTitle ?? ""}
-          />
-          {episodeScript && (
-            <p className="text-xs text-gray-500">
-              {segments.length} {segmentLabel} · 約 {totalDuration}s
-            </p>
-          )}
-          {episodeCost && (
-            <div className="mt-2 flex items-center gap-4 rounded-lg bg-gray-900 border border-gray-800 px-3 py-2 text-xs tabular-nums">
-              <span className="text-gray-600">預估</span>
-              <span className="text-gray-500">分鏡 <span className="text-gray-300">{formatCost(episodeCost.totals.estimate.image)}</span></span>
-              <span className="text-gray-500">影片 <span className="text-gray-300">{formatCost(episodeCost.totals.estimate.video)}</span></span>
-              <span className="text-gray-500">總計 <span className="font-medium text-amber-400">{formatCost(totalBreakdown(episodeCost.totals.estimate))}</span></span>
-              <span className="text-gray-700">|</span>
-              <span className="text-gray-600">實際</span>
-              <span className="text-gray-500">分鏡 <span className="text-gray-300">{formatCost(episodeCost.totals.actual.image)}</span></span>
-              <span className="text-gray-500">影片 <span className="text-gray-300">{formatCost(episodeCost.totals.actual.video)}</span></span>
-              <span className="text-gray-500">總計 <span className="font-medium text-emerald-400">{formatCost(totalBreakdown(episodeCost.totals.actual))}</span></span>
-            </div>
-          )}
-          <EpisodeActionsBar
-            key={`${projectName}:${episode}`}
-            projectName={projectName}
-            episode={episode}
-            scriptFile={scriptFile}
-            hasScript={hasScript}
-            activeTab={activeTab}
-          />
-        </div>
-
-        {/* ---- Tab bar (only when draft exists) ---- */}
-        {showTabs && (
-          <div className="mb-4 flex gap-0 border-b border-gray-800">
-            <button
-              type="button"
-              onClick={() => setActiveTab("preprocessing")}
-              className={`border-b-2 px-4 py-2 text-sm transition-colors focus-ring rounded-t ${
-                activeTab === "preprocessing"
-                  ? "border-indigo-500 text-indigo-400 font-medium"
-                  : "border-transparent text-gray-500 hover:text-gray-300"
-              }`}
-            >
-              預處理
-            </button>
-            <button
-              type="button"
-              onClick={() => hasScript && setActiveTab("timeline")}
-              disabled={!hasScript}
-              className={`border-b-2 px-4 py-2 text-sm transition-colors focus-ring rounded-t ${
-                activeTab === "timeline"
-                  ? "border-indigo-500 text-indigo-400 font-medium"
-                  : !hasScript
-                    ? "border-transparent text-gray-700 cursor-not-allowed"
-                    : "border-transparent text-gray-500 hover:text-gray-300"
-              }`}
-            >
-              劇本時間線
-            </button>
-          </div>
-        )}
-
-        {/* ---- Tab content ---- */}
-        {activeTab === "preprocessing" && hasDraft ? (
-          <PreprocessingView
-            projectName={projectName}
-            episode={episode}
-            contentMode={contentMode}
-          />
-        ) : episodeScript ? (
-          <>
-            <div className="mb-4 flex items-center gap-2">
-              <AddSegmentButton
+    <div className="flex h-full w-full overflow-hidden">
+      {/* 左側滾動時間線區域 */}
+      <div ref={scrollRef} className="flex-1 h-full overflow-y-auto">
+        <div className="p-4">
+          {/* ---- Episode header ---- */}
+          <div className="mb-4">
+            <div className="flex items-center gap-3">
+              <EpisodeTitleEditor
                 projectName={projectName}
                 episode={episode}
-                contentMode={contentMode}
-                onAdded={refreshProject}
+                title={episodeScript?.title ?? episodeTitle ?? ""}
               />
-              <button
-                type="button"
-                onClick={() => void handleResetScript()}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 px-3 py-1.5 text-sm text-red-300/80 transition-colors hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-300"
-              >
-                <Trash2 className="h-4 w-4" />
-                清空劇本
-              </button>
+              <EpisodeOverridesPopover
+                projectName={projectName}
+                episode={episode}
+                overrides={currentEpisodeOverrides}
+              />
             </div>
-            {segments.length === 0 && (
-              <p className="mb-4 text-sm text-gray-600">
-                這一集還沒有{contentMode === "narration" ? "片段" : "場景"}，點上方按鈕新增。
+            {episodeScript && (
+              <p className="text-xs text-gray-500">
+                {segments.length} {segmentLabel} · 約 {totalDuration}s
               </p>
             )}
-            <div
-              className="relative"
-              style={{ height: `${virtualizer.getTotalSize()}px` }}
-            >
-              {virtualItems.map((virtualItem) => {
-                const segment = segments[virtualItem.index];
-                const segId = getSegmentId(segment, contentMode);
-                return (
-                  <div
-                    id={`segment-${segId}`}
-                    key={segId}
-                    data-index={virtualItem.index}
-                    ref={virtualizer.measureElement}
-                    className="absolute left-0 top-0 w-full"
-                    style={{
-                      transform: `translateY(${virtualItem.start}px)`,
-                      paddingBottom: virtualItem.index === segments.length - 1 ? 0 : 16,
-                    }}
-                  >
-                    <SegmentCard
-                      segment={segment}
-                      contentMode={contentMode}
-                      aspectRatio={aspectRatio}
-                      characters={projectData.characters}
-                      clues={projectData.clues}
-                      scenes={projectData.scenes ?? {}}
-                      projectName={projectName}
-                      episode={episode}
-                      scriptFile={scriptFile}
-                      videoBackend={videoBackend}
-                      currentResolution={currentVideoResolution}
-                      durationOptions={durationOptions}
-                      onUpdatePrompt={updatePromptForScript}
-                      onGenerateStoryboard={generateStoryboardForScript}
-                      onGenerateVideo={generateVideoForScript}
-                      onRestoreStoryboard={onRestoreStoryboard}
-                      onRestoreVideo={onRestoreVideo}
-                      onDelete={() => void handleDeleteSegment(segId)}
-                      generatingStoryboard={generatingStoryboardIds?.has(segId) ?? false}
-                      generatingVideo={generatingVideoIds?.has(segId) ?? false}
-                      onUploadReference={handleUploadStoryboardReference}
-                      onRemoveReference={handleRemoveStoryboardReference}
-                    />
-                  </div>
-                );
-              })}
+            {episodeCost && (
+              <div className="mt-2 flex items-center gap-4 rounded-lg bg-gray-900 border border-gray-800 px-3 py-2 text-xs tabular-nums">
+                <span className="text-gray-600">預估</span>
+                <span className="text-gray-500">分鏡 <span className="text-gray-300">{formatCost(episodeCost.totals.estimate.image)}</span></span>
+                <span className="text-gray-500">影片 <span className="text-gray-300">{formatCost(episodeCost.totals.estimate.video)}</span></span>
+                <span className="text-gray-500">總計 <span className="font-medium text-amber-400">{formatCost(totalBreakdown(episodeCost.totals.estimate))}</span></span>
+                <span className="text-gray-700">|</span>
+                <span className="text-gray-600">實際</span>
+                <span className="text-gray-500">分鏡 <span className="text-gray-300">{formatCost(episodeCost.totals.actual.image)}</span></span>
+                <span className="text-gray-500">影片 <span className="text-gray-300">{formatCost(episodeCost.totals.actual.video)}</span></span>
+                <span className="text-gray-500">總計 <span className="font-medium text-emerald-400">{formatCost(totalBreakdown(episodeCost.totals.actual))}</span></span>
+              </div>
+            )}
+            <EpisodeActionsBar
+              key={`${projectName}:${episode}`}
+              projectName={projectName}
+              episode={episode}
+              scriptFile={scriptFile}
+              hasScript={hasScript}
+              activeTab={activeTab}
+            />
+          </div>
+
+          {/* ---- Tab bar (only when draft exists) ---- */}
+          {showTabs && (
+            <div className="mb-4 flex gap-0 border-b border-gray-800">
+              <TimelineTabButton tab="preprocessing" activeTab={activeTab} onSelect={handleTabChange}>
+                預處理
+              </TimelineTabButton>
+              <TimelineTabButton
+                tab="storyboard"
+                activeTab={activeTab}
+                disabled={!hasScript}
+                onSelect={handleTabChange}
+              >
+                分鏡時間線
+              </TimelineTabButton>
+              <TimelineTabButton
+                tab="video"
+                activeTab={activeTab}
+                disabled={!hasScript}
+                onSelect={handleTabChange}
+              >
+                影片時間線
+              </TimelineTabButton>
             </div>
-            {segments.length > 0 && (
-              <div className="mt-4 flex justify-center">
+          )}
+
+          {/* ---- Tab content ---- */}
+          {activeTab === "preprocessing" && hasDraft ? (
+            <PreprocessingView
+              projectName={projectName}
+              episode={episode}
+              contentMode={contentMode}
+            />
+          ) : episodeScript ? (
+            <>
+              <div className="mb-4 flex items-center gap-2">
                 <AddSegmentButton
                   projectName={projectName}
                   episode={episode}
                   contentMode={contentMode}
                   onAdded={refreshProject}
                 />
+                <button
+                  type="button"
+                  onClick={() => void handleResetScript()}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 px-3 py-1.5 text-sm text-red-300/80 transition-colors hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-300"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  清空劇本
+                </button>
               </div>
-            )}
-          </>
-        ) : null}
+              {segments.length === 0 && (
+                <p className="mb-4 text-sm text-gray-600">
+                  這一集還沒有{contentMode === "narration" ? "片段" : "場景"}，點上方按鈕新增。
+                </p>
+              )}
+              <div
+                className="relative"
+                style={{ height: `${virtualizer.getTotalSize()}px` }}
+              >
+                {virtualItems.map((virtualItem) => {
+                  const segment = segments[virtualItem.index];
+                  const segId = getSegmentId(segment, contentMode);
+                  return (
+                    <div
+                      id={`segment-${segId}`}
+                      key={segId}
+                      data-index={virtualItem.index}
+                      ref={virtualizer.measureElement}
+                      className="absolute left-0 top-0 w-full"
+                      style={{
+                        transform: `translateY(${virtualItem.start}px)`,
+                        paddingBottom: virtualItem.index === segments.length - 1 ? 0 : 16,
+                      }}
+                      onMouseEnter={() => {
+                        setActiveSegmentIndex(virtualItem.index);
+                      }}
+                      onFocusCapture={() => {
+                        setActiveSegmentIndex(virtualItem.index);
+                      }}
+                    >
+                      <SegmentCard
+                        segment={segment}
+                        contentMode={contentMode}
+                        aspectRatio={aspectRatio}
+                        characters={projectData.characters}
+                        clues={projectData.clues}
+                        scenes={projectData.scenes ?? {}}
+                        projectName={projectName}
+                        episode={episode}
+                        scriptFile={scriptFile}
+                        videoBackend={videoBackend}
+                        currentResolution={currentVideoResolution}
+                        durationOptions={durationOptions}
+                        onUpdatePrompt={updatePromptForScript}
+                        onGenerateStoryboard={generateStoryboardForScript}
+                        onGenerateVideo={generateVideoForScript}
+                        onRestoreStoryboard={onRestoreStoryboard}
+                        onRestoreVideo={onRestoreVideo}
+                        onDelete={() => void handleDeleteSegment(segId)}
+                        generatingStoryboard={generatingStoryboardIds?.has(segId) ?? false}
+                        generatingVideo={generatingVideoIds?.has(segId) ?? false}
+                        onUploadReference={handleUploadStoryboardReference}
+                        onRemoveReference={handleRemoveStoryboardReference}
+                        stage={activeTab === "preprocessing" ? undefined : activeTab}
+                        imageModelOptions={modelOptions.image}
+                        videoModelOptions={modelOptions.video}
+                        providerNames={modelOptions.providerNames}
+                        onUpdateSceneBackend={handleUpdateSceneBackend}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              {segments.length > 0 && (
+                <div className="mt-4 flex justify-center">
+                  <AddSegmentButton
+                    projectName={projectName}
+                    episode={episode}
+                    contentMode={contentMode}
+                    onAdded={refreshProject}
+                  />
+                </div>
+              )}
+            </>
+          ) : null}
 
-        {/* Final composed video */}
-        {activeTab === "timeline" && episodeScript && (
-          <FinalVideoCard projectName={projectName} episode={episode} />
-        )}
+          {/* Final composed video */}
+          {activeTab === "video" && episodeScript && (
+            <FinalVideoCard projectName={projectName} episode={episode} />
+          )}
 
-        {/* Bottom spacer for scroll comfort */}
-        <div className="h-16" />
+          {/* Bottom spacer for scroll comfort */}
+          <div className="h-16" />
+        </div>
       </div>
+
+      {/* 右側原文對照側欄 */}
+      {activeTab !== "preprocessing" && episodeScript && (
+        <SourceTextPanel
+          projectName={projectName}
+          episode={episode}
+          activeSegmentIndex={activeSegmentIndex}
+          onSelectSegmentIndex={handleSelectSegmentIndex}
+        />
+      )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// TimelineTabButton
+// ---------------------------------------------------------------------------
+
+function TimelineTabButton({
+  tab,
+  activeTab,
+  disabled = false,
+  onSelect,
+  children,
+}: {
+  tab: TimelineTab;
+  activeTab: TimelineTab;
+  disabled?: boolean;
+  onSelect: (tab: TimelineTab) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (!disabled) onSelect(tab);
+      }}
+      disabled={disabled}
+      className={getTabButtonClass(activeTab === tab, disabled)}
+    >
+      {children}
+    </button>
   );
 }
 
