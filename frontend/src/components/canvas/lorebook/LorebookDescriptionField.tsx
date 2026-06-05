@@ -35,6 +35,11 @@ export function LorebookDescriptionField({
   providerNames,
 }: LorebookDescriptionFieldProps) {
   const id = useId();
+  const hasTextModelOptions = (textModelOptions?.length ?? 0) > 0;
+  const controlsClassName = hasTextModelOptions ? "mt-3 flex flex-col gap-2 w-full" : "mt-3 flex justify-end";
+  const generateButtonClassName = hasTextModelOptions
+    ? "w-full justify-center h-8 text-xs"
+    : "w-28 justify-center h-8 text-xs";
 
   return (
     <div className={className}>
@@ -52,27 +57,27 @@ export function LorebookDescriptionField({
         placeholder={placeholder}
       />
       {onGenerateAI && (
-        <div className="mt-3 flex items-center gap-2">
-          <div className="flex-1 min-w-0">
-            {textModelOptions && textModelOptions.length > 0 && (
+        <div className={controlsClassName}>
+          {hasTextModelOptions && (
+            <div className="w-full min-w-0">
               <ProviderModelSelect
                 value={textModel || ""}
-                options={textModelOptions}
+                options={textModelOptions ?? []}
                 providerNames={providerNames || {}}
                 onChange={(val) => onTextModelChange?.(val || null)}
                 placeholder="選擇文字模型..."
                 allowDefault={true}
-                defaultLabel="跟隨專案文字模型"
+                defaultLabel="專案預設"
                 className="w-full text-xs"
                 size="sm"
               />
-            )}
-          </div>
+            </div>
+          )}
           <GenerateButton
             onClick={() => void onGenerateAI()}
             loading={aiGenerating}
             label="生成描述"
-            className="w-28 shrink-0 justify-center h-8 text-xs"
+            className={generateButtonClassName}
             disabled={aiGenerating}
           />
         </div>

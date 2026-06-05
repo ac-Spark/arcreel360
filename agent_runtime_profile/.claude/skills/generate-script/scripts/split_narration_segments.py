@@ -62,6 +62,7 @@ def build_split_prompt(
                 lines.append(f"- **{name}**")
         return "\n".join(lines) or "（暫無）"
 
+    project_overview = project_overview or {}
     sections: list[str] = []
     if include_overview:
         sections.append(
@@ -185,7 +186,7 @@ def _filter_by_names(items: dict, names_csv: str | None) -> dict:
 SOURCE_NOT_READY_EXIT_CODE = 3
 
 # 視為小說原文的副檔名（單檔 fallback 用）。
-_SOURCE_SUFFIXES = (".txt", ".md", ".text")
+_SOURCE_SUFFIXES = (".txt", ".md", ".text", ".docx")
 _REF_NAME_SEPARATOR = "\x1f"
 
 
@@ -195,6 +196,15 @@ class SourceNotReadyError(FileNotFoundError):
     繼承 FileNotFoundError 以沿用 resolve_novel_text 呼叫端既有的 except 分支；
     main() 會把它對應到 SOURCE_NOT_READY_EXIT_CODE 退出。
     """
+
+
+def _read_source_file(path: Path) -> str:
+    from lib.docx_utils import read_docx_text
+    from lib.source_text import read_text_with_fallback
+
+    if path.suffix.lower() == ".docx":
+        return read_docx_text(path)
+    return read_text_with_fallback(path)
 
 
 def _episode_source_files(source_dir: Path) -> list[Path]:
@@ -216,7 +226,11 @@ def _episode_source_files(source_dir: Path) -> list[Path]:
 def _read_whole_source(source_dir: Path) -> str:
     """把 source/ 內所有原文檔按檔名排序串接成「整本原文」。"""
     files = _episode_source_files(source_dir)
-    return "\n\n".join(f.read_text(encoding="utf-8") for f in files)
+
+    texts = []
+    for f in files:
+        texts.append(_read_source_file(f))
+    return "\n\n".join(texts)
 
 
 def _read_explicit_sources(project_path: Path, source: str) -> str:
@@ -238,7 +252,8 @@ def _read_explicit_sources(project_path: Path, source: str) -> str:
             raise FileNotFoundError(f"未找到原始檔: {source_path}")
         if source_path.suffix.lower() not in _SOURCE_SUFFIXES:
             raise ValueError(f"不支援的原始檔格式: {source_path.suffix}，僅支援: {', '.join(_SOURCE_SUFFIXES)}")
-        texts.append(source_path.read_text(encoding="utf-8"))
+
+        texts.append(_read_source_file(source_path))
     return "\n\n".join(texts)
 
 
@@ -280,7 +295,7 @@ def resolve_novel_text(project_path: Path, episode: int, source: str | None) -> 
 
     candidate = project_path / "source" / f"episode_{episode}.txt"
     if candidate.exists():
-        return candidate.read_text(encoding="utf-8")
+        return _read_source_file(candidate)
 
     whole = _read_whole_source(project_path / "source")
     if not whole.strip():
@@ -394,7 +409,7 @@ def main():
 
     prompt = build_split_prompt(
         novel_text=novel_text,
-        project_overview=project.get("overview", {}),
+        project_overview=project.get("overview") or {},
         style=project.get("style", ""),
         characters=characters,
         clues=clues,

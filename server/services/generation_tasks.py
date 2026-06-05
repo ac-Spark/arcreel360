@@ -27,7 +27,14 @@ from lib.prompt_utils import (
     is_structured_video_prompt,
     video_prompt_to_yaml,
 )
-from lib.providers import PROVIDER_BYTEPLUS, PROVIDER_GEMINI, PROVIDER_GROK, PROVIDER_OPENAI, normalize_provider_id
+from lib.providers import (
+    PROVIDER_AI360,
+    PROVIDER_BYTEPLUS,
+    PROVIDER_GEMINI,
+    PROVIDER_GROK,
+    PROVIDER_OPENAI,
+    normalize_provider_id,
+)
 from lib.storyboard_sequence import (
     build_previous_storyboard_reference,
     find_storyboard_item,
@@ -61,6 +68,7 @@ _PROVIDER_ID_TO_BACKEND: dict[str, str] = {
     PROVIDER_BYTEPLUS: PROVIDER_BYTEPLUS,
     PROVIDER_GROK: PROVIDER_GROK,
     PROVIDER_OPENAI: PROVIDER_OPENAI,
+    PROVIDER_AI360: PROVIDER_AI360,
 }
 
 
@@ -176,6 +184,14 @@ async def _get_or_create_video_backend(
         kwargs["api_key"] = db_config.get("api_key")
         kwargs["rate_limiter"] = rate_limiter
         kwargs["video_model"] = effective_model
+    elif backend_name == PROVIDER_AI360:
+        # ai360 以帳密登入，需傳 username/password/base_url/project_id（與簡單供應商不同）
+        db_config = await resolver.provider_config(PROVIDER_AI360)
+        kwargs["username"] = db_config.get("username")
+        kwargs["password"] = db_config.get("api_key")  # password 存於 credential 表的 api_key 欄
+        kwargs["base_url"] = db_config.get("base_url")
+        kwargs["project_id"] = db_config.get("project_id")
+        kwargs["model"] = effective_model
     else:
         await _fill_simple_provider_kwargs(backend_name, resolver, kwargs, effective_model)
 
@@ -880,7 +896,7 @@ async def execute_character_task(
 ) -> dict[str, Any]:
     prompt = str(payload.get("prompt", "") or "").strip()
     if not prompt:
-        raise ValueError("prompt is required for character task")
+        prompt = resource_id
 
     def _prepare_char():
         _project = get_project_manager().load_project(project_name)
@@ -932,7 +948,7 @@ async def execute_clue_task(
 ) -> dict[str, Any]:
     prompt = str(payload.get("prompt", "") or "").strip()
     if not prompt:
-        raise ValueError("prompt is required for clue task")
+        prompt = resource_id
 
     def _prepare_clue():
         _project = get_project_manager().load_project(project_name)
@@ -975,7 +991,7 @@ async def execute_scene_task(
 ) -> dict[str, Any]:
     prompt = str(payload.get("prompt", "") or "").strip()
     if not prompt:
-        raise ValueError("prompt is required for scene task")
+        prompt = resource_id
 
     def _prepare_scene():
         _project = get_project_manager().load_project(project_name)

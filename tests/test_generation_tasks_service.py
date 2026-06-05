@@ -374,12 +374,6 @@ class TestGenerationTasks:
         with pytest.raises(ValueError):
             await generation_tasks.execute_video_task("demo", "E1S01", {"script_file": "episode_1.json", "prompt": "x"})
 
-        with pytest.raises(ValueError):
-            await generation_tasks.execute_character_task("demo", "Alice", {"prompt": ""})
-
-        with pytest.raises(ValueError):
-            await generation_tasks.execute_clue_task("demo", "玉佩", {"prompt": ""})
-
     async def test_resolve_video_backend_payload_override(self, monkeypatch, tmp_path):
         """驗證 _resolve_video_backend 優先使用 payload 中的 video_provider 及 settings"""
         project_path = _prepare_files(tmp_path)

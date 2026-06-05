@@ -62,7 +62,6 @@ class TestDataValidator:
         assert any("title" in error for error in result.errors)
         assert any("content_mode" in error for error in result.errors)
         assert any("角色 'A' 資料格式錯誤" in error for error in result.errors)
-        assert any("線索 'X' 缺少必填欄位: description" in error for error in result.errors)
         assert any("importance 值無效" in error for error in result.errors)
 
     def test_validate_episode_narration_success_with_warnings(self, tmp_path):

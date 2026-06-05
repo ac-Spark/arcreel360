@@ -1,9 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
-import { User, Puzzle, Mountain, Plus, Sparkles, ChevronDown } from "lucide-react";
+import { User, Puzzle, Mountain, Plus, type LucideIcon } from "lucide-react";
+import { useLocation } from "wouter";
 import { API } from "@/api";
 import { CharacterCard } from "./CharacterCard";
 import { ClueCard } from "./ClueCard";
 import { SceneCard } from "./SceneCard";
+import { AddCharacterForm } from "./AddCharacterForm";
+import { AddClueForm } from "./AddClueForm";
+import { AddSceneForm } from "./AddSceneForm";
 import { LorebookAIExtractModal } from "./LorebookAIExtractModal";
 import { useScrollTarget } from "@/hooks/useScrollTarget";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -62,12 +66,23 @@ interface LorebookGalleryProps {
   ) => Promise<void>;
   onDeleteScene?: (name: string) => Promise<void> | void;
   onRestoreSceneVersion?: () => Promise<void> | void;
-  /** Called when the user clicks "新增角色". */
-  onAddCharacter?: () => void;
-  /** Called when the user clicks "新增線索". */
-  onAddClue?: () => void;
-  /** Called when the user clicks "新增場景". */
-  onAddScene?: () => void;
+  onAddCharacterSubmit: (
+    name: string,
+    description: string,
+    voiceStyle: string,
+    referenceFile?: File | null,
+  ) => Promise<void>;
+  onAddClueSubmit: (
+    name: string,
+    description: string,
+    importance: "major" | "minor",
+    referenceFile?: File | null,
+  ) => Promise<void>;
+  onAddSceneSubmit: (
+    name: string,
+    description: string,
+    referenceFile?: File | null,
+  ) => Promise<void>;
   /** AI 批次匯入後，通知父元件重新獲取資料 */
   onRefresh?: () => Promise<void> | void;
 }
@@ -83,6 +98,13 @@ const BATCH_LABELS: Record<BatchKind, string> = {
   characters: "角色",
   clues: "道具",
   scenes: "場景",
+};
+
+const TAB_ORDER: Tab[] = ["characters", "clues", "scenes"];
+const TAB_ICONS: Record<Tab, LucideIcon> = {
+  characters: User,
+  clues: Puzzle,
+  scenes: Mountain,
 };
 
 // ---------------------------------------------------------------------------
@@ -119,18 +141,27 @@ export function LorebookGallery({
   onSaveScene,
   onDeleteScene,
   onRestoreSceneVersion,
-  onAddCharacter,
-  onAddClue,
-  onAddScene,
+  onAddCharacterSubmit,
+  onAddClueSubmit,
+  onAddSceneSubmit,
   onRefresh,
 }: LorebookGalleryProps) {
+  const [addingCharacter, setAddingCharacter] = useState(false);
+  const [addingClue, setAddingClue] = useState(false);
+  const [addingScene, setAddingScene] = useState(false);
   const confirm = useConfirm();
+  const [location, setLocation] = useLocation();
   const assistantPanelOpen = useAppStore((s) => s.assistantPanelOpen);
-  const [expanded, setExpanded] = useState<Record<Tab, boolean>>(() => ({
-    characters: mode === "characters" || !mode,
-    clues: mode === "clues",
-    scenes: mode === "scenes",
-  }));
+
+  const activeTab = useMemo<Tab>(() => {
+    if (mode) return mode;
+    const match = location.match(/^\/(characters|clues|scenes)/);
+    return (match ? match[1] : "characters") as Tab;
+  }, [mode, location]);
+
+  const handleTabChange = (tab: Tab) => {
+    setLocation(`/${tab}`);
+  };
 
   const [extractingType, setExtractingType] = useState<"character" | "clue" | "scene" | null>(null);
 
@@ -159,17 +190,6 @@ export function LorebookGallery({
       : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4";
   }, [assistantPanelOpen]);
 
-  useEffect(() => {
-    if (mode) {
-      setExpanded((prev) => ({ ...prev, [mode]: true }));
-      // 在 DOM 渲染後平滑滾動到對應的 section
-      setTimeout(() => {
-        const el = document.getElementById(`section-${mode}`);
-        el?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 50);
-    }
-  }, [mode]);
-
   // Respond to agent-triggered scroll targets
   useScrollTarget("character");
   useScrollTarget("clue");
@@ -177,12 +197,20 @@ export function LorebookGallery({
   const scrollTarget = useAppStore((s) => s.scrollTarget);
   useEffect(() => {
     if (!scrollTarget) return;
-    if (scrollTarget.type === "character" && !expanded.characters) {
-      setExpanded((prev) => ({ ...prev, characters: true }));
-    } else if (scrollTarget.type === "clue" && !expanded.clues) {
-      setExpanded((prev) => ({ ...prev, clues: true }));
+    if (scrollTarget.type === "character") {
+      setLocation("/characters");
+      setTimeout(() => {
+        const el = document.getElementById(`character-${scrollTarget.id}`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+    } else if (scrollTarget.type === "clue") {
+      setLocation("/clues");
+      setTimeout(() => {
+        const el = document.getElementById(`clue-${scrollTarget.id}`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
     }
-  }, [scrollTarget, expanded.characters, expanded.clues]);
+  }, [scrollTarget, setLocation]);
 
   const charEntries = Object.entries(characters);
   const clueEntries = Object.entries(clues);
@@ -226,285 +254,303 @@ export function LorebookGallery({
   const isGeneratingScene = (name: string) =>
     generatingSceneNames?.has(name) ?? false;
 
+  const showTabs = mode === "characters" || mode === "clues" || mode === "scenes" || !mode;
+  const tabCounts: Record<Tab, number> = {
+    characters: charCount,
+    clues: clueCount,
+    scenes: sceneCount,
+  };
+
   return (
     <div className="flex flex-col gap-6">
-      {/* ---- Characters Accordion ---- */}
-      <div className={`rounded-xl border transition-all duration-300 ${
-        expanded.characters 
-          ? "border-gray-700/60 bg-gray-900/20 shadow-lg shadow-black/10" 
-          : "border-gray-800/40 bg-gray-900/5 hover:border-gray-800/80"
-      }`}>
-        <div
-          id="section-characters"
-          onClick={() => setExpanded(prev => ({ ...prev, characters: !prev.characters }))}
-          className={`flex items-center justify-between cursor-pointer px-4 py-3.5 select-none transition-all duration-200 ${
-            expanded.characters ? "bg-gray-800/40 border-b border-gray-800/40 rounded-t-xl" : "bg-gray-800/10 hover:bg-gray-800/20 rounded-xl"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <User className="h-5 w-5 text-indigo-400" />
-            <span className="font-semibold text-gray-200">角色 ({charCount})</span>
-            <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${expanded.characters ? 'rotate-180' : ''}`} />
-          </div>
+      {showTabs && (
+        <div className="flex border-b border-gray-800 pb-2 mb-2 gap-2">
+          {TAB_ORDER.map((tab) => {
+            const isActive = activeTab === tab;
+            const label = BATCH_LABELS[tab];
+            const count = tabCounts[tab];
+            const Icon = TAB_ICONS[tab];
+
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => handleTabChange(tab)}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 focus-ring ${
+                  isActive
+                    ? "bg-indigo-600/10 border border-indigo-500/30 text-indigo-400 font-bold shadow-md shadow-indigo-500/5"
+                    : "text-gray-400 hover:bg-gray-800/50 hover:text-gray-200 border border-transparent"
+                }`}
+              >
+                <Icon className={`h-4 w-4 ${isActive ? "text-indigo-400" : "text-gray-500"}`} />
+                <span>{label}</span>
+                <span className={`px-1.5 py-0.5 text-xs rounded-full ${
+                  isActive ? "bg-indigo-500/20 text-indigo-300" : "bg-gray-800 text-gray-500"
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
+      )}
 
-        {expanded.characters && (
-          <div className="p-4 flex flex-col gap-4">
-            {charCount === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-4 py-12">
-                <EmptyState
-                  icon={<User className="h-12 w-12 text-gray-600" />}
-                  message="暫無角色，點選下方按鈕新增"
-                />
-                <div className="flex gap-2">
-                  {onAddCharacter && <AddButton onClick={onAddCharacter} className="mx-0">新增角色</AddButton>}
-                  {onAddCharacter && (
-                    <button
-                      type="button"
-                      onClick={() => setExtractingType("character")}
-                      className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
-                    >
-                      <Sparkles className="h-4 w-4 text-indigo-400" />
-                      AI 匯入角色
-                    </button>
-                  )}
-                </div>
+      {/* ---- Characters Section ---- */}
+      {activeTab === "characters" && (
+        <div className="p-4 flex flex-col gap-4 bg-gray-900/10 border border-gray-800/40 rounded-xl">
+          {charCount === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-12">
+              <EmptyState
+                icon={<User className="h-12 w-12 text-gray-600" />}
+                message="暫無角色，點選下方按鈕新增"
+              />
+              <div className="flex gap-2">
+                <AddButton onClick={() => setAddingCharacter(true)} className="mx-0">新增角色</AddButton>
+                <button
+                  type="button"
+                  onClick={() => setExtractingType("character")}
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
+                >
+                  根據原文匯入角色
+                </button>
               </div>
-            ) : (
-              <>
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  {onAddCharacter && <AddButton onClick={onAddCharacter} className="mx-0">新增角色</AddButton>}
-                  {onAddCharacter && (
-                    <button
-                      type="button"
-                      onClick={() => setExtractingType("character")}
-                      className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
-                    >
-                      <Sparkles className="h-4 w-4 text-indigo-400" />
-                      AI 匯入角色
-                    </button>
-                  )}
-                  <BatchButton
-                    loading={batchBusy === "characters"}
-                    disabled={batchBusy !== null}
-                    onClick={() => void runBatch("characters", false)}
-                  >
-                    批次生成（缺圖）
-                  </BatchButton>
-
+              {addingCharacter && (
+                <div className="w-full max-w-md mt-4 text-left">
+                  <AddCharacterForm
+                    onSubmit={async (name, desc, voice, refFile) => {
+                      await onAddCharacterSubmit(name, desc, voice, refFile);
+                      setAddingCharacter(false);
+                    }}
+                    onCancel={() => setAddingCharacter(false)}
+                  />
                 </div>
-                <div className={gridClassName}>
-                  {charEntries.map(([charName, character]) => (
-                    <div id={`character-${charName}`} key={charName}>
-                      <CharacterCard
-                        name={charName}
-                        character={character}
-                        projectName={projectName}
-                        onSave={onSaveCharacter}
-                        onUploadReference={onUploadCharacterReference}
-                        onRemoveReference={onRemoveCharacterReference}
-                        onGenerate={onGenerateCharacter}
-                        onDelete={onDeleteCharacter}
-                        onRename={onRenameCharacter}
-                        onRestoreVersion={onRestoreCharacterVersion}
-                        generating={isGeneratingCharacter(charName)}
-                        modelOptions={modelOptions}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ---- Clues Accordion ---- */}
-      <div className={`rounded-xl border transition-all duration-300 ${
-        expanded.clues 
-          ? "border-gray-700/60 bg-gray-900/20 shadow-lg shadow-black/10" 
-          : "border-gray-800/40 bg-gray-900/5 hover:border-gray-800/80"
-      }`}>
-        <div
-          id="section-clues"
-          onClick={() => setExpanded(prev => ({ ...prev, clues: !prev.clues }))}
-          className={`flex items-center justify-between cursor-pointer px-4 py-3.5 select-none transition-all duration-200 ${
-            expanded.clues ? "bg-gray-800/40 border-b border-gray-800/40 rounded-t-xl" : "bg-gray-800/10 hover:bg-gray-800/20 rounded-xl"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <Puzzle className="h-5 w-5 text-indigo-400" />
-            <span className="font-semibold text-gray-200">道具 ({clueCount})</span>
-            <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${expanded.clues ? 'rotate-180' : ''}`} />
-          </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <AddButton onClick={() => setAddingCharacter(true)} className="mx-0">新增角色</AddButton>
+                <button
+                  type="button"
+                  onClick={() => setExtractingType("character")}
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
+                >
+                  根據原文匯入角色
+                </button>
+                <BatchButton
+                  loading={batchBusy === "characters"}
+                  disabled={batchBusy !== null}
+                  onClick={() => void runBatch("characters", false)}
+                >
+                  批次生成（缺圖）
+                </BatchButton>
+              </div>
+              <div className={gridClassName}>
+                {charEntries.map(([charName, character]) => (
+                  <div id={`character-${charName}`} key={charName}>
+                    <CharacterCard
+                      name={charName}
+                      character={character}
+                      projectName={projectName}
+                      onSave={onSaveCharacter}
+                      onUploadReference={onUploadCharacterReference}
+                      onRemoveReference={onRemoveCharacterReference}
+                      onGenerate={onGenerateCharacter}
+                      onDelete={onDeleteCharacter}
+                      onRename={onRenameCharacter}
+                      onRestoreVersion={onRestoreCharacterVersion}
+                      generating={isGeneratingCharacter(charName)}
+                      modelOptions={modelOptions}
+                    />
+                  </div>
+                ))}
+                {addingCharacter && (
+                  <AddCharacterForm
+                    onSubmit={async (name, desc, voice, refFile) => {
+                      await onAddCharacterSubmit(name, desc, voice, refFile);
+                      setAddingCharacter(false);
+                    }}
+                    onCancel={() => setAddingCharacter(false)}
+                  />
+                )}
+              </div>
+            </>
+          )}
         </div>
+      )}
 
-        {expanded.clues && (
-          <div className="p-4 flex flex-col gap-4">
-            {clueCount === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-4 py-12">
-                <EmptyState
-                  icon={<Puzzle className="h-12 w-12 text-gray-600" />}
-                  message="暫無道具，點選下方按鈕新增"
-                />
-                <div className="flex gap-2">
-                  {onAddClue && <AddButton onClick={onAddClue} className="mx-0">新增道具</AddButton>}
-                  {onAddClue && (
-                    <button
-                      type="button"
-                      onClick={() => setExtractingType("clue")}
-                      className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
-                    >
-                      <Sparkles className="h-4 w-4 text-indigo-400" />
-                      AI 匯入道具
-                    </button>
-                  )}
-                </div>
+      {/* ---- Clues Section ---- */}
+      {activeTab === "clues" && (
+        <div className="p-4 flex flex-col gap-4 bg-gray-900/10 border border-gray-800/40 rounded-xl">
+          {clueCount === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-12">
+              <EmptyState
+                icon={<Puzzle className="h-12 w-12 text-gray-600" />}
+                message="暫無道具，點選下方按鈕新增"
+              />
+              <div className="flex gap-2">
+                <AddButton onClick={() => setAddingClue(true)} className="mx-0">新增道具</AddButton>
+                <button
+                  type="button"
+                  onClick={() => setExtractingType("clue")}
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
+                >
+                  根據原文匯入道具
+                </button>
               </div>
-            ) : (
-              <>
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  {onAddClue && <AddButton onClick={onAddClue} className="mx-0">新增道具</AddButton>}
-                  {onAddClue && (
-                    <button
-                      type="button"
-                      onClick={() => setExtractingType("clue")}
-                      className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
-                    >
-                      <Sparkles className="h-4 w-4 text-indigo-400" />
-                      AI 匯入道具
-                    </button>
-                  )}
-                  <BatchButton
-                    loading={batchBusy === "clues"}
-                    disabled={batchBusy !== null}
-                    onClick={() => void runBatch("clues", false)}
-                  >
-                    批次生成（缺圖）
-                  </BatchButton>
-
+              {addingClue && (
+                <div className="w-full max-w-md mt-4 text-left">
+                  <AddClueForm
+                    onSubmit={async (name, desc, importance, refFile) => {
+                      await onAddClueSubmit(name, desc, importance, refFile);
+                      setAddingClue(false);
+                    }}
+                    onCancel={() => setAddingClue(false)}
+                  />
                 </div>
-                <div className={gridClassName}>
-                  {clueEntries.map(([clueName, clue]) => (
-                    <div id={`clue-${clueName}`} key={clueName}>
-                      <ClueCard
-                        name={clueName}
-                        clue={clue}
-                        projectName={projectName}
-                        onSave={(n, payload) =>
-                          onUpdateClue(n, {
-                            description: payload.description,
-                            image_backend: payload.imageBackend,
-                          })
-                        }
-                        onGenerate={onGenerateClue}
-                        onUploadReference={onUploadClueReference}
-                        onRemoveReference={onRemoveClueReference}
-                        onDelete={onDeleteClue}
-                        onRename={onRenameClue}
-                        onRestoreVersion={onRestoreClueVersion}
-                        generating={isGeneratingClue(clueName)}
-                        modelOptions={modelOptions}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ---- Scenes Accordion ---- */}
-      <div className={`rounded-xl border transition-all duration-300 ${
-        expanded.scenes 
-          ? "border-gray-700/60 bg-gray-900/20 shadow-lg shadow-black/10" 
-          : "border-gray-800/40 bg-gray-900/5 hover:border-gray-800/80"
-      }`}>
-        <div
-          id="section-scenes"
-          onClick={() => setExpanded(prev => ({ ...prev, scenes: !prev.scenes }))}
-          className={`flex items-center justify-between cursor-pointer px-4 py-3.5 select-none transition-all duration-200 ${
-            expanded.scenes ? "bg-gray-800/40 border-b border-gray-800/40 rounded-t-xl" : "bg-gray-800/10 hover:bg-gray-800/20 rounded-xl"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <Mountain className="h-5 w-5 text-indigo-400" />
-            <span className="font-semibold text-gray-200">場景 ({sceneCount})</span>
-            <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${expanded.scenes ? 'rotate-180' : ''}`} />
-          </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <AddButton onClick={() => setAddingClue(true)} className="mx-0">新增道具</AddButton>
+                <button
+                  type="button"
+                  onClick={() => setExtractingType("clue")}
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
+                >
+                  根據原文匯入道具
+                </button>
+                <BatchButton
+                  loading={batchBusy === "clues"}
+                  disabled={batchBusy !== null}
+                  onClick={() => void runBatch("clues", false)}
+                >
+                  批次生成（缺圖）
+                </BatchButton>
+              </div>
+              <div className={gridClassName}>
+                {clueEntries.map(([clueName, clue]) => (
+                  <div id={`clue-${clueName}`} key={clueName}>
+                    <ClueCard
+                      name={clueName}
+                      clue={clue}
+                      projectName={projectName}
+                      onSave={(n, payload) =>
+                        onUpdateClue(n, {
+                          description: payload.description,
+                          image_backend: payload.imageBackend,
+                        })
+                      }
+                      onGenerate={onGenerateClue}
+                      onUploadReference={onUploadClueReference}
+                      onRemoveReference={onRemoveClueReference}
+                      onDelete={onDeleteClue}
+                      onRename={onRenameClue}
+                      onRestoreVersion={onRestoreClueVersion}
+                      generating={isGeneratingClue(clueName)}
+                      modelOptions={modelOptions}
+                    />
+                  </div>
+                ))}
+                {addingClue && (
+                  <AddClueForm
+                    onSubmit={async (name, desc, importance, refFile) => {
+                      await onAddClueSubmit(name, desc, importance, refFile);
+                      setAddingClue(false);
+                    }}
+                    onCancel={() => setAddingClue(false)}
+                  />
+                )}
+              </div>
+            </>
+          )}
         </div>
+      )}
 
-        {expanded.scenes && (
-          <div className="p-4 flex flex-col gap-4">
-            {sceneCount === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-4 py-12">
-                <EmptyState
-                  icon={<Mountain className="h-12 w-12 text-gray-600" />}
-                  message="暫無場景，點選下方按鈕新增"
-                />
-                <div className="flex gap-2">
-                  {onAddScene && <AddButton onClick={onAddScene} className="mx-0">新增場景</AddButton>}
-                  {onAddScene && (
-                    <button
-                      type="button"
-                      onClick={() => setExtractingType("scene")}
-                      className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
-                    >
-                      <Sparkles className="h-4 w-4 text-indigo-400" />
-                      AI 匯入場景
-                    </button>
-                  )}
-                </div>
+      {/* ---- Scenes Section ---- */}
+      {activeTab === "scenes" && (
+        <div className="p-4 flex flex-col gap-4 bg-gray-900/10 border border-gray-800/40 rounded-xl">
+          {sceneCount === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-12">
+              <EmptyState
+                icon={<Mountain className="h-12 w-12 text-gray-600" />}
+                message="暫無場景，點選下方按鈕新增"
+              />
+              <div className="flex gap-2">
+                <AddButton onClick={() => setAddingScene(true)} className="mx-0">新增場景</AddButton>
+                <button
+                  type="button"
+                  onClick={() => setExtractingType("scene")}
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
+                >
+                  根據原文匯入場景
+                </button>
               </div>
-            ) : (
-              <>
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  {onAddScene && <AddButton onClick={onAddScene} className="mx-0">新增場景</AddButton>}
-                  {onAddScene && (
-                    <button
-                      type="button"
-                      onClick={() => setExtractingType("scene")}
-                      className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
-                    >
-                      <Sparkles className="h-4 w-4 text-indigo-400" />
-                      AI 匯入場景
-                    </button>
-                  )}
-                  <BatchButton
-                    loading={batchBusy === "scenes"}
-                    disabled={batchBusy !== null}
-                    onClick={() => void runBatch("scenes", false)}
-                  >
-                    批次生成（缺圖）
-                  </BatchButton>
-
+              {addingScene && (
+                <div className="w-full max-w-md mt-4 text-left">
+                  <AddSceneForm
+                    onSubmit={async (name, desc, refFile) => {
+                      await onAddSceneSubmit(name, desc, refFile);
+                      setAddingScene(false);
+                    }}
+                    onCancel={() => setAddingScene(false)}
+                  />
                 </div>
-                <div className={gridClassName}>
-                  {sceneEntries.map(([sceneName, scene]) => (
-                    <div id={`scene-${sceneName}`} key={sceneName}>
-                      <SceneCard
-                        name={sceneName}
-                        scene={scene}
-                        projectName={projectName}
-                        onSave={onSaveScene}
-                        onGenerate={onGenerateScene}
-                        onUploadReference={onUploadSceneReference}
-                        onRemoveReference={onRemoveSceneReference}
-                        onDelete={onDeleteScene}
-                        onRename={onRenameScene}
-                        onRestoreVersion={onRestoreSceneVersion}
-                        generating={isGeneratingScene(sceneName)}
-                        modelOptions={modelOptions}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <AddButton onClick={() => setAddingScene(true)} className="mx-0">新增場景</AddButton>
+                <button
+                  type="button"
+                  onClick={() => setExtractingType("scene")}
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-200 transition-colors focus:outline-none"
+                >
+                  根據原文匯入場景
+                </button>
+                <BatchButton
+                  loading={batchBusy === "scenes"}
+                  disabled={batchBusy !== null}
+                  onClick={() => void runBatch("scenes", false)}
+                >
+                  批次生成（缺圖）
+                </BatchButton>
+              </div>
+              <div className={gridClassName}>
+                {sceneEntries.map(([sceneName, scene]) => (
+                  <div id={`scene-${sceneName}`} key={sceneName}>
+                    <SceneCard
+                      name={sceneName}
+                      scene={scene}
+                      projectName={projectName}
+                      onSave={onSaveScene}
+                      onGenerate={onGenerateScene}
+                      onUploadReference={onUploadSceneReference}
+                      onRemoveReference={onRemoveSceneReference}
+                      onDelete={onDeleteScene}
+                      onRename={onRenameScene}
+                      onRestoreVersion={onRestoreSceneVersion}
+                      generating={isGeneratingScene(sceneName)}
+                      modelOptions={modelOptions}
+                    />
+                  </div>
+                ))}
+                {addingScene && (
+                  <AddSceneForm
+                    onSubmit={async (name, desc, refFile) => {
+                      await onAddSceneSubmit(name, desc, refFile);
+                      setAddingScene(false);
+                    }}
+                    onCancel={() => setAddingScene(false)}
+                  />
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <LorebookAIExtractModal
         isOpen={extractingType !== null}
@@ -533,19 +579,17 @@ function BatchButton({
 }) {
   const cls =
     variant === "warning"
-      ? "border-amber-600/40 text-amber-400 hover:border-amber-500 hover:bg-amber-500/10"
-      : "border-indigo-500/40 text-indigo-300 hover:border-indigo-400 hover:bg-indigo-500/10";
+      ? "bg-amber-600 hover:bg-amber-500 text-white border-none shadow-md shadow-amber-500/5"
+      : "bg-indigo-600 hover:bg-indigo-500 text-white border-none shadow-md shadow-indigo-500/5";
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${cls}`}
+      className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50 ${cls}`}
     >
-      {loading ? (
+      {loading && (
         <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border border-current border-t-transparent" />
-      ) : (
-        <Sparkles className="h-4 w-4" />
       )}
       {children}
     </button>

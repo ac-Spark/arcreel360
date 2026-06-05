@@ -34,10 +34,18 @@ def _auth_env():
 @pytest.fixture()
 def client():
     """建立使用真實 app 的測試客戶端。"""
+    from unittest.mock import AsyncMock, MagicMock
+
     from server.app import app
 
-    with TestClient(app, raise_server_exceptions=False) as c:
-        yield c
+    # Mock 掉 GenerationWorker，避免啟動背景執行緒及相關資料庫操作
+    mock_worker = MagicMock()
+    mock_worker.start = AsyncMock()
+    mock_worker.stop = AsyncMock()
+
+    with patch("server.app.create_generation_worker", return_value=mock_worker):
+        with TestClient(app, raise_server_exceptions=False) as c:
+            yield c
 
 
 def _login(client: TestClient) -> str:

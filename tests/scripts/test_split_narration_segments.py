@@ -85,6 +85,19 @@ def test_resolve_novel_text_multi_source_files_concatenated(tmp_path):
     assert result == "第一章內容。\n\n第二章內容。"
 
 
+def test_resolve_novel_text_reads_legacy_encoded_source(tmp_path):
+    """source/ 文字檔可能來自 Word/Windows，預處理需支援常見台灣 legacy 編碼。"""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    content = "時間是 1980 年代的台灣夏天。\n街角的柑仔店。"
+    (source_dir / "時間是 1980 年代的台灣夏天.txt").write_bytes(content.encode("cp950"))
+    _write_project(tmp_path, [{"episode": 1}])
+
+    result = split_narration_segments.resolve_novel_text(tmp_path, episode=1, source=None)
+
+    assert result == content
+
+
 def test_resolve_novel_text_excludes_remaining_txt(tmp_path):
     """串接整本時排除 _remaining.txt（分集切分的產物）。"""
     source_dir = tmp_path / "source"
@@ -349,3 +362,45 @@ def test_build_split_prompt_with_num_segments():
     assert "指定片段數量" in prompt
     assert "拆分為**剛好 5** 個片段" in prompt
     assert "G01 到 G05" in prompt
+
+
+def test_resolve_novel_text_docx_support(tmp_path):
+    from tests.test_docx_utils import create_fake_docx_bytes
+
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+
+    docx_bytes = create_fake_docx_bytes(["第一集正文", "第二段文字"])
+    (source_dir / "episode_1.docx").write_bytes(docx_bytes)
+    _write_project(tmp_path, [{"episode": 1}])
+
+    result = split_narration_segments.resolve_novel_text(tmp_path, episode=1, source="source/episode_1.docx")
+    assert result == "第一集正文\n第二段文字"
+
+
+def test_resolve_novel_text_drama_docx_support(tmp_path):
+    from tests.test_docx_utils import create_fake_docx_bytes
+
+    # 動態載入 normalize_drama_script.py
+    script_path = (
+        Path(__file__).resolve().parents[2]
+        / "agent_runtime_profile"
+        / ".claude"
+        / "skills"
+        / "generate-script"
+        / "scripts"
+        / "normalize_drama_script.py"
+    )
+    spec = importlib.util.spec_from_file_location("normalize_drama_script", script_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+
+    docx_bytes = create_fake_docx_bytes(["第一集劇本", "第二段場景"])
+    (source_dir / "episode_1.docx").write_bytes(docx_bytes)
+    _write_project(tmp_path, [{"episode": 1}])
+
+    result = module.resolve_novel_text(tmp_path, episode=1, source="source/episode_1.docx")
+    assert result == "第一集劇本\n第二段場景"

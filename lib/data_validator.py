@@ -202,8 +202,6 @@ class DataValidator:
                 if not isinstance(char_data, dict):
                     errors.append(f"角色 '{char_name}' 資料格式錯誤，應為物件")
                     continue
-                if not char_data.get("description"):
-                    errors.append(f"角色 '{char_name}' 缺少必填欄位: description")
 
         clues = project.get("clues", {})
         if isinstance(clues, dict):
@@ -211,9 +209,6 @@ class DataValidator:
                 if not isinstance(clue_data, dict):
                     errors.append(f"線索 '{clue_name}' 資料格式錯誤，應為物件")
                     continue
-
-                if not clue_data.get("description"):
-                    errors.append(f"線索 '{clue_name}' 缺少必填欄位: description")
 
                 importance = clue_data.get("importance")
                 if not importance:

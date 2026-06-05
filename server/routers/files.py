@@ -15,9 +15,11 @@ from fastapi import APIRouter, Body, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse
 
 from lib import PROJECT_ROOT
+from lib.docx_utils import read_docx_text
 from lib.image_utils import normalize_uploaded_image
 from lib.project_change_hints import emit_project_change_batch, project_change_source
 from lib.project_manager import ProjectManager
+from lib.source_text import read_text_with_fallback
 from lib.step1_draft_sync import sync_draft_to_segments
 from lib.version_manager import VersionManager
 from server.auth import CurrentUser
@@ -351,7 +353,9 @@ async def get_source_file(project_name: str, filename: str, _user: CurrentUser):
             except ValueError:
                 raise HTTPException(status_code=403, detail="禁止訪問專案目錄外的檔案")
 
-            return source_path.read_text(encoding="utf-8")
+            if source_path.suffix.lower() == ".docx":
+                return read_docx_text(source_path)
+            return read_text_with_fallback(source_path)
 
         content = await asyncio.to_thread(_sync)
         return PlainTextResponse(content)

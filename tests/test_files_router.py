@@ -1,5 +1,6 @@
 import json
 from io import BytesIO
+from urllib.parse import quote
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -138,6 +139,45 @@ class TestFilesRouter:
 
             missing = client.get("/api/v1/projects/demo/source/missing.txt")
             assert missing.status_code == 404
+
+    def test_docx_source_endpoint(self, tmp_path, monkeypatch):
+        from tests.test_docx_utils import create_fake_docx_bytes
+
+        client, _ = _client(monkeypatch, tmp_path)
+
+        docx_content = create_fake_docx_bytes(["Docx line 1", "Docx line 2"])
+
+        with client:
+            # 1. 上傳 docx 檔案
+            upload = client.post(
+                "/api/v1/projects/demo/upload/source",
+                files={
+                    "file": (
+                        "novel.docx",
+                        docx_content,
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    )
+                },
+            )
+            assert upload.status_code == 200
+
+            # 2. 獲取內容 (應成功解析並回傳純文字)
+            get_source = client.get("/api/v1/projects/demo/source/novel.docx")
+            assert get_source.status_code == 200
+            assert get_source.text == "Docx line 1\nDocx line 2"
+
+    def test_cp950_source_endpoint(self, tmp_path, monkeypatch):
+        client, pm = _client(monkeypatch, tmp_path)
+        source_dir = pm.get_project_path("demo") / "source"
+        source_dir.mkdir(parents=True, exist_ok=True)
+        filename = "時間是 1980 年代的台灣夏天.txt"
+        content = "時間是 1980 年代的台灣夏天。\r\n街角的柑仔店裡。"
+        (source_dir / filename).write_bytes(content.encode("cp950"))
+
+        with client:
+            get_source = client.get(f"/api/v1/projects/demo/source/{quote(filename)}")
+            assert get_source.status_code == 200
+            assert get_source.text == content
 
     def test_upload_assets_and_drafts(self, tmp_path, monkeypatch):
         client, pm = _client(monkeypatch, tmp_path)

@@ -327,6 +327,22 @@ class TestProjectManagerMore:
         with pytest.raises(ValueError):
             await pm_empty.generate_overview("demo")
 
+    def test_read_source_files_includes_docx(self, tmp_path):
+        from tests.test_docx_utils import create_fake_docx_bytes
+
+        pm = ProjectManager(tmp_path / "projects")
+        pm.create_project("demo")
+        pm.create_project_metadata("demo", "Demo")
+
+        project_dir = pm.get_project_path("demo")
+        docx_bytes = create_fake_docx_bytes(["第一章內容", "第二段文字"])
+        (project_dir / "source" / "novel.docx").write_bytes(docx_bytes)
+
+        content = pm._read_source_files("demo")
+
+        assert "novel.docx" in content
+        assert "第一章內容\n第二段文字" in content
+
 
 class TestFromCwd:
     """Tests for ProjectManager.from_cwd() classmethod."""

@@ -235,13 +235,13 @@ class TestOpenAIVideoBackend:
 
         assert result.video_path == output_path
         assert output_path.read_bytes() == b"video-data"
-        # create_and_poll 只呼叫 1 次，不因下載失敗重新生成
+        # create_and_poll 只呼叫 1 次，不因下載失敗生成
         assert mock_client.videos.create_and_poll.call_count == 1
         # download_content 呼叫 3 次（2 次失敗 + 1 次成功）
         assert mock_client.videos.download_content.call_count == 3
 
     async def test_content_download_all_retries_exhausted(self, tmp_path: Path):
-        """內容下載全部重試耗盡後應丟擲異常，且不重新生成影片。"""
+        """內容下載全部重試耗盡後應丟擲異常，且不生成影片。"""
         error = InternalServerError(
             message="Failed to resolve Vertex video URL",
             response=MagicMock(status_code=502, headers={}),
@@ -303,3 +303,47 @@ class TestOpenAIVideoBackend:
         # 不可重試錯誤：只呼叫 1 次下載，無 sleep
         assert mock_client.videos.download_content.call_count == 1
         mock_sleep.assert_not_called()
+
+    async def test_image_to_video_auto_resizes(self, tmp_path: Path):
+        from PIL import Image
+
+        # 1. 建立一個 100x100 的正方形 start_image
+        start_image = tmp_path / "wrong_size.png"
+        img = Image.new("RGB", (100, 100), color="red")
+        img.save(start_image)
+
+        mock_client = AsyncMock()
+        mock_client.videos.create_and_poll = AsyncMock(return_value=_make_mock_video(seconds="4"))
+        mock_client.videos.download_content = AsyncMock(return_value=_make_mock_content(b"video"))
+
+        with patch("lib.openai_shared.AsyncOpenAI", return_value=mock_client):
+            from lib.video_backends.openai import OpenAIVideoBackend
+
+            backend = OpenAIVideoBackend(api_key="test-key")
+            output_path = tmp_path / "output.mp4"
+            request = VideoGenerationRequest(
+                prompt="Animate this wrong size image",
+                output_path=output_path,
+                start_image=start_image,
+                aspect_ratio="16:9",
+                resolution="720p",  # 會 resolve 成 1280x720
+                duration_seconds=4,
+            )
+            result = await backend.generate(request)
+
+        assert result.duration_seconds == 4
+        call_kwargs = mock_client.videos.create_and_poll.call_args[1]
+        ref = call_kwargs["input_reference"]
+        assert isinstance(ref, tuple)
+        assert ref[0].startswith("wrong_size_resized_1280x720")
+        assert ref[2] == "image/png"
+
+        # 讀取傳送的二進位資料，檢查它的解析度是否已變為 1280x720
+        from io import BytesIO
+
+        with Image.open(BytesIO(ref[1])) as resized_img:
+            assert resized_img.size == (1280, 720)
+
+        # 確認臨時檔案在 generate() 結束後已被刪除
+        temp_files = list(tmp_path.glob("*resized*"))
+        assert len(temp_files) == 0
