@@ -170,12 +170,12 @@ d. **video_prompt**：生成包含以下字段的对象：
 
 1. 修改 `lib/prompt_builders_script.py` 中的 `build_narration_prompt()` 函数
 2. 修改 `lib/prompt_builders_script.py` 中的 `build_drama_prompt()` 函数
-3. 使用現有测试项目重新生成剧本，验证效果
+3. 使用現有测试项目生成剧本，验证效果
 
 ---
 
 ## 验证方法
 
-1. 使用 `/generate-script` 重新生成测试项目的剧本
+1. 使用 `/generate-script` 生成测试项目的剧本
 2. 检查生成的 `image_prompt` 和 `video_prompt` 是否符合约束
 3. 抽样进行图像/视频生成测试，评估效果

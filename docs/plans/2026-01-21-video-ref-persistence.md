@@ -298,7 +298,7 @@ if resume:
                     video_ref = client.restore_video_ref(saved_uri)
                     print(f"🔄 从 checkpoint 恢复视频引用")
                 else:
-                    print(f"⚠️ 视频引用已过期，将从该片段重新生成")
+                    print(f"⚠️ 视频引用已过期，将从该片段生成")
                     video_ref = None
 
         print(f"🔄 从片段 {start_segment + 1} 继续")
@@ -342,7 +342,7 @@ git commit -m "feat: save and restore video_uri in continuous video generation"
 
 **注意事项：**
 - 如果超过 2 天未继续，视频引用将过期
-- 过期后需要从该片段重新生成
+- 过期后需要从该片段生成
 - 建议在开始生成后尽快完成整集
 ```
 

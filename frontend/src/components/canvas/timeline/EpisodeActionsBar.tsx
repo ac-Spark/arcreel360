@@ -7,6 +7,7 @@ import { useConfirm } from "@/hooks/useConfirm";
 import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import type { ProjectOverview } from "@/types/project";
 import { UI_LAYERS } from "@/utils/ui-layers";
+import { isPreprocessSourceFileName } from "@/utils/source-files";
 import {
   RefsPicker,
   defaultRefsValue,
@@ -29,15 +30,13 @@ type Busy = null | "preprocess" | "script" | "storyboards" | "compose";
 
 type SourceFile = { name: string; size: number; url?: string };
 
-const SOURCE_TEXT_SUFFIXES = [".txt", ".md", ".text"];
 const OVERVIEW_FIELDS = ["synopsis", "genre", "theme", "world_setting"] as const;
 const NUM_SEGMENTS_STORAGE_PREFIX = "arcreel:num_segments";
 const SCRIPT_INSTRUCTION_STORAGE_PREFIX = "arcreel:script_instruction";
 const PREPROCESS_INSTRUCTION_STORAGE_PREFIX = "arcreel:preprocess_instruction";
 
 function isSourceTextFile(file: SourceFile) {
-  const lower = file.name.toLowerCase();
-  return file.name !== "_remaining.txt" && SOURCE_TEXT_SUFFIXES.some((suffix) => lower.endsWith(suffix));
+  return isPreprocessSourceFileName(file.name);
 }
 
 function hasProjectOverview(overview: ProjectOverview | undefined): boolean {
@@ -118,11 +117,11 @@ function pruneRefsAgainstCatalog(refs: RefsValue, catalog: RefsCatalog): RefsVal
 function preprocessConfirmMessage(hasScript: boolean, selectedCount: number): string {
   if (selectedCount > 0) {
     return hasScript
-      ? `重新生成草稿會覆蓋目前的片段拆分結果。確定要使用選取的 ${selectedCount} 個原文檔案生成劇本草稿？`
+      ? `生成草稿會覆蓋目前的片段拆分結果。確定要使用選取的 ${selectedCount} 個原文檔案生成劇本草稿？`
       : `確定要使用選取的 ${selectedCount} 個原文檔案生成劇本草稿？`;
   }
   return hasScript
-    ? "重新生成草稿會覆蓋目前的片段拆分結果。確定要自動均分原文生成劇本草稿？"
+    ? "生成草稿會覆蓋目前的片段拆分結果。確定要自動均分原文生成劇本草稿？"
     : "生成劇本草稿會把這集原文切成片段。確定要自動均分原文生成劇本草稿？";
 }
 
@@ -146,8 +145,8 @@ export function EpisodeActionsBar({
 
   const toast = (msg: string, kind: "success" | "error" | "info" = "info") =>
     useAppStore.getState().pushToast(msg, kind);
-  const preprocessLabel = hasScript ? "重新生成草稿" : "生成劇本草稿";
-  const scriptLabel = hasScript ? "生成劇本" : "生成劇本";
+  const preprocessLabel = hasScript ? "生成草稿" : "生成劇本草稿";
+  const scriptLabel = "生成劇本";
 
   const run = async (
     label: Busy,
@@ -358,7 +357,7 @@ export function EpisodeActionsBar({
       onChange={setTextModel}
       placeholder="文字模型"
       allowDefault
-      defaultLabel="沿用專案預設"
+      defaultLabel="專案預設模型"
       aria-label={activeTab === "preprocessing" ? "預處理文字模型" : "劇本文字模型"}
       className="w-52"
       size="sm"
@@ -427,8 +426,8 @@ export function EpisodeActionsBar({
                 aria-expanded={scriptPromptOpen}
                 title="自訂這集劇本的生成提示詞"
                 className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60 ${scriptInstruction.trim()
-                    ? "border-indigo-500/50 text-indigo-300 hover:border-indigo-400"
-                    : "border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
+                  ? "border-indigo-500/50 text-indigo-300 hover:border-indigo-400"
+                  : "border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200"
                   }`}
               >
                 <Sparkles className="h-3.5 w-3.5" />
@@ -438,27 +437,33 @@ export function EpisodeActionsBar({
                 />
               </button>
 
-              <Divider />
+              {activeTab === "storyboard" && (
+                <>
+                  <Divider />
+                  <ActionButton
+                    icon={<ImageIcon className="h-3.5 w-3.5" />}
+                    label="批次生成分鏡"
+                    loading={busy === "storyboards"}
+                    disabled={!hasScript || !scriptFile || busy !== null}
+                    onClick={() => setBatchDialogOpen(true)}
+                    tone="primary"
+                  />
+                </>
+              )}
 
-              <ActionButton
-                icon={<ImageIcon className="h-3.5 w-3.5" />}
-                label="批次生成分鏡"
-                loading={busy === "storyboards"}
-                disabled={!hasScript || !scriptFile || busy !== null}
-                onClick={() => setBatchDialogOpen(true)}
-                tone="primary"
-              />
-
-              <Divider />
-
-              <ActionButton
-                icon={<FileText className="h-3.5 w-3.5" />}
-                label="合成成片"
-                loading={busy === "compose"}
-                disabled={!hasScript || busy !== null}
-                onClick={() => void confirmAndCompose()}
-                tone="success"
-              />
+              {activeTab === "video" && (
+                <>
+                  <Divider />
+                  <ActionButton
+                    icon={<FileText className="h-3.5 w-3.5" />}
+                    label="合成成片"
+                    loading={busy === "compose"}
+                    disabled={!hasScript || busy !== null}
+                    onClick={() => void confirmAndCompose()}
+                    tone="success"
+                  />
+                </>
+              )}
             </div>
 
             {scriptPromptOpen && (

@@ -172,11 +172,10 @@ export function GlobalHeader({ onNavigateBack }: GlobalHeaderProps) {
     let route: string;
     if (phase === "lorebook") {
       route = "/lorebook";
-    } else if (phase === "scripting" || phase === "storyboard" || phase === "video") {
-      let tabName = "preprocessing";
-      if (phase === "storyboard") tabName = "storyboard";
-      if (phase === "video") tabName = "video";
-      route = firstEpisode ? `/episodes/${firstEpisode.episode}?tab=${tabName}` : "/";
+    } else if (phase === "scripting") {
+      route = firstEpisode ? `/episodes/${firstEpisode.episode}` : "/";
+    } else if (phase === "storyboard" || phase === "video") {
+      route = firstEpisode ? `/episodes/${firstEpisode.episode}?tab=${phase}` : "/";
     } else {
       route = "/";
     }

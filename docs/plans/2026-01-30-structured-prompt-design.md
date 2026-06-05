@@ -365,7 +365,7 @@ For each segment, generate a video_prompt object with the following structure:
 
 1. 更新 Agent System Prompt，输出结构化格式
 2. 更新分镜/视频生成脚本，解析结构化 Prompt 并转换为 YAML
-3. 現有项目剧本需重新生成或手动迁移
+3. 現有项目剧本需生成或手动迁移
 
 ---
 

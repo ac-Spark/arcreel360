@@ -26,7 +26,7 @@ const EMPTY_MENTION_ENTITIES: EntityMentionSources = {
 
 // Overlay 與 textarea 必須共用 metrics, 否則高亮文字會對不齊。
 const SHARED_METRICS = "px-2.5 py-2 font-mono text-xs leading-4 tracking-normal whitespace-pre-wrap break-words";
-const TEXTAREA_BASE = `w-full resize-none overflow-hidden rounded-lg border ${SHARED_METRICS}`;
+const TEXTAREA_BASE = `w-full resize-none overflow-y-auto rounded-lg border ${SHARED_METRICS}`;
 const TEXTAREA_CHROME = "border-gray-700 bg-gray-800 placeholder-gray-500 focus:border-indigo-500 focus:outline-none";
 
 /** Auto-resizing textarea that grows with its content.
@@ -40,6 +40,13 @@ export function AutoTextarea({
   linkedNames,
 }: AutoTextareaProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const overlayRef = useRef<HTMLPreElement>(null);
+
+  const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    if (overlayRef.current) {
+      overlayRef.current.scrollTop = e.currentTarget.scrollTop;
+    }
+  };
 
   const resize = useCallback(() => {
     const el = ref.current;
@@ -71,6 +78,23 @@ export function AutoTextarea({
     onChange(e.target.value);
   };
 
+  const classes = (className ?? "").split(/\s+/).filter(Boolean);
+  const heightAndScrollClasses = classes.filter(c =>
+    c.startsWith("max-h-") ||
+    c.startsWith("h-") ||
+    c.startsWith("overflow-") ||
+    c === "scrollbar-thin"
+  );
+  const containerClasses = classes.filter(c =>
+    !c.startsWith("max-h-") &&
+    !c.startsWith("h-") &&
+    !c.startsWith("overflow-") &&
+    c !== "scrollbar-thin"
+  );
+
+  const containerClassName = containerClasses.join(" ");
+  const textSpecificClassName = heightAndScrollClasses.join(" ");
+
   if (!mentionEnabled) {
     return (
       <textarea
@@ -78,6 +102,7 @@ export function AutoTextarea({
         value={value}
         onChange={handleChange}
         onInput={resize}
+        onScroll={handleScroll}
         placeholder={placeholder}
         rows={2}
         className={`${textareaClassName} text-gray-200 ${className ?? ""}`}
@@ -86,18 +111,20 @@ export function AutoTextarea({
   }
 
   return (
-    <div className="relative">
+    <div className={`relative ${containerClassName}`}>
       <MentionHighlightOverlay
+        ref={overlayRef}
         value={value}
         entities={mentionEntities}
         linkedNames={linkedNames}
-        className={`${SHARED_METRICS} border border-transparent text-gray-200`}
+        className={`${SHARED_METRICS} border border-transparent text-gray-200 ${textSpecificClassName}`}
       />
       <textarea
         ref={ref}
         value={value}
         onChange={handleChange}
         onInput={resize}
+        onScroll={handleScroll}
         onKeyDown={mention.handleKeyDown}
         onBlur={mention.handleBlur}
         placeholder={placeholder}
@@ -107,7 +134,7 @@ export function AutoTextarea({
         aria-expanded={mention.menuOpen}
         aria-controls={mention.menuOpen ? "entity-mention-menu" : undefined}
         style={{ color: "transparent", caretColor: "#e5e7eb", background: "transparent" }}
-        className={`relative ${textareaClassName} ${className ?? ""}`}
+        className={`relative ${textareaClassName} ${textSpecificClassName}`}
       />
       {mention.menuOpen && (
         <EntityMentionMenu

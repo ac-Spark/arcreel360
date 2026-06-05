@@ -307,7 +307,7 @@ export function CharacterCard({
           providerNames={modelOptions?.providerNames}
           onGenerate={() => onGenerate(name)}
           loading={generating}
-          label={character.character_sheet ? "重新生成角色" : "生成角色"}
+          label={character.character_sheet ? "生成角色" : "生成角色"}
         />
       </div>
     </div>

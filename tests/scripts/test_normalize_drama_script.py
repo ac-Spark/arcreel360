@@ -89,6 +89,19 @@ def test_resolve_novel_text_multi_source_files_concatenated(tmp_path):
     assert result == "第一章內容。\n\n第二章內容。"
 
 
+def test_resolve_novel_text_reads_legacy_encoded_source(tmp_path):
+    """source/ 文字檔可能來自 Word/Windows，預處理需支援常見台灣 legacy 編碼。"""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    content = "時間是 1980 年代的台灣夏天。\n街角的柑仔店。"
+    (source_dir / "時間是 1980 年代的台灣夏天.txt").write_bytes(content.encode("cp950"))
+    _write_project(tmp_path, [{"episode": 1}])
+
+    result = normalize_drama_script.resolve_novel_text(tmp_path, episode=1, source=None)
+
+    assert result == content
+
+
 def test_resolve_novel_text_excludes_remaining_txt(tmp_path):
     """串接整本時排除 _remaining.txt（分集切分的產物）。"""
     source_dir = tmp_path / "source"

@@ -19,6 +19,7 @@ class CredentialRepository(BaseRepository):
         api_key: str | None = None,
         credentials_path: str | None = None,
         base_url: str | None = None,
+        username: str | None = None,
     ) -> ProviderCredential:
         """建立憑證。若為該供應商的第一條，自動設為活躍。"""
         is_first = not await self.has_active_credential(provider)
@@ -26,6 +27,7 @@ class CredentialRepository(BaseRepository):
             provider=provider,
             name=name,
             api_key=api_key,
+            username=username,
             credentials_path=credentials_path,
             base_url=normalize_base_url(base_url),
             is_active=is_first,
@@ -82,6 +84,7 @@ class CredentialRepository(BaseRepository):
         *,
         name: str | None = None,
         api_key: str | None = None,
+        username: str | None = None,
         credentials_path: str | None = None,
         base_url: str | None | object = _UNSET,
     ) -> None:
@@ -93,6 +96,8 @@ class CredentialRepository(BaseRepository):
             cred.name = name
         if api_key is not None:
             cred.api_key = api_key
+        if username is not None:
+            cred.username = username
         if credentials_path is not None:
             cred.credentials_path = credentials_path
         if base_url is not _UNSET:

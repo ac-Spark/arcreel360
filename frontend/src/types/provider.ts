@@ -53,6 +53,7 @@ export interface ProviderCredential {
   provider: string;
   name: string;
   api_key_masked: string | null;
+  username: string | null;
   credentials_filename: string | null;
   base_url: string | null;
   is_active: boolean;

@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Router } from "wouter";
+import { Router, useLocation, useSearch } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { GlobalHeader } from "@/components/layout/GlobalHeader";
 import { API } from "@/api";
@@ -48,10 +48,17 @@ vi.mock("./ExportScopeDialog", () => ({
     ) : null,
 }));
 
-function renderHeader() {
-  const { hook } = memoryLocation({ path: "/characters" });
+function LocationProbe() {
+  const [location] = useLocation();
+  const search = useSearch();
+  return <div data-testid="location">{search ? `${location}?${search}` : location}</div>;
+}
+
+function renderHeader(path = "/characters") {
+  const { hook } = memoryLocation({ path });
   return render(
     <Router hook={hook}>
+      <LocationProbe />
       <GlobalHeader />
     </Router>,
   );
@@ -123,6 +130,37 @@ describe("GlobalHeader", () => {
     expect(screen.getByTitle("會話通知：1 則")).toBeInTheDocument();
     screen.getByRole("button", { name: "開啟通知中心" }).click();
     expect(await screen.findByTestId("notifications-drawer")).toBeInTheDocument();
+  });
+
+  it("lets the timeline choose the remembered tab when navigating to scripting", async () => {
+    vi.spyOn(API, "getUsageStats").mockResolvedValue({
+      total_cost: 0,
+      image_count: 0,
+      video_count: 0,
+      failed_count: 0,
+      total_count: 0,
+    });
+
+    useProjectsStore.setState({
+      currentProjectName: "demo",
+      currentProjectData: {
+        title: "Demo",
+        content_mode: "narration",
+        style: "Anime",
+        episodes: [{ episode: 1, title: "第一集", script_file: "scripts/episode_1.json" }],
+        characters: {},
+        clues: {},
+      },
+    });
+
+    renderHeader();
+
+    screen.getByRole("button", { name: /劇本創作/ }).click();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location")).toHaveTextContent("/episodes/1");
+    });
+    expect(screen.getByTestId("location")).not.toHaveTextContent("tab=preprocessing");
   });
 
   it("exports the current project zip via browser-native download", async () => {

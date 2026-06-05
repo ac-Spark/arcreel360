@@ -31,6 +31,7 @@ export function ImagePromptEditor({
         placeholder="分鏡圖描述..."
         entities={entities}
         linkedNames={linkedNames}
+        className="max-h-32 overflow-y-auto"
       />
 
       {/* Collapsible composition fields */}

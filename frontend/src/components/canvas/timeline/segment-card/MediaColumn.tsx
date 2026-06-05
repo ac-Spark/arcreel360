@@ -198,6 +198,13 @@ export function MediaColumn({
   ) as "9:16" | "16:9";
 
   const mediaFrameMaxWidthClass = normalizedRatio === "9:16" ? "max-w-[10rem]" : "max-w-[18rem]";
+  const showStoryboardModelSelect = stage === "storyboard" && imageModelOptions.length > 0;
+  const storyboardToolbarClassName = showStoryboardModelSelect
+    ? "mt-2 grid grid-cols-3 gap-2"
+    : "mt-2 flex justify-end";
+  const storyboardButtonClassName = showStoryboardModelSelect
+    ? "col-span-1 justify-center h-8 text-xs w-full"
+    : "w-28 justify-center h-8 text-xs";
 
   return (
     <div className="flex flex-col gap-3 p-3">
@@ -232,26 +239,31 @@ export function MediaColumn({
               />
             </AspectFrame>
           </PreviewableImageFrame>
-          <div data-testid="storyboard-generate-toolbar" className="mt-2 flex flex-wrap items-center gap-2">
-            {stage === "storyboard" && imageModelOptions.length > 0 && (
-              <ProviderModelSelect
-                value={segment.image_backend ?? ""}
-                options={imageModelOptions}
-                providerNames={providerNames}
-                onChange={(next) => onUpdateSceneBackend?.(segmentId, { image_backend: next || null })}
-                allowDefault
-                defaultLabel="跟隨專案圖片模型"
-                placeholder="選擇圖片模型..."
-                aria-label="選擇分鏡圖圖片模型"
-                className="min-w-[8rem] flex-1"
-                size="sm"
-              />
+          <div
+            data-testid="storyboard-generate-toolbar"
+            className={storyboardToolbarClassName}
+          >
+            {showStoryboardModelSelect && (
+              <div className="col-span-2 min-w-0">
+                <ProviderModelSelect
+                  value={segment.image_backend ?? ""}
+                  options={imageModelOptions}
+                  providerNames={providerNames}
+                  onChange={(next) => onUpdateSceneBackend?.(segmentId, { image_backend: next || null })}
+                  allowDefault
+                  defaultLabel="專案預設"
+                  placeholder="選擇圖片模型..."
+                  aria-label="選擇分鏡圖圖片模型"
+                  className="w-full text-xs"
+                  size="sm"
+                />
+              </div>
             )}
             <GenerateButton
               onClick={() => onGenerateStoryboard?.(segmentId)}
               loading={generatingStoryboard}
               label="生成分鏡"
-              className="shrink-0 justify-center"
+              className={storyboardButtonClassName}
             />
           </div>
           {onUploadReference && (

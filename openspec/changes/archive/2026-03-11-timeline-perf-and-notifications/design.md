@@ -45,7 +45,7 @@ Agent 批量操作（如一次新增 5 個角色）时，后端 diff 正确产�
 **理由**：
 - SSE 事件中 `entity_type` + `entity_id` 直接可用，无需任何推导
 - 统一覆盖所有 7 個消费组件，各组件按自身实体 key 订阅
-- Worker 批量发送路径（`emit_project_change_batch`）正确处理了首次生成和重新生成
+- Worker 批量发送路径（`emit_project_change_batch`）正确处理了首次生成和生成
 - 保留 `invalidateAllEntities()` 作为后备（task 轮询通道完成时无具体 key 信息）
 
 **消费者迁移清单：**

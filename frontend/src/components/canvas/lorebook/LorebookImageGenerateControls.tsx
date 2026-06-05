@@ -20,26 +20,30 @@ export function LorebookImageGenerateControls({
   loading,
   label,
 }: LorebookImageGenerateControlsProps) {
+  const hasOptions = options.length > 0;
+
   return (
-    <div className="mt-3 flex items-center gap-2">
-      <div className="flex-1 min-w-0">
-        <ProviderModelSelect
-          value={value}
-          onChange={(next) => void onChange(next)}
-          options={options}
-          providerNames={providerNames}
-          placeholder="選擇圖片模型..."
-          allowDefault={true}
-          defaultLabel="跟隨專案圖片模型"
-          className="w-full text-xs"
-          size="sm"
-        />
-      </div>
+    <div className="mt-3 flex flex-col gap-2 w-full">
+      {hasOptions && (
+        <div className="w-full min-w-0">
+          <ProviderModelSelect
+            value={value}
+            onChange={(next) => void onChange(next)}
+            options={options}
+            providerNames={providerNames}
+            placeholder="選擇圖片模型..."
+            allowDefault={true}
+            defaultLabel="專案預設"
+            className="w-full text-xs"
+            size="sm"
+          />
+        </div>
+      )}
       <GenerateButton
         onClick={() => void onGenerate()}
         loading={loading}
         label={label}
-        className="w-28 shrink-0 justify-center h-8 text-xs"
+        className="w-full justify-center h-8 text-xs"
       />
     </div>
   );

@@ -13,7 +13,7 @@ export const credentialsApi = {
 
   async createCredential(
     providerId: string,
-    data: { name: string; api_key?: string; base_url?: string },
+    data: { name: string; api_key?: string; username?: string; base_url?: string },
   ): Promise<ProviderCredential> {
     return getApi().request(`/providers/${encodeURIComponent(providerId)}/credentials`, {
       method: "POST",
@@ -24,7 +24,7 @@ export const credentialsApi = {
   async updateCredential(
     providerId: string,
     credId: number,
-    data: { name?: string; api_key?: string; base_url?: string },
+    data: { name?: string; api_key?: string; username?: string; base_url?: string },
   ): Promise<void> {
     return getApi().request(
       `/providers/${encodeURIComponent(providerId)}/credentials/${credId}`,

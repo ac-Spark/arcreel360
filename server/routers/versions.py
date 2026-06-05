@@ -188,7 +188,7 @@ async def restore_version(
                 thumbnail_path = project_path / "thumbnails" / f"scene_{resource_id}.jpg"
                 thumbnail_key = f"thumbnails/scene_{resource_id}.jpg"
                 thumbnail_path.unlink(missing_ok=True)
-                # fingerprint=0 通知前端該檔案已失效（poster 消失直到重新生成）
+                # fingerprint=0 通知前端該檔案已失效（poster 消失直到生成）
                 asset_fingerprints[thumbnail_key] = 0
 
             return {

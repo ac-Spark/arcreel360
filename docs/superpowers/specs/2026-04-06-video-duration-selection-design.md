@@ -106,7 +106,7 @@ class CreateProjectRequest(BaseModel):
 
 ### 2.2 项目修改
 
-移除 `aspect_ratio` 不可修改的限制。用户修改时前端弹出提示：已生成的分镜图/视频仍为原比例，建议重新生成。
+移除 `aspect_ratio` 不可修改的限制。用户修改时前端弹出提示：已生成的分镜图/视频仍为原比例，建议生成。
 
 `content_mode` 仍然创建后不可修改。
 
@@ -254,7 +254,7 @@ def build_drama_prompt(
 ### 7.2 项目设置页面
 
 - 允许修改 `aspect_ratio` 和 `default_duration`
-- 修改 `aspect_ratio` 时弹出提示：已生成的分镜图/视频仍为原比例，建议重新生成
+- 修改 `aspect_ratio` 时弹出提示：已生成的分镜图/视频仍为原比例，建议生成
 - 切换视频模型时，`default_duration` 選項联动更新；若当前值不在新模型支持列表中，重置为 `null`（自动）
 
 ### 7.3 SegmentCard 时长選择器

@@ -53,7 +53,9 @@ class TestProviderMeta:
 
 class TestProviderRegistry:
     def test_all_providers_have_text_models(self):
-        for provider_id, meta in PROVIDER_REGISTRY.items():
+        # ai360 是純影片供應商，無文字模型
+        for provider_id in ("gemini-aistudio", "gemini-vertex", "byteplus", "grok", "openai"):
+            meta = PROVIDER_REGISTRY[provider_id]
             text_models = [mid for mid, m in meta.models.items() if m.media_type == "text"]
             assert len(text_models) > 0, f"{provider_id} has no text models"
 
@@ -79,7 +81,9 @@ class TestProviderRegistry:
                 assert len(defaults) == 1, f"{provider_id} has {len(defaults)} default {mt} models, expected 1"
 
     def test_media_types_property_includes_text(self):
-        for provider_id, meta in PROVIDER_REGISTRY.items():
+        # ai360 是純影片供應商，無文字 media type
+        for provider_id in ("gemini-aistudio", "gemini-vertex", "byteplus", "grok", "openai"):
+            meta = PROVIDER_REGISTRY[provider_id]
             assert "text" in meta.media_types, f"{provider_id} missing 'text'"
 
     def test_byteplus_video_models_only_include_seedance_2(self):

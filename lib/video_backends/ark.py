@@ -105,6 +105,11 @@ class ArkVideoBackend:
             )
         except Exception as e:
             err_msg = str(e)
+            if "InputImageSensitiveContentDetected" in err_msg or "PrivacyInformation" in err_msg:
+                raise RuntimeError(
+                    "火山引擎安全攔截：輸入的分鏡圖被安全系統判定為「可能包含真人隱私資訊」。\n"
+                    "建議解決方法：請生成該鏡頭的分鏡圖（可於提示詞加上動漫、插畫風格，或調整提示詞避免人像過於逼真逼真），再生成影片。"
+                ) from e
             if "InvalidEndpointOrModel" in err_msg or "NotFound" in err_msg or "not exist" in err_msg:
                 if not self._model.startswith("ep-"):
                     raise RuntimeError(
@@ -141,7 +146,12 @@ class ArkVideoBackend:
             if result.status == "succeeded":
                 break
             elif result.status in ("failed", "expired"):
-                error_msg = getattr(result, "error", None) or "Unknown error"
+                error_msg = str(getattr(result, "error", None) or "Unknown error")
+                if "InputImageSensitiveContentDetected" in error_msg or "PrivacyInformation" in error_msg:
+                    raise RuntimeError(
+                        "火山引擎安全攔截：輸入的分鏡圖被安全系統判定為「可能包含真人隱私資訊」。\n"
+                        "建議解決方法：請生成該鏡頭的分鏡圖（可於提示詞加上動漫、插畫風格，或調整提示詞避免人像過於逼真），再生成影片。"
+                    )
                 raise RuntimeError(f"Ark 影片生成失敗: {error_msg}")
 
             elapsed += poll_interval

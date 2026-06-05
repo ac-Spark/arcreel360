@@ -57,7 +57,7 @@ function patchFromDraft(
 }
 
 const RESOLUTION_OPTIONS = [
-  { value: "", label: "沿用專案預設" },
+  { value: "", label: "專案預設模型" },
   { value: "720p", label: "720p" },
   { value: "1080p", label: "1080p" },
   { value: "2k", label: "2K" },
@@ -65,14 +65,14 @@ const RESOLUTION_OPTIONS = [
 ];
 
 const IMAGE_SIZE_OPTIONS = [
-  { value: "", label: "沿用專案預設" },
+  { value: "", label: "專案預設模型" },
   { value: "1k", label: "1K" },
   { value: "2k", label: "2K" },
   { value: "4k", label: "4K" },
 ];
 
 const DURATION_OPTIONS = [
-  { value: "", label: "沿用專案預設" },
+  { value: "", label: "專案預設模型" },
   { value: "4", label: "4 秒" },
   { value: "5", label: "5 秒" },
   { value: "6", label: "6 秒" },
@@ -161,11 +161,10 @@ export function EpisodeOverridesPopover({
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`編輯第 ${episode} 集模型覆蓋設定`}
-        className={`inline-flex items-center justify-center rounded-full border p-1.5 text-xs font-medium transition-all shadow-sm focus-ring ${
-          hasActiveOverrides
+        className={`inline-flex items-center justify-center rounded-full border p-1.5 text-xs font-medium transition-all shadow-sm focus-ring ${hasActiveOverrides
             ? "border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
             : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600 hover:text-gray-200"
-        }`}
+          }`}
         title={`編輯第 ${episode} 集模型覆蓋設定`}
       >
         <Sliders className="h-3 w-3" />
@@ -201,9 +200,9 @@ export function EpisodeOverridesPopover({
                   onChange={(value) => updateDraft("image_backend", value)}
                   options={modelOptions.image}
                   providerNames={modelOptions.providerNames}
-                  placeholder="沿用專案預設"
+                  placeholder="專案預設模型"
                   allowDefault={true}
-                  defaultLabel="沿用專案預設"
+                  defaultLabel="專案預設模型"
                 />
               </div>
             )}
@@ -216,31 +215,31 @@ export function EpisodeOverridesPopover({
                   onChange={(value) => updateDraft("video_backend", value)}
                   options={modelOptions.video}
                   providerNames={modelOptions.providerNames}
-                  placeholder="沿用專案預設"
+                  placeholder="專案預設模型"
                   allowDefault={true}
-                  defaultLabel="沿用專案預設"
+                  defaultLabel="專案預設模型"
                 />
               </div>
             )}
 
             <div className={showImageSettings && showVideoSettings ? "grid grid-cols-2 gap-3" : "space-y-3"}>
               {showVideoSettings && (
-              <SelectField
-                id="video-resolution-select"
-                label="📐 影片解析度"
-                value={draft.video_resolution}
-                options={RESOLUTION_OPTIONS}
-                onChange={(value) => updateDraft("video_resolution", value)}
-              />
+                <SelectField
+                  id="video-resolution-select"
+                  label="📐 影片解析度"
+                  value={draft.video_resolution}
+                  options={RESOLUTION_OPTIONS}
+                  onChange={(value) => updateDraft("video_resolution", value)}
+                />
               )}
               {showImageSettings && (
-              <SelectField
-                id="image-size-select"
-                label="🖼 圖片尺寸"
-                value={draft.image_size}
-                options={IMAGE_SIZE_OPTIONS}
-                onChange={(value) => updateDraft("image_size", value)}
-              />
+                <SelectField
+                  id="image-size-select"
+                  label="🖼 圖片尺寸"
+                  value={draft.image_size}
+                  options={IMAGE_SIZE_OPTIONS}
+                  onChange={(value) => updateDraft("image_size", value)}
+                />
               )}
             </div>
 

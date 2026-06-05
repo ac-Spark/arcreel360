@@ -270,7 +270,7 @@ export function SegmentCard({
                 providerNames={providerNames}
                 onChange={(next) => onUpdateSceneBackend?.(segmentId, { video_backend: next || null })}
                 allowDefault
-                defaultLabel="沿用專案預設"
+                defaultLabel="專案預設模型"
                 aria-label="選擇分鏡影片模型"
                 className="w-44"
               />

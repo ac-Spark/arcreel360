@@ -36,6 +36,7 @@ import type {
 type Segment = NarrationSegment | DramaScene;
 type SegmentUpdateExtras = Record<string, unknown>;
 type TimelineTab = "preprocessing" | "storyboard" | "video";
+const TIMELINE_TAB_STORAGE_PREFIX = "arcreel:timeline_tab:";
 
 function getSegmentId(segment: Segment, mode: "narration" | "drama"): string {
   return mode === "narration"
@@ -61,6 +62,50 @@ function getTabButtonClass(active: boolean, disabled: boolean): string {
     stateClass = "border-transparent text-gray-700 cursor-not-allowed";
   }
   return `border-b-2 px-4 py-2 text-sm transition-colors focus-ring rounded-t ${stateClass}`;
+}
+
+function isTimelineTab(value: string | null): value is TimelineTab {
+  return value === "preprocessing" || value === "storyboard" || value === "video";
+}
+
+function getTimelineTabStorageKey(projectName: string): string {
+  return `${TIMELINE_TAB_STORAGE_PREFIX}${projectName}`;
+}
+
+function isTimelineTabAvailable(tab: TimelineTab, hasScript: boolean): boolean {
+  return tab === "preprocessing" || hasScript;
+}
+
+function readStoredTimelineTab(projectName: string): TimelineTab | null {
+  try {
+    const value = window.localStorage.getItem(getTimelineTabStorageKey(projectName));
+    return isTimelineTab(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredTimelineTab(projectName: string, tab: TimelineTab): void {
+  try {
+    window.localStorage.setItem(getTimelineTabStorageKey(projectName), tab);
+  } catch {
+    // 隱私模式或受限嵌入環境可能停用 localStorage。
+  }
+}
+
+function resolvePreferredTimelineTab(
+  projectName: string,
+  queryTab: TimelineTab | null,
+  hasScript: boolean,
+): TimelineTab {
+  if (queryTab && isTimelineTabAvailable(queryTab, hasScript)) {
+    return queryTab;
+  }
+  const storedTab = readStoredTimelineTab(projectName);
+  if (storedTab && isTimelineTabAvailable(storedTab, hasScript)) {
+    return storedTab;
+  }
+  return "preprocessing";
 }
 
 // ---------------------------------------------------------------------------
@@ -126,7 +171,6 @@ export function TimelineCanvas({
   const scrollRef = useRef<HTMLDivElement>(null);
   const confirm = useConfirm();
   const contentMode = resolveEpisodeContentMode(episodeScript, projectData?.content_mode);
-  const currentEpisodeMeta = projectData?.episodes?.find((e) => e.episode === episode);
   const sourceFilesVersion = useAppStore((s) => s.sourceFilesVersion);
   const [sourceFiles, setSourceFiles] = useState<string[]>([]);
 
@@ -134,22 +178,6 @@ export function TimelineCanvas({
   const search = useSearch();
   const hasScript = Boolean(episodeScript);
   const showTabs = Boolean(hasDraft);
-  const wasScriptAvailableRef = useRef(hasScript);
-
-  const deducedDefaultTab = useMemo<TimelineTab>(() => {
-    if (!hasScript) return "preprocessing";
-
-    const videoCompleted = currentEpisodeMeta?.videos?.completed ?? 0;
-    const storyboardCompleted = currentEpisodeMeta?.storyboards?.completed ?? 0;
-
-    if (videoCompleted > 0 || projectData?.status?.current_phase === "video") {
-      return "video";
-    }
-    if (storyboardCompleted > 0 || projectData?.status?.current_phase === "storyboard") {
-      return "storyboard";
-    }
-    return "storyboard";
-  }, [currentEpisodeMeta, hasScript, projectData?.status?.current_phase]);
 
   const queryTab = useMemo<TimelineTab | null>(() => {
     const params = new URLSearchParams(search);
@@ -159,10 +187,9 @@ export function TimelineCanvas({
     }
     return null;
   }, [search]);
-  const hasQueryTab = useMemo(() => new URLSearchParams(search).has("tab"), [search]);
 
   const [activeTab, setActiveTab] = useState<TimelineTab>(() => {
-    return queryTab || deducedDefaultTab;
+    return resolvePreferredTimelineTab(projectName, queryTab, hasScript);
   });
 
   const [activeSegmentIndex, setActiveSegmentIndex] = useState<number | null>(null);
@@ -181,37 +208,25 @@ export function TimelineCanvas({
 
   const modelOptions = useMemo(() => buildMediaModelOptions(providers), [providers]);
 
-  // 當 URL 上的 tab 改變時更新 activeTab
+  // URL 明確指定優先；沒有 URL tab 時回到本專案最後使用的時間線 tab。
   useEffect(() => {
-    if (queryTab) {
-      setActiveTab(queryTab);
+    const nextTab = resolvePreferredTimelineTab(projectName, queryTab, hasScript);
+    setActiveTab(nextTab);
+    if (queryTab && nextTab === queryTab) {
+      writeStoredTimelineTab(projectName, nextTab);
     }
-  }, [queryTab]);
-
-  // 當沒有 URL tab 參數且 deducedDefaultTab 改變時更新 activeTab (例如剛生成劇本)
-  useEffect(() => {
-    if (!hasQueryTab) {
-      setActiveTab(deducedDefaultTab);
-    }
-  }, [deducedDefaultTab, hasQueryTab]);
-
-  // Auto-switch to default tab when script state changes
-  useEffect(() => {
-    const scriptBecameAvailable = hasScript && !wasScriptAvailableRef.current;
-    wasScriptAvailableRef.current = hasScript;
-    if (scriptBecameAvailable && activeTab === "preprocessing") {
-      setActiveTab(deducedDefaultTab);
-    }
-  }, [activeTab, deducedDefaultTab, hasScript]);
+  }, [hasScript, projectName, queryTab]);
 
   const handleTabChange = useCallback(
     (tab: TimelineTab) => {
+      if (!isTimelineTabAvailable(tab, hasScript)) return;
       setActiveTab(tab);
+      writeStoredTimelineTab(projectName, tab);
       const params = new URLSearchParams(search);
       params.set("tab", tab);
       navigate(`${location}?${params.toString()}`, { replace: true });
     },
-    [location, navigate, search],
+    [hasScript, location, navigate, projectName, search],
   );
 
   useEffect(() => {

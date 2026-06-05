@@ -39,7 +39,7 @@ MAX_VERTEX_CREDENTIALS_BYTES = 1024 * 1024  # 1 MiB
 
 router = APIRouter(prefix="/providers", tags=["供應商管理"])
 
-_CREDENTIAL_KEYS = frozenset({"api_key", "credentials_path", "base_url"})
+_CREDENTIAL_KEYS = frozenset({"api_key", "credentials_path", "base_url", "username", "password"})
 
 # ---------------------------------------------------------------------------
 # 欄位後設資料對映（key → label/type/placeholder）
@@ -47,6 +47,9 @@ _CREDENTIAL_KEYS = frozenset({"api_key", "credentials_path", "base_url"})
 
 _FIELD_META: dict[str, dict[str, str]] = {
     "api_key": {"label": "API Key", "type": "secret"},
+    "username": {"label": "使用者名稱", "type": "text"},
+    "password": {"label": "密碼", "type": "secret"},
+    "project_id": {"label": "專案 ID（可選）", "type": "text", "placeholder": "留空自動選用第一個專案"},
     "base_url": {"label": "Base URL", "type": "url", "placeholder": "預設官方地址"},
     "credentials_path": {"label": "Vertex 憑證路徑", "type": "text"},
     "gcs_bucket": {"label": "GCS Bucket", "type": "text"},
@@ -122,6 +125,7 @@ class CredentialResponse(BaseModel):
     provider: str
     name: str
     api_key_masked: str | None = None
+    username: str | None = None
     credentials_filename: str | None = None
     base_url: str | None = None
     is_active: bool
@@ -135,12 +139,14 @@ class CredentialListResponse(BaseModel):
 class CreateCredentialRequest(BaseModel):
     name: str
     api_key: str | None = None
+    username: str | None = None
     base_url: str | None = None
 
 
 class UpdateCredentialRequest(BaseModel):
     name: str | None = None
     api_key: str | None = None
+    username: str | None = None
     base_url: str | None = None
 
 
@@ -173,6 +179,7 @@ def _cred_to_response(cred: ProviderCredential) -> CredentialResponse:
         provider=cred.provider,
         name=cred.name,
         api_key_masked=mask_secret(cred.api_key) if cred.api_key else None,
+        username=cred.username,
         credentials_filename=Path(cred.credentials_path).name if cred.credentials_path else None,
         base_url=cred.base_url,
         is_active=cred.is_active,
@@ -341,6 +348,7 @@ async def create_credential(
         provider=provider_id,
         name=body.name,
         api_key=body.api_key,
+        username=body.username,
         base_url=body.base_url,
     )
     await session.commit()
@@ -364,6 +372,8 @@ async def update_credential(
         kwargs["name"] = body.name
     if body.api_key is not None:
         kwargs["api_key"] = body.api_key
+    if body.username is not None:
+        kwargs["username"] = body.username
     if "base_url" in body.model_fields_set:
         kwargs["base_url"] = body.base_url
     if kwargs:
@@ -599,12 +609,36 @@ def _test_openai(config: dict[str, str]) -> ConnectionTestResponse:
     )
 
 
+def _test_ai360(config: dict[str, str]) -> ConnectionTestResponse:
+    """以帳密登入驗證 ai360 連通性。"""
+    import httpx
+
+    base_url = (config.get("base_url") or "").rstrip("/")
+    if not base_url:
+        return ConnectionTestResponse(success=False, available_models=[], message="缺少 Base URL")
+    resp = httpx.post(
+        f"{base_url}/api/auth/login",
+        json={"username": config.get("username"), "password": config.get("api_key")},
+        timeout=20,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    if not data.get("ok") or not data.get("token"):
+        return ConnectionTestResponse(
+            success=False,
+            available_models=[],
+            message=data.get("error", "登入失敗，請檢查帳號密碼"),
+        )
+    return ConnectionTestResponse(success=True, available_models=["ai360-video"], message="連線成功")
+
+
 _TEST_DISPATCH: dict[str, Callable[[dict[str, str]], ConnectionTestResponse]] = {
     "gemini-aistudio": _test_gemini_aistudio,
     "gemini-vertex": _test_gemini_vertex,
     "byteplus": _test_byteplus,
     "grok": _test_grok,
     "openai": _test_openai,
+    "ai360": _test_ai360,
 }
 
 

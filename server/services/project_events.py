@@ -377,7 +377,10 @@ class ProjectEventService:
                 )
                 continue
 
-            title = str(script.get("title") or "")
+            title = str(script.get("title") or "").strip()
+            if not title:
+                continue
+
             expected_script_file = f"scripts/{script_path.name}"
             existing = current_episodes.get(episode)
             if existing and existing["title"] == title and existing["script_file"] == expected_script_file:

@@ -1,6 +1,6 @@
 ---
 name: generate-video
-description: 為劇本場景生成影片片段。當使用者說"生成影片"、"把分鏡圖變成影片"、想重新生成某個場景的影片、或影片生成中斷需要續傳時使用。支援整集批次、單場景、斷點續傳等模式。
+description: 為劇本場景生成影片片段。當使用者說"生成影片"、"把分鏡圖變成影片"、想生成某個場景的影片、或影片生成中斷需要續傳時使用。支援整集批次、單場景、斷點續傳等模式。
 ---
 
 # 生成影片
@@ -18,7 +18,7 @@ python .claude/skills/generate-video/scripts/generate_video.py episode_{N}.json 
 # 斷點續傳：從上次中斷處繼續
 python .claude/skills/generate-video/scripts/generate_video.py episode_{N}.json --episode {N} --resume
 
-# 單場景：測試或重新生成
+# 單場景：測試或生成
 python .claude/skills/generate-video/scripts/generate_video.py episode_{N}.json --scene E1S1
 
 # 批次自選：指定多個場景
@@ -34,7 +34,7 @@ python .claude/skills/generate-video/scripts/generate_video.py episode_{N}.json 
 
 1. **載入專案和劇本** — 確認所有場景都有 `storyboard_image`
 2. **生成影片** — 指令碼自動構建 Prompt、呼叫 API、儲存 checkpoint
-3. **稽核檢查點** — 展示結果，使用者可重新生成不滿意的場景
+3. **稽核檢查點** — 展示結果，使用者可生成不滿意的場景
 4. **更新劇本** — 自動更新 `video_clip` 路徑和場景狀態
 
 ## Prompt 構建

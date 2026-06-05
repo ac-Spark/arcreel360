@@ -65,7 +65,7 @@ export function SourceTextPanel({
   }
 
   return (
-    <div className="flex h-full w-80 shrink-0 flex-col border-l border-gray-800 bg-gray-950/50">
+    <div className="flex h-full w-1/3 min-w-[20rem] max-w-[28rem] shrink-0 flex-col border-l border-gray-800 bg-gray-950/50">
       <div className="flex items-center justify-between border-b border-gray-800 p-3.5">
         <div className="flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-indigo-400" />

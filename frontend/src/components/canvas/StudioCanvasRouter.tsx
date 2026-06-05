@@ -7,9 +7,6 @@ import { LorebookGallery } from "./lorebook/LorebookGallery";
 import { TimelineCanvas } from "./timeline/TimelineCanvas";
 import { OverviewCanvas } from "./OverviewCanvas";
 import { SourceFileViewer } from "./SourceFileViewer";
-import { AddCharacterForm } from "./lorebook/AddCharacterForm";
-import { AddClueForm } from "./lorebook/AddClueForm";
-import { AddSceneForm } from "./lorebook/AddSceneForm";
 import { API } from "@/api";
 import { lookupDefaultResolution } from "@/utils/provider-models";
 import { resolveEpisodeContentMode } from "@/utils/content-mode";
@@ -86,10 +83,6 @@ function collectGeneratingResources(
 export function StudioCanvasRouter() {
   const { currentProjectData, currentProjectName, currentScripts } =
     useProjectsStore();
-
-  const [addingCharacter, setAddingCharacter] = useState(false);
-  const [addingClue, setAddingClue] = useState(false);
-  const [addingScene, setAddingScene] = useState(false);
 
   const currentVideoResolution = useMemo(() => {
     const backend = currentProjectData?.video_backend;
@@ -341,7 +334,7 @@ export function StudioCanvasRouter() {
       await API.generateCharacter(
         currentProjectName,
         name,
-        currentProjectData?.characters?.[name]?.description ?? "",
+        currentProjectData?.characters?.[name]?.description || name,
       );
       useAppStore
         .getState()
@@ -370,7 +363,6 @@ export function StudioCanvasRouter() {
           ? [buildEntityRevisionKey("character", name)]
           : [],
       );
-      setAddingCharacter(false);
       useAppStore.getState().pushToast(`角色「${name}」已新增`, "success");
     } catch (err) {
       useAppStore.getState().pushToast(`新增失敗: ${(err as Error).message}`, "error");
@@ -395,7 +387,7 @@ export function StudioCanvasRouter() {
       await API.generateClue(
         currentProjectName,
         name,
-        currentProjectData?.clues?.[name]?.description ?? "",
+        currentProjectData?.clues?.[name]?.description || name,
       );
       useAppStore
         .getState()
@@ -455,12 +447,19 @@ export function StudioCanvasRouter() {
     }
   }, [currentProjectName, refreshProject]);
 
-  const handleAddClueSubmit = useCallback(async (name: string, description: string, importance: string) => {
+  const handleAddClueSubmit = useCallback(async (
+    name: string,
+    description: string,
+    importance: string,
+    referenceFile?: File | null,
+  ) => {
     if (!currentProjectName) return;
     try {
       await API.addClue(currentProjectName, name, description, importance);
+      if (referenceFile) {
+        await API.uploadFile(currentProjectName, "clue_ref", referenceFile, name);
+      }
       await refreshProject();
-      setAddingClue(false);
       useAppStore.getState().pushToast(`道具「${name}」已新增`, "success");
     } catch (err) {
       useAppStore.getState().pushToast(`新增失敗: ${(err as Error).message}`, "error");
@@ -547,7 +546,7 @@ export function StudioCanvasRouter() {
       await API.generateScene(
         currentProjectName,
         name,
-        currentProjectData?.scenes?.[name]?.description ?? "",
+        currentProjectData?.scenes?.[name]?.description || name,
       );
       useAppStore
         .getState()
@@ -588,21 +587,23 @@ export function StudioCanvasRouter() {
   );
 
   const handleAddSceneSubmit = useCallback(
-    async (name: string, description: string) => {
-      if (!currentProjectName) return;
-      try {
-        await API.addProjectScene(currentProjectName, name, description);
-        await refreshProject();
-        setAddingScene(false);
-        useAppStore.getState().pushToast(`場景「${name}」已新增`, "success");
-      } catch (err) {
-        useAppStore
-          .getState()
-          .pushToast(`新增場景失敗: ${(err as Error).message}`, "error");
-      }
-    },
-    [currentProjectName, refreshProject],
-  );
+     async (name: string, description: string, referenceFile?: File | null) => {
+       if (!currentProjectName) return;
+       try {
+         await API.addProjectScene(currentProjectName, name, description);
+         if (referenceFile) {
+           await API.uploadFile(currentProjectName, "scene_ref", referenceFile, name);
+         }
+         await refreshProject();
+         useAppStore.getState().pushToast(`場景「${name}」已新增`, "success");
+       } catch (err) {
+         useAppStore
+           .getState()
+           .pushToast(`新增場景失敗: ${(err as Error).message}`, "error");
+       }
+     },
+     [currentProjectName, refreshProject],
+   );
 
   const handleRestoreAsset = useCallback(async () => {
     await refreshProject();
@@ -611,13 +612,7 @@ export function StudioCanvasRouter() {
   const [location] = useLocation();
   const lorebookMode = LOREBOOK_MODE_BY_ROUTE[location] ?? null;
 
-  // Abandon any open add form when the route changes, so a form opened on one
-  // lorebook tab does not leak onto another tab.
-  useEffect(() => {
-    setAddingCharacter(false);
-    setAddingClue(false);
-    setAddingScene(false);
-  }, [location]);
+
 
   if (!currentProjectName) {
     return (
@@ -673,29 +668,11 @@ export function StudioCanvasRouter() {
             onSaveScene={handleSaveScene}
             onDeleteScene={handleDeleteScene}
             onRestoreSceneVersion={handleRestoreAsset}
-            onAddCharacter={() => setAddingCharacter(true)}
-            onAddClue={() => setAddingClue(true)}
-            onAddScene={() => setAddingScene(true)}
+            onAddCharacterSubmit={handleAddCharacterSubmit}
+            onAddClueSubmit={handleAddClueSubmit}
+            onAddSceneSubmit={handleAddSceneSubmit}
             onRefresh={refreshProject}
           />
-          {addingCharacter && lorebookMode === "characters" && (
-            <AddCharacterForm
-              onSubmit={handleAddCharacterSubmit}
-              onCancel={() => setAddingCharacter(false)}
-            />
-          )}
-          {addingClue && lorebookMode === "clues" && (
-            <AddClueForm
-              onSubmit={handleAddClueSubmit}
-              onCancel={() => setAddingClue(false)}
-            />
-          )}
-          {addingScene && lorebookMode === "scenes" && (
-            <AddSceneForm
-              onSubmit={handleAddSceneSubmit}
-              onCancel={() => setAddingScene(false)}
-            />
-          )}
         </div>
       )}
 

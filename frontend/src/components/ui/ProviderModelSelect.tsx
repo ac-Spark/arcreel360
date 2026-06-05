@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, useLayoutEffect } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { ProviderIcon } from "@/components/ui/ProviderIcon";
 import { UI_LAYERS } from "@/utils/ui-layers";
+import { Popover } from "@/components/ui/Popover";
 
 interface ProviderModelSelectProps {
   value: string; // "gemini-aistudio/veo-3.1-generate-001"
@@ -78,16 +79,13 @@ export function ProviderModelSelect({
     return list;
   }, [options, allowDefault]);
 
-  // Close on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  const [triggerWidth, setTriggerWidth] = useState<number | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    if (open && triggerRef.current) {
+      setTriggerWidth(triggerRef.current.getBoundingClientRect().width);
+    }
+  }, [open]);
 
   // Reset active index when opened — point to current value or 0
   useEffect(() => {
@@ -159,11 +157,10 @@ export function ProviderModelSelect({
   );
 
   const slashIdx = value ? value.indexOf("/") : -1;
-  const currentProvider = slashIdx !== -1 ? value.slice(0, slashIdx) : "";
   const currentModel = slashIdx !== -1 ? value.slice(slashIdx + 1) : "";
 
   const displayText = value
-    ? `${providerNames[currentProvider] || currentProvider} · ${currentModel}`
+    ? (currentModel || value)
     : allowDefault && defaultLabel
     ? defaultLabel
     : placeholder;
@@ -197,12 +194,21 @@ export function ProviderModelSelect({
       </button>
 
       {/* Dropdown panel */}
-      {open && (
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={triggerRef}
+        align="start"
+        sideOffset={4}
+        style={{ width: triggerWidth }}
+        className="max-h-60 overflow-y-auto rounded-lg border border-gray-700 bg-gray-900 shadow-xl flex flex-col scrollbar-thin"
+        width=""
+      >
         <div
           id={LISTBOX_ID}
           role="listbox"
           aria-label="選擇模型"
-          className={`absolute ${UI_LAYERS.workspacePopover} mt-1 w-full max-h-60 overflow-y-auto rounded-lg border border-gray-700 bg-gray-900 shadow-xl`}
+          className="w-full flex flex-col"
         >
           {allowDefault && (
             <button
@@ -274,7 +280,7 @@ export function ProviderModelSelect({
             </div>
           ))}
         </div>
-      )}
+      </Popover>
     </div>
   );
 }

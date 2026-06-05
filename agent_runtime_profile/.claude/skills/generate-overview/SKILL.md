@@ -1,6 +1,6 @@
 ---
 name: generate-overview
-description: 生成或更新專案世界觀/概述。當使用者說"生成世界觀"、"寫入世界觀"、"重新生成概述"、"整理故事設定"、或專案進度卡在「專案概述」時使用。把 synopsis/genre/theme/world_setting 結構化寫入 project.json。
+description: 生成或更新專案世界觀/概述。當使用者說"生成世界觀"、"寫入世界觀"、"生成概述"、"整理故事設定"、或專案進度卡在「專案概述」時使用。把 synopsis/genre/theme/world_setting 結構化寫入 project.json。
 ---
 
 # 生成專案世界觀/概述

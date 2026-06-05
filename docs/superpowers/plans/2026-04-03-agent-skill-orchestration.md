@@ -514,7 +514,7 @@ git commit -m "fix: 统一 agent 定义中的脚本调用路径，修正 add_cha
 替换为统一使用 `--scene-ids` 并添加说明：
 
 ```markdown
-# 为多個場景重新生成
+# 为多個場景生成
 python .claude/skills/generate-storyboard/scripts/generate_storyboard.py script.json --scene-ids E1S01 E1S02
 ```
 

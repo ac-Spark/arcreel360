@@ -38,7 +38,7 @@ python .claude/skills/generate-clues/scripts/generate_clue.py --list
 
 1. **載入專案後設資料** — 從 project.json 找出 `importance='major'` 且缺少 `clue_sheet` 的線索
 2. **生成線索設計** — 呼叫指令碼生成道具參考圖
-3. **稽核檢查點** — 展示每張設計圖，使用者可批准或要求重新生成
+3. **稽核檢查點** — 展示每張設計圖，使用者可批准或要求生成
 4. **更新 project.json** — 更新 `clue_sheet` 路徑
 
 ## Prompt 模板

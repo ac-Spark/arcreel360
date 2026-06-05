@@ -174,7 +174,7 @@ async def generate_character(
     req: GenerateCharacterRequest
 ):
     """
-    生成角色设计图（首次生成或重新生成）
+    生成角色设计图（首次生成或生成）
 
     使用 MediaGenerator 自动处理版本管理。
     若角色有 reference_image，自动作为参考图传入。

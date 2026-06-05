@@ -165,6 +165,37 @@ class TestMediaGenerator:
         assert gen.usage_tracker.finished[-1]["size"] == "1024x1536"
 
     @pytest.mark.asyncio
+    async def test_generate_image_with_reference_images_requires_strict_reference(self, tmp_path):
+        gen = _build_generator(tmp_path)
+        ref = tmp_path / "ref.png"
+        ref.write_bytes(b"ref")
+
+        await gen.generate_image_async(
+            prompt="draw the character",
+            resource_type="storyboards",
+            resource_id="E1S03",
+            reference_images=[ref],
+        )
+
+        sent_prompt = gen._image_backend.calls[-1].prompt
+        assert "Strict reference image rule" in sent_prompt
+        assert "reference image wins" in sent_prompt
+        assert gen.usage_tracker.started[-1]["prompt"] == sent_prompt
+        assert gen.versions.add_calls[-1]["prompt"] == sent_prompt
+
+    @pytest.mark.asyncio
+    async def test_generate_image_without_reference_images_does_not_add_reference_rule(self, tmp_path):
+        gen = _build_generator(tmp_path)
+
+        await gen.generate_image_async(
+            prompt="draw the character",
+            resource_type="storyboards",
+            resource_id="E1S04",
+        )
+
+        assert "Strict reference image rule" not in gen._image_backend.calls[-1].prompt
+
+    @pytest.mark.asyncio
     async def test_generate_video_sync_and_async(self, tmp_path):
         gen = _build_generator(tmp_path)
 
@@ -188,6 +219,37 @@ class TestMediaGenerator:
         assert video_path2.name == "scene_E1S02.mp4"
         assert version2 == 2
         assert gen.usage_tracker.started[-1]["call_type"] == "video"
+
+    @pytest.mark.asyncio
+    async def test_generate_video_with_start_image_requires_strict_reference(self, tmp_path):
+        gen = _build_generator(tmp_path)
+        start_image = tmp_path / "start.png"
+        start_image.write_bytes(b"frame")
+
+        await gen.generate_video_async(
+            prompt="walk forward",
+            resource_type="videos",
+            resource_id="E1S06",
+            start_image=start_image,
+        )
+
+        sent_prompt = gen._video_backend.calls[-1].prompt
+        assert "Strict reference image rule" in sent_prompt
+        assert "reference image wins" in sent_prompt
+        assert gen.usage_tracker.started[-1]["prompt"] == sent_prompt
+        assert gen.versions.add_calls[-1]["prompt"] == sent_prompt
+
+    @pytest.mark.asyncio
+    async def test_generate_video_without_start_image_does_not_add_reference_rule(self, tmp_path):
+        gen = _build_generator(tmp_path)
+
+        await gen.generate_video_async(
+            prompt="walk forward",
+            resource_type="videos",
+            resource_id="E1S07",
+        )
+
+        assert "Strict reference image rule" not in gen._video_backend.calls[-1].prompt
 
     @pytest.mark.asyncio
     async def test_video_generate_audio_from_config_resolver(self, tmp_path):

@@ -12,13 +12,19 @@ interface RowProps {
 }
 
 export const CredentialRow = memo(function CredentialRow({ cred, providerId, isVertex, onChanged }: RowProps) {
+  const isAi360 = providerId === "ai360";
   const [editing, setEditing] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<ProviderTestResult | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [draft, setDraft] = useState({ name: cred.name, api_key: "", base_url: cred.base_url ?? "" });
+  const [draft, setDraft] = useState({
+    name: cred.name,
+    api_key: "",
+    username: cred.username ?? "",
+    base_url: cred.base_url ?? "",
+  });
 
   const handleActivate = useCallback(async () => {
     try {
@@ -60,6 +66,7 @@ export const CredentialRow = memo(function CredentialRow({ cred, providerId, isV
     const data: Record<string, string> = {};
     if (draft.name && draft.name !== cred.name) data.name = draft.name;
     if (draft.api_key) data.api_key = draft.api_key;
+    if (isAi360 && draft.username !== (cred.username ?? "")) data.username = draft.username;
     if (draft.base_url !== (cred.base_url ?? "")) data.base_url = draft.base_url;
     if (Object.keys(data).length === 0) {
       setEditing(false);
@@ -73,7 +80,7 @@ export const CredentialRow = memo(function CredentialRow({ cred, providerId, isV
     } finally {
       setSaving(false);
     }
-  }, [draft, cred, providerId, onChanged]);
+  }, [draft, cred, providerId, isAi360, onChanged]);
 
   const editPrefix = `cred-edit-${cred.id}`;
 
@@ -108,6 +115,9 @@ export const CredentialRow = memo(function CredentialRow({ cred, providerId, isV
             )}
           </div>
           <div className="mt-0.5 flex items-center gap-2">
+            {isAi360 && cred.username && (
+              <span className="text-xs text-gray-500">{cred.username}</span>
+            )}
             {cred.api_key_masked && (
               <span className="font-mono text-xs text-gray-500">{cred.api_key_masked}</span>
             )}
@@ -135,7 +145,7 @@ export const CredentialRow = memo(function CredentialRow({ cred, providerId, isV
               type="button"
               onClick={() => {
                 setEditing(!editing);
-                setDraft({ name: cred.name, api_key: "", base_url: cred.base_url ?? "" });
+                setDraft({ name: cred.name, api_key: "", username: cred.username ?? "", base_url: cred.base_url ?? "" });
                 setTestResult(null);
               }}
               aria-label={`編輯 ${cred.name}`}
@@ -209,11 +219,27 @@ export const CredentialRow = memo(function CredentialRow({ cred, providerId, isV
               className={inputCls}
             />
           </div>
+          {isAi360 && (
+            <div>
+              <label htmlFor={`${editPrefix}-username`} className="mb-1 block text-xs text-gray-500">使用者名稱</label>
+              <input
+                id={`${editPrefix}-username`}
+                name="username"
+                type="text"
+                autoComplete="off"
+                value={draft.username}
+                onChange={(e) => setDraft((d) => ({ ...d, username: e.target.value }))}
+                className={inputCls}
+              />
+            </div>
+          )}
           <div>
-            <label htmlFor={`${editPrefix}-apikey`} className="mb-1 block text-xs text-gray-500">API Key（留空則保留現有值）</label>
+            <label htmlFor={`${editPrefix}-apikey`} className="mb-1 block text-xs text-gray-500">
+              {isAi360 ? "密碼（留空則保留現有值）" : "API Key（留空則保留現有值）"}
+            </label>
             <input
               id={`${editPrefix}-apikey`}
-              name="api_key"
+              name={isAi360 ? "password" : "api_key"}
               type="password"
               autoComplete="off"
               value={draft.api_key}
@@ -222,16 +248,18 @@ export const CredentialRow = memo(function CredentialRow({ cred, providerId, isV
               className={inputClsPlaceholder}
             />
           </div>
-          {providerId === "gemini-aistudio" && (
+          {(providerId === "gemini-aistudio" || isAi360) && (
             <div>
-              <label htmlFor={`${editPrefix}-baseurl`} className="mb-1 block text-xs text-gray-500">Base URL（可選）</label>
+              <label htmlFor={`${editPrefix}-baseurl`} className="mb-1 block text-xs text-gray-500">
+                {isAi360 ? "Base URL" : "Base URL（可選）"}
+              </label>
               <input
                 id={`${editPrefix}-baseurl`}
                 name="base_url"
                 type="url"
                 value={draft.base_url}
                 onChange={(e) => setDraft((d) => ({ ...d, base_url: e.target.value }))}
-                placeholder="預設使用官方位址…"
+                placeholder={isAi360 ? "https://your-domain.com" : "預設使用官方位址…"}
                 className={inputClsPlaceholder}
               />
             </div>

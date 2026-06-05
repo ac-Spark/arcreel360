@@ -5,7 +5,9 @@
       "id": 1,
       "prompt": "我有一部武俠小說想做成短影片，大概3萬字，幫我開始",
       "expected_output": "應觸發 manga-workflow，引導建立新專案、詢問專案名稱和內容模式，不直接讀取小說原文",
-      "target_skills": ["manga-workflow"],
+      "target_skills": [
+        "manga-workflow"
+      ],
       "assertions": [
         {
           "name": "asks_project_name",
@@ -28,7 +30,9 @@
       "id": 2,
       "prompt": "繼續上次的專案，我記得角色已經分析完了，幫我繼續",
       "expected_output": "應觸發 manga-workflow 狀態檢測，按檢測清單順序找到第一個缺失項，從對應階段繼續",
-      "target_skills": ["manga-workflow"],
+      "target_skills": [
+        "manga-workflow"
+      ],
       "assertions": [
         {
           "name": "reads_project_json",
@@ -49,9 +53,11 @@
     },
     {
       "id": 3,
-      "prompt": "幫我把第2集的分鏡圖重新生成，E2S03 和 E2S07 的畫面不太滿意",
-      "expected_output": "應使用 generate-storyboard 的 --scene-ids 引數重新生成指定場景，不重新生成全部",
-      "target_skills": ["generate-storyboard"],
+      "prompt": "幫我把第2集的分鏡圖生成，E2S03 和 E2S07 的畫面不太滿意",
+      "expected_output": "應使用 generate-storyboard 的 --scene-ids 引數生成指定場景，不生成全部",
+      "target_skills": [
+        "generate-storyboard"
+      ],
       "assertions": [
         {
           "name": "uses_scene_ids_flag",
@@ -68,8 +74,10 @@
     {
       "id": 4,
       "prompt": "這集影片生成到一半斷了，幫我接著來",
-      "expected_output": "應使用 generate-video 的 --resume 引數斷點續傳，不重新生成已完成的場景",
-      "target_skills": ["generate-video"],
+      "expected_output": "應使用 generate-video 的 --resume 引數斷點續傳，不生成已完成的場景",
+      "target_skills": [
+        "generate-video"
+      ],
       "assertions": [
         {
           "name": "uses_resume_flag",
@@ -78,7 +86,7 @@
         },
         {
           "name": "does_not_regenerate_all",
-          "text": "不重新生成已完成的場景影片",
+          "text": "不生成已完成的場景影片",
           "type": "constraint"
         }
       ]
@@ -87,7 +95,9 @@
       "id": 5,
       "prompt": "影片做好了，幫我加個背景音樂，音量小一點大概0.2",
       "expected_output": "應使用 compose-video 新增 BGM，設定 --music-volume 0.2",
-      "target_skills": ["compose-video"],
+      "target_skills": [
+        "compose-video"
+      ],
       "assertions": [
         {
           "name": "uses_compose_video",

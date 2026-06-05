@@ -120,7 +120,7 @@ const url = API.getFileUrl(projectName, assetPath, fp);
 | 虚拟滚动卸载再挂载 | 重新下载 | disk cache，零网络 |
 | 刷新页面 | ?v=N 重新下载 | 同 mtime → 同 URL → 缓存命中 |
 | 新 session 打开 | ?v=0 内容可能已变 | 同 mtime → 同 URL → 缓存命中 |
-| 文件重新生成 | revision+1 | mtime 变 → URL 变 → 重下 |
+| 文件生成 | revision+1 | mtime 变 → URL 变 → 重下 |
 
 ### Part 2：视频首帧缩略图
 

@@ -54,7 +54,7 @@
 
 #### Scenario: subagent 验证生成结果
 - **WHEN** generate_script.py 脚本执行完成
-- **THEN** subagent 验证 scripts/episode_{N}.json 存在且通过数据验证，如有错误则尝试修正后重新生成
+- **THEN** subagent 验证 scripts/episode_{N}.json 存在且通过数据验证，如有错误则尝试修正后生成
 
 ### Requirement: 删除旧的多步 subagent 定义
 

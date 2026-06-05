@@ -198,7 +198,10 @@ class ScriptRepository:
         project = self._store.load_project(project_name)
 
         episode_num = script.get("episode", 1)
-        episode_title = script.get("title", "")
+        episode_title = (script.get("title") or "").strip()
+        if not episode_title:
+            return project
+
         script_file = f"scripts/{script_filename}"
 
         episodes = project.setdefault("episodes", [])

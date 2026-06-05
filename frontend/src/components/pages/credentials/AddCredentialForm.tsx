@@ -11,8 +11,10 @@ interface AddFormProps {
 }
 
 export function AddCredentialForm({ providerId, isVertex, onCreated, onCancel }: AddFormProps) {
+  const isAi360 = providerId === "ai360";
   const [name, setName] = useState("");
   const [apiKey, setApiKey] = useState("");
+  const [username, setUsername] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +33,18 @@ export function AddCredentialForm({ providerId, isVertex, onCreated, onCancel }:
           return;
         }
         await API.uploadVertexCredential(name, file);
+      } else if (isAi360) {
+        if (!username.trim() || !apiKey.trim() || !baseUrl.trim()) {
+          setError("請輸入使用者名稱、密碼與 Base URL");
+          setSaving(false);
+          return;
+        }
+        await API.createCredential(providerId, {
+          name: name.trim(),
+          username: username.trim(),
+          api_key: apiKey, // ai360 的密碼存於 api_key 欄
+          base_url: baseUrl.trim(),
+        });
       } else {
         if (!apiKey.trim()) {
           setError("請輸入 API Key");
@@ -80,6 +94,45 @@ export function AddCredentialForm({ providerId, isVertex, onCreated, onCancel }:
           </button>
           <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={() => setError(null)} />
         </div>
+      ) : isAi360 ? (
+        <>
+          <div>
+            <label htmlFor="cred-add-username" className="mb-1 block text-xs text-gray-500">使用者名稱 <span className="text-rose-400">*</span></label>
+            <input
+              id="cred-add-username"
+              name="username"
+              type="text"
+              autoComplete="off"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label htmlFor="cred-add-password" className="mb-1 block text-xs text-gray-500">密碼 <span className="text-rose-400">*</span></label>
+            <input
+              id="cred-add-password"
+              name="password"
+              type="password"
+              autoComplete="off"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label htmlFor="cred-add-ai360-baseurl" className="mb-1 block text-xs text-gray-500">Base URL <span className="text-rose-400">*</span></label>
+            <input
+              id="cred-add-ai360-baseurl"
+              name="base_url"
+              type="url"
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              placeholder="https://your-domain.com"
+              className={inputClsPlaceholder}
+            />
+          </div>
+        </>
       ) : (
         <>
           <div>

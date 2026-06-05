@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 
 from lib import PROJECT_ROOT, agent_profile
 from lib.project_change_hints import project_change_source
+from lib.source_text import read_text_with_fallback
 from lib.step1_draft_sync import parse_draft_table
 from server.auth import CurrentUser
 from server.routers._validators import validate_backend_value
@@ -239,7 +240,7 @@ async def peek_episode_split(name: str, req: PeekSplitRequest, _user: CurrentUse
         src_abs = _resolve_source_file_for_split(name, req.source)
 
         def _sync():
-            text = src_abs.read_text(encoding="utf-8")
+            text = read_text_with_fallback(src_abs)
             return episode_splitter.peek_split(text, req.target_chars, req.context)
 
         return await asyncio.to_thread(_sync)
@@ -262,7 +263,7 @@ async def split_episode_route(name: str, req: SplitEpisodeRequest, _user: Curren
         src_abs = _resolve_source_file_for_split(name, req.source)
 
         def _sync():
-            text = src_abs.read_text(encoding="utf-8")
+            text = read_text_with_fallback(src_abs)
             split = episode_splitter.split_episode_text(text, req.target_chars, req.anchor, req.context)
             manager.commit_episode_split(
                 name,

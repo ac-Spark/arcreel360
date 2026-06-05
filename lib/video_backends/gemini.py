@@ -284,7 +284,10 @@ class GeminiVideoBackend:
             )
             if error_detail:
                 raise RuntimeError(f"影片生成失敗: {error_detail}")
-            raise RuntimeError("影片生成失敗: API 返回空結果")
+            raise RuntimeError(
+                "影片生成失敗：API 返回空結果。這通常是由於輸入的提示詞或圖片觸發了 Gemini 的安全過濾器（Safety Filter）而導致生成內容被攔截。\n"
+                "建議解決方法：請調整該鏡頭的提示詞（避免可能敏感的字眼），或生成、更換分鏡參考圖後再重試。"
+            )
 
         # 提取並下載影片
         generated_video = operation.response.generated_videos[0]

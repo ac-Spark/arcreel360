@@ -5,10 +5,13 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
+from lib.docx_utils import read_docx_text
 from lib.project_paths import ProjectPaths
 from lib.project_store import ProjectStore
+from lib.source_text import read_text_with_fallback
 
 logger = logging.getLogger(__name__)
+SOURCE_FILE_SUFFIXES = {".txt", ".md", ".docx"}
 
 
 def _utc_now_iso() -> str:
@@ -25,7 +28,7 @@ class ProjectOverview(BaseModel):
 
 
 def _read_source_files(paths: ProjectPaths, project_name: str, max_chars: int = 50000) -> str:
-    """讀取專案 source 目錄下的所有文字檔案內容"""
+    """讀取專案 source 目錄下的所有可分析原文內容"""
     try:
         project_dir = paths.get_project_path(project_name)
     except Exception as e:
@@ -41,17 +44,17 @@ def _read_source_files(paths: ProjectPaths, project_name: str, max_chars: int = 
 
     # 按檔名排序，確保順序一致
     for file_path in sorted(source_dir.glob("*")):
-        if file_path.is_file() and file_path.suffix.lower() in [".txt", ".md"]:
+        suffix = file_path.suffix.lower()
+        if file_path.is_file() and suffix in SOURCE_FILE_SUFFIXES:
             try:
-                with open(file_path, encoding="utf-8") as f:
-                    content = f.read()
-                    remaining = max_chars - total_chars
-                    if remaining <= 0:
-                        break
-                    if len(content) > remaining:
-                        content = content[:remaining]
-                    contents.append(f"--- {file_path.name} ---\n{content}")
-                    total_chars += len(content)
+                content = read_docx_text(file_path) if suffix == ".docx" else read_text_with_fallback(file_path)
+                remaining = max_chars - total_chars
+                if remaining <= 0:
+                    break
+                if len(content) > remaining:
+                    content = content[:remaining]
+                contents.append(f"--- {file_path.name} ---\n{content}")
+                total_chars += len(content)
             except Exception as e:
                 logger.error("讀取檔案失敗 %s: %s", file_path.name, e)
 

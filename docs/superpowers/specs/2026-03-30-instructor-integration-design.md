@@ -87,7 +87,7 @@ def generate_structured_via_instructor(
 
 关键设计：
 - **`Mode.MD_JSON`**：prompt 注入 schema 描述 + 从 markdown/text 中提取 JSON，兼容性最广
-- **`max_retries=2`**：解析失敗时将错误信息反馈给模型重新生成
+- **`max_retries=2`**：解析失敗时将错误信息反馈给模型生成
 - **`create_with_completion()`**：Instructor 官方推荐的 token usage 获取方式
 - **鸭子类型 client 参数**：不强绑 `Ark`，保持通用性
 

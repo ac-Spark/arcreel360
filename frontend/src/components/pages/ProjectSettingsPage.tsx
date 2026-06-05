@@ -297,11 +297,10 @@ export function ProjectSettingsPage() {
                     {resolutionOptions.map((resolution) => (
                       <label
                         key={resolution}
-                        className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 ${
-                          effectiveResolution === resolution
+                        className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 ${effectiveResolution === resolution
                             ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
                             : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-                        }`}
+                          }`}
                       >
                         <input
                           type="radio"
@@ -327,11 +326,10 @@ export function ProjectSettingsPage() {
                   {(["9:16", "16:9"] as const).map((ar) => (
                     <label
                       key={ar}
-                      className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 ${
-                        aspectRatio === ar
+                      className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 ${aspectRatio === ar
                           ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
                           : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-                      }`}
+                        }`}
                     >
                       <input
                         type="radio"
@@ -342,7 +340,7 @@ export function ProjectSettingsPage() {
                           setAspectRatio(ar);
                           if (initialRef.current.aspectRatio && ar !== initialRef.current.aspectRatio) {
                             useAppStore.getState().pushToast(
-                              "已生成的分鏡圖／影片仍為原比例，建議重新生成",
+                              "已生成的分鏡圖／影片仍為原比例，建議生成",
                               "warning",
                             );
                           }
@@ -381,11 +379,10 @@ export function ProjectSettingsPage() {
                     {imageSizeOptions.map((size) => (
                       <label
                         key={size}
-                        className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 ${
-                          effectiveImageSize === size
+                        className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 ${effectiveImageSize === size
                             ? "border-indigo-500 bg-indigo-500/10 text-indigo-300"
                             : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
-                        }`}
+                          }`}
                       >
                         <input
                           type="radio"

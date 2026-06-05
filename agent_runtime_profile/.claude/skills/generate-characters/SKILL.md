@@ -38,7 +38,7 @@ python .claude/skills/generate-characters/scripts/generate_character.py --list
 
 1. **載入專案資料** — 從 project.json 找出缺少 `character_sheet` 的角色
 2. **生成角色設計** — 根據描述構建 prompt，呼叫指令碼生成
-3. **稽核檢查點** — 展示每張設計圖，使用者可批准或要求重新生成
+3. **稽核檢查點** — 展示每張設計圖，使用者可批准或要求生成
 4. **更新 project.json** — 更新 `character_sheet` 路徑
 
 ## Prompt 模板

@@ -43,115 +43,97 @@ vi.mock("./timeline/TimelineCanvas", () => ({
   ),
 }));
 
-vi.mock("./lorebook/LorebookGallery", () => ({
-  LorebookGallery: ({
-    mode,
-    onSaveCharacter,
-    onUploadCharacterReference,
-    onUpdateClue,
-    onGenerateCharacter,
-    onGenerateClue,
-    onAddCharacter,
-    onAddClue,
-  }: {
-    mode: "characters" | "clues";
-    onSaveCharacter: (
-      name: string,
-      payload: {
-        description: string;
-        voiceStyle: string;
-      },
-    ) => Promise<void>;
-    onUploadCharacterReference: (name: string, file: File) => Promise<void> | void;
-    onUpdateClue: (name: string, updates: Record<string, unknown>) => Promise<void>;
-    onGenerateCharacter: (name: string) => void;
-    onGenerateClue: (name: string) => void;
-    onAddCharacter?: () => void;
-    onAddClue?: () => void;
-  }) => (
-    <div data-testid="lorebook-gallery" data-mode={mode}>
-      <button
-        onClick={() =>
-          void onSaveCharacter("Hero", {
-            description: "new desc",
-            voiceStyle: "new voice",
-          })
-        }
-      >
-        update-character
-      </button>
-      <button
-        onClick={() =>
-          void onUploadCharacterReference(
-            "Hero",
-            new File(["ref"], "hero.png", { type: "image/png" }),
-          )
-        }
-      >
-        upload-character-reference
-      </button>
-      <button onClick={() => onGenerateCharacter("Hero")}>generate-character</button>
-      <button onClick={() => void onUpdateClue("Key", { description: "new clue" })}>
-        update-clue
-      </button>
-      <button onClick={() => onGenerateClue("Key")}>generate-clue</button>
-      <button onClick={() => onAddCharacter?.()}>add-character</button>
-      <button onClick={() => onAddClue?.()}>add-clue</button>
-    </div>
-  ),
-}));
+vi.mock("./lorebook/LorebookGallery", async () => {
+  const { useState, useEffect } = await vi.importActual<typeof import("react")>("react");
+  return {
+    LorebookGallery: ({
+      mode,
+      onSaveCharacter,
+      onUploadCharacterReference,
+      onUpdateClue,
+      onGenerateCharacter,
+      onGenerateClue,
+      onAddCharacterSubmit,
+      onAddClueSubmit,
+    }: {
+      mode: "characters" | "clues";
+      onSaveCharacter: (name: string, payload: { description: string; voiceStyle: string }) => Promise<void>;
+      onUploadCharacterReference: (name: string, file: File) => Promise<void> | void;
+      onUpdateClue: (name: string, updates: Record<string, unknown>) => Promise<void>;
+      onGenerateCharacter: (name: string) => void;
+      onGenerateClue: (name: string) => void;
+      onAddCharacterSubmit: (name: string, description: string, voiceStyle: string, file?: File | null) => Promise<void>;
+      onAddClueSubmit: (name: string, description: string, importance: "major" | "minor") => Promise<void>;
+    }) => {
+      const [showCharForm, setShowCharForm] = useState(false);
+      const [showClueForm, setShowClueForm] = useState(false);
 
-vi.mock("./lorebook/AddCharacterForm", () => ({
-  AddCharacterForm: ({
-    onSubmit,
-    onCancel,
-  }: {
-    onSubmit: (
-      name: string,
-      description: string,
-      voice: string,
-      referenceFile?: File | null,
-    ) => Promise<void>;
-    onCancel: () => void;
-  }) => (
-    <div data-testid="add-character-form">
-      <button
-        onClick={() =>
-          void onSubmit(
-            "NewHero",
-            "desc",
-            "voice",
-            new File(["ref"], "new-hero.png", { type: "image/png" }),
-          )
-        }
-      >
-        submit-add-character
-      </button>
-      <button onClick={onCancel}>cancel-add-character</button>
-    </div>
-  ),
-}));
+      useEffect(() => {
+        setShowCharForm(false);
+        setShowClueForm(false);
+      }, [mode]);
 
-vi.mock("./lorebook/AddClueForm", () => ({
-  AddClueForm: ({
-    onSubmit,
-    onCancel,
-  }: {
-    onSubmit: (
-      name: string,
-      description: string,
-      importance: string,
-    ) => Promise<void>;
-    onCancel: () => void;
-  }) => (
-    <div data-testid="add-clue-form">
-      <button onClick={() => void onSubmit("NewClue", "desc", "major")}>
-        submit-add-clue
-      </button>
-      <button onClick={onCancel}>cancel-add-clue</button>
-    </div>
-  ),
-}));
+      return (
+        <div data-testid="lorebook-gallery" data-mode={mode}>
+          <button
+            onClick={() =>
+              void onSaveCharacter("Hero", {
+                description: "new desc",
+                voiceStyle: "new voice",
+              })
+            }
+          >
+            update-character
+          </button>
+          <button
+            onClick={() =>
+              void onUploadCharacterReference(
+                "Hero",
+                new File(["ref"], "hero.png", { type: "image/png" }),
+              )
+            }
+          >
+            upload-character-reference
+          </button>
+          <button onClick={() => onGenerateCharacter("Hero")}>generate-character</button>
+          <button onClick={() => void onUpdateClue("Key", { description: "new clue" })}>
+            update-clue
+          </button>
+          <button onClick={() => onGenerateClue("Key")}>generate-clue</button>
+          <button onClick={() => setShowCharForm(true)}>add-character</button>
+          <button onClick={() => setShowClueForm(true)}>add-clue</button>
+
+          {showCharForm && (
+            <div data-testid="add-character-form">
+              <button
+                onClick={() =>
+                  void onAddCharacterSubmit(
+                    "NewHero",
+                    "desc",
+                    "voice",
+                    new File(["ref"], "new-hero.png", { type: "image/png" }),
+                  )
+                }
+              >
+                submit-add-character
+              </button>
+              <button onClick={() => setShowCharForm(false)}>cancel-add-character</button>
+            </div>
+          )}
+
+          {showClueForm && (
+            <div data-testid="add-clue-form">
+              <button onClick={() => void onAddClueSubmit("NewClue", "desc", "major")}>
+                submit-add-clue
+              </button>
+              <button onClick={() => setShowClueForm(false)}>cancel-add-clue</button>
+            </div>
+          )}
+        </div>
+      );
+    },
+  };
+});
 
 function makeProjectData(overrides: Partial<ProjectData> = {}): ProjectData {
   return {

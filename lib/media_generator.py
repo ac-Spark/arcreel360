@@ -36,6 +36,15 @@ IMAGE_NO_TEXT_DIRECTIVE = (
     "watermarks, logos, signage, or written characters anywhere in the image."
 )
 
+STRICT_REFERENCE_IMAGE_DIRECTIVE = (
+    "Strict reference image rule: use every supplied reference image as authoritative visual guidance. "
+    "Preserve the referenced subject identity, face, body shape, clothing, object design, materials, "
+    "colors, layout, composition, environment style, and camera framing as closely as possible. "
+    "Do not reinterpret, redesign, replace, omit, or ignore referenced elements. "
+    "If the text prompt conflicts with the reference image, the reference image wins; "
+    "only change details explicitly requested by the prompt."
+)
+
 # 影片生成的負面提示詞預設值（在既有的「無背景音樂」基礎上補上「無文字」）。
 DEFAULT_VIDEO_NEGATIVE_PROMPT = (
     "background music, BGM, soundtrack, musical accompaniment, "
@@ -51,6 +60,16 @@ def _with_no_text_directive(prompt: str) -> str:
     return f"{base}\n\n{IMAGE_NO_TEXT_DIRECTIVE}"
 
 
+def _with_strict_reference_directive(prompt: str) -> str:
+    """有參考圖時附加嚴格參考指示。"""
+    base = (prompt or "").rstrip()
+    if STRICT_REFERENCE_IMAGE_DIRECTIVE in base:
+        return base
+    if not base:
+        return STRICT_REFERENCE_IMAGE_DIRECTIVE
+    return f"{base}\n\n{STRICT_REFERENCE_IMAGE_DIRECTIVE}"
+
+
 class MediaGenerator:
     """
     媒體生成器中間層
@@ -64,6 +83,7 @@ class MediaGenerator:
         "videos": "videos/scene_{resource_id}.mp4",
         "characters": "characters/{resource_id}.png",
         "clues": "clues/{resource_id}.png",
+        "scenes": "scenes/{resource_id}.png",
     }
 
     def __init__(
@@ -205,8 +225,26 @@ class MediaGenerator:
         """
         from lib.image_backends.base import ImageGenerationRequest, ReferenceImage
 
-        # 後端統一注入「不要文字」指示——不論呼叫方傳入什麼 prompt 都會附加。
+        # 先轉換參考圖，讓後續 prompt、usage、version 都能以實際送出的 refs 為準。
+        ref_images: list[ReferenceImage] = []
+        if reference_images:
+            for ref in reference_images:
+                if isinstance(ref, dict):
+                    img_val = ref.get("image", "")
+                    ref_images.append(
+                        ReferenceImage(
+                            path=str(img_val),
+                            label=str(ref.get("label", "")),
+                        )
+                    )
+                elif hasattr(ref, "__fspath__") or isinstance(ref, (str, Path)):
+                    ref_images.append(ReferenceImage(path=str(ref)))
+                # PIL Image 等不支援的型別忽略
+
+        # 後端統一注入「不要文字」指示；有參考圖時再強制要求嚴格參考。
         effective_prompt = _with_no_text_directive(prompt)
+        if ref_images:
+            effective_prompt = _with_strict_reference_directive(effective_prompt)
 
         output_path = self._get_output_path(resource_type, resource_id)
         self._ensure_parent_dir(output_path)
@@ -239,22 +277,7 @@ class MediaGenerator:
         )
 
         try:
-            # 3. 轉換參考圖格式並呼叫 ImageBackend
-            ref_images: list[ReferenceImage] = []
-            if reference_images:
-                for ref in reference_images:
-                    if isinstance(ref, dict):
-                        img_val = ref.get("image", "")
-                        ref_images.append(
-                            ReferenceImage(
-                                path=str(img_val),
-                                label=str(ref.get("label", "")),
-                            )
-                        )
-                    elif hasattr(ref, "__fspath__") or isinstance(ref, (str, Path)):
-                        ref_images.append(ReferenceImage(path=str(ref)))
-                    # PIL Image 等不支援的型別忽略
-
+            # 3. 呼叫 ImageBackend
             request = ImageGenerationRequest(
                 prompt=effective_prompt,
                 output_path=output_path,
@@ -374,6 +397,8 @@ class MediaGenerator:
         """
         output_path = self._get_output_path(resource_type, resource_id)
         self._ensure_parent_dir(output_path)
+        start_image_path = Path(start_image) if isinstance(start_image, (str, Path)) else None
+        effective_prompt = _with_strict_reference_directive(prompt) if start_image_path else (prompt or "")
 
         # 1. 若已存在，確保舊檔案被記錄
         if output_path.exists():
@@ -381,7 +406,7 @@ class MediaGenerator:
                 resource_type=resource_type,
                 resource_id=resource_id,
                 current_file=output_path,
-                prompt=prompt,
+                prompt=effective_prompt,
                 duration_seconds=duration_seconds,
                 **version_metadata,
             )
@@ -406,7 +431,7 @@ class MediaGenerator:
             project_name=self.project_name,
             call_type="video",
             model=model_name,
-            prompt=prompt,
+            prompt=effective_prompt,
             resolution=resolution,
             duration_seconds=duration_int,
             aspect_ratio=aspect_ratio,
@@ -420,12 +445,12 @@ class MediaGenerator:
             from lib.video_backends.base import VideoGenerationRequest
 
             request = VideoGenerationRequest(
-                prompt=prompt,
+                prompt=effective_prompt,
                 output_path=output_path,
                 aspect_ratio=aspect_ratio,
                 duration_seconds=duration_int,
                 resolution=resolution,
-                start_image=Path(start_image) if isinstance(start_image, (str, Path)) else None,
+                start_image=start_image_path,
                 generate_audio=effective_generate_audio,
                 negative_prompt=negative_prompt,
                 project_name=self.project_name,
@@ -463,7 +488,7 @@ class MediaGenerator:
         new_version = self.versions.add_version(
             resource_type=resource_type,
             resource_id=resource_id,
-            prompt=prompt,
+            prompt=effective_prompt,
             source_file=output_path,
             duration_seconds=actual_duration_seconds,
             aspect_ratio=aspect_ratio,

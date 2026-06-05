@@ -141,10 +141,10 @@ export function LorebookReferenceImageField({
         <button
           type="button"
           onClick={openReferencePicker}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-700 bg-gray-800/50 px-3 py-4 text-sm text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-300"
+          className="flex h-28 w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-gray-700 bg-gray-800/50 text-sm text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-300"
         >
-          <Upload className="h-4 w-4" />
-          上傳參考圖
+          <Upload className="h-6 w-6" />
+          <span>上傳參考圖</span>
         </button>
       )}
       <input

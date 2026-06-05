@@ -1,6 +1,6 @@
 ---
 name: generate-storyboard
-description: 為劇本場景生成分鏡圖。當使用者說"生成分鏡"、"預覽場景畫面"、想重新生成某些分鏡圖、或劇本中有場景缺少分鏡圖時使用。自動保持角色和畫面連續性。
+description: 為劇本場景生成分鏡圖。當使用者說"生成分鏡"、"預覽場景畫面"、想生成某些分鏡圖、或劇本中有場景缺少分鏡圖時使用。自動保持角色和畫面連續性。
 ---
 
 # 生成分鏡圖
@@ -15,10 +15,10 @@ description: 為劇本場景生成分鏡圖。當使用者說"生成分鏡"、"�
 # 提交所有缺失分鏡圖到生成佇列（自動檢測 content_mode）
 python .claude/skills/generate-storyboard/scripts/generate_storyboard.py script.json
 
-# 為單個場景重新生成
+# 為單個場景生成
 python .claude/skills/generate-storyboard/scripts/generate_storyboard.py script.json --scene E1S05
 
-# 為多個場景重新生成
+# 為多個場景生成
 python .claude/skills/generate-storyboard/scripts/generate_storyboard.py script.json --scene-ids E1S01 E1S02
 ```
 
@@ -32,7 +32,7 @@ python .claude/skills/generate-storyboard/scripts/generate_storyboard.py script.
 
 1. **載入專案和劇本** — 確認所有角色都有 `character_sheet` 影象
 2. **生成分鏡圖** — 指令碼自動檢測 content_mode，按相鄰關係串聯依賴任務
-3. **稽核檢查點** — 展示每張分鏡圖，使用者可批准或要求重新生成
+3. **稽核檢查點** — 展示每張分鏡圖，使用者可批准或要求生成
 4. **更新劇本** — 更新 `storyboard_image` 路徑和場景狀態
 
 ## 角色一致性機制
@@ -75,4 +75,4 @@ python .claude/skills/generate-storyboard/scripts/generate_storyboard.py script.
 - 單場景失敗不影響批次，記錄失敗場景後繼續
 - 生成結束後彙總報告所有失敗場景和原因
 - 支援增量生成（跳過已存在的場景圖）
-- 使用 `--scene-ids` 重新生成失敗場景
+- 使用 `--scene-ids` 生成失敗場景

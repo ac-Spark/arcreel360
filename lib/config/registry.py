@@ -302,4 +302,22 @@ PROVIDER_REGISTRY: dict[str, ProviderMeta] = {
             ),
         },
     ),
+    "ai360": ProviderMeta(
+        display_name="ai360 Video Studio",
+        description="ai360 自託管影片生成服務，以帳號密碼登入取得 JWT，支援文字轉影片與參考圖生影片。",
+        required_keys=["username", "password", "base_url"],
+        optional_keys=["project_id", "video_max_workers"],
+        secret_keys=["password"],
+        models={
+            # --- video ---
+            "ai360-video": ModelInfo(
+                display_name="ai360 Video",
+                media_type="video",
+                capabilities=["text_to_video", "image_to_video", "generate_audio"],
+                default=True,
+                supported_durations=list(range(4, 16)),
+                supported_resolutions=["480p", "720p", "1080p"],
+            ),
+        },
+    ),
 }

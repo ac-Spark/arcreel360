@@ -233,9 +233,9 @@ python -c "from lib.prompt_builders_script import build_narration_prompt, build_
 
 ## 后续步骤（可選）
 
-实现完成后，可使用 `/generate-script` 重新生成测试项目的剧本，验证约束效果：
+实现完成后，可使用 `/generate-script` 生成测试项目的剧本，验证约束效果：
 
 ```bash
-# 使用 generate-script skill 重新生成
+# 使用 generate-script skill 生成
 # 然后检查生成的 episode_1.json 中的 image_prompt 和 video_prompt
 ```

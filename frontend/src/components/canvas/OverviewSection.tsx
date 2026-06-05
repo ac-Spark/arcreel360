@@ -61,14 +61,14 @@ function pushToast(message: string, tone: "success" | "error") {
 interface OverviewSectionProps {
   readonly projectName: string;
   readonly overview: ProjectOverview | null | undefined;
-  /** 重新生成或手動儲存成功後,通知父層刷新專案資料。 */
+  /** 生成或手動儲存成功後,通知父層刷新專案資料。 */
   readonly onRefresh: () => Promise<void> | void;
   readonly textModelOptions?: string[];
   readonly providerNames?: Record<string, string>;
 }
 
 /**
- * 專案概述/世界觀區塊 — 支援手動編輯四個欄位與 AI 重新生成。
+ * 專案概述/世界觀區塊 — 支援手動編輯四個欄位與 AI 生成。
  * 編輯採「草稿 + 髒值偵測」模式:只有改動過才顯示儲存按鈕。
  */
 export function OverviewSection({
@@ -84,7 +84,7 @@ export function OverviewSection({
   const [overviewModel, setOverviewModel] = useState("");
   const [overviewInstruction, setOverviewInstruction] = useState("");
 
-  // 外部 overview 變動(例如重新生成完成)時,同步草稿。
+  // 外部 overview 變動(例如生成完成)時,同步草稿。
   useEffect(() => {
     setDraft(toDraft(overview));
   }, [overview]);
@@ -126,9 +126,9 @@ export function OverviewSection({
         instruction: overviewInstruction.trim() || null,
       });
       await onRefresh();
-      pushToast("專案概述已重新生成", "success");
+      pushToast("專案概述已生成", "success");
     } catch (err) {
-      pushToast(`重新生成失敗: ${(err as Error).message}`, "error");
+      pushToast(`生成失敗: ${(err as Error).message}`, "error");
     } finally {
       setRegenerating(false);
     }
@@ -142,7 +142,7 @@ export function OverviewSection({
         <div className="space-y-0.5">
           <h3 className="text-sm font-semibold text-gray-300">專案概述</h3>
           <p className="text-xs text-gray-500">
-            可直接編輯各欄位手動校準,或用 AI 依來源內容重新生成。
+            可直接編輯各欄位手動校準,或用 AI 依來源內容生成。
           </p>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -153,7 +153,7 @@ export function OverviewSection({
               providerNames={providerNames}
               onChange={setOverviewModel}
               allowDefault
-              defaultLabel="跟隨概述文字模型"
+              defaultLabel="選擇模型"
               placeholder="文字模型"
               aria-label="概述文字模型"
               className="w-52"
@@ -165,11 +165,11 @@ export function OverviewSection({
             onClick={() => void handleRegenerate()}
             disabled={regenerating}
             className={`flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-gray-400 transition-colors hover:bg-gray-800 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
-            title={hasOverview ? "重新生成概述" : "生成概述"}
+            title={hasOverview ? "生成概述" : "生成概述"}
           >
             <RefreshCw className={`h-3 w-3 ${regenerating ? "animate-spin" : ""}`} />
             <span>
-              {regenerating ? "生成中..." : hasOverview ? "重新生成" : "生成概述"}
+              {regenerating ? "生成中..." : hasOverview ? "生成" : "生成概述"}
             </span>
           </button>
         </div>

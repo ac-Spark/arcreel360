@@ -2,6 +2,11 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Upload, FileText, Sparkles, Loader2, CheckCircle2, Plus } from "lucide-react";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
+import {
+  SOURCE_UPLOAD_ACCEPT,
+  SOURCE_UPLOAD_FORMAT_LABEL,
+  isSupportedSourceUploadFileName,
+} from "@/utils/source-files";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -114,7 +119,7 @@ export function WelcomeCanvas({
       e.preventDefault();
       setIsDragging(false);
       const file = e.dataTransfer.files[0];
-      if (file && (file.name.endsWith(".txt") || file.name.endsWith(".md"))) {
+      if (file && isSupportedSourceUploadFileName(file.name)) {
         processFile(file);
       }
     },
@@ -148,7 +153,7 @@ export function WelcomeCanvas({
             歡迎來到 {displayProjectTitle}！
           </h1>
           <p className="mt-2 text-sm text-gray-400">
-            {phase === "idle" && "請拖曳或上傳你的小說原始檔（txt/md），AI 會先替你拆解設定。"}
+            {phase === "idle" && "請拖曳或上傳你的小說原始檔，AI 會先替你拆解設定。"}
             {phase === "has_sources" && "原始檔已就緒。你可以繼續新增檔案，或點選下方按鈕開始 AI 分析。"}
             {phase === "uploading" && `正在上傳「${fileName}」...`}
             {phase === "analyzing" && "AI 正在分析小說內容，提取角色、道具與世界觀..."}
@@ -174,12 +179,12 @@ export function WelcomeCanvas({
             />
             <p className="mt-3 text-sm text-gray-300">拖曳檔案到此處</p>
             <p className="mt-1 text-xs text-gray-500">
-              或點選選擇檔案（支援 .txt / .md）
+              或點選選擇檔案（支援 {SOURCE_UPLOAD_FORMAT_LABEL}）
             </p>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".txt,.md"
+              accept={SOURCE_UPLOAD_ACCEPT}
               className="hidden"
               onChange={handleFileSelect}
             />
@@ -214,7 +219,7 @@ export function WelcomeCanvas({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".txt,.md"
+                accept={SOURCE_UPLOAD_ACCEPT}
                 className="hidden"
                 onChange={handleFileSelect}
               />

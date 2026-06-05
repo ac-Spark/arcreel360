@@ -37,6 +37,7 @@ import { useAppStore } from "@/stores/app-store";
 import { useConfirm } from "@/hooks/useConfirm";
 import { API } from "@/api";
 import { sortEpisodesForDisplay } from "@/utils/episodes";
+import { SOURCE_UPLOAD_ACCEPT } from "@/utils/source-files";
 import type { EpisodeMeta } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -636,7 +637,7 @@ export function AssetSidebar({ className }: AssetSidebarProps) {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".txt,.md,.doc,.docx"
+              accept={SOURCE_UPLOAD_ACCEPT}
               onChange={handleUpload}
               className="hidden"
             />

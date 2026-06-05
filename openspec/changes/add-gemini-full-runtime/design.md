@@ -108,7 +108,7 @@ Gemini API（`google-genai` SDK，已用于 `lib/gemini_shared/`）原生支持 
 ## Migration Plan
 
 1. **代码部署**：新增 4 個后端模块（provider / sandbox / declarations / permission gate），修改 `service.py` 注册 + `session_identity.py` 前缀。docker compose 重启 arcreel 容器即可生效（代码挂载）。
-2. **前端构建**：`docker compose run --rm frontend-builder` 重新生成 dist。
+2. **前端构建**：`docker compose run --rm frontend-builder` 生成 dist。
 3. **数据库**：无 schema 变更，无需 alembic migration。
 4. **配置**：用户在 `.env` 设 `ASSISTANT_PROVIDER=gemini_full`，或 DB `system_setting.assistant_provider='gemini_full'`，或前端 `/settings` 新選择器選「Gemini · 工作流模式」。
 5. **回滚策略**：把 `ASSISTANT_PROVIDER` 改回 `gemini_lite` 或 `claude` 即可；旧 session 在新 provider id 切换时不可继续（受 `gemini-full:` 前缀限制），但能在原 provider 下继续访问。

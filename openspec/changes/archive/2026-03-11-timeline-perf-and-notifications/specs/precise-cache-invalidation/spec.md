@@ -68,13 +68,13 @@
 - **WHEN** useProjectAssetSync 检测到 task 从非 succeeded 变为 succeeded
 - **THEN** 调用全量失效方法，所有已跟踪实体的版本号统一递增
 
-### Requirement: 重新生成资产
-资产重新生成时，缓存失效机制 MUST 正确触发。
+### Requirement: 生成资产
+资产生成时，缓存失效机制 MUST 正确触发。
 
-#### Scenario: 分镜图重新生成
-- **WHEN** 用户重新生成 segment "seg_001" 的分镜图（文件路径不变但内容更新）
+#### Scenario: 分镜图生成
+- **WHEN** 用户生成 segment "seg_001" 的分镜图（文件路径不变但内容更新）
 - **THEN** Worker 发送 storyboard_ready 事件，前端递增 `segment:seg_001` 版本号，浏览器加载新内容
 
-#### Scenario: 角色设计图重新生成
-- **WHEN** 用户重新生成 character "张三" 的设计图
+#### Scenario: 角色设计图生成
+- **WHEN** 用户生成 character "张三" 的设计图
 - **THEN** Worker 发送 character updated 事件，前端递增 `character:张三` 版本号，浏览器加载新内容

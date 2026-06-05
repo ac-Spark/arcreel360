@@ -87,7 +87,7 @@ class FailureRecorder:
         print(f"\n⚠️  失敗記錄已儲存: {self.output_path}")
 
     def get_failed_scene_ids(self) -> list[str]:
-        """獲取所有失敗的場景 ID（用於重新生成）"""
+        """獲取所有失敗的場景 ID（用於生成）"""
         return [f["scene_id"] for f in self.failures if f["type"] == "scene"]
 
 

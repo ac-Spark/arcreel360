@@ -75,6 +75,36 @@ describe("EpisodeActionsBar", () => {
     expect(screen.queryByRole("button", { name: "批次生成影片" })).not.toBeInTheDocument();
   });
 
+  it("only renders storyboard generation on storyboard tab and compose on video tab", () => {
+    // 1. Storyboard tab (預設)
+    const { unmount } = renderActions(
+      <EpisodeActionsBar
+        projectName="demo"
+        episode={1}
+        scriptFile="scripts/episode_1.json"
+        hasScript
+        activeTab="storyboard"
+      />
+    );
+    expect(screen.getByRole("button", { name: "批次生成分鏡" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "合成成片" })).not.toBeInTheDocument();
+    unmount();
+
+    // 2. Video tab
+    renderActions(
+      <EpisodeActionsBar
+        projectName="demo"
+        episode={1}
+        scriptFile="scripts/episode_1.json"
+        hasScript
+        activeTab="video"
+      />
+    );
+    expect(screen.queryByRole("button", { name: "批次生成分鏡" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "批次生成影片" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "合成成片" })).toBeInTheDocument();
+  });
+
   it("passes the custom script instruction to generateEpisodeScript", async () => {
     renderTimelineActions();
 
@@ -84,7 +114,7 @@ describe("EpisodeActionsBar", () => {
     fireEvent.change(textarea, { target: { value: "語氣輕鬆詼諧" } });
 
     fireEvent.click(screen.getByRole("button", { name: "生成劇本" }));
-    // 重新生成會跳確認框
+    // 生成會跳確認框
     fireEvent.click(await screen.findByRole("button", { name: "確定" }));
 
     await waitFor(() => {

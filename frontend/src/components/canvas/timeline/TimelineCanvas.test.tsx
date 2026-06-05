@@ -27,7 +27,9 @@ vi.mock("./SegmentCard", () => ({
 }));
 
 vi.mock("./EpisodeActionsBar", () => ({
-  EpisodeActionsBar: () => <div data-testid="episode-actions" />,
+  EpisodeActionsBar: ({ activeTab }: { activeTab: string }) => (
+    <div data-testid="episode-actions" data-active-tab={activeTab} />
+  ),
 }));
 
 vi.mock("./SourceTextPanel", () => ({
@@ -99,6 +101,73 @@ function setEpisodeCost(cost: Partial<EpisodeCost> = {}) {
 describe("TimelineCanvas", () => {
   beforeEach(() => {
     useCostStore.setState(useCostStore.getInitialState(), true);
+    localStorage.clear();
+    window.history.pushState(null, "", "/episodes/1");
+  });
+
+  it("defaults to preprocessing when opening an episode without a remembered timeline tab", () => {
+    renderTimelineCanvas(
+      <TimelineCanvas
+        projectName="demo"
+        episode={1}
+        episodeTitle="第一集"
+        hasDraft
+        projectData={{
+          ...makeProjectData(),
+          status: {
+            current_phase: "video",
+            phase_progress: 80,
+            characters: { total: 0, completed: 0 },
+            clues: { total: 0, completed: 0 },
+            scenes: { total: 0, completed: 0 },
+            episodes_summary: {
+              total: 1,
+              scripted: 1,
+              in_production: 0,
+              completed: 0,
+            },
+          },
+        }}
+        episodeScript={makeEmptyNarrationScript()}
+      />,
+    );
+
+    expect(screen.getByTestId("preprocessing-view")).toBeInTheDocument();
+    expect(screen.getByTestId("episode-actions")).toHaveAttribute("data-active-tab", "preprocessing");
+  });
+
+  it("remembers the selected timeline tab for the next episode entry", () => {
+    renderTimelineCanvas(
+      <TimelineCanvas
+        projectName="demo"
+        episode={1}
+        episodeTitle="第一集"
+        hasDraft
+        projectData={makeProjectData()}
+        episodeScript={makeEmptyNarrationScript()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "影片時間線" }));
+
+    expect(localStorage.getItem("arcreel:timeline_tab:demo")).toBe("video");
+  });
+
+  it("uses the remembered timeline tab when opening an episode without a tab query", () => {
+    localStorage.setItem("arcreel:timeline_tab:demo", "video");
+
+    renderTimelineCanvas(
+      <TimelineCanvas
+        projectName="demo"
+        episode={1}
+        episodeTitle="第一集"
+        hasDraft
+        projectData={makeProjectData()}
+        episodeScript={makeEmptyNarrationScript()}
+      />,
+    );
+
+    expect(screen.getByTestId("episode-actions")).toHaveAttribute("data-active-tab", "video");
   });
 
   it("uses scenes when a script is drama-shaped even if the project is narration mode", () => {
@@ -178,6 +247,7 @@ describe("TimelineCanvas", () => {
 
   it("shows only storyboard costs in the storyboard tab summary", () => {
     setEpisodeCost();
+    localStorage.setItem("arcreel:timeline_tab:demo", "storyboard");
     renderTimelineCanvas(
       <TimelineCanvas
         projectName="demo"

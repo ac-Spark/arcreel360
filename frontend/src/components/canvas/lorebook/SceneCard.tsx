@@ -280,15 +280,13 @@ export function SceneCard({
           </PreviewableImageFrame>
         </div>
 
-        {onUploadReference && (
-          <LorebookReferenceImageField
-            name={name}
-            savedUrl={savedReferenceUrl}
-            resetKey={savedReferenceUrl}
-            onUpload={(file) => onUploadReference(name, file)}
-            onRemove={onRemoveReference ? () => onRemoveReference(name) : undefined}
-          />
-        )}
+        <LorebookReferenceImageField
+          name={name}
+          savedUrl={savedReferenceUrl}
+          resetKey={savedReferenceUrl}
+          onUpload={(file) => onUploadReference ? onUploadReference(name, file) : Promise.resolve()}
+          onRemove={onRemoveReference ? () => onRemoveReference(name) : undefined}
+        />
 
         {onGenerate && (
           <LorebookImageGenerateControls

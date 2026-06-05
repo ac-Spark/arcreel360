@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ImageIcon, Film, Sparkles } from "lucide-react";
+import { ImageIcon, Film, Loader2 } from "lucide-react";
 import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
@@ -327,6 +327,7 @@ export function PromptColumn({
               placeholder="分鏡圖描述..."
               entities={mentionContext.entities}
               linkedNames={mentionContext.currentNames}
+              className="max-h-32 overflow-y-auto"
             />
           )}
           <PromptModelToolbar
@@ -374,6 +375,7 @@ export function PromptColumn({
               placeholder="影片動作描述..."
               entities={mentionContext.entities}
               linkedNames={mentionContext.currentNames}
+              className="max-h-32 overflow-y-auto"
             />
           )}
           <PromptModelToolbar
@@ -416,27 +418,29 @@ function PromptModelToolbar({
   if (!textModelOptions || textModelOptions.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-2 mt-1.5 w-full">
-      <ProviderModelSelect
-        value={textModel || ""}
-        options={textModelOptions}
-        providerNames={providerNames || {}}
-        onChange={setTextModel}
-        placeholder="選擇文字模型..."
-        allowDefault={true}
-        defaultLabel="跟隨專案文字模型"
-        className="flex-1 text-xs"
-        size="sm"
-      />
+    <div className="mt-1.5 flex gap-2 w-full">
+      <div className="w-[60%] min-w-0">
+        <ProviderModelSelect
+          value={textModel || ""}
+          options={textModelOptions}
+          providerNames={providerNames || {}}
+          onChange={setTextModel}
+          placeholder="選擇文字模型..."
+          allowDefault={true}
+          defaultLabel="專案預設"
+          className="w-full text-xs"
+          size="sm"
+        />
+      </div>
       <button
         type="button"
         onClick={onGenerate}
         disabled={isGenerating}
-        className="flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none border border-gray-700/50 hover:border-gray-600/50 bg-gray-800/40 rounded-md hover:bg-gray-800/80 transition-all shrink-0"
+        className="w-[40%] flex items-center justify-center gap-1.5 h-8 text-xs font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-all truncate shadow-md shadow-indigo-500/5"
         title={btnTitle}
       >
-        <Sparkles className={`h-3 w-3 ${isGenerating ? "animate-spin" : ""}`} />
-        {isGenerating ? "生成中..." : "AI 生成"}
+        {isGenerating && <Loader2 className="h-3 w-3 animate-spin shrink-0" />}
+        <span className="truncate">{isGenerating ? "生成中" : "AI 生成"}</span>
       </button>
     </div>
   );
