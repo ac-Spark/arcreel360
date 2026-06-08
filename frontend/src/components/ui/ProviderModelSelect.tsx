@@ -15,6 +15,12 @@ interface ProviderModelSelectProps {
   /** Label for the default option (defaults to "跟隨全域預設") */
   defaultLabel?: string;
   defaultHint?: string; // "當前: gemini-aistudio/veo-3.1-generate-001"
+  /**
+   * 選「預設」時實際會用到的模型值（如 "gemini/veo-3"）。有值時，會自動在預設選項
+   * 旁顯示該模型名作為提示，讓使用者知道「專案預設／全域預設」到底指向哪個模型。
+   * 若同時提供 defaultHint，以 defaultHint 為準。
+   */
+  defaultModelValue?: string;
   /** Accessible label for the trigger button */
   "aria-label"?: string;
   size?: "sm" | "md";
@@ -51,6 +57,7 @@ export function ProviderModelSelect({
   allowDefault,
   defaultLabel,
   defaultHint,
+  defaultModelValue,
   "aria-label": ariaLabel,
   size = "md",
   popoverLayer = "workspacePopover",
@@ -160,6 +167,12 @@ export function ProviderModelSelect({
   const slashIdx = value ? value.indexOf("/") : -1;
   const currentModel = slashIdx !== -1 ? value.slice(slashIdx + 1) : "";
 
+  // 預設選項旁的提示：優先用顯式 defaultHint，否則由 defaultModelValue 推導出模型名。
+  const defaultModelName = defaultModelValue
+    ? defaultModelValue.slice(defaultModelValue.indexOf("/") + 1) || defaultModelValue
+    : "";
+  const effectiveDefaultHint = defaultHint ?? (defaultModelName || undefined);
+
   const displayText = value
     ? (currentModel || value)
     : allowDefault && defaultLabel
@@ -229,8 +242,8 @@ export function ProviderModelSelect({
               }`}
             >
               <span>{defaultLabel ?? "跟隨全域預設"}</span>
-              {defaultHint && (
-                <span className="ml-auto text-xs text-gray-500">{defaultHint}</span>
+              {effectiveDefaultHint && (
+                <span className="ml-auto text-xs text-gray-500">{effectiveDefaultHint}</span>
               )}
             </button>
           )}

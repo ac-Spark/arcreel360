@@ -7,6 +7,7 @@ import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useAppStore } from "@/stores/app-store";
 import { buildMediaModelOptions } from "@/utils/provider-models";
+import { useGlobalModelDefaults } from "@/hooks/useGlobalModelDefaults";
 import type { EpisodeOverrides, ProviderInfo } from "@/types";
 
 interface EpisodeOverridesPopoverProps {
@@ -122,6 +123,7 @@ export function EpisodeOverridesPopover({
   }, [open, providers]);
 
   const modelOptions = useMemo(() => buildMediaModelOptions(providers), [providers]);
+  const globalDefaults = useGlobalModelDefaults();
 
   // Determine if overrides are currently active
   const hasActiveOverrides = Object.keys(currentOverrides).length > 0;
@@ -203,6 +205,7 @@ export function EpisodeOverridesPopover({
                   placeholder="專案預設模型"
                   allowDefault={true}
                   defaultLabel="專案預設模型"
+                  defaultModelValue={globalDefaults.image}
                 />
               </div>
             )}
@@ -218,6 +221,7 @@ export function EpisodeOverridesPopover({
                   placeholder="專案預設模型"
                   allowDefault={true}
                   defaultLabel="專案預設模型"
+                  defaultModelValue={globalDefaults.video}
                 />
               </div>
             )}

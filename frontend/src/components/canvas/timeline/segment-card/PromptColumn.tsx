@@ -3,6 +3,7 @@ import { ImageIcon, Film, Loader2 } from "lucide-react";
 import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
+import { useGlobalModelDefaults } from "@/hooks/useGlobalModelDefaults";
 import { AutoTextarea } from "@/components/ui/AutoTextarea";
 import { ImagePromptEditor } from "../ImagePromptEditor";
 import { VideoPromptEditor } from "../VideoPromptEditor";
@@ -415,6 +416,7 @@ function PromptModelToolbar({
   isGenerating,
   btnTitle,
 }: PromptModelToolbarProps) {
+  const globalDefaults = useGlobalModelDefaults();
   if (!textModelOptions || textModelOptions.length === 0) return null;
 
   return (
@@ -428,6 +430,7 @@ function PromptModelToolbar({
           placeholder="選擇文字模型..."
           allowDefault={true}
           defaultLabel="專案預設"
+          defaultModelValue={globalDefaults.text}
           className="w-full text-xs"
           size="sm"
         />

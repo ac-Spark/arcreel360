@@ -1,6 +1,7 @@
 import { GenerateButton } from "@/components/ui/GenerateButton";
 import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import { modelSelectRowClasses } from "@/utils/model-select-row";
+import { useGlobalModelDefaults } from "@/hooks/useGlobalModelDefaults";
 
 interface LorebookImageGenerateControlsProps {
   value: string;
@@ -23,6 +24,7 @@ export function LorebookImageGenerateControls({
 }: LorebookImageGenerateControlsProps) {
   const hasOptions = options.length > 0;
   const rowClasses = modelSelectRowClasses(hasOptions);
+  const globalDefaults = useGlobalModelDefaults();
 
   return (
     <div className={`${rowClasses.container} w-full`}>
@@ -36,6 +38,7 @@ export function LorebookImageGenerateControls({
             placeholder="選擇圖片模型..."
             allowDefault={true}
             defaultLabel="專案預設"
+            defaultModelValue={globalDefaults.image}
             className="w-full text-xs"
             size="sm"
           />

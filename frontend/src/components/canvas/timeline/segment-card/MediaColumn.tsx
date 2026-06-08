@@ -11,6 +11,7 @@ import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { PreviewableVideoFrame } from "@/components/ui/PreviewableVideoFrame";
 import { modelSelectRowClasses } from "@/utils/model-select-row";
+import { useGlobalModelDefaults } from "@/hooks/useGlobalModelDefaults";
 import type { Segment } from "./types";
 
 interface MediaColumnProps {
@@ -199,6 +200,7 @@ export function MediaColumn({
   ) as "9:16" | "16:9";
 
   const mediaFrameMaxWidthClass = normalizedRatio === "9:16" ? "max-w-[10rem]" : "max-w-[18rem]";
+  const globalDefaults = useGlobalModelDefaults();
   const showStoryboardModelSelect = stage === "storyboard" && imageModelOptions.length > 0;
   const storyboardRowClasses = modelSelectRowClasses(showStoryboardModelSelect, "mt-2");
   const storyboardToolbarClassName = storyboardRowClasses.container;
@@ -250,6 +252,7 @@ export function MediaColumn({
                   onChange={(next) => onUpdateSceneBackend?.(segmentId, { image_backend: next || null })}
                   allowDefault
                   defaultLabel="專案預設"
+                  defaultModelValue={globalDefaults.image}
                   placeholder="選擇圖片模型..."
                   aria-label="選擇分鏡圖圖片模型"
                   className="w-full text-xs"

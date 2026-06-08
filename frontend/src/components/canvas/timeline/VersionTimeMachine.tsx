@@ -388,12 +388,12 @@ export function VersionTimeMachine({
                     {/* Generation metadata */}
                     {selectedInfo.version !== 0 && (
                       <dl className="mt-2 space-y-0.5 border-t border-gray-800 pt-1.5 text-[10px] leading-5">
-                        <div className="flex gap-1.5">
-                          <dt className="shrink-0 text-gray-500">模型</dt>
-                          <dd className="min-w-0 break-words text-gray-300">
-                            {selectedInfo.model ?? <span className="text-gray-600">未記錄</span>}
-                          </dd>
-                        </div>
+                        {selectedInfo.model && (
+                          <div className="flex gap-1.5">
+                            <dt className="shrink-0 text-gray-500">模型</dt>
+                            <dd className="min-w-0 break-words text-gray-300">{selectedInfo.model}</dd>
+                          </div>
+                        )}
                         {buildMetaRows(selectedInfo).map((row) => (
                           <div key={row.label} className="flex gap-1.5">
                             <dt className="shrink-0 text-gray-500">{row.label}</dt>

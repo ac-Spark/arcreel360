@@ -614,7 +614,6 @@ async def compose_episode_video(name: str, episode: int, _user: CurrentUser):
                 f"compose episode {episode}",
                 current_final,
                 source_clips=source_clips,
-                duration_seconds=round(elapsed, 2),
             )
 
         return {

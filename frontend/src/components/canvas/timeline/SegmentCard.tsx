@@ -7,6 +7,7 @@ import {
   DEFAULT_IMAGE_SIZES,
   getDurationConstraintReason,
 } from "@/utils/provider-models";
+import { useGlobalModelDefaults } from "@/hooks/useGlobalModelDefaults";
 import { useImageSizeOptions } from "@/hooks/useImageSizeOptions";
 import { useVideoResolutionOptions } from "@/hooks/useVideoResolutionOptions";
 import { useVideoDurationOptions } from "@/hooks/useVideoDurationOptions";
@@ -190,6 +191,7 @@ export function SegmentCard({
   );
   const hasReferenceImage = Boolean(segment.generated_assets?.storyboard_image);
 
+  const globalDefaults = useGlobalModelDefaults();
   // Per-scene overrides take precedence over the project-level props.
   const effectiveVideoBackend = segment.video_backend || videoBackend;
   const effectiveImageBackend = segment.image_backend || undefined;
@@ -271,6 +273,7 @@ export function SegmentCard({
                 onChange={(next) => onUpdateSceneBackend?.(segmentId, { video_backend: next || null })}
                 allowDefault
                 defaultLabel="專案預設模型"
+                defaultModelValue={videoBackend || globalDefaults.video}
                 aria-label="選擇分鏡影片模型"
                 className="w-44"
               />

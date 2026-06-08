@@ -4,6 +4,7 @@ import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useConfirm } from "@/hooks/useConfirm";
+import { useGlobalModelDefaults } from "@/hooks/useGlobalModelDefaults";
 import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import type { ProjectOverview } from "@/types/project";
 import { UI_LAYERS } from "@/utils/ui-layers";
@@ -142,6 +143,7 @@ export function EpisodeActionsBar({
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
   const [textModel, setTextModel] = useState("");
   const confirm = useConfirm();
+  const globalDefaults = useGlobalModelDefaults();
 
   const toast = (msg: string, kind: "success" | "error" | "info" = "info") =>
     useAppStore.getState().pushToast(msg, kind);
@@ -359,6 +361,7 @@ export function EpisodeActionsBar({
       placeholder="文字模型"
       allowDefault
       defaultLabel="專案預設模型"
+      defaultModelValue={globalDefaults.text}
       aria-label={activeTab === "preprocessing" ? "預處理文字模型" : "劇本文字模型"}
       className="w-52"
       size="sm"

@@ -2,6 +2,7 @@ import { useId } from "react";
 import { GenerateButton } from "@/components/ui/GenerateButton";
 import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import { modelSelectRowClasses } from "@/utils/model-select-row";
+import { useGlobalModelDefaults } from "@/hooks/useGlobalModelDefaults";
 
 interface LorebookDescriptionFieldProps {
   value: string;
@@ -38,6 +39,7 @@ export function LorebookDescriptionField({
   const id = useId();
   const hasTextModelOptions = (textModelOptions?.length ?? 0) > 0;
   const rowClasses = modelSelectRowClasses(hasTextModelOptions);
+  const globalDefaults = useGlobalModelDefaults();
   const controlsClassName = hasTextModelOptions ? `${rowClasses.container} w-full` : rowClasses.container;
   const generateButtonClassName = rowClasses.button;
 
@@ -68,6 +70,7 @@ export function LorebookDescriptionField({
                 placeholder="選擇文字模型..."
                 allowDefault={true}
                 defaultLabel="專案預設"
+                defaultModelValue={globalDefaults.text}
                 className="w-full text-xs"
                 size="sm"
               />

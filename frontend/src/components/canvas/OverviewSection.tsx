@@ -3,6 +3,7 @@ import { RefreshCw } from "lucide-react";
 import type { ProjectOverview } from "@/types";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
+import { useGlobalModelDefaults } from "@/hooks/useGlobalModelDefaults";
 import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 
 /** 四個世界觀欄位的鍵;順序即畫面渲染順序(短欄位在前)。 */
@@ -82,6 +83,7 @@ export function OverviewSection({
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [overviewModel, setOverviewModel] = useState("");
+  const globalDefaults = useGlobalModelDefaults();
   const [overviewInstruction, setOverviewInstruction] = useState("");
 
   // 外部 overview 變動(例如生成完成)時,同步草稿。
@@ -154,6 +156,7 @@ export function OverviewSection({
               onChange={setOverviewModel}
               allowDefault
               defaultLabel="選擇模型"
+              defaultModelValue={globalDefaults.text}
               placeholder="文字模型"
               aria-label="概述文字模型"
               className="w-52"
