@@ -283,6 +283,7 @@ export function ProjectSettingsPage() {
                 providerNames={allProviderNames}
                 onChange={handleVideoBackendChange}
                 allowDefault
+                popoverLayer="modalPopover"
                 defaultHint={
                   globalDefaults.video ? `目前全域：${globalDefaults.video}` : undefined
                 }
@@ -365,6 +366,7 @@ export function ProjectSettingsPage() {
                 providerNames={allProviderNames}
                 onChange={setImageBackend}
                 allowDefault
+                popoverLayer="modalPopover"
                 defaultHint={
                   globalDefaults.image ? `目前全域：${globalDefaults.image}` : undefined
                 }
@@ -440,6 +442,7 @@ export function ProjectSettingsPage() {
                       providerNames={allProviderNames}
                       onChange={setter}
                       allowDefault
+                      popoverLayer="modalPopover"
                       defaultHint="跟隨全域預設"
                       aria-label={label}
                     />

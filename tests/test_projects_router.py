@@ -659,6 +659,7 @@ class TestProjectsRouter:
 
         assert r.status_code == 200
         assert captured["cmd"][0] == sys.executable
+        assert captured["cmd"][-2:] == ["--output", "episode_1_final.mp4"]
         assert captured["cwd"] == str(project_dir)
         pythonpath_entries = captured["env"]["PYTHONPATH"].split(os.pathsep)
         assert str(projects.PROJECT_ROOT) in pythonpath_entries

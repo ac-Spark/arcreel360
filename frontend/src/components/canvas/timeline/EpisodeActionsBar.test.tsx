@@ -47,9 +47,9 @@ describe("EpisodeActionsBar", () => {
 
     expect(screen.queryByRole("button", { name: "強制重生" })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "批次生成分鏡" }));
+    fireEvent.click(screen.getByRole("button", { name: "批次生圖" }));
 
-    expect(await screen.findByRole("dialog", { name: "批次生成分鏡" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "批次生圖" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "只生成缺少的分鏡" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "全部重生分鏡" })).toBeInTheDocument();
     expect(API.batchGenerateStoryboards).not.toHaveBeenCalled();
@@ -58,7 +58,7 @@ describe("EpisodeActionsBar", () => {
   it("can force regenerate all storyboards from the choice dialog", async () => {
     renderTimelineActions();
 
-    fireEvent.click(screen.getByRole("button", { name: "批次生成分鏡" }));
+    fireEvent.click(screen.getByRole("button", { name: "批次生圖" }));
     fireEvent.click(await screen.findByRole("button", { name: "全部重生分鏡" }));
 
     await waitFor(() => {
@@ -75,7 +75,7 @@ describe("EpisodeActionsBar", () => {
     expect(screen.queryByRole("button", { name: "批次生成影片" })).not.toBeInTheDocument();
   });
 
-  it("only renders storyboard generation on storyboard tab and compose on video tab", () => {
+  it("renders storyboard generation on storyboard tab, no compose outside final tab", () => {
     // 1. Storyboard tab (預設)
     const { unmount } = renderActions(
       <EpisodeActionsBar
@@ -86,12 +86,12 @@ describe("EpisodeActionsBar", () => {
         activeTab="storyboard"
       />
     );
-    expect(screen.getByRole("button", { name: "批次生成分鏡" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "批次生圖" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "合成成片" })).not.toBeInTheDocument();
     unmount();
 
-    // 2. Video tab
-    renderActions(
+    // 2. Video tab — 既無批次生圖，也無合成（合成已移至成品 tab）
+    const { unmount: unmountVideo } = renderActions(
       <EpisodeActionsBar
         projectName="demo"
         episode={1}
@@ -100,9 +100,26 @@ describe("EpisodeActionsBar", () => {
         activeTab="video"
       />
     );
-    expect(screen.queryByRole("button", { name: "批次生成分鏡" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "批次生圖" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "批次生成影片" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "合成成片" })).not.toBeInTheDocument();
+    unmountVideo();
+  });
+
+  it("renders the compose action only on the final tab", () => {
+    renderActions(
+      <EpisodeActionsBar
+        projectName="demo"
+        episode={1}
+        scriptFile="scripts/episode_1.json"
+        hasScript
+        activeTab="final"
+      />
+    );
     expect(screen.getByRole("button", { name: "合成成片" })).toBeInTheDocument();
+    // 成品 tab 不顯示劇本/分鏡相關動作
+    expect(screen.queryByRole("button", { name: "批次生圖" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "生成劇本" })).not.toBeInTheDocument();
   });
 
   it("passes the custom script instruction to generateEpisodeScript", async () => {

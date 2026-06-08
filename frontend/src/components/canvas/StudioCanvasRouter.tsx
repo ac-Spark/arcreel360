@@ -212,7 +212,7 @@ export function StudioCanvasRouter() {
       await API.generateStoryboard(currentProjectName, segmentId, prompt as string | Record<string, unknown>, resolvedFile);
       useAppStore.getState().pushToast(`已提交分鏡「${segmentId}」生成任務`, "success");
     } catch (err) {
-      useAppStore.getState().pushToast(`生成分鏡失敗: ${(err as Error).message}`, "error");
+      useAppStore.getState().pushToast(`生圖失敗: ${(err as Error).message}`, "error");
     }
   }, [currentProjectName, currentScripts]);
 
@@ -587,23 +587,23 @@ export function StudioCanvasRouter() {
   );
 
   const handleAddSceneSubmit = useCallback(
-     async (name: string, description: string, referenceFile?: File | null) => {
-       if (!currentProjectName) return;
-       try {
-         await API.addProjectScene(currentProjectName, name, description);
-         if (referenceFile) {
-           await API.uploadFile(currentProjectName, "scene_ref", referenceFile, name);
-         }
-         await refreshProject();
-         useAppStore.getState().pushToast(`場景「${name}」已新增`, "success");
-       } catch (err) {
-         useAppStore
-           .getState()
-           .pushToast(`新增場景失敗: ${(err as Error).message}`, "error");
-       }
-     },
-     [currentProjectName, refreshProject],
-   );
+    async (name: string, description: string, referenceFile?: File | null) => {
+      if (!currentProjectName) return;
+      try {
+        await API.addProjectScene(currentProjectName, name, description);
+        if (referenceFile) {
+          await API.uploadFile(currentProjectName, "scene_ref", referenceFile, name);
+        }
+        await refreshProject();
+        useAppStore.getState().pushToast(`場景「${name}」已新增`, "success");
+      } catch (err) {
+        useAppStore
+          .getState()
+          .pushToast(`新增場景失敗: ${(err as Error).message}`, "error");
+      }
+    },
+    [currentProjectName, refreshProject],
+  );
 
   const handleRestoreAsset = useCallback(async () => {
     await refreshProject();

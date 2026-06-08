@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { LorebookDescriptionField } from "./LorebookDescriptionField";
 
 describe("LorebookDescriptionField", () => {
-  it("stacks the text model selector above the generate button", () => {
+  it("lays out the text model selector and generate button on a single row", () => {
     render(
       <LorebookDescriptionField
         value=""
@@ -21,9 +21,10 @@ describe("LorebookDescriptionField", () => {
     const controls = generateButton.parentElement;
     if (!controls) throw new Error("missing description controls");
 
-    expect(controls).toHaveClass("flex-col");
-    expect(controls).not.toHaveClass("grid");
-    expect(controls.firstElementChild).toHaveClass("w-full");
-    expect(controls.firstElementChild).not.toHaveClass("col-span-2");
+    expect(controls).toHaveClass("grid");
+    expect(controls).toHaveClass("grid-cols-3");
+    expect(controls).not.toHaveClass("flex-col");
+    expect(controls.firstElementChild).toHaveClass("col-span-2");
+    expect(generateButton).toHaveClass("col-span-1");
   });
 });

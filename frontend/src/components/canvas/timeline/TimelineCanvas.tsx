@@ -35,7 +35,7 @@ import type {
 
 type Segment = NarrationSegment | DramaScene;
 type SegmentUpdateExtras = Record<string, unknown>;
-type TimelineTab = "preprocessing" | "storyboard" | "video";
+type TimelineTab = "preprocessing" | "storyboard" | "video" | "final";
 const TIMELINE_TAB_STORAGE_PREFIX = "arcreel:timeline_tab:";
 
 function getSegmentId(segment: Segment, mode: "narration" | "drama"): string {
@@ -65,7 +65,12 @@ function getTabButtonClass(active: boolean, disabled: boolean): string {
 }
 
 function isTimelineTab(value: string | null): value is TimelineTab {
-  return value === "preprocessing" || value === "storyboard" || value === "video";
+  return (
+    value === "preprocessing" ||
+    value === "storyboard" ||
+    value === "video" ||
+    value === "final"
+  );
 }
 
 function getTimelineTabStorageKey(projectName: string): string {
@@ -182,7 +187,7 @@ export function TimelineCanvas({
   const queryTab = useMemo<TimelineTab | null>(() => {
     const params = new URLSearchParams(search);
     const t = params.get("tab");
-    if (t === "preprocessing" || t === "storyboard" || t === "video") {
+    if (isTimelineTab(t)) {
       return t;
     }
     return null;
@@ -581,6 +586,14 @@ export function TimelineCanvas({
               >
                 影片時間線
               </TimelineTabButton>
+              <TimelineTabButton
+                tab="final"
+                activeTab={activeTab}
+                disabled={!hasScript}
+                onSelect={handleTabChange}
+              >
+                成品
+              </TimelineTabButton>
             </div>
           )}
 
@@ -591,7 +604,7 @@ export function TimelineCanvas({
               episode={episode}
               contentMode={contentMode}
             />
-          ) : episodeScript ? (
+          ) : activeTab !== "final" && episodeScript ? (
             <>
               <div className="mb-4 flex items-center gap-2">
                 <AddSegmentButton
@@ -662,7 +675,7 @@ export function TimelineCanvas({
                         generatingVideo={generatingVideoIds?.has(segId) ?? false}
                         onUploadReference={handleUploadStoryboardReference}
                         onRemoveReference={handleRemoveStoryboardReference}
-                        stage={activeTab === "preprocessing" ? undefined : activeTab}
+                        stage={activeTab === "storyboard" || activeTab === "video" ? activeTab : undefined}
                         imageModelOptions={modelOptions.image}
                         videoModelOptions={modelOptions.video}
                         textModelOptions={modelOptions.text}
@@ -687,7 +700,7 @@ export function TimelineCanvas({
           ) : null}
 
           {/* Final composed video */}
-          {activeTab === "video" && episodeScript && (
+          {activeTab === "final" && (
             <FinalVideoCard projectName={projectName} episode={episode} />
           )}
 

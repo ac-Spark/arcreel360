@@ -262,7 +262,7 @@ export function MediaColumn({
             <GenerateButton
               onClick={() => onGenerateStoryboard?.(segmentId)}
               loading={generatingStoryboard}
-              label="生成分鏡"
+              label="生圖"
               className={storyboardButtonClassName}
             />
           </div>

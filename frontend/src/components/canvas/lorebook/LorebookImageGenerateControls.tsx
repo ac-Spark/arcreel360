@@ -23,9 +23,9 @@ export function LorebookImageGenerateControls({
   const hasOptions = options.length > 0;
 
   return (
-    <div className="mt-3 flex flex-col gap-2 w-full">
+    <div className={`mt-3 w-full ${hasOptions ? "grid grid-cols-3 gap-2" : "flex justify-end"}`}>
       {hasOptions && (
-        <div className="w-full min-w-0">
+        <div className="col-span-2 min-w-0">
           <ProviderModelSelect
             value={value}
             onChange={(next) => void onChange(next)}
@@ -43,7 +43,7 @@ export function LorebookImageGenerateControls({
         onClick={() => void onGenerate()}
         loading={loading}
         label={label}
-        className="w-full justify-center h-8 text-xs"
+        className={`${hasOptions ? "col-span-1 w-full" : "w-28"} justify-center h-8 text-xs`}
       />
     </div>
   );

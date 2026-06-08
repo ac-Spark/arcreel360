@@ -457,7 +457,7 @@ describe("StudioCanvasRouter", () => {
         "image prompt",
         "episode_1.json",
       );
-      expect(useAppStore.getState().toast?.text).toContain("生成分鏡失敗");
+      expect(useAppStore.getState().toast?.text).toContain("生圖失敗");
     });
 
     fireEvent.click(screen.getByText("generate-video"));

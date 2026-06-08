@@ -549,8 +549,9 @@ async def compose_episode_video(name: str, episode: int, _user: CurrentUser):
 
         def _run():
             start = time.monotonic()
+            output_filename = f"episode_{episode}_final.mp4"
             proc = subprocess.run(
-                [sys.executable, str(compose_script), script_file],
+                [sys.executable, str(compose_script), script_file, "--output", output_filename],
                 cwd=str(project_path),
                 capture_output=True,
                 text=True,

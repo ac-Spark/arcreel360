@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { API } from "@/api";
+import { useAppStore } from "@/stores/app-store";
 import { PreviewableVideoFrame } from "@/components/ui/PreviewableVideoFrame";
 
 interface FinalVideoCardProps {
@@ -13,28 +14,44 @@ interface OutputFile {
   url: string;
 }
 
+function isFinalVideoFile(file: OutputFile): boolean {
+  return /_final(?:_with_music)?\.(mp4|webm)$/i.test(file.name);
+}
+
+function pickFinalVideoFile(files: OutputFile[], episode: number): OutputFile | null {
+  // 確定性命名：episode_N_final.mp4（也容許 .webm 與 _with_music 變體）。
+  const episodePrefix = `episode_${episode}_final`;
+  const episodeNamed = files.find((f) => f.name.startsWith(episodePrefix) && /\.(mp4|webm)$/i.test(f.name));
+  if (episodeNamed) return episodeNamed;
+
+  // 舊檔以標題命名（無集數），僅當唯一時才回退採用。
+  const legacyFinals = files.filter(isFinalVideoFile);
+  return legacyFinals.length === 1 ? legacyFinals[0] : null;
+}
+
 export function FinalVideoCard({ projectName, episode }: FinalVideoCardProps) {
   const [file, setFile] = useState<OutputFile | null>(null);
   const [loading, setLoading] = useState(true);
 
   const targetName = `episode_${episode}_final.mp4`;
+  // 合成成功後 EpisodeActionsBar 會 invalidate 此 key，觸發自動重抓。
+  const composeRevision = useAppStore((s) => s.getEntityRevision(`final:episode_${episode}`));
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const res = await API.listFiles(projectName);
-      const found = (res.files?.output ?? []).find((f) => f.name === targetName) ?? null;
-      setFile(found);
+      setFile(pickFinalVideoFile(res.files?.output ?? [], episode));
     } catch {
       setFile(null);
     } finally {
       setLoading(false);
     }
-  }, [projectName, targetName]);
+  }, [episode, projectName]);
 
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, composeRevision]);
 
   const fileUrl = file ? API.getFileUrl(projectName, `output/${file.name}`) : null;
 
@@ -43,7 +60,7 @@ export function FinalVideoCard({ projectName, episode }: FinalVideoCardProps) {
       <div className="mb-3 flex items-center justify-between">
         <div>
           <div className="text-sm font-medium text-gray-100">最終成片</div>
-          <div className="text-xs text-gray-500">{targetName}</div>
+          <div className="text-xs text-gray-500">{file?.name ?? targetName}</div>
         </div>
         <button
           type="button"
@@ -80,7 +97,7 @@ export function FinalVideoCard({ projectName, episode }: FinalVideoCardProps) {
         </div>
       ) : (
         <div className="rounded-lg border border-gray-800 bg-gray-900/40 px-3 py-4 text-xs text-gray-500">
-          尚未產生成片。請在助手對話中執行合成（compose_video），或使用 ffmpeg 拼接 videos/ 目錄下的場景影片。
+          尚未產生成片。請先在「影片時間線」生成各場景影片，再點上方「合成成片」按鈕拼接最終成片。
         </div>
       )}
     </div>

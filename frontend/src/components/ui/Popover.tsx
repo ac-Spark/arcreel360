@@ -14,7 +14,7 @@ import type { RefObject, ReactNode, CSSProperties } from "react";
 export const POPOVER_BG = "rgb(17 24 39)";
 
 type PopoverAlign = "start" | "center" | "end";
-type PopoverLayer = keyof typeof UI_LAYERS;
+export type PopoverLayer = keyof typeof UI_LAYERS;
 
 interface PopoverProps {
   open: boolean;

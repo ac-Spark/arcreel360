@@ -21,7 +21,7 @@ interface EpisodeActionsBarProps {
   episode: number;
   scriptFile?: string;
   hasScript: boolean;
-  activeTab?: "preprocessing" | "storyboard" | "video";
+  activeTab?: "preprocessing" | "storyboard" | "video" | "final";
   textModelOptions?: string[];
   providerNames?: Record<string, string>;
 }
@@ -320,7 +320,7 @@ export function EpisodeActionsBar({
   };
 
   const handleBatchStoryboards = (force: boolean) =>
-    run("storyboards", force ? "強制重生分鏡" : "批次生成分鏡", async () => {
+    run("storyboards", force ? "強制重生分鏡" : "批次生圖", async () => {
       if (!scriptFile) throw new Error("找不到劇本檔");
       const res = await API.batchGenerateStoryboards(projectName, {
         script_file: scriptFile,
@@ -337,6 +337,7 @@ export function EpisodeActionsBar({
   const handleCompose = () =>
     run("compose", "合成成片", async () => {
       const res = await API.composeEpisode(projectName, episode);
+      useAppStore.getState().invalidateEntities([`final:episode_${episode}`]);
       return `${res.output_path}（${res.duration_seconds.toFixed(1)}s）`;
     });
 
@@ -406,6 +407,20 @@ export function EpisodeActionsBar({
               />
             )}
           </div>
+        ) : activeTab === "final" ? (
+          <div className="flex w-full flex-wrap items-center gap-2">
+            <ActionButton
+              icon={<FileText className="h-3.5 w-3.5" />}
+              label="合成成片"
+              loading={busy === "compose"}
+              disabled={!hasScript || busy !== null}
+              onClick={() => void confirmAndCompose()}
+              tone="success"
+            />
+            <span className="text-xs text-gray-500">
+              將 videos/ 目錄下的場景影片依序拼接為最終成片
+            </span>
+          </div>
         ) : (
           <div className="flex w-full flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -442,25 +457,11 @@ export function EpisodeActionsBar({
                   <Divider />
                   <ActionButton
                     icon={<ImageIcon className="h-3.5 w-3.5" />}
-                    label="批次生成分鏡"
+                    label="批次生圖"
                     loading={busy === "storyboards"}
                     disabled={!hasScript || !scriptFile || busy !== null}
                     onClick={() => setBatchDialogOpen(true)}
                     tone="primary"
-                  />
-                </>
-              )}
-
-              {activeTab === "video" && (
-                <>
-                  <Divider />
-                  <ActionButton
-                    icon={<FileText className="h-3.5 w-3.5" />}
-                    label="合成成片"
-                    loading={busy === "compose"}
-                    disabled={!hasScript || busy !== null}
-                    onClick={() => void confirmAndCompose()}
-                    tone="success"
                   />
                 </>
               )}
@@ -726,7 +727,7 @@ function BatchGenerationDialog({
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 id={headingId} className="text-base font-semibold text-gray-100">
-            批次生成分鏡
+            批次生圖
           </h2>
           <button
             type="button"

@@ -170,6 +170,24 @@ describe("TimelineCanvas", () => {
     expect(screen.getByTestId("episode-actions")).toHaveAttribute("data-active-tab", "video");
   });
 
+  it("opens the final video tab from the URL query", () => {
+    window.history.pushState(null, "", "/episodes/1?tab=final");
+
+    renderTimelineCanvas(
+      <TimelineCanvas
+        projectName="demo"
+        episode={1}
+        episodeTitle="第一集"
+        hasDraft
+        projectData={makeProjectData()}
+        episodeScript={makeEmptyNarrationScript()}
+      />,
+    );
+
+    expect(screen.getByTestId("episode-actions")).toHaveAttribute("data-active-tab", "final");
+    expect(screen.getByTestId("final-video")).toBeInTheDocument();
+  });
+
   it("uses scenes when a script is drama-shaped even if the project is narration mode", () => {
     renderTimelineCanvas(
       <TimelineCanvas

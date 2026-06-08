@@ -36,9 +36,9 @@ export function LorebookDescriptionField({
 }: LorebookDescriptionFieldProps) {
   const id = useId();
   const hasTextModelOptions = (textModelOptions?.length ?? 0) > 0;
-  const controlsClassName = hasTextModelOptions ? "mt-3 flex flex-col gap-2 w-full" : "mt-3 flex justify-end";
+  const controlsClassName = hasTextModelOptions ? "mt-3 grid grid-cols-3 gap-2 w-full" : "mt-3 flex justify-end";
   const generateButtonClassName = hasTextModelOptions
-    ? "w-full justify-center h-8 text-xs"
+    ? "col-span-1 w-full justify-center h-8 text-xs"
     : "w-28 justify-center h-8 text-xs";
 
   return (
@@ -59,7 +59,7 @@ export function LorebookDescriptionField({
       {onGenerateAI && (
         <div className={controlsClassName}>
           {hasTextModelOptions && (
-            <div className="w-full min-w-0">
+            <div className="col-span-2 min-w-0">
               <ProviderModelSelect
                 value={textModel || ""}
                 options={textModelOptions ?? []}

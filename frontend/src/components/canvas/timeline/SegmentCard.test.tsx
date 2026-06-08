@@ -394,7 +394,7 @@ describe("SegmentCard", () => {
     });
 
     expect(screen.getByRole("combobox", { name: "選擇分鏡圖圖片模型" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "生成分鏡" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "生圖" })).toBeInTheDocument();
   });
 
   it("does not auto-adjust video duration while editing storyboard image controls", () => {

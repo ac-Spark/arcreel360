@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, useLayoutEffect } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { ProviderIcon } from "@/components/ui/ProviderIcon";
-import { UI_LAYERS } from "@/utils/ui-layers";
-import { Popover } from "@/components/ui/Popover";
+import { Popover, type PopoverLayer } from "@/components/ui/Popover";
 
 interface ProviderModelSelectProps {
   value: string; // "gemini-aistudio/veo-3.1-generate-001"
@@ -19,6 +18,7 @@ interface ProviderModelSelectProps {
   /** Accessible label for the trigger button */
   "aria-label"?: string;
   size?: "sm" | "md";
+  popoverLayer?: PopoverLayer;
 }
 
 interface FlatOption {
@@ -53,6 +53,7 @@ export function ProviderModelSelect({
   defaultHint,
   "aria-label": ariaLabel,
   size = "md",
+  popoverLayer = "workspacePopover",
 }: ProviderModelSelectProps) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -200,6 +201,7 @@ export function ProviderModelSelect({
         anchorRef={triggerRef}
         align="start"
         sideOffset={4}
+        layer={popoverLayer}
         style={{ width: triggerWidth }}
         className="max-h-60 overflow-y-auto rounded-lg border border-gray-700 bg-gray-900 shadow-xl flex flex-col scrollbar-thin"
         width=""
