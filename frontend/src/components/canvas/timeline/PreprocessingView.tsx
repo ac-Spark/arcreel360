@@ -157,7 +157,7 @@ export function PreprocessingView({
           onChange={(e) => setEditContent(e.target.value)}
           autoFocus={isCreating}
           placeholder={isCreating ? "貼上或撰寫這一集的預處理內容…" : undefined}
-          className="min-h-[400px] w-full resize-y rounded-lg border border-gray-700 bg-gray-800 p-4 font-mono text-sm leading-relaxed text-gray-200 outline-none focus-ring focus-visible:border-indigo-500"
+          className="min-h-[50dvh] w-full resize-y rounded-lg border border-gray-700 bg-gray-800 p-4 font-mono text-sm leading-relaxed text-gray-200 outline-none focus-ring focus-visible:border-indigo-500"
         />
       ) : (
         <div className="prose-invert max-w-none overflow-x-auto rounded-lg border border-gray-800 bg-gray-900/50 p-4 text-sm">

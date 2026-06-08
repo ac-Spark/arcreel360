@@ -36,7 +36,7 @@ export function AdvancedSettingsSection({
               max={3600}
               value={draft.cleanupDelaySeconds}
               onChange={(e) => updateDraft("cleanupDelaySeconds", e.target.value)}
-              className={`${inputClassName} mt-1.5 max-w-[120px]`}
+              className={`${inputClassName} mt-1.5 max-w-[7.5rem]`}
               disabled={saving}
             />
           </div>
@@ -53,7 +53,7 @@ export function AdvancedSettingsSection({
               max={20}
               value={draft.maxConcurrentSessions}
               onChange={(e) => updateDraft("maxConcurrentSessions", e.target.value)}
-              className={`${inputClassName} mt-1.5 max-w-[120px]`}
+              className={`${inputClassName} mt-1.5 max-w-[7.5rem]`}
               disabled={saving}
             />
           </div>

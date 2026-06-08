@@ -45,7 +45,7 @@ export function AssistantRuntimeGrid({
       <div className="mt-3 overflow-x-auto rounded-xl border border-white/6">
         <div
           data-testid="assistant-runtime-grid"
-          className="grid min-w-[560px] grid-cols-[8rem_repeat(3,minmax(7.5rem,1fr))] text-sm"
+          className="grid min-w-[35rem] grid-cols-[8rem_repeat(3,minmax(7.5rem,1fr))] text-sm"
         >
           <div className="h-10 bg-black/16" />
           {PROVIDER_BRANDS.map((brand) => (

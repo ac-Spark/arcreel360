@@ -319,14 +319,14 @@ Expected: PASS（全部）
 - [ ] **Step 1：先記錄改前的腳本輸出（基準）**
 
 ```bash
-cd /home/human/arcreel360
+cd ~/arcreel360
 # 用 smoketest 專案的 source（若不存在，先建一個臨時 txt）
 mkdir -p /tmp/eptest && printf '甲%.0s' {1..50} > /tmp/eptest/n.txt && printf '。' >> /tmp/eptest/n.txt && printf '乙%.0s' {1..50} >> /tmp/eptest/n.txt
 cd /tmp/eptest
-uv run python /home/human/arcreel360/agent_runtime_profile/.claude/skills/manage-project/scripts/peek_split_point.py --source n.txt --target 30 > /tmp/eptest/peek_before.txt 2>&1
-uv run python /home/human/arcreel360/agent_runtime_profile/.claude/skills/manage-project/scripts/split_episode.py --source n.txt --episode 1 --target 30 --anchor "甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲" --dry-run > /tmp/eptest/split_before.txt 2>&1
+uv run python ~/arcreel360/agent_runtime_profile/.claude/skills/manage-project/scripts/peek_split_point.py --source n.txt --target 30 > /tmp/eptest/peek_before.txt 2>&1
+uv run python ~/arcreel360/agent_runtime_profile/.claude/skills/manage-project/scripts/split_episode.py --source n.txt --episode 1 --target 30 --anchor "甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲" --dry-run > /tmp/eptest/split_before.txt 2>&1
 cat /tmp/eptest/peek_before.txt /tmp/eptest/split_before.txt
-cd /home/human/arcreel360
+cd ~/arcreel360
 ```
 
 （記住這兩個輸出，Step 4 比對。anchor 用前 30 個「甲」確保能在 target 附近找到。）
@@ -375,11 +375,11 @@ from _text_utils import find_anchor_near_target, find_char_offset  # noqa: E402
 
 ```bash
 cd /tmp/eptest
-uv run python /home/human/arcreel360/agent_runtime_profile/.claude/skills/manage-project/scripts/peek_split_point.py --source n.txt --target 30 > /tmp/eptest/peek_after.txt 2>&1
-uv run python /home/human/arcreel360/agent_runtime_profile/.claude/skills/manage-project/scripts/split_episode.py --source n.txt --episode 1 --target 30 --anchor "甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲" --dry-run > /tmp/eptest/split_after.txt 2>&1
+uv run python ~/arcreel360/agent_runtime_profile/.claude/skills/manage-project/scripts/peek_split_point.py --source n.txt --target 30 > /tmp/eptest/peek_after.txt 2>&1
+uv run python ~/arcreel360/agent_runtime_profile/.claude/skills/manage-project/scripts/split_episode.py --source n.txt --episode 1 --target 30 --anchor "甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲" --dry-run > /tmp/eptest/split_after.txt 2>&1
 diff /tmp/eptest/peek_before.txt /tmp/eptest/peek_after.txt && echo "peek 輸出一致 ✓"
 diff /tmp/eptest/split_before.txt /tmp/eptest/split_after.txt && echo "split 輸出一致 ✓"
-cd /home/human/arcreel360
+cd ~/arcreel360
 ```
 
 Expected: 兩個 diff 都無輸出（逐字一致）。若不一致 → 修到一致為止（這是 Claude provider 回歸驗收項，不可放過）。
@@ -1150,7 +1150,7 @@ uv run ruff check . && uv run ruff format --check .
 - Create: `frontend/src/components/canvas/timeline/EpisodeSplitPanel.test.tsx`
 - Modify: `frontend/src/components/canvas/timeline/TimelineCanvas.tsx`
 
-> 前端命令：`cd /home/human/arcreel360/frontend && export PATH="$HOME/.nvm/versions/node/v22.21.1/bin:$PATH"`，測試 `CI=true COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack pnpm@11.1.0 run test`，typecheck `... corepack pnpm@11.1.0 run typecheck`。
+> 前端命令：`cd ~/arcreel360/frontend && export PATH="$HOME/.nvm/versions/node/v22.21.1/bin:$PATH"`，測試 `CI=true COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack pnpm@11.1.0 run test`，typecheck `... corepack pnpm@11.1.0 run typecheck`。
 
 - [ ] **Step 1：寫失敗測試 `EpisodeSplitPanel.test.tsx`**
 
