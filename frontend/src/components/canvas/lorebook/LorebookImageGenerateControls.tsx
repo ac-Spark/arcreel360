@@ -1,5 +1,6 @@
 import { GenerateButton } from "@/components/ui/GenerateButton";
 import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
+import { modelSelectRowClasses } from "@/utils/model-select-row";
 
 interface LorebookImageGenerateControlsProps {
   value: string;
@@ -21,11 +22,12 @@ export function LorebookImageGenerateControls({
   label,
 }: LorebookImageGenerateControlsProps) {
   const hasOptions = options.length > 0;
+  const rowClasses = modelSelectRowClasses(hasOptions);
 
   return (
-    <div className={`mt-3 w-full ${hasOptions ? "grid grid-cols-3 gap-2" : "flex justify-end"}`}>
+    <div className={`${rowClasses.container} w-full`}>
       {hasOptions && (
-        <div className="col-span-2 min-w-0">
+        <div className={rowClasses.select}>
           <ProviderModelSelect
             value={value}
             onChange={(next) => void onChange(next)}
@@ -43,7 +45,7 @@ export function LorebookImageGenerateControls({
         onClick={() => void onGenerate()}
         loading={loading}
         label={label}
-        className={`${hasOptions ? "col-span-1 w-full" : "w-28"} justify-center h-8 text-xs`}
+        className={rowClasses.button}
       />
     </div>
   );

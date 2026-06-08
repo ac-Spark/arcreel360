@@ -10,6 +10,7 @@ import { ImageFlipReveal } from "@/components/ui/ImageFlipReveal";
 import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { PreviewableVideoFrame } from "@/components/ui/PreviewableVideoFrame";
+import { modelSelectRowClasses } from "@/utils/model-select-row";
 import type { Segment } from "./types";
 
 interface MediaColumnProps {
@@ -199,12 +200,9 @@ export function MediaColumn({
 
   const mediaFrameMaxWidthClass = normalizedRatio === "9:16" ? "max-w-[10rem]" : "max-w-[18rem]";
   const showStoryboardModelSelect = stage === "storyboard" && imageModelOptions.length > 0;
-  const storyboardToolbarClassName = showStoryboardModelSelect
-    ? "mt-2 grid grid-cols-3 gap-2"
-    : "mt-2 flex justify-end";
-  const storyboardButtonClassName = showStoryboardModelSelect
-    ? "col-span-1 justify-center h-8 text-xs w-full"
-    : "w-28 justify-center h-8 text-xs";
+  const storyboardRowClasses = modelSelectRowClasses(showStoryboardModelSelect, "mt-2");
+  const storyboardToolbarClassName = storyboardRowClasses.container;
+  const storyboardButtonClassName = storyboardRowClasses.button;
 
   return (
     <div className="flex flex-col gap-3 p-3">
@@ -244,7 +242,7 @@ export function MediaColumn({
             className={storyboardToolbarClassName}
           >
             {showStoryboardModelSelect && (
-              <div className="col-span-2 min-w-0">
+              <div className={storyboardRowClasses.select}>
                 <ProviderModelSelect
                   value={segment.image_backend ?? ""}
                   options={imageModelOptions}

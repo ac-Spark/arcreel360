@@ -1,6 +1,7 @@
 import { useId } from "react";
 import { GenerateButton } from "@/components/ui/GenerateButton";
 import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
+import { modelSelectRowClasses } from "@/utils/model-select-row";
 
 interface LorebookDescriptionFieldProps {
   value: string;
@@ -36,10 +37,9 @@ export function LorebookDescriptionField({
 }: LorebookDescriptionFieldProps) {
   const id = useId();
   const hasTextModelOptions = (textModelOptions?.length ?? 0) > 0;
-  const controlsClassName = hasTextModelOptions ? "mt-3 grid grid-cols-3 gap-2 w-full" : "mt-3 flex justify-end";
-  const generateButtonClassName = hasTextModelOptions
-    ? "col-span-1 w-full justify-center h-8 text-xs"
-    : "w-28 justify-center h-8 text-xs";
+  const rowClasses = modelSelectRowClasses(hasTextModelOptions);
+  const controlsClassName = hasTextModelOptions ? `${rowClasses.container} w-full` : rowClasses.container;
+  const generateButtonClassName = rowClasses.button;
 
   return (
     <div className={className}>
@@ -59,7 +59,7 @@ export function LorebookDescriptionField({
       {onGenerateAI && (
         <div className={controlsClassName}>
           {hasTextModelOptions && (
-            <div className="col-span-2 min-w-0">
+            <div className={rowClasses.select}>
               <ProviderModelSelect
                 value={textModel || ""}
                 options={textModelOptions ?? []}
