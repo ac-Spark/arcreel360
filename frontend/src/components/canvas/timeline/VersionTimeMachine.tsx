@@ -8,7 +8,7 @@ import { UI_LAYERS } from "@/utils/ui-layers";
 import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
 import { PreviewableVideoFrame } from "@/components/ui/PreviewableVideoFrame";
 
-type ResourceType = "storyboards" | "videos" | "characters" | "clues" | "scenes";
+type ResourceType = "storyboards" | "videos" | "characters" | "clues" | "scenes" | "output";
 
 interface VersionTimeMachineProps {
   projectName: string;
@@ -29,6 +29,8 @@ function getResourcePath(resourceType: ResourceType, resourceId: string): string
       return `storyboards/scene_${resourceId}.png`;
     case "videos":
       return `videos/scene_${resourceId}.mp4`;
+    case "output":
+      return `output/episode_${resourceId}_final.mp4`;
     case "characters":
       return `characters/${resourceId}.png`;
     case "scenes":
@@ -58,6 +60,9 @@ function buildMetaRows(info: VersionInfo): { label: string; value: string }[] {
       .filter(Boolean)
       .join("、");
     rows.push({ label: "參考圖", value: names });
+  }
+  if (info.source_clips?.length) {
+    rows.push({ label: "來源影片", value: info.source_clips.join("、") });
   }
   return rows;
 }
@@ -350,10 +355,11 @@ export function VersionTimeMachine({
 
                     {/* Media preview */}
                     {selectedInfo.file_url &&
-                      (resourceType === "videos" ? (
+                      (resourceType === "videos" || resourceType === "output" ? (
                         <PreviewableVideoFrame src={selectedInfo.file_url} alt={`版本 v${selectedInfo.version} 預覽`}>
                           <video
                             src={selectedInfo.file_url}
+                            aria-label={`版本 v${selectedInfo.version} 預覽`}
                             className="mb-2 w-full rounded-lg border border-gray-800 bg-black object-contain"
                             controls
                             playsInline

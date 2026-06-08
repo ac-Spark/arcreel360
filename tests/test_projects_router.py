@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import sys
@@ -663,6 +664,42 @@ class TestProjectsRouter:
         assert captured["cwd"] == str(project_dir)
         pythonpath_entries = captured["env"]["PYTHONPATH"].split(os.pathsep)
         assert str(projects.PROJECT_ROOT) in pythonpath_entries
+
+    def test_compose_episode_creates_output_version_with_source_clips(self, tmp_path, monkeypatch):
+        fake_pm = _FakePM(tmp_path)
+        fake_pm.scripts[("ready", "episode_1.json")] = {
+            "content_mode": "narration",
+            "segments": [
+                {"segment_id": "E1S01", "generated_assets": {"video_clip": "videos/scene_E1S01.mp4"}},
+                {"segment_id": "E1S02", "generated_assets": {"video_clip": "videos/scene_E1S02.mp4"}},
+            ],
+        }
+        project_dir = fake_pm.get_project_path("ready")
+        (project_dir / "scripts").mkdir(parents=True, exist_ok=True)
+        (project_dir / "scripts" / "episode_1.json").write_text(
+            '{"content_mode":"narration","segments":[{"segment_id":"E1S01","generated_assets":{"video_clip":"videos/scene_E1S01.mp4"}},{"segment_id":"E1S02","generated_assets":{"video_clip":"videos/scene_E1S02.mp4"}}]}',
+            encoding="utf-8",
+        )
+        (project_dir / "output").mkdir(parents=True, exist_ok=True)
+
+        def fake_run(cmd, *, cwd, capture_output, text, timeout, env):
+            (Path(cwd) / "output" / "episode_1_final.mp4").write_bytes(b"final")
+            return SimpleNamespace(returncode=0, stdout="✅ 影片合成完成: output/episode_1_final.mp4\n", stderr="")
+
+        monkeypatch.setattr("subprocess.run", fake_run)
+        client = _client(monkeypatch, fake_pm, _FakeCalc())
+        with client:
+            r = client.post("/api/v1/projects/ready/episodes/1/compose")
+
+        assert r.status_code == 200
+        payload = r.json()
+        assert payload["version"] == 1
+        versions_file = project_dir / "versions" / "versions.json"
+        versions = json.loads(versions_file.read_text(encoding="utf-8"))
+        record = versions["output"]["1"]["versions"][0]
+        assert record["source_clips"] == ["videos/scene_E1S01.mp4", "videos/scene_E1S02.mp4"]
+        assert record["file"].startswith("versions/output/1_v1_")
+        assert record["file"].endswith(".mp4")
 
     def test_compose_episode_missing_video_returns_actionable_400(self, tmp_path, monkeypatch):
         fake_pm = _FakePM(tmp_path)

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
 import { PreviewableVideoFrame } from "@/components/ui/PreviewableVideoFrame";
+import { VersionTimeMachine } from "./VersionTimeMachine";
 
 interface FinalVideoCardProps {
   projectName: string;
@@ -49,6 +50,10 @@ export function FinalVideoCard({ projectName, episode }: FinalVideoCardProps) {
     }
   }, [episode, projectName]);
 
+  const handleRestoreVersion = useCallback(() => {
+    useAppStore.getState().invalidateEntities([`final:episode_${episode}`]);
+  }, [episode]);
+
   useEffect(() => {
     void refresh();
   }, [refresh, composeRevision]);
@@ -62,13 +67,23 @@ export function FinalVideoCard({ projectName, episode }: FinalVideoCardProps) {
           <div className="text-sm font-medium text-gray-100">最終成片</div>
           <div className="text-xs text-gray-500">{file?.name ?? targetName}</div>
         </div>
-        <button
-          type="button"
-          onClick={() => void refresh()}
-          className="text-xs text-gray-400 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60 rounded px-2 py-1"
-        >
-          重新整理
-        </button>
+        <div className="flex items-center gap-2">
+          {file?.name === targetName && (
+            <VersionTimeMachine
+              projectName={projectName}
+              resourceType="output"
+              resourceId={String(episode)}
+              onRestore={handleRestoreVersion}
+            />
+          )}
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            className="text-xs text-gray-400 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60 rounded px-2 py-1"
+          >
+            重新整理
+          </button>
+        </div>
       </div>
 
       {loading ? (

@@ -23,6 +23,8 @@ from lib.project_change_hints import project_change_source
 from lib.project_paths import episode_final_filename
 from lib.source_text import read_text_with_fallback
 from lib.step1_draft_sync import parse_draft_table
+from lib.storyboard_sequence import get_storyboard_items
+from lib.version_manager import VersionManager
 from server.auth import CurrentUser
 from server.routers._validators import validate_backend_value
 
@@ -46,6 +48,17 @@ router = APIRouter()
 _COMPOSE_ERROR_PREFIX = "❌ 錯誤:"
 _COMPOSE_GENERIC_FAILURE_DETAIL = "合成成片失敗，請查看後端日誌。"
 _MISSING_VIDEO_ERROR_FRAGMENTS = ("缺少影片片段", "影片檔案不存在", "沒有可用的影片片段")
+
+
+def _collect_compose_source_clips(script: dict) -> list[str]:
+    """依 compose_video.py 同一套 storyboard item 順序收集本次合成來源影片。"""
+    items, _, _, _, _ = get_storyboard_items(script)
+    clips: list[str] = []
+    for item in items:
+        clip = item.get("generated_assets", {}).get("video_clip")
+        if clip:
+            clips.append(str(clip))
+    return clips
 
 
 class CreateEpisodeRequest(BaseModel):
@@ -540,9 +553,11 @@ async def compose_episode_video(name: str, episode: int, _user: CurrentUser):
             script_path = project_path / "scripts" / script_file
             if not script_path.exists():
                 raise HTTPException(status_code=404, detail=f"劇本檔案不存在: {script_file}")
-            return project_path, script_file
+            script = manager.load_script(name, script_file)
+            source_clips = _collect_compose_source_clips(script)
+            return project_path, script_file, source_clips
 
-        project_path, script_file = await asyncio.to_thread(_prep)
+        project_path, script_file, source_clips = await asyncio.to_thread(_prep)
 
         compose_script = agent_profile.skills_root(PROJECT_ROOT) / "compose-video" / "scripts" / "compose_video.py"
         if not compose_script.exists():
@@ -589,8 +604,22 @@ async def compose_episode_video(name: str, episode: int, _user: CurrentUser):
                 if mp4s:
                     output_path = str(mp4s[0].relative_to(project_path))
 
+        current_final = project_path / "output" / episode_final_filename(episode)
+        version = None
+        if current_final.exists():
+            version = await asyncio.to_thread(
+                VersionManager(project_path).add_version,
+                "output",
+                str(episode),
+                f"compose episode {episode}",
+                current_final,
+                source_clips=source_clips,
+                duration_seconds=round(elapsed, 2),
+            )
+
         return {
             "output_path": output_path,
+            "version": version,
             "stdout_tail": proc.stdout[-500:],
             "duration_seconds": round(elapsed, 2),
         }

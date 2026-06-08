@@ -143,4 +143,43 @@ describe("VersionTimeMachine", () => {
     expect(previewImage).toHaveClass("object-contain");
     expect(previewImage.parentElement).toHaveClass("h-80");
   });
+
+  it("shows output versions as video previews with source clip metadata", async () => {
+    vi.spyOn(API, "getVersions").mockResolvedValue({
+      resource_type: "output",
+      resource_id: "1",
+      current_version: 1,
+      versions: [
+        {
+          version: 1,
+          filename: "1_v1.mp4",
+          created_at: "2026-06-08T00:00:00Z",
+          file_size: 1024,
+          is_current: true,
+          prompt: "compose episode 1",
+          file_url: "/api/v1/files/demo/versions/output/1_v1.mp4",
+          source_clips: ["videos/scene_E1S01.mp4", "videos/scene_E1S02.mp4"],
+        },
+      ],
+    });
+
+    render(
+      <VersionTimeMachine
+        projectName="demo"
+        resourceType="output"
+        resourceId="1"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /版本管理/i }));
+    expect(await screen.findByRole("button", { name: "v1" })).toBeInTheDocument();
+    expect(API.getVersions).toHaveBeenCalledWith("demo", "output", "1");
+
+    fireEvent.click(screen.getByRole("button", { name: "v1" }));
+
+    const previewVideo = await screen.findByLabelText("版本 v1 預覽");
+    expect(previewVideo.tagName).toBe("VIDEO");
+    expect(screen.getByText("來源影片")).toBeInTheDocument();
+    expect(screen.getByText("videos/scene_E1S01.mp4、videos/scene_E1S02.mp4")).toBeInTheDocument();
+  });
 });

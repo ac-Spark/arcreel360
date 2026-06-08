@@ -28,6 +28,7 @@ _RESOURCE_FILE_PATTERNS: dict[str, tuple[str, str]] = {
     "videos": ("videos", "scene_{id}.mp4"),
     "characters": ("characters", "{id}.png"),
     "clues": ("clues", "{id}.png"),
+    "output": ("output", "episode_{id}_final.mp4"),
 }
 
 

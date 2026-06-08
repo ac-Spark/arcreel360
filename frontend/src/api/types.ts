@@ -28,6 +28,7 @@ export interface VersionInfo {
   duration_seconds?: number;
   negative_prompt?: string;
   reference_images?: { name: string; label?: string }[];
+  source_clips?: string[];
   restored_from?: number;
 }
 

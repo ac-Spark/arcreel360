@@ -29,7 +29,7 @@ class VersionManager:
     """版本管理器"""
 
     # 支援的資源型別
-    RESOURCE_TYPES = ("storyboards", "videos", "characters", "clues", "scenes")
+    RESOURCE_TYPES = ("storyboards", "videos", "characters", "clues", "scenes", "output")
 
     # 資源型別對應的副檔名
     EXTENSIONS = {
@@ -38,6 +38,7 @@ class VersionManager:
         "characters": ".png",
         "clues": ".png",
         "scenes": ".png",
+        "output": ".mp4",
     }
 
     # v0 = 使用者上傳的可替換基底版本（與 v1+ 的不可變 AI 歷史快照語義不同）
