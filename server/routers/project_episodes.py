@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 
 from lib import PROJECT_ROOT, agent_profile
 from lib.project_change_hints import project_change_source
+from lib.project_paths import episode_final_filename
 from lib.source_text import read_text_with_fallback
 from lib.step1_draft_sync import parse_draft_table
 from server.auth import CurrentUser
@@ -549,7 +550,7 @@ async def compose_episode_video(name: str, episode: int, _user: CurrentUser):
 
         def _run():
             start = time.monotonic()
-            output_filename = f"episode_{episode}_final.mp4"
+            output_filename = episode_final_filename(episode)
             proc = subprocess.run(
                 [sys.executable, str(compose_script), script_file, "--output", output_filename],
                 cwd=str(project_path),

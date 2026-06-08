@@ -17,6 +17,11 @@ PROJECT_SLUG_SANITIZER = re.compile(r"[^a-zA-Z0-9]+")
 PROJECT_FILE = "project.json"
 
 
+def episode_final_filename(episode: int) -> str:
+    """單集最終成片的確定性檔名（compose 輸出與前端讀取共用的命名契約）。"""
+    return f"episode_{episode}_final.mp4"
+
+
 class ProjectPaths:
     """無狀態的專案路徑解析器。
 

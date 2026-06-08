@@ -46,6 +46,7 @@ from typing import Any
 from lib import agent_profile
 from lib.project_change_hints import project_change_source
 from lib.project_manager import ProjectManager
+from lib.project_paths import episode_final_filename
 from server.agent_runtime.tool_sandbox import ToolSandbox
 
 logger = logging.getLogger(__name__)
@@ -1651,7 +1652,7 @@ async def _handle_compose_video(ctx: SkillCallContext, args: dict[str, Any]) -> 
     if not script_module.exists():
         return {"error": "compose_script_missing", "reason": str(script_module)}
 
-    output_filename = f"episode_{episode}_final.mp4"
+    output_filename = episode_final_filename(episode)
     output_rel = f"output/{output_filename}"
     cmd: list[str] = [
         sys.executable,
