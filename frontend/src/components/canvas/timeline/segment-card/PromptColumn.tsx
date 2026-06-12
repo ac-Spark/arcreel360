@@ -429,7 +429,7 @@ function PromptModelToolbar({
           onChange={setTextModel}
           placeholder="選擇文字模型..."
           allowDefault={true}
-          defaultLabel="專案預設"
+          defaultLabel="專案預設模型"
           defaultModelValue={globalDefaults.text}
           className="w-full text-xs"
           size="sm"
@@ -443,7 +443,7 @@ function PromptModelToolbar({
         title={btnTitle}
       >
         {isGenerating && <Loader2 className="h-3 w-3 animate-spin shrink-0" />}
-        <span className="truncate">{isGenerating ? "生成中" : "AI 生成"}</span>
+        <span className="truncate">{isGenerating ? "生成中" : "生成提示詞"}</span>
       </button>
     </div>
   );

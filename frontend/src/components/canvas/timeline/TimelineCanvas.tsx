@@ -526,8 +526,40 @@ export function TimelineCanvas({
                 title={episodeScript?.title ?? episodeTitle ?? ""}
               />
             </div>
+            {/* ---- Tab bar (only when draft exists) ---- */}
+            {showTabs && (
+              <div className="mt-3 flex gap-0 border-b border-gray-800">
+                <TimelineTabButton tab="preprocessing" activeTab={activeTab} onSelect={handleTabChange}>
+                  預處理
+                </TimelineTabButton>
+                <TimelineTabButton
+                  tab="storyboard"
+                  activeTab={activeTab}
+                  disabled={!hasScript}
+                  onSelect={handleTabChange}
+                >
+                  分鏡時間線
+                </TimelineTabButton>
+                <TimelineTabButton
+                  tab="video"
+                  activeTab={activeTab}
+                  disabled={!hasScript}
+                  onSelect={handleTabChange}
+                >
+                  影片時間線
+                </TimelineTabButton>
+                <TimelineTabButton
+                  tab="final"
+                  activeTab={activeTab}
+                  disabled={!hasScript}
+                  onSelect={handleTabChange}
+                >
+                  成品
+                </TimelineTabButton>
+              </div>
+            )}
             {episodeScript && (
-              <p className="text-xs text-gray-500">
+              <p className="mt-3 text-xs text-gray-500">
                 {segments.length} {segmentLabel} · 約 {totalDuration}s
               </p>
             )}
@@ -563,39 +595,6 @@ export function TimelineCanvas({
               providerNames={modelOptions.providerNames}
             />
           </div>
-
-          {/* ---- Tab bar (only when draft exists) ---- */}
-          {showTabs && (
-            <div className="mb-4 flex gap-0 border-b border-gray-800">
-              <TimelineTabButton tab="preprocessing" activeTab={activeTab} onSelect={handleTabChange}>
-                預處理
-              </TimelineTabButton>
-              <TimelineTabButton
-                tab="storyboard"
-                activeTab={activeTab}
-                disabled={!hasScript}
-                onSelect={handleTabChange}
-              >
-                分鏡時間線
-              </TimelineTabButton>
-              <TimelineTabButton
-                tab="video"
-                activeTab={activeTab}
-                disabled={!hasScript}
-                onSelect={handleTabChange}
-              >
-                影片時間線
-              </TimelineTabButton>
-              <TimelineTabButton
-                tab="final"
-                activeTab={activeTab}
-                disabled={!hasScript}
-                onSelect={handleTabChange}
-              >
-                成品
-              </TimelineTabButton>
-            </div>
-          )}
 
           {/* ---- Tab content ---- */}
           {activeTab === "preprocessing" && hasDraft ? (

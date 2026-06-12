@@ -251,7 +251,7 @@ export function MediaColumn({
                   providerNames={providerNames}
                   onChange={(next) => onUpdateSceneBackend?.(segmentId, { image_backend: next || null })}
                   allowDefault
-                  defaultLabel="專案預設"
+                  defaultLabel="專案預設模型"
                   defaultModelValue={globalDefaults.image}
                   placeholder="選擇圖片模型..."
                   aria-label="選擇分鏡圖圖片模型"

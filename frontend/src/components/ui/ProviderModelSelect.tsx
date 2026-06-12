@@ -176,7 +176,9 @@ export function ProviderModelSelect({
   const displayText = value
     ? (currentModel || value)
     : allowDefault && defaultLabel
-    ? defaultLabel
+    ? defaultModelName
+      ? `${defaultLabel} · ${defaultModelName}`
+      : defaultLabel
     : placeholder;
 
   const activeDescendantId =
@@ -201,7 +203,7 @@ export function ProviderModelSelect({
         onKeyDown={handleKeyDown}
         className={`flex w-full items-center justify-between gap-1.5 rounded-lg border border-gray-700 bg-gray-900/80 ${size === "sm" ? "px-2.5 py-1 text-xs h-8" : "px-3 py-2 text-sm h-9"} text-gray-200 transition-colors hover:border-gray-600 hover:bg-gray-800/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900`}
       >
-        <span className="truncate leading-none">{displayText}</span>
+        <span className="flex-1 truncate text-center leading-none">{displayText}</span>
         <ChevronDown
           className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
         />

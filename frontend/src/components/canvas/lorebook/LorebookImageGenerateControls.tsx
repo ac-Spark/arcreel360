@@ -37,7 +37,7 @@ export function LorebookImageGenerateControls({
             providerNames={providerNames}
             placeholder="選擇圖片模型..."
             allowDefault={true}
-            defaultLabel="專案預設"
+            defaultLabel="專案預設模型"
             defaultModelValue={globalDefaults.image}
             className="w-full text-xs"
             size="sm"

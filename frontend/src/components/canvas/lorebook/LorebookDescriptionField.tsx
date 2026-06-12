@@ -69,7 +69,7 @@ export function LorebookDescriptionField({
                 onChange={(val) => onTextModelChange?.(val || null)}
                 placeholder="選擇文字模型..."
                 allowDefault={true}
-                defaultLabel="專案預設"
+                defaultLabel="專案預設模型"
                 defaultModelValue={globalDefaults.text}
                 className="w-full text-xs"
                 size="sm"

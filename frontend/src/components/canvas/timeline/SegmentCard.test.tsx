@@ -397,6 +397,17 @@ describe("SegmentCard", () => {
     expect(screen.getByRole("button", { name: "生圖" })).toBeInTheDocument();
   });
 
+  it("labels storyboard prompt generation as prompt generation", () => {
+    renderSegmentCard({
+      stage: "storyboard",
+      textModelOptions: ["gemini/gemini-2.5-flash"],
+      onUpdatePrompt: vi.fn(),
+    });
+
+    expect(screen.getByRole("button", { name: "生成提示詞" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "AI 生成" })).not.toBeInTheDocument();
+  });
+
   it("does not auto-adjust video duration while editing storyboard image controls", () => {
     const onUpdatePrompt = vi.fn();
     renderSegmentCard({
@@ -429,6 +440,17 @@ describe("SegmentCard", () => {
     expect(screen.getByText("$0.03")).toBeInTheDocument();
     expect(screen.queryByText("$0.12")).not.toBeInTheDocument();
     expect(screen.queryByText("$0.02")).not.toBeInTheDocument();
+  });
+
+  it("labels video prompt generation as prompt generation", () => {
+    renderSegmentCard({
+      stage: "video",
+      textModelOptions: ["gemini/gemini-2.5-flash"],
+      onUpdatePrompt: vi.fn(),
+    });
+
+    expect(screen.getByRole("button", { name: "生成提示詞" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "AI 生成" })).not.toBeInTheDocument();
   });
 
   it("keeps storyboard and video media frames capped when the workspace expands", () => {

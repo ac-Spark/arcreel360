@@ -188,6 +188,26 @@ describe("TimelineCanvas", () => {
     expect(screen.getByTestId("final-video")).toBeInTheDocument();
   });
 
+  it("keeps timeline tabs anchored below the episode title before variable actions", () => {
+    renderTimelineCanvas(
+      <TimelineCanvas
+        projectName="demo"
+        episode={1}
+        episodeTitle="第一集"
+        hasDraft
+        projectData={makeProjectData()}
+        episodeScript={makeEmptyNarrationScript()}
+      />,
+    );
+
+    const titleButton = screen.getByRole("button", { name: "第一集" });
+    const firstTab = screen.getByRole("button", { name: "預處理" });
+    const actions = screen.getByTestId("episode-actions");
+
+    expect(titleButton.compareDocumentPosition(firstTab) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(firstTab.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
+
   it("uses scenes when a script is drama-shaped even if the project is narration mode", () => {
     renderTimelineCanvas(
       <TimelineCanvas
