@@ -9,6 +9,7 @@ import { ProviderModelSelect } from "@/components/ui/ProviderModelSelect";
 import type { ProjectOverview } from "@/types/project";
 import { UI_LAYERS } from "@/utils/ui-layers";
 import { isPreprocessSourceFileName } from "@/utils/source-files";
+import { buildStep1DraftRevisionKey } from "@/utils/project-changes";
 import {
   RefsPicker,
   defaultRefsValue,
@@ -297,7 +298,7 @@ export function EpisodeActionsBar({
         textModel || undefined,
         preprocessInstruction || undefined,
       );
-      useAppStore.getState().invalidateEntities([`draft:episode_${episode}_step1`]);
+      useAppStore.getState().invalidateEntities([buildStep1DraftRevisionKey(episode)]);
       return res.step1_path;
     });
 

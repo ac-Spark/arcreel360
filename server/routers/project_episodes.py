@@ -22,7 +22,7 @@ from lib import PROJECT_ROOT, agent_profile
 from lib.project_change_hints import project_change_source
 from lib.project_paths import episode_final_filename
 from lib.source_text import read_text_with_fallback
-from lib.step1_draft_sync import parse_draft_table
+from lib.step1_draft_sync import DRAFT_MODES, parse_draft_table, sync_draft_to_segments, sync_segment_to_draft
 from lib.storyboard_sequence import get_storyboard_items
 from lib.version_manager import VersionManager
 from server.auth import CurrentUser
@@ -788,7 +788,8 @@ async def delete_scene(name: str, scene_id: str, script_file: Annotated[str, Que
 @router.get("/projects/{name}/episodes/{episode}/source-paragraphs")
 async def get_source_paragraphs(name: str, episode: int, _user: CurrentUser):
     """
-    獲取特定劇集的 Step 1 原文對照段落陣列。
+    獲取特定劇集的 Step 1 原文對照段落，回傳 ``[{id, content}, ...]``。
+    id 為片段／場景 ID，供前端逐段編輯時當同步錨點。
     如果是 narration 模式，從 step1_segments.md 解析「原文」欄位。
     如果是 drama 模式，從 step1_normalized_script.md 解析「場景描述」欄位。
     """
@@ -822,7 +823,7 @@ async def get_source_paragraphs(name: str, episode: int, _user: CurrentUser):
                 content = f.read()
 
             rows = parse_draft_table(content)
-            paragraphs = [row["content"] for row in rows]
+            paragraphs = [{"id": row["id"], "content": row["content"]} for row in rows]
             return {"paragraphs": paragraphs}
 
         return await asyncio.to_thread(_sync)
@@ -831,4 +832,59 @@ async def get_source_paragraphs(name: str, episode: int, _user: CurrentUser):
         raise
     except Exception as e:
         logger.exception("獲取原文段落失敗")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class UpdateSourceParagraphRequest(BaseModel):
+    content: str
+
+
+@router.put("/projects/{name}/episodes/{episode}/source-paragraphs/{segment_id}")
+async def update_source_paragraph(
+    name: str,
+    episode: int,
+    segment_id: str,
+    req: UpdateSourceParagraphRequest,
+    _user: CurrentUser,
+):
+    """更新某劇集 Step 1 對照表的單一段落（以 segment_id 為錨點精準覆蓋）。
+
+    寫回 ``drafts/episode_N/step1_*.md`` 對應列；若該集已生成劇本 JSON，
+    一併同步劇本片段的 ``novel_text``／場景的 ``scene_description``。
+    """
+    try:
+
+        def _sync():
+            manager = get_project_manager()
+            if not manager.project_exists(name):
+                raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
+
+            project_data = manager.load_project(name)
+            content_mode = project_data.get("content_mode", "narration")
+            if content_mode not in DRAFT_MODES:
+                content_mode = "narration"
+
+            project_path = manager.get_project_path(name)
+            mode = DRAFT_MODES[content_mode]
+            draft_file = project_path / "drafts" / f"episode_{episode}" / mode.filename
+            if not draft_file.exists():
+                raise HTTPException(status_code=404, detail="尚未執行 Step 1 預處理，無對照段落可編輯")
+
+            with project_change_source("webui"):
+                matched = sync_segment_to_draft(project_path, episode, segment_id, req.content, content_mode)
+                if not matched:
+                    raise HTTPException(status_code=404, detail=f"段落 '{segment_id}' 不存在")
+                # 若該集已生成劇本 JSON，複用既有「draft → 劇本」同步把改動帶到片段／場景。
+                sync_draft_to_segments(
+                    project_path, episode, draft_file.read_text(encoding="utf-8"), content_mode, manager
+                )
+
+            return {"success": True, "id": segment_id, "content": req.content}
+
+        return await asyncio.to_thread(_sync)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("更新原文段落失敗")
         raise HTTPException(status_code=500, detail=str(e))

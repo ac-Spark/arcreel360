@@ -37,6 +37,12 @@ vi.mock("./timeline/TimelineCanvas", () => ({
       <button onClick={() => onUpdatePrompt?.("SEG-1", "image_prompt", "new prompt", scriptFile)}>
         update-prompt
       </button>
+      <button onClick={() => onUpdatePrompt?.("SEG-1", "novel_text", "edited source", scriptFile)}>
+        update-source
+      </button>
+      <button onClick={() => onUpdatePrompt?.("SEG-1", "scene_description", "edited scene", scriptFile)}>
+        update-scene-description
+      </button>
       <button onClick={() => onGenerateStoryboard?.("SEG-1")}>generate-storyboard</button>
       <button onClick={() => onGenerateVideo?.("SEG-1")}>generate-video</button>
     </div>
@@ -499,5 +505,58 @@ describe("StudioCanvasRouter", () => {
       });
     });
     expect(API.updateSegment).not.toHaveBeenCalled();
+  });
+
+  it("invalidates the preprocessing draft after saving narration source text", async () => {
+    useProjectsStore.setState({
+      currentProjectName: "demo",
+      currentProjectData: makeProjectData(),
+      currentScripts: { "episode_1.json": makeScript() },
+    });
+    vi.spyOn(API, "getProject").mockResolvedValue({
+      project: makeProjectData(),
+      scripts: { "episode_1.json": makeScript() },
+    });
+    vi.spyOn(API, "updateSegment").mockResolvedValue({ success: true });
+
+    renderAt("/episodes/1");
+
+    expect(useAppStore.getState().getEntityRevision("draft:episode_1_step1")).toBe(0);
+    fireEvent.click(screen.getByText("update-source"));
+
+    await waitFor(() => {
+      expect(API.updateSegment).toHaveBeenCalledWith("demo", "SEG-1", {
+        script_file: "episode_1.json",
+        novel_text: "edited source",
+      });
+      expect(useAppStore.getState().getEntityRevision("draft:episode_1_step1")).toBe(1);
+    });
+  });
+
+  it("invalidates the preprocessing draft after saving drama scene description", async () => {
+    const projectData = makeProjectData({ content_mode: "drama" });
+    const dramaScript = makeDramaScript();
+    useProjectsStore.setState({
+      currentProjectName: "demo",
+      currentProjectData: projectData,
+      currentScripts: { "episode_1.json": dramaScript },
+    });
+    vi.spyOn(API, "getProject").mockResolvedValue({
+      project: projectData,
+      scripts: { "episode_1.json": dramaScript },
+    });
+    vi.spyOn(API, "updateScene").mockResolvedValue({ success: true });
+
+    renderAt("/episodes/1");
+
+    expect(useAppStore.getState().getEntityRevision("draft:episode_1_step1")).toBe(0);
+    fireEvent.click(screen.getByText("update-scene-description"));
+
+    await waitFor(() => {
+      expect(API.updateScene).toHaveBeenCalledWith("demo", "SEG-1", "episode_1.json", {
+        scene_description: "edited scene",
+      });
+      expect(useAppStore.getState().getEntityRevision("draft:episode_1_step1")).toBe(1);
+    });
   });
 });

@@ -119,9 +119,22 @@ export const episodesApi = {
   async getSourceParagraphs(
     name: string,
     episode: number,
-  ): Promise<{ paragraphs: string[] }> {
+  ): Promise<{ paragraphs: { id: string; content: string }[] }> {
     return getApi().request(
       `/projects/${encodeURIComponent(name)}/episodes/${episode}/source-paragraphs`
+    );
+  },
+
+  /** 更新某劇集 Step 1 對照表的單一段落（以 segment_id 為錨點精準覆蓋）。 */
+  async updateSourceParagraph(
+    name: string,
+    episode: number,
+    segmentId: string,
+    content: string,
+  ): Promise<{ success: boolean; id: string; content: string }> {
+    return getApi().request(
+      `/projects/${encodeURIComponent(name)}/episodes/${episode}/source-paragraphs/${encodeURIComponent(segmentId)}`,
+      { method: "PUT", body: JSON.stringify({ content }) },
     );
   },
 

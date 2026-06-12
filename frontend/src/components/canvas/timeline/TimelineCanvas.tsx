@@ -714,6 +714,7 @@ export function TimelineCanvas({
         <SourceTextPanel
           projectName={projectName}
           episode={episode}
+          contentMode={contentMode}
           activeSegmentIndex={activeSegmentIndex}
           onSelectSegmentIndex={handleSelectSegmentIndex}
         />

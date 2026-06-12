@@ -10,8 +10,8 @@ import { SourceFileViewer } from "./SourceFileViewer";
 import { API } from "@/api";
 import { lookupDefaultResolution } from "@/utils/provider-models";
 import { resolveEpisodeContentMode } from "@/utils/content-mode";
-import { buildEntityRevisionKey } from "@/utils/project-changes";
-import type { Clue, TaskItem } from "@/types";
+import { buildEntityRevisionKey, buildStep1DraftRevisionKey } from "@/utils/project-changes";
+import type { Clue, EpisodeScript, TaskItem } from "@/types";
 
 // ---------------------------------------------------------------------------
 // StudioCanvasRouter — reads Zustand store data and renders the correct
@@ -37,6 +37,30 @@ interface GeneratingResources {
 }
 
 type SegmentUpdateExtras = Record<string, unknown>;
+const PREPROCESSING_SOURCE_FIELDS = new Set(["novel_text", "scene_description"]);
+
+function getEpisodeFromScriptFile(scriptFile: string | undefined): number | null {
+  const match = scriptFile?.match(/episode_(\d+)/i);
+  if (!match) return null;
+  const episode = Number.parseInt(match[1], 10);
+  return Number.isFinite(episode) ? episode : null;
+}
+
+function getPreprocessingDraftInvalidationKey(
+  field: string,
+  activeScript: EpisodeScript | undefined,
+  scriptFile: string | undefined,
+): string | null {
+  if (!PREPROCESSING_SOURCE_FIELDS.has(field)) {
+    return null;
+  }
+
+  const episode = typeof activeScript?.episode === "number"
+    ? activeScript.episode
+    : getEpisodeFromScriptFile(scriptFile);
+
+  return episode != null ? buildStep1DraftRevisionKey(episode) : null;
+}
 
 function collectGeneratingResources(
   tasks: TaskItem[],
@@ -163,6 +187,7 @@ export function StudioCanvasRouter() {
     const activeScript = scriptFile ? currentScripts?.[scriptFile] : undefined;
     const mode = resolveEpisodeContentMode(activeScript, currentProjectData?.content_mode);
     const updates = { [field]: value, ...(extraUpdates ?? {}) };
+    const draftInvalidationKey = getPreprocessingDraftInvalidationKey(field, activeScript, scriptFile);
     try {
       if (mode === "drama") {
         await API.updateScene(currentProjectName, segmentId, scriptFile ?? "", updates);
@@ -172,7 +197,7 @@ export function StudioCanvasRouter() {
           ...updates,
         });
       }
-      await refreshProject();
+      await refreshProject(draftInvalidationKey ? [draftInvalidationKey] : []);
     } catch (err) {
       useAppStore.getState().pushToast(`更新 Prompt 失敗: ${(err as Error).message}`, "error");
     }

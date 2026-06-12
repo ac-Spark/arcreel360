@@ -26,6 +26,10 @@ export function buildEntityRevisionKey(
   return `${entityType}:${entityId}`;
 }
 
+export function buildStep1DraftRevisionKey(episode: number): string {
+  return buildEntityRevisionKey("draft", `episode_${episode}_step1`);
+}
+
 export function buildVersionResourceRevisionKey(
   resourceType: "storyboards" | "videos" | "characters" | "clues" | "scenes",
   resourceId: string,

@@ -3,6 +3,7 @@ import { Edit3, Plus, Save, X } from "lucide-react";
 import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
 import { StreamMarkdown } from "@/components/copilot/StreamMarkdown";
+import { buildStep1DraftRevisionKey } from "@/utils/project-changes";
 
 interface PreprocessingViewProps {
   projectName: string;
@@ -16,7 +17,7 @@ export function PreprocessingView({
   contentMode,
 }: PreprocessingViewProps) {
   const pushToast = useAppStore((s) => s.pushToast);
-  const draftRevisionKey = `draft:episode_${episode}_step1`;
+  const draftRevisionKey = buildStep1DraftRevisionKey(episode);
   const draftRevision = useAppStore((s) => s.getEntityRevision(draftRevisionKey));
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
