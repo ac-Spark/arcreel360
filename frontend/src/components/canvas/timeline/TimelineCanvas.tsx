@@ -381,6 +381,14 @@ export function TimelineCanvas({
       ? projectData.aspect_ratio
       : projectData?.aspect_ratio?.storyboard ??
         (contentMode === "narration" ? "9:16" : "16:9");
+  const styleContext = useMemo(
+    () => ({
+      style: projectData?.style ?? null,
+      styleDescription: projectData?.style_description ?? null,
+      styleImage: projectData?.style_image ?? null,
+    }),
+    [projectData?.style, projectData?.style_description, projectData?.style_image],
+  );
 
   // Pick the correct array (segments for narration, scenes for drama)
   const segments = useMemo<Segment[]>(
@@ -679,6 +687,7 @@ export function TimelineCanvas({
                         videoModelOptions={modelOptions.video}
                         textModelOptions={modelOptions.text}
                         providerNames={modelOptions.providerNames}
+                        styleContext={styleContext}
                         onUpdateSceneBackend={handleUpdateSceneBackend}
                       />
                     </div>

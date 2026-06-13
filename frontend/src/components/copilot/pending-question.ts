@@ -26,7 +26,10 @@ export function getQuestionKey(question: Question, index: number): string {
   return rawQuestion || `question_${index + 1}`;
 }
 
-export function buildQuestionOptions(options: Question["options"]): QuestionOption[] {
+export function buildQuestionOptions(
+  options: Question["options"],
+  allowOther = true,
+): QuestionOption[] {
   const normalized = (Array.isArray(options) ? options : []).map((option, index) => {
     const label = option?.label || `選項 ${index + 1}`;
     const isOther = isOtherOptionLabel(label);
@@ -38,7 +41,7 @@ export function buildQuestionOptions(options: Question["options"]): QuestionOpti
     };
   });
 
-  if (normalized.some((option) => option.isOther)) {
+  if (!allowOther || normalized.some((option) => option.isOther)) {
     return normalized;
   }
 

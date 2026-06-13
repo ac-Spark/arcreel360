@@ -122,6 +122,7 @@ export function SegmentCard({
   videoModelOptions = [],
   textModelOptions = [],
   providerNames = {},
+  styleContext,
   onUpdateSceneBackend,
 }: SegmentCardProps) {
   const segmentId = getSegmentId(segment, contentMode);
@@ -353,9 +354,11 @@ export function SegmentCard({
             mentionContext={mentionContext}
             onMentionDraftChange={onMentionDraftChange}
             buildMentionUpdatesForDraft={buildMentionUpdatesForDraft}
+            sourceDraft={mentionDrafts.source}
             stage={stage}
             textModelOptions={textModelOptions}
             providerNames={providerNames}
+            styleContext={styleContext}
           />
 
           {/* Column 3 — Media */}

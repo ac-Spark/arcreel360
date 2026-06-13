@@ -1,7 +1,8 @@
 import type { ComponentProps, ReactNode } from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SegmentCard } from "./SegmentCard";
+import { API } from "@/api";
 import { useAppStore } from "@/stores/app-store";
 import { useCostStore } from "@/stores/cost-store";
 import { useVideoDurationOptions } from "@/hooks/useVideoDurationOptions";
@@ -406,6 +407,90 @@ describe("SegmentCard", () => {
 
     expect(screen.getByRole("button", { name: "生成提示詞" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "AI 生成" })).not.toBeInTheDocument();
+  });
+
+  it("uses drama scene description and dialogue lines as prompt generation context", async () => {
+    const generateSpy = vi
+      .spyOn(API, "generateAIDescription")
+      .mockResolvedValue({ success: true, prompt: "新的分鏡提示詞" });
+
+    renderSegmentCard({
+      segment: makeDramaScene({
+        scene_description: "Hero 在古城門前發現 Key 正在泛光。",
+        video_prompt: {
+          action: "Hero 走向 Key",
+          camera_motion: "Static",
+          ambiance_audio: "夜風吹過城門",
+          dialogue: [{ speaker: "Hero", line: "這把 Key 在發光。" }],
+        },
+      }),
+      contentMode: "drama",
+      stage: "storyboard",
+      textModelOptions: ["gemini/gemini-2.5-flash"],
+      onUpdatePrompt: vi.fn(),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "生成提示詞" }));
+
+    await waitFor(() => expect(generateSpy).toHaveBeenCalledTimes(1));
+    const payload = generateSpy.mock.calls[0][1];
+    expect(payload.description).toContain("場景描述:\nHero 在古城門前發現 Key 正在泛光。");
+    expect(payload.description).toContain("對話:\nHero: 這把 Key 在發光。");
+  });
+
+  it("uses the edited source draft when generating a storyboard prompt", async () => {
+    const generateSpy = vi
+      .spyOn(API, "generateAIDescription")
+      .mockResolvedValue({ success: true, prompt: "新的分鏡提示詞" });
+
+    renderSegmentCard({
+      segment: makeDramaScene({
+        scene_description: "舊的時間軸描述。",
+      }),
+      contentMode: "drama",
+      stage: "storyboard",
+      textModelOptions: ["gemini/gemini-2.5-flash"],
+      onUpdatePrompt: vi.fn(),
+    });
+
+    fireEvent.change(screen.getByLabelText("場景描述"), {
+      target: { value: "剛編輯尚未儲存的時間軸描述。" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "生成提示詞" }));
+
+    await waitFor(() => expect(generateSpy).toHaveBeenCalledTimes(1));
+    const payload = generateSpy.mock.calls[0][1];
+    expect(payload.description).toContain("剛編輯尚未儲存的時間軸描述。");
+    expect(payload.description).not.toContain("舊的時間軸描述。");
+  });
+
+  it("includes style and reference image context when generating a storyboard prompt", async () => {
+    const generateSpy = vi
+      .spyOn(API, "generateAIDescription")
+      .mockResolvedValue({ success: true, prompt: "新的分鏡提示詞" });
+
+    renderSegmentCard({
+      segment: makeSegment({
+        reference_image: "refs/SEG-1-reference.png",
+      }),
+      stage: "storyboard",
+      textModelOptions: ["gemini/gemini-2.5-flash"],
+      styleContext: {
+        style: "水墨動畫",
+        styleDescription: "留白、淡墨、柔和紙張紋理",
+        styleImage: "style/style-reference.png",
+      },
+      onUpdatePrompt: vi.fn(),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "生成提示詞" }));
+
+    await waitFor(() => expect(generateSpy).toHaveBeenCalledTimes(1));
+    const payload = generateSpy.mock.calls[0][1];
+    expect(payload.description).toContain("專案風格: 水墨動畫");
+    expect(payload.description).toContain("風格描述:\n留白、淡墨、柔和紙張紋理");
+    expect(payload.description).toContain("風格參考圖: style/style-reference.png");
+    expect(payload.description).toContain("分鏡參考圖: refs/SEG-1-reference.png");
   });
 
   it("does not auto-adjust video duration while editing storyboard image controls", () => {

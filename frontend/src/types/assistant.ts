@@ -120,6 +120,7 @@ export interface PendingQuestion {
     question: string;
     options: Array<{ label: string; description: string }>;
     multiSelect: boolean;
+    allowOther?: boolean;
   }>;
 }
 

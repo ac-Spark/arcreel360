@@ -13,6 +13,7 @@ import type {
   SegmentMentionDrafts,
   SegmentMentionDraftKey,
   PromptMentionDraftKey,
+  SegmentStyleContext,
   SegmentUpdateExtras,
   SegmentUpdateHandler,
 } from "./types";
@@ -32,23 +33,61 @@ function promptToStr(prompt: unknown, key: string): string {
   return "";
 }
 
-function getPromptSourceText(segment: Segment, contentMode: SegmentMentionContext["contentMode"]): string {
+function getPromptSourceText(
+  segment: Segment,
+  contentMode: SegmentMentionContext["contentMode"],
+  sourceDraft?: unknown,
+): string {
+  const draftSource = typeof sourceDraft === "string" ? sourceDraft.trim() : undefined;
   if (contentMode === "narration") {
-    return (segment as NarrationSegment).novel_text ?? "";
+    return draftSource ?? (segment as NarrationSegment).novel_text ?? "";
   }
 
   const scene = segment as DramaScene;
   const prompt = scene.video_prompt;
+  const sceneDescription = draftSource ?? scene.scene_description?.trim() ?? "";
   const dialogueList = typeof prompt === "object" && prompt !== null && "dialogue" in prompt
-    ? (prompt.dialogue as Array<{ speaker?: string; text?: string }> ?? [])
+    ? (prompt.dialogue as Array<{ speaker?: string; line?: string; text?: string }> ?? [])
     : [];
-  const dialogueText = dialogueList.map((dialogue) => `${dialogue.speaker || "角色"}: ${dialogue.text || ""}`).join("\n");
+  const dialogueText = dialogueList
+    .map((dialogue) => {
+      const line = (dialogue.line ?? dialogue.text ?? "").trim();
+      return line ? `${dialogue.speaker || "角色"}: ${line}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
   const parts = [
+    sceneDescription ? `場景描述:\n${sceneDescription}` : "",
     scene.scene_in_scene ? `場景: ${scene.scene_in_scene}` : "",
     dialogueText ? `對話:\n${dialogueText}` : "",
     scene.note ? `備註: ${scene.note}` : "",
   ].filter(Boolean);
   return parts.join("\n");
+}
+
+function textValue(value: string | null | undefined): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function buildReferenceContext(
+  segment: Segment,
+  styleContext?: SegmentStyleContext,
+): string {
+  const parts: string[] = [];
+  const style = textValue(styleContext?.style);
+  const styleDescription = textValue(styleContext?.styleDescription);
+  const styleImage = textValue(styleContext?.styleImage);
+  const referenceImage = textValue(segment.reference_image ?? null);
+
+  if (style) parts.push(`專案風格: ${style}`);
+  if (styleDescription) parts.push(`風格描述:\n${styleDescription}`);
+  if (styleImage) parts.push(`風格參考圖: ${styleImage}`);
+  if (referenceImage) parts.push(`分鏡參考圖: ${referenceImage}`);
+  return parts.join("\n");
+}
+
+function withReferenceContext(baseDescription: string, referenceContext: string): string {
+  return [baseDescription.trim(), referenceContext].filter(Boolean).join("\n");
 }
 
 interface PromptColumnProps {
@@ -62,9 +101,11 @@ interface PromptColumnProps {
   buildMentionUpdatesForDraft: (
     patch: Partial<SegmentMentionDrafts>,
   ) => SegmentUpdateExtras | undefined;
+  sourceDraft?: unknown;
   stage?: "storyboard" | "video";
   textModelOptions?: string[];
   providerNames?: Record<string, string>;
+  styleContext?: SegmentStyleContext;
 }
 
 export function PromptColumn({
@@ -76,9 +117,11 @@ export function PromptColumn({
   mentionContext,
   onMentionDraftChange,
   buildMentionUpdatesForDraft,
+  sourceDraft,
   stage,
   textModelOptions,
   providerNames,
+  styleContext,
 }: PromptColumnProps) {
   const { image_prompt, video_prompt } = segment;
   const [textModel, setTextModel] = useState<string | null>(null);
@@ -100,6 +143,15 @@ export function PromptColumn({
   );
   const [aiGeneratingImg, setAiGeneratingImg] = useState(false);
   const [aiGeneratingVid, setAiGeneratingVid] = useState(false);
+
+  const promptSourceText = useMemo(
+    () => getPromptSourceText(segment, mentionContext.contentMode, sourceDraft).trim(),
+    [segment, mentionContext.contentMode, sourceDraft],
+  );
+  const referenceContext = useMemo(
+    () => buildReferenceContext(segment, styleContext),
+    [segment, styleContext],
+  );
 
   const runPromptGeneration = async ({
     type,
@@ -159,12 +211,15 @@ export function PromptColumn({
   };
 
   const handleGenerateImagePromptAI = async () => {
-    const sourceText = getPromptSourceText(segment, mentionContext.contentMode).trim();
+    const sourceText = promptSourceText;
     const currentImgDesc = (isStructuredImage ? imgDraft?.scene : imgText) || "";
 
     await runPromptGeneration({
       type: "image_prompt",
-      description: sourceText ? sourceText : `最佳化此提示詞: ${currentImgDesc}`,
+      description: withReferenceContext(
+        sourceText ? sourceText : `最佳化此提示詞: ${currentImgDesc}`,
+        referenceContext,
+      ),
       instruction: currentImgDesc ? `請基於當前提示詞進行細化 and 最佳化: ${currentImgDesc}` : undefined,
       isEmpty: !sourceText && !currentImgDesc.trim(),
       setGenerating: setAiGeneratingImg,
@@ -174,13 +229,14 @@ export function PromptColumn({
   };
 
   const handleGenerateVideoPromptAI = async () => {
-    const sourceText = getPromptSourceText(segment, mentionContext.contentMode).trim();
+    const sourceText = promptSourceText;
     const currentImgDesc = (isStructuredImage ? imgDraft?.scene : imgText) || "";
     const currentVidDesc = (isStructuredVideo ? vidDraft?.action : vidText) || "";
 
-    const descriptionParts = [];
+    const descriptionParts: string[] = [];
     if (currentImgDesc) descriptionParts.push(`分鏡預覽: ${currentImgDesc}`);
     if (sourceText) descriptionParts.push(`上下文內容:\n${sourceText}`);
+    if (referenceContext) descriptionParts.push(referenceContext);
 
     await runPromptGeneration({
       type: "video_prompt",

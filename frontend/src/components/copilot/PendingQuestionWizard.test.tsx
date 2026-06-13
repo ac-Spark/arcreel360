@@ -117,6 +117,34 @@ describe("PendingQuestionWizard", () => {
     });
   });
 
+  it("can render an explicit button-only approval question without other input", () => {
+    render(
+      <PendingQuestionWizard
+        pendingQuestion={makePendingQuestion({
+          questions: [
+            {
+              header: "確認",
+              question: "確定要開始生成第 1 集的影片嗎？",
+              multiSelect: false,
+              allowOther: false,
+              options: [
+                { label: "確認生成", description: "開始執行這個生成任務" },
+                { label: "取消", description: "不要執行這個生成任務" },
+              ],
+            },
+          ],
+        })}
+        answeringQuestion={false}
+        error={null}
+        onSubmitAnswers={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("確認生成")).toBeInTheDocument();
+    expect(screen.getByLabelText("取消")).toBeInTheDocument();
+    expect(screen.queryByLabelText("其他")).not.toBeInTheDocument();
+  });
+
   it("resets local wizard state when question_id changes", () => {
     const { rerender } = render(
       <PendingQuestionWizard

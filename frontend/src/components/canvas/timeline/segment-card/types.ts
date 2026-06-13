@@ -25,6 +25,12 @@ export type SegmentUpdateHandler = (
   extraUpdates?: SegmentUpdateExtras,
 ) => void;
 
+export interface SegmentStyleContext {
+  style?: string | null;
+  styleDescription?: string | null;
+  styleImage?: string | null;
+}
+
 export interface SegmentCardProps {
   segment: Segment;
   contentMode: "narration" | "drama";
@@ -54,6 +60,7 @@ export interface SegmentCardProps {
   videoModelOptions?: string[];
   textModelOptions?: string[];
   providerNames?: Record<string, string>;
+  styleContext?: SegmentStyleContext;
   onUpdateSceneBackend?: (
     segmentId: string,
     patch: { image_backend?: string | null; video_backend?: string | null }
