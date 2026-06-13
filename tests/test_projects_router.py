@@ -588,8 +588,8 @@ class TestProjectsRouter:
             assert r_ok.status_code == 200
             paragraphs = r_ok.json()["paragraphs"]
             assert len(paragraphs) == 2
-            assert paragraphs[0] == "這是第一段原文"
-            assert paragraphs[1] == "這是第二段原文"
+            assert paragraphs[0] == {"id": "G01", "content": "這是第一段原文"}
+            assert paragraphs[1] == {"id": "G02", "content": "這是第二段原文"}
 
             # 草稿不存在，回傳空陣列
             r_no_draft = client.get("/api/v1/projects/ready/episodes/99/source-paragraphs")
