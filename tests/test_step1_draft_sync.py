@@ -130,3 +130,94 @@ def test_sync_draft_to_segments(tmp_path):
     saved_script = manager.save_script.call_args[0][1]
     assert saved_script["segments"][0]["novel_text"] == "改過的文字"
     assert saved_script["segments"][1]["novel_text"] == "無變化"
+
+
+# 實際 normalize_drama_script 輸出的 8 欄格式：場景描述在第 7 欄、旁白/台詞在第 8 欄。
+REAL_DRAMA_MD = (
+    "| 場景 ID | 有對話 | 出場的角色 | 出現的道具 | 場景 | 時長 | 場景描述 | 旁白/台詞 |\n"
+    "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n"
+    "| E01S01 | 否 | 沈文程 | 釣竿 | 岩岸 | 8 | 沈文程站在岩岸邊。 | 釣魚是靈感的激發。 |\n"
+    "| E01S02 | 是 | 沈文程 | 釣竿 | 防波堤 | 10 | 沈文程展示釣竿。 | 釣魚可以闔家參與。 |\n"
+)
+
+
+def test_parse_drama_eight_column_locates_description_and_narration():
+    """8 欄 drama 表格：content 取「場景描述」欄、narration 取「旁白/台詞」欄，不再錯位到「有對話」。"""
+    rows = parse_draft_table(REAL_DRAMA_MD)
+    assert len(rows) == 2
+    assert rows[0]["id"] == "E01S01"
+    assert rows[0]["content"] == "沈文程站在岩岸邊。"
+    assert rows[0]["narration"] == "釣魚是靈感的激發。"
+    assert rows[1]["content"] == "沈文程展示釣竿。"
+    assert rows[1]["narration"] == "釣魚可以闔家參與。"
+
+
+def test_sync_segment_drama_eight_column_overwrites_description_column(tmp_path):
+    """行內覆寫應命中「場景描述」欄（第 7 欄），而非「有對話」欄。"""
+    draft_dir = tmp_path / "drafts" / "episode_1"
+    draft_dir.mkdir(parents=True)
+    draft_file = draft_dir / "step1_normalized_script.md"
+    draft_file.write_text(REAL_DRAMA_MD, encoding="utf-8")
+
+    assert sync_segment_to_draft(tmp_path, 1, "E01S01", "改寫後的場景描述", "drama")
+
+    rows = parse_draft_table(draft_file.read_text(encoding="utf-8"))
+    assert rows[0]["content"] == "改寫後的場景描述"
+    assert rows[0]["narration"] == "釣魚是靈感的激發。"  # 旁白欄不受影響
+    assert "否" in draft_file.read_text(encoding="utf-8")  # 「有對話」欄保留
+
+
+def test_sync_draft_to_segments_drama_backfills_narration(tmp_path):
+    """drama 同步應同時回填 scene_description 與 narration_text。"""
+    manager = MagicMock()
+    script_data = {
+        "content_mode": "drama",
+        "scenes": [
+            {"scene_id": "E01S01", "scene_description": "舊描述", "narration_text": "舊旁白"},
+            {"scene_id": "E01S02", "scene_description": "", "narration_text": ""},
+        ],
+    }
+    manager.load_script.return_value = script_data
+
+    sync_draft_to_segments(tmp_path, 1, REAL_DRAMA_MD, "drama", manager)
+
+    saved = manager.save_script.call_args[0][1]
+    assert saved["scenes"][0]["scene_description"] == "沈文程站在岩岸邊。"
+    assert saved["scenes"][0]["narration_text"] == "釣魚是靈感的激發。"
+    assert saved["scenes"][1]["scene_description"] == "沈文程展示釣竿。"
+    assert saved["scenes"][1]["narration_text"] == "釣魚可以闔家參與。"
+
+
+# 新版 9 欄格式：旁白與對話分流成獨立兩欄，移除「有對話」旗標。
+NEW_DRAMA_MD = (
+    "| 場景 ID | 場景描述 | 旁白 | 對話 | 出場的角色 | 出現的道具 | 場景 | 時長 | segment_break |\n"
+    "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n"
+    "| E01S01 | 沈文程站在岩岸邊。 | 釣魚是靈感的激發。 | - | 沈文程 | 釣竿 | 岩岸 | 8 | 是 |\n"
+    "| E01S02 | 兩人在防波堤交談。 | - | 小明：你看那邊！<br>小華：真的耶！ | 小明, 小華 | - | 防波堤 | 8 | 否 |\n"
+)
+
+
+def test_parse_drama_nine_column_locates_description_and_narration():
+    """新版 9 欄（含獨立「對話」欄）：content 取「場景描述」、narration 取「旁白」，不受欄序變動影響。"""
+    rows = parse_draft_table(NEW_DRAMA_MD)
+    assert len(rows) == 2
+    assert rows[0]["content"] == "沈文程站在岩岸邊。"
+    assert rows[0]["narration"] == "釣魚是靈感的激發。"
+    assert rows[1]["content"] == "兩人在防波堤交談。"
+    assert rows[1]["narration"] == "-"
+
+
+def test_sync_segment_drama_nine_column_overwrites_description(tmp_path):
+    """新版 9 欄行內覆寫應命中「場景描述」欄，旁白欄不受影響。"""
+    draft_dir = tmp_path / "drafts" / "episode_1"
+    draft_dir.mkdir(parents=True)
+    draft_file = draft_dir / "step1_normalized_script.md"
+    draft_file.write_text(NEW_DRAMA_MD, encoding="utf-8")
+
+    assert sync_segment_to_draft(tmp_path, 1, "E01S02", "改寫後的場景描述", "drama")
+
+    rows = parse_draft_table(draft_file.read_text(encoding="utf-8"))
+    assert rows[1]["content"] == "改寫後的場景描述"
+    assert rows[1]["narration"] == "-"
+    # 「對話」欄內容應原樣保留在草稿（供生成劇本時由 LLM 讀取轉 dialogue）。
+    assert "小明：你看那邊！<br>小華：真的耶！" in draft_file.read_text(encoding="utf-8")

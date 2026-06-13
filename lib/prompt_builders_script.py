@@ -349,9 +349,10 @@ def build_drama_prompt(
 
 scenes 為場景拆分表，每行是一個場景，包含：
 - 場景 ID：格式為 E{{集數}}S{{序號}}
-- 場景描述：劇本改編後的場景內容
+- 場景描述：劇本改編後的場景畫面內容
+- 旁白：該場景的旁白／獨白配音文字（「-」表示無）——**請原樣填入該場景的 narration_text 欄位**
+- 對話：角色直接對白，格式 `角色名：台詞`（「-」表示無）——**請解析後填入該場景的 video_prompt.dialogue 陣列**
 - {_format_duration_constraint(supported_durations or [4, 6, 8], default_duration)}
-- 場景型別：劇情、動作、對話等
 - 是否為 segment_break：場景切換點，需設定 segment_break 為 true
 
 3. 為每個場景生成時，遵循以下規則：
@@ -393,15 +394,20 @@ d. **video_prompt**：生成包含以下欄位的物件：
      每個片段僅選擇一種鏡頭運動。
    - ambiance_audio：用中文描述畫內音（diegetic sound）——環境聲、腳步聲、物體聲音。
      僅描述場景內真實存在的聲音。排除音樂、BGM、旁白、畫外音。
-   - dialogue：{{speaker, line}} 陣列。包含角色對話。speaker 必須來自 characters_in_scene。
+   - dialogue：{{speaker, line}} 陣列。**直接解析場景表「對話」欄**（格式 `角色名：台詞`，多句分行）填入；
+     speaker 必須來自 characters_in_scene。若「對話」欄為「-」則填空陣列 []。**不要把旁白填進 dialogue**。
 
-e. **segment_break**：如果在場景表中標記為"是"，則設為 true。
+e. **scene_description**：原樣沿用場景表的「場景描述」欄內容。
 
-f. **duration_seconds**：使用場景表中的時長。
+f. **narration_text**：原樣沿用場景表的「旁白」欄內容（旁白／獨白／畫外音配音文字）；若為「-」則填空字串 ""。
 
-g. **scene_type**：使用場景表中的場景型別，預設為"劇情"。
+g. **segment_break**：如果在場景表中標記為"是"，則設為 true。
 
-h. **transition_to_next**：預設為 "cut"。
+h. **duration_seconds**：使用場景表中的時長。
+
+i. **scene_type**：預設為"劇情"。
+
+j. **transition_to_next**：預設為 "cut"。
 
 目標：建立生動、視覺一致的分鏡提示詞，用於指導 AI 影象和影片生成。保持創意、具體，適合{_format_aspect_ratio_desc(aspect_ratio)}動畫呈現。
 """

@@ -21,6 +21,7 @@ from lib.script_models import (
     DramaEpisodeScript,
     NarrationEpisodeScript,
 )
+from lib.step1_draft_sync import DRAFT_MODES, apply_draft_rows_to_items, parse_draft_table
 from lib.text_backends.base import TextGenerationRequest, TextTaskType
 from lib.text_generator import TextGenerator
 
@@ -134,8 +135,8 @@ class ScriptGenerator:
         # 5. 解析並驗證響應
         script_data = self._parse_response(response_text, episode)
 
-        # 6. 補充後設資料
-        script_data = self._add_metadata(script_data, episode)
+        # 6. 補充後設資料（沿用步驟 1 已讀的 step1_md，避免重複讀檔）
+        script_data = self._add_metadata(script_data, episode, step1_md=step1_md)
 
         # 7. 儲存檔案
         if output_path is None:
@@ -221,6 +222,23 @@ class ScriptGenerator:
         with open(path, encoding="utf-8") as f:
             return json.load(f)
 
+    def _backfill_scene_descriptions(self, scenes: list[dict], episode: int, step1_md: str | None = None) -> None:
+        """用 Step 1 表格回填各 drama 場景的 ``scene_description``（場景描述欄）與 ``narration_text``（旁白欄）。
+
+        Step 1 是原文／配音真相源。僅在場景對應欄位尚未帶值（或為空）時回填，
+        不覆蓋模型已正確產出的內容。Step 1 檔案缺失時靜默略過，不阻斷生成。
+        """
+        if not scenes:
+            return
+        if step1_md is None:
+            try:
+                step1_md = self._load_step1(episode)
+            except FileNotFoundError:
+                return
+        rows = parse_draft_table(step1_md)
+        if rows:
+            apply_draft_rows_to_items(rows, scenes, DRAFT_MODES["drama"], only_if_empty=True)
+
     def _load_step1(self, episode: int) -> str:
         """載入 Step 1 的 Markdown 檔案，支援兩種檔案命名"""
         drafts_path = self.project_path / "drafts" / f"episode_{episode}"
@@ -280,13 +298,14 @@ class ScriptGenerator:
             # 返回原始資料，允許部分不符合 schema
             return data
 
-    def _add_metadata(self, script_data: dict, episode: int) -> dict:
+    def _add_metadata(self, script_data: dict, episode: int, step1_md: str | None = None) -> dict:
         """
         補充劇本後設資料
 
         Args:
             script_data: 劇本資料
             episode: 劇集編號
+            step1_md: 已讀取的 Step 1 草稿內容（供 drama 回填，避免重複讀檔）；None 時才自行讀取
 
         Returns:
             補充後設資料後的劇本資料
@@ -326,6 +345,9 @@ class ScriptGenerator:
             script_data["duration_seconds"] = sum(int(s.get("duration_seconds", 8)) for s in scenes)
             chars_field, clues_field = "characters_in_scene", "clues_in_scene"
             items = scenes
+            # 以 Step 1 表格的「場景描述」欄回填 scene_description（與 narration 的 novel_text 對等，
+            # Step 1 為原文真相源），供分鏡／影片提示詞參考。
+            self._backfill_scene_descriptions(scenes, episode, step1_md=step1_md)
 
         all_chars: set[str] = set()
         all_clues: set[str] = set()

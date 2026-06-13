@@ -46,6 +46,7 @@ function getPromptSourceText(
   const scene = segment as DramaScene;
   const prompt = scene.video_prompt;
   const sceneDescription = draftSource ?? scene.scene_description?.trim() ?? "";
+  const narrationText = scene.narration_text?.trim() ?? "";
   const dialogueList = typeof prompt === "object" && prompt !== null && "dialogue" in prompt
     ? (prompt.dialogue as Array<{ speaker?: string; line?: string; text?: string }> ?? [])
     : [];
@@ -58,6 +59,7 @@ function getPromptSourceText(
     .join("\n");
   const parts = [
     sceneDescription ? `場景描述:\n${sceneDescription}` : "",
+    narrationText ? `旁白:\n${narrationText}` : "",
     scene.scene_in_scene ? `場景: ${scene.scene_in_scene}` : "",
     dialogueText ? `對話:\n${dialogueText}` : "",
     scene.note ? `備註: ${scene.note}` : "",

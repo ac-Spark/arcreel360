@@ -95,6 +95,7 @@ export interface DramaScene {
   segment_break: boolean;
   scene_type: string;
   scene_description?: string;
+  narration_text?: string;
   characters_in_scene: string[];
   clues_in_scene: string[];
   scene_in_scene?: string | null;

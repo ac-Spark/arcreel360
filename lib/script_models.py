@@ -128,6 +128,12 @@ class DramaScene(BaseModel):
     duration_seconds: int = Field(default=8, ge=1, le=60, description="場景時長（秒）")
     segment_break: bool = Field(default=False, description="是否為場景切換點")
     scene_type: str = Field(default="劇情", description="場景型別")
+    scene_description: str = Field(
+        default="", description="場景對應的原文／故事內容，供分鏡與影片提示詞參考（對應說書模式的 novel_text）"
+    )
+    narration_text: str = Field(
+        default="", description="場景的旁白／配音文字，用於後期配音（對應 Step 1 的「旁白」欄）"
+    )
     characters_in_scene: list[str] = Field(description="出場角色名稱列表")
     clues_in_scene: list[str] = Field(default_factory=list, description="出場線索名稱列表")
     scene_in_scene: str | None = Field(default=None, description="所屬場景名稱（可選，對應 project.json scenes）")

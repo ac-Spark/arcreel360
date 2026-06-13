@@ -42,7 +42,7 @@ python .claude/skills/generate-script/scripts/normalize_drama_script.py --episod
 **Step 3**: 驗證輸出
 
 使用 Read 工具讀取生成的 `projects/{專案名}/drafts/episode_{N}/step1_normalized_script.md`，
-確認格式正確（Markdown 表格，含場景 ID、場景描述、時長、場景型別、segment_break 列）。
+確認格式正確（Markdown 表格，含 場景 ID、場景描述、旁白、對話、出場的角色、出現的道具、場景、時長、segment_break 共 9 欄）。
 
 如果格式有問題，直接用 Edit 工具修復。
 
@@ -76,7 +76,8 @@ python .claude/skills/generate-script/scripts/normalize_drama_script.py --episod
 | 總場景數 | XX 個 |
 | 預計總時長 | X 分 X 秒 |
 | segment_break 標記 | XX 個 |
-| 場景型別分佈 | 劇情 X / 動作 X / 對話 X / 過渡 X / 空鏡 X |
+| 含旁白場景 | XX 個 |
+| 含對話場景 | XX 個 |
 
 **檔案位置**:
 - `drafts/episode_{N}/step1_normalized_script.md`
@@ -89,11 +90,13 @@ python .claude/skills/generate-script/scripts/normalize_drama_script.py --episod
 `step1_normalized_script.md` 的標準格式：
 
 ```markdown
-| 場景 ID | 場景描述 | 時長 | 場景型別 | segment_break |
-|---------|---------|------|---------|---------------|
-| E1S01 | 竹林深處，晨霧瀰漫。青年劍客李明手持長劍，緩緩踏入林間，目光堅定。 | 8 | 劇情 | 是 |
-| E1S02 | 李明凝視著竹林深處，若有所思。"師父，我回來了。" | 6 | 對話 | 否 |
+| 場景 ID | 場景描述 | 旁白 | 對話 | 出場的角色 | 出現的道具 | 場景 | 時長 | segment_break |
+|---------|---------|------|------|-----------|-----------|------|------|---------------|
+| E1S01 | 竹林深處，晨霧瀰漫。青年劍客李明手持長劍，緩緩踏入林間，目光堅定。 | 多年以後，他仍記得這片竹林。 | - | 李明 | 長劍 | 竹林 | 8 | 是 |
+| E1S02 | 李明凝視著竹林深處，若有所思。 | - | 李明：師父，我回來了。 | 李明 | - | 竹林 | 6 | 否 |
 ```
+
+> 「旁白」欄放畫外音／獨白／敘述；「對話」欄放角色直接對白（格式 `角色名：台詞`，多句用 `<br>` 或換行）；兩者皆無填「-」。
 
 ## 注意事項
 

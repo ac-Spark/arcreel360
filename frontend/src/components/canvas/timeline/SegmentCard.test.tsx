@@ -453,7 +453,7 @@ describe("SegmentCard", () => {
       onUpdatePrompt: vi.fn(),
     });
 
-    fireEvent.change(screen.getByLabelText("場景描述"), {
+    fireEvent.change(screen.getByLabelText("原文"), {
       target: { value: "剛編輯尚未儲存的時間軸描述。" },
     });
     fireEvent.click(screen.getByRole("button", { name: "生成提示詞" }));

@@ -132,8 +132,8 @@ export function TextColumn({
         className="font-sans relative min-h-[8rem] w-full resize-none overflow-hidden bg-transparent px-3.5 py-3 text-sm leading-relaxed placeholder-gray-600 border border-transparent focus:outline-none"
         style={{ color: "transparent", caretColor: "#d1d5db" }}
         value={sourceDraft}
-        placeholder={contentMode === "narration" ? "（暫無原文）" : "（暫無場景描述）"}
-        aria-label={contentMode === "narration" ? "原文" : "場景描述"}
+        placeholder="（暫無原文）"
+        aria-label="原文"
         aria-autocomplete="list"
         aria-controls="entity-mention-menu"
         role="combobox"
@@ -170,41 +170,58 @@ export function TextColumn({
     );
   }
 
-  // Drama mode — show dialogue list
+  // Drama mode — 原文（場景描述）→ 旁白 → 對話
   const s = segment as DramaScene;
   const vp = s.video_prompt;
   const dialogue = (typeof vp === "object" && vp !== null && "dialogue" in vp)
     ? (vp.dialogue ?? [])
     : [];
+  const narrationText = s.narration_text?.trim() ?? "";
   return (
     <div className="flex h-full flex-col gap-1.5 p-3 overflow-y-auto">
       <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
-        對話
+        原文
       </span>
-      {dialogue.length === 0 ? (
-        <p className="text-sm text-gray-500 italic">（暫無對話）</p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {dialogue.map((d: { speaker: string; line: string }, i: number) => (
-            <li key={i} className="text-sm text-gray-300">
-              <span className="font-bold text-indigo-400">{d.speaker}</span>
-              <span className="mx-1 text-gray-600">:</span>
-              <span>
-                <MentionHighlightedText
-                  value={d.line}
-                  entities={mentionContext.entities}
-                  linkedNames={mentionContext.currentNames}
-                />
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      {sourceEditor}
       <div className="mt-4 pt-3 border-t border-gray-800 flex flex-col gap-1.5">
         <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
-          場景描述
+          旁白
         </span>
-        {sourceEditor}
+        {narrationText ? (
+          <p className="text-sm leading-relaxed text-gray-300 whitespace-pre-wrap break-words">
+            <MentionHighlightedText
+              value={narrationText}
+              entities={mentionContext.entities}
+              linkedNames={mentionContext.currentNames}
+            />
+          </p>
+        ) : (
+          <p className="text-sm text-gray-500 italic">（暫無旁白）</p>
+        )}
+      </div>
+      <div className="mt-4 pt-3 border-t border-gray-800 flex flex-col gap-1.5">
+        <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+          對話
+        </span>
+        {dialogue.length === 0 ? (
+          <p className="text-sm text-gray-500 italic">（暫無對話）</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {dialogue.map((d: { speaker: string; line: string }, i: number) => (
+              <li key={i} className="text-sm text-gray-300">
+                <span className="font-bold text-indigo-400">{d.speaker}</span>
+                <span className="mx-1 text-gray-600">:</span>
+                <span>
+                  <MentionHighlightedText
+                    value={d.line}
+                    entities={mentionContext.entities}
+                    linkedNames={mentionContext.currentNames}
+                  />
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       {noteSection}
     </div>
