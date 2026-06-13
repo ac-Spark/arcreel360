@@ -78,7 +78,7 @@ export const MentionHighlightOverlay = forwardRef<HTMLPreElement, MentionHighlig
         ref={ref}
         aria-hidden="true"
         data-testid="mention-highlight-overlay"
-        className={`pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap break-words ${className}`}
+        className={`pointer-events-none select-none absolute inset-0 m-0 overflow-hidden whitespace-pre-wrap break-words ${className}`}
       >
         <MentionHighlightContent
           value={value}

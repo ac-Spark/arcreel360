@@ -7,6 +7,7 @@
 
 import asyncio
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -930,11 +931,162 @@ async def generate_scene(project_name: str, scene_name: str, req: GenerateSceneR
 
 
 class OptimizePromptRequest(BaseModel):
-    type: str  # "character" | "clue" | "scene"
+    type: str  # "character" | "clue" | "scene" | "image_prompt" | "video_prompt"
     name: str | None = None
     description: str
     instruction: str | None = None
     model: str | None = None
+
+
+_HELPER_PROMPT_MIN_CHARS = 30
+_HELPER_PROMPT_DANGLING_SUFFIXES = ("，", "、", "：", ":", "；", ";", "（", "(")
+_HELPER_LOREBOOK_MAX_ENTRIES = 30
+_HELPER_LOREBOOK_DESC_MAX_CHARS = 220
+_HELPER_SOURCE_PRIORITY_RULE = (
+    "請優先依據「基本描述/分鏡旁白內容」中的最新原文或目前片段內容；"
+    "設定集只用於補足角色、道具、場景與風格一致性。"
+)
+_HELPER_TYPE_LABELS = {
+    "character": "角色",
+    "clue": "道具/線索",
+    "scene": "場景",
+    "image_prompt": "分鏡圖提示詞",
+    "video_prompt": "影片動作提示詞",
+}
+_HELPER_LOREBOOK_SECTIONS: tuple[tuple[str, str, tuple[tuple[str, str], ...]], ...] = (
+    (
+        "角色設定集",
+        "characters",
+        (("voice_style", "聲線/語氣"), ("reference_image", "參考圖"), ("character_sheet", "角色圖")),
+    ),
+    (
+        "道具/線索設定集",
+        "clues",
+        (("importance", "重要程度"), ("reference_image", "參考圖"), ("clue_sheet", "道具圖")),
+    ),
+    ("場景設定集", "scenes", (("scene_ref", "參考圖"), ("scene_sheet", "場景圖"))),
+)
+
+
+def _clean_helper_prompt(text: str) -> str:
+    prompt_output = text.strip()
+    for quote in ('"', "'"):
+        if prompt_output.startswith(quote) and prompt_output.endswith(quote):
+            prompt_output = prompt_output[1:-1].strip()
+    return prompt_output
+
+
+def _helper_prompt_needs_retry(prompt_output: str) -> bool:
+    stripped = prompt_output.strip()
+    if not stripped:
+        return True
+    compact = "".join(stripped.split())
+    return len(compact) < _HELPER_PROMPT_MIN_CHARS or stripped.endswith(_HELPER_PROMPT_DANGLING_SUFFIXES)
+
+
+def _build_helper_retry_prompt(user_prompt: str, previous_output: str, type_zh: str) -> str:
+    return (
+        f"{user_prompt}\n\n"
+        "上次輸出太短或像半句，不能使用。\n"
+        f"上次輸出：{previous_output}\n"
+        f"請重新為該{type_zh}輸出一段完整、可直接使用的繁體中文提示詞。"
+        "至少 50 個中文字，必須是完整句子，不要只輸出片語。"
+    )
+
+
+def _compact_helper_context_text(value: Any) -> str:
+    if not isinstance(value, str):
+        return ""
+    return " ".join(value.split())
+
+
+def _truncate_helper_context_text(value: Any) -> str:
+    text = _compact_helper_context_text(value)
+    if len(text) <= _HELPER_LOREBOOK_DESC_MAX_CHARS:
+        return text
+    return text[: _HELPER_LOREBOOK_DESC_MAX_CHARS - 3].rstrip() + "..."
+
+
+def _build_helper_lorebook_line(name: Any, data: Any, extra_fields: tuple[tuple[str, str], ...]) -> str:
+    entry_name = _compact_helper_context_text(name) or str(name).strip()
+    if not entry_name:
+        return ""
+
+    description = ""
+    extras: list[str] = []
+    if isinstance(data, dict):
+        description = _truncate_helper_context_text(data.get("description"))
+        for field, label in extra_fields:
+            value = _truncate_helper_context_text(data.get(field))
+            if value:
+                extras.append(f"{label}: {value}")
+    elif isinstance(data, str):
+        description = _truncate_helper_context_text(data)
+
+    line = f"- {entry_name}"
+    if description:
+        line += f"：{description}"
+    if extras:
+        line += f"（{'；'.join(extras)}）"
+    return line
+
+
+def _format_helper_lorebook_section(
+    title: str,
+    entries: Any,
+    extra_fields: tuple[tuple[str, str], ...] = (),
+) -> str:
+    if not isinstance(entries, dict) or not entries:
+        return ""
+
+    lines: list[str] = []
+    for name, data in entries.items():
+        line = _build_helper_lorebook_line(name, data, extra_fields)
+        if line:
+            lines.append(line)
+        if len(lines) >= _HELPER_LOREBOOK_MAX_ENTRIES:
+            break
+
+    if not lines:
+        return ""
+    return f"{title}:\n" + "\n".join(lines)
+
+
+def _build_helper_lorebook_context(project: dict[str, Any]) -> str:
+    sections = [
+        _format_helper_lorebook_section(title, project.get(key), extra_fields)
+        for title, key, extra_fields in _HELPER_LOREBOOK_SECTIONS
+    ]
+    return "\n\n".join(section for section in sections if section)
+
+
+def _build_helper_user_prompt(project: dict[str, Any], req: OptimizePromptRequest, type_zh: str) -> str:
+    project_overview = project.get("overview", {})
+    if not isinstance(project_overview, dict):
+        project_overview = {}
+
+    project_style = _compact_helper_context_text(project.get("style"))
+    project_style_description = _compact_helper_context_text(project.get("style_description"))
+    project_style_image = _compact_helper_context_text(project.get("style_image"))
+    genre = _compact_helper_context_text(project_overview.get("genre"))
+    synopsis = _compact_helper_context_text(project_overview.get("synopsis"))
+    lorebook_context = _build_helper_lorebook_context(project)
+
+    user_content = [
+        f"專案故事大綱: {synopsis}" if synopsis else "",
+        f"專案題材類型: {genre}" if genre else "",
+        f"整體視覺風格: {project_style}" if project_style else "",
+        f"專案風格描述: {project_style_description}" if project_style_description else "",
+        f"專案風格參考圖: {project_style_image}" if project_style_image else "",
+        lorebook_context,
+        f"實體類型: {type_zh}",
+        f"名稱: {req.name}" if req.name else "",
+        f"基本描述/分鏡旁白內容: {req.description}",
+        f"額外指示: {req.instruction}" if req.instruction else "",
+        _HELPER_SOURCE_PRIORITY_RULE,
+        f"請為該{type_zh}生成對應的提示詞：",
+    ]
+    return "\n".join([line for line in user_content if line])
 
 
 def _build_helper_system_prompt(is_video: bool) -> str:
@@ -964,7 +1116,8 @@ async def helper_generate_prompt(
     """
     調用 AI 文字生成服務，為角色、道具、場景、分鏡圖或影片生成/最佳化提示詞（Prompt）。
     """
-    if req.type not in ("character", "clue", "scene", "image_prompt", "video_prompt"):
+    type_zh = _HELPER_TYPE_LABELS.get(req.type)
+    if type_zh is None:
         raise HTTPException(
             status_code=400,
             detail="不支援的類型。必須是 'character'、'clue'、'scene'、'image_prompt' 或 'video_prompt'",
@@ -974,39 +1127,12 @@ async def helper_generate_prompt(
         from lib.text_backends.base import TextGenerationRequest, TextTaskType
         from lib.text_generator import TextGenerator
 
-        # 載入專案 overview 取得世界設定、題材、風格描述，使生成的 prompt 更契合專案
+        # 載入專案 overview 與設定集，使生成的 prompt 更契合專案
         project = get_project_manager().load_project(project_name)
-        project_style = project.get("style", "")
-        project_overview = project.get("overview", {})
-        genre = project_overview.get("genre", "")
-        synopsis = project_overview.get("synopsis", "")
-
-        # 構造系統 Prompt 與使用者 Prompt
-        if req.type == "character":
-            type_zh = "角色"
-        elif req.type == "clue":
-            type_zh = "道具/線索"
-        elif req.type == "scene":
-            type_zh = "場景"
-        elif req.type == "image_prompt":
-            type_zh = "分鏡圖提示詞"
-        else:
-            type_zh = "影片動作提示詞"
 
         is_video = req.type == "video_prompt"
         system_prompt = _build_helper_system_prompt(is_video)
-
-        user_content = [
-            f"專案故事大綱: {synopsis}" if synopsis else "",
-            f"專案題材類型: {genre}" if genre else "",
-            f"整體視覺風格: {project_style}" if project_style else "",
-            f"實體類型: {type_zh}",
-            f"名稱: {req.name}" if req.name else "",
-            f"基本描述/分鏡旁白內容: {req.description}",
-            f"額外指示: {req.instruction}" if req.instruction else "",
-            f"請為該{type_zh}生成對應的提示詞：",
-        ]
-        user_prompt = "\n".join([line for line in user_content if line])
+        user_prompt = _build_helper_user_prompt(project, req, type_zh)
 
         if req.model:
             generator = await TextGenerator.create_with_model_str(req.model)
@@ -1021,12 +1147,19 @@ async def helper_generate_prompt(
             project_name=project_name,
         )
 
-        prompt_output = result.text.strip()
-        # 清除可能被 LLM 加上去的引號
-        if prompt_output.startswith('"') and prompt_output.endswith('"'):
-            prompt_output = prompt_output[1:-1].strip()
-        if prompt_output.startswith("'") and prompt_output.endswith("'"):
-            prompt_output = prompt_output[1:-1].strip()
+        prompt_output = _clean_helper_prompt(result.text)
+        if _helper_prompt_needs_retry(prompt_output):
+            retry_result = await generator.generate(
+                TextGenerationRequest(
+                    prompt=_build_helper_retry_prompt(user_prompt, prompt_output, type_zh),
+                    system_prompt=system_prompt,
+                    max_output_tokens=500,
+                ),
+                project_name=project_name,
+            )
+            retry_output = _clean_helper_prompt(retry_result.text)
+            if not _helper_prompt_needs_retry(retry_output) or len(retry_output) > len(prompt_output):
+                prompt_output = retry_output
 
         return {
             "success": True,

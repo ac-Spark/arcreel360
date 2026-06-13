@@ -79,6 +79,14 @@ class ScriptGenerator:
             raise RuntimeError("TextGenerator 未初始化，請使用 ScriptGenerator.create() 工廠方法")
 
         # 1. 載入中間檔案
+        try:
+            from lib.project_manager import ProjectManager
+            from lib.step1_draft_sync import sync_script_to_draft_file
+            pm = ProjectManager(self.project_path.parent)
+            sync_script_to_draft_file(self.project_path, episode, self.content_mode, pm)
+        except Exception as e:
+            logger.error("Syncing script to draft file failed: %s", e)
+
         step1_md = self._load_step1(episode)
 
         # 2. 提取角色和線索（從 project.json）
@@ -159,6 +167,14 @@ class ScriptGenerator:
         Returns:
             構建好的 Prompt 字串
         """
+        try:
+            from lib.project_manager import ProjectManager
+            from lib.step1_draft_sync import sync_script_to_draft_file
+            pm = ProjectManager(self.project_path.parent)
+            sync_script_to_draft_file(self.project_path, episode, self.content_mode, pm)
+        except Exception as e:
+            logger.error("Syncing script to draft file failed: %s", e)
+
         step1_md = self._load_step1(episode)
         characters = self.project_json.get("characters", {})
         clues = self.project_json.get("clues", {})

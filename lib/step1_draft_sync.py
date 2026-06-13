@@ -187,6 +187,20 @@ def render_draft_table(rows: list[dict], mode_name: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _normalize_id(item_id: str) -> str:
+    """Normalize ID to sequence number for matching.
+    E.g. E1S02 -> 02, G02 -> 02, E1S02_1 -> 02_1
+    """
+    if not item_id:
+        return ""
+    if "S" in item_id:
+        parts = item_id.split("S", 1)
+        return parts[1]
+    if item_id.startswith("G"):
+        return item_id[1:]
+    return item_id
+
+
 def sync_segment_to_draft(project_path: Path, episode: int, segment_id: str, new_content: str, mode_name: str) -> bool:
     """精準覆蓋草稿表格中指定 segment 的 content 欄，其餘列與欄位逐字保留。
 
@@ -207,21 +221,26 @@ def sync_segment_to_draft(project_path: Path, episode: int, segment_id: str, new
         id_cell = 1
         content_cell = content_idx + 1
 
+        normalized_segment_id = _normalize_id(segment_id) if mode_name == "narration" else segment_id
+
         out_lines: list[str] = []
         updated = False
         for line in md.splitlines():
             if not updated and _is_table_row(line):
                 cells = _split_cells(line)
                 # cells: ["", id, ...欄..., ""]（首尾為外側 | 兩端的空字串）
-                if len(cells) > content_cell and cells[id_cell].strip() == segment_id:
-                    # 保留 content cell 原有的前後空白排版。
-                    original = cells[content_cell]
-                    lstripped = original.lstrip()
-                    lead = original[: len(original) - len(lstripped)]
-                    trail = lstripped[len(lstripped.rstrip()) :]
-                    cells[content_cell] = f"{lead}{_escape_cell(new_content)}{trail}"
-                    line = "|".join(cells)
-                    updated = True
+                if len(cells) > content_cell:
+                    match_id = cells[id_cell].strip()
+                    normalized_match_id = _normalize_id(match_id) if mode_name == "narration" else match_id
+                    if normalized_match_id == normalized_segment_id:
+                        # 保留 content cell 原有的前後空白排版。
+                        original = cells[content_cell]
+                        lstripped = original.lstrip()
+                        lead = original[: len(original) - len(lstripped)]
+                        trail = lstripped[len(lstripped.rstrip()) :]
+                        cells[content_cell] = f"{lead}{_escape_cell(new_content)}{trail}"
+                        line = "|".join(cells)
+                        updated = True
             out_lines.append(line)
 
         if updated:
@@ -242,16 +261,27 @@ def apply_draft_rows_to_items(rows: list[dict], items, mode: DraftMode, *, only_
     ``only_if_empty=True`` 時僅在目標欄位為空才回填（供生成後回填、不覆蓋模型輸出）；否則內容不同即覆蓋。
     回傳實際變更的欄位數。
     """
-    field_maps: list[tuple[str, dict[str, str]]] = [(mode.segment_field, {r["id"]: r["content"] for r in rows})]
+    is_narration = (mode.segment_field == "novel_text")
+
+    def get_val_map(field_key: str) -> dict[str, str]:
+        val_map = {}
+        for r in rows:
+            r_id = r["id"]
+            key = _normalize_id(r_id) if is_narration else r_id
+            val_map[key] = r[field_key]
+        return val_map
+
+    field_maps: list[tuple[str, dict[str, str]]] = [(mode.segment_field, get_val_map("content"))]
     if mode.narration_field:
-        field_maps.append((mode.narration_field, {r["id"]: r["narration"] for r in rows}))
+        field_maps.append((mode.narration_field, get_val_map("narration")))
 
     def _apply(iid: str, item: dict) -> int:
         changed = 0
+        normalized_iid = _normalize_id(iid) if is_narration else iid
         for field, value_map in field_maps:
-            if iid not in value_map:
+            if normalized_iid not in value_map:
                 continue
-            new_value = value_map[iid]
+            new_value = value_map[normalized_iid]
             current = item.get(field)
             if only_if_empty:
                 if not current and new_value:
@@ -291,3 +321,106 @@ def sync_draft_to_segments(project_path: Path, episode: int, new_md: str, mode_n
         manager.save_script(project_path.name, script, script_filename)
 
     return updated_count
+
+
+def sync_script_to_draft_file(project_path: Path, episode: int, content_mode: str, manager) -> bool:
+    """Read the script JSON file and write its segments/scenes back to the Step 1 markdown file.
+    This ensures structural edits (additions, deletions, reorderings) are reflected in the draft markdown,
+    preventing LLM generation from overwriting or losing user edits.
+    """
+    if manager is None:
+        return False
+    script_filename = f"episode_{episode}.json"
+    try:
+        script = manager.load_script(project_path.name, script_filename)
+    except FileNotFoundError:
+        return False
+
+    mode = DRAFT_MODES.get(content_mode)
+    if not mode:
+        return False
+
+    draft_dir = project_path / "drafts" / f"episode_{episode}"
+    draft_file = draft_dir / mode.filename
+
+    # If the draft directory doesn't exist, create it
+    draft_dir.mkdir(parents=True, exist_ok=True)
+
+    items = script.get(mode.script_items_key, [])
+    if not items and content_mode == "drama":
+        items = script.get("scenes", [])
+
+    if not items:
+        # If there are no segments/scenes, we don't write anything
+        return False
+
+    lines = []
+    if content_mode == "narration":
+        # Header
+        lines.append("| 片段 | 原文 | 字數 | 時長 | 有對話 | segment_break |")
+        lines.append("|------|------|------|------|--------|---------------|")
+        for i, item in enumerate(items, 1):
+            novel_text = item.get("novel_text") or ""
+            # Escape pipe characters
+            escaped_text = _escape_cell(novel_text)
+            char_len = len(novel_text)
+            duration = f"{item.get('duration_seconds', 4)}s"
+
+            # Check dialogue
+            dialogue = item.get("video_prompt", {}).get("dialogue", [])
+            has_dialogue = "是" if dialogue else "否"
+
+            # Segment break
+            seg_break = "是" if item.get("segment_break") else "-"
+
+            lines.append(f"| G{i:02d} | {escaped_text} | {char_len} | {duration} | {has_dialogue} | {seg_break} |")
+    else:
+        # Drama mode
+        lines.append("| 場景 ID | 場景描述 | 旁白 | 對話 | 出場的角色 | 出現的道具 | 場景 | 時長 | segment_break |")
+        lines.append("| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |")
+        for item in items:
+            scene_id = item.get("scene_id") or ""
+            scene_desc = _escape_cell(item.get("scene_description") or "")
+
+            # Narration
+            narration = _escape_cell(item.get("narration_text") or "")
+            if not narration:
+                narration = "-"
+
+            # Dialogue
+            dialogue_list = item.get("video_prompt", {}).get("dialogue", [])
+            if dialogue_list:
+                dialogue_parts = []
+                for diag in dialogue_list:
+                    speaker = diag.get("speaker") or ""
+                    line_val = diag.get("line") or diag.get("text") or ""
+                    if speaker or line_val:
+                        dialogue_parts.append(f"{speaker}：{line_val}")
+                dialogue_str = _escape_cell("<br>".join(dialogue_parts)) if dialogue_parts else "-"
+            else:
+                dialogue_str = "-"
+
+            # Characters
+            chars = ", ".join(item.get("characters_in_scene") or [])
+            chars_str = _escape_cell(chars) if chars else "-"
+
+            # Clues
+            clues = ", ".join(item.get("clues_in_scene") or [])
+            clues_str = _escape_cell(clues) if clues else "-"
+
+            # Scene location
+            scene_in_scene = _escape_cell(item.get("scene_in_scene") or "")
+            if not scene_in_scene:
+                scene_in_scene = "-"
+
+            # Duration
+            duration = str(item.get("duration_seconds", 8))
+
+            # Segment break
+            seg_break = "是" if item.get("segment_break") else "否"
+
+            lines.append(f"| {scene_id} | {scene_desc} | {narration} | {dialogue_str} | {chars_str} | {clues_str} | {scene_in_scene} | {duration} | {seg_break} |")
+
+    new_md = "\n".join(lines) + "\n"
+    draft_file.write_text(new_md, encoding="utf-8")
+    return True

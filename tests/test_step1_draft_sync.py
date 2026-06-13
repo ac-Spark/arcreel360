@@ -221,3 +221,70 @@ def test_sync_segment_drama_nine_column_overwrites_description(tmp_path):
     assert rows[1]["narration"] == "-"
     # 「對話」欄內容應原樣保留在草稿（供生成劇本時由 LLM 讀取轉 dialogue）。
     assert "小明：你看那邊！<br>小華：真的耶！" in draft_file.read_text(encoding="utf-8")
+
+
+def test_sync_script_to_draft_file_narration(tmp_path):
+    from lib.step1_draft_sync import sync_script_to_draft_file
+    manager = MagicMock()
+    manager.load_script.return_value = {
+        "content_mode": "narration",
+        "segments": [
+            {
+                "segment_id": "E1S01",
+                "novel_text": "測試原文1",
+                "duration_seconds": 6,
+                "video_prompt": {"dialogue": [{"speaker": "A", "line": "哈囉"}]},
+                "segment_break": True
+            }
+        ]
+    }
+
+    # Mock manager.get_project_path
+    manager.get_project_path.return_value = tmp_path
+
+    assert sync_script_to_draft_file(tmp_path, 1, "narration", manager)
+
+    draft_file = tmp_path / "drafts" / "episode_1" / "step1_segments.md"
+    assert draft_file.exists()
+    content = draft_file.read_text(encoding="utf-8")
+    assert "G01" in content
+    assert "測試原文1" in content
+    assert "6s" in content
+    assert "是" in content
+
+
+def test_sync_script_to_draft_file_drama(tmp_path):
+    from lib.step1_draft_sync import sync_script_to_draft_file
+    manager = MagicMock()
+    manager.load_script.return_value = {
+        "content_mode": "drama",
+        "scenes": [
+            {
+                "scene_id": "E1S01",
+                "scene_description": "場景描述測試",
+                "narration_text": "旁白測試",
+                "video_prompt": {"dialogue": [{"speaker": "李明", "line": "你好"}]},
+                "characters_in_scene": ["李明"],
+                "clues_in_scene": ["釣竿"],
+                "scene_in_scene": "岩岸",
+                "duration_seconds": 8,
+                "segment_break": True
+            }
+        ]
+    }
+
+    manager.get_project_path.return_value = tmp_path
+
+    assert sync_script_to_draft_file(tmp_path, 1, "drama", manager)
+
+    draft_file = tmp_path / "drafts" / "episode_1" / "step1_normalized_script.md"
+    assert draft_file.exists()
+    content = draft_file.read_text(encoding="utf-8")
+    assert "E1S01" in content
+    assert "場景描述測試" in content
+    assert "旁白測試" in content
+    assert "李明" in content
+    assert "釣竿" in content
+    assert "岩岸" in content
+    assert "8" in content
+    assert "是" in content

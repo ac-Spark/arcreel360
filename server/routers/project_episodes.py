@@ -189,6 +189,9 @@ def _append_empty_episode_item(name: str, episode: int, expected_mode: str, list
     items.append(new_item)
     with project_change_source("webui"):
         manager.save_script(name, script, filename)
+        # Rebuild/update the draft markdown from JSON
+        from lib.step1_draft_sync import sync_script_to_draft_file
+        sync_script_to_draft_file(manager.get_project_path(name), episode, expected_mode, manager)
     singular = "segment" if list_key == "segments" else "scene"
     return {singular: new_item, f"{list_key}_count": len(items)}
 
@@ -758,6 +761,16 @@ def _delete_episode_item(name: str, item_id: str, script_file: str, list_key: st
     script[list_key] = new_items
     with project_change_source("webui"):
         manager.save_script(name, script, script_file)
+        # Rebuild/update the draft markdown from JSON
+        content_mode = "narration" if list_key == "segments" else "drama"
+        from lib.step1_draft_sync import sync_script_to_draft_file
+        from server.routers.projects import extract_episode_num
+
+        try:
+            episode = extract_episode_num(script_file)
+            sync_script_to_draft_file(manager.get_project_path(name), episode, content_mode, manager)
+        except Exception as e:
+            logger.error("Syncing script to draft file failed in delete: %s", e)
     return {"success": True, f"{list_key}_count": len(new_items)}
 
 
