@@ -103,6 +103,9 @@ def test_workflow_skills_registered() -> None:
         "generate_characters",
         "generate_clues",
         "generate_scenes",
+        "generate_character_sheets",
+        "generate_clue_sheets",
+        "generate_scene_sheets",
         "update_character",
         "update_clue",
         "update_scene",
@@ -317,6 +320,108 @@ async def test_generate_clues_rejects_missing_fields(context: SkillCallContext) 
 
 
 # ---------------------------------------------------------------------------
+# generate_*_sheets
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_generate_character_sheets_enqueues_missing_character_sheets(
+    context: SkillCallContext,
+    project_manager: ProjectManager,
+    project_name: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_manager.add_project_character(project_name, "小明", "紅衣少年", None)
+    project_manager.add_project_character(project_name, "小紅", "藍衣少女", None)
+
+    def set_existing_sheet(project: dict[str, Any]) -> None:
+        project["characters"]["小紅"]["character_sheet"] = "characters/小紅.png"
+        project["characters"]["小明"]["image_backend"] = "gemini-vertex/imagen-4"
+
+    project_manager.update_project(project_name, set_existing_sheet)
+
+    captured: list[Any] = []
+
+    async def fake_batch(
+        project: str, specs: list[Any], on_success: Any, on_failure: Any
+    ) -> tuple[list[Any], list[Any]]:
+        captured.extend(specs)
+        from lib.generation_queue_client import BatchTaskResult
+
+        return [
+            BatchTaskResult(
+                resource_id=spec.resource_id,
+                task_id=f"task-{spec.resource_id}",
+                status="succeeded",
+                result={"file_path": f"characters/{spec.resource_id}.png"},
+            )
+            for spec in specs
+        ], []
+
+    monkeypatch.setattr(
+        "lib.generation_queue_client._batch_enqueue_and_wait",
+        fake_batch,
+    )
+
+    result = await run_subagent(context, "generate_character_sheets", {})
+
+    assert result["ok"] is True
+    assert result["task_type"] == "character"
+    assert result["succeeded"] == ["小明"]
+    assert result["skipped"] == [{"resource_id": "小紅", "reason": "already_exists"}]
+    assert len(captured) == 1
+    spec = captured[0]
+    assert spec.task_type == "character"
+    assert spec.media_type == "image"
+    assert spec.resource_id == "小明"
+    assert spec.payload == {
+        "prompt": "紅衣少年",
+        "from_agent": True,
+        "image_provider": "gemini-vertex",
+        "image_model": "imagen-4",
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("skill", "setup_entity", "expected_task_type"),
+    [
+        ("generate_clue_sheets", "clue", "clue"),
+        ("generate_scene_sheets", "scene", "scene"),
+    ],
+)
+async def test_generate_lorebook_sheets_rejects_unknown_names(
+    context: SkillCallContext,
+    project_manager: ProjectManager,
+    project_name: str,
+    skill: str,
+    setup_entity: str,
+    expected_task_type: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if setup_entity == "clue":
+        project_manager.add_clue(project_name, "玉佩", "祖傳玉佩", "major")
+    else:
+        project_manager.add_project_scene(project_name, "古城", "破舊城門")
+
+    async def fake_batch(
+        project: str, specs: list[Any], on_success: Any, on_failure: Any
+    ) -> tuple[list[Any], list[Any]]:
+        return [], []
+
+    monkeypatch.setattr(
+        "lib.generation_queue_client._batch_enqueue_and_wait",
+        fake_batch,
+    )
+
+    result = await run_subagent(context, skill, {"names": ["不存在"]})
+
+    assert result["error"] == "nothing_to_enqueue"
+    assert result["task_type"] == expected_task_type
+    assert result["skipped"] == [{"resource_id": "不存在", "reason": "not_found"}]
+
+
+# ---------------------------------------------------------------------------
 # manga_workflow_status
 # ---------------------------------------------------------------------------
 
@@ -400,6 +505,7 @@ async def test_manga_workflow_status_stage_5_6_missing_sheets(
     write_minimal_overview(project_manager, project_name)
     project_manager.add_project_character(project_name, "x", "desc", None)
     project_manager.add_clue(project_name, "y", "desc", "major")
+    project_manager.add_project_scene(project_name, "z", "desc")
     pdir = project_root / project_name
     (pdir / "source" / "episode_1.txt").write_text("text", "utf-8")
     (pdir / "drafts" / "episode_1").mkdir(parents=True)
@@ -407,8 +513,12 @@ async def test_manga_workflow_status_stage_5_6_missing_sheets(
     (pdir / "scripts" / "episode_1.json").write_text(json.dumps({"scenes": []}), "utf-8")
     result = await run_subagent(context, "manga_workflow_status", {"episode": 1})
     assert result["stage"] == "5_6"
+    assert "generate_character_sheets" in result["next_action"]
+    assert "generate_clue_sheets" in result["next_action"]
+    assert "generate_scene_sheets" in result["next_action"]
     assert "x" in result["context"]["missing_character_sheets"]
     assert "y" in result["context"]["missing_clue_sheets"]
+    assert "z" in result["context"]["missing_scene_sheets"]
 
 
 @pytest.mark.asyncio

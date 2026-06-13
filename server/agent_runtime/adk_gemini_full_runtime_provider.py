@@ -265,6 +265,7 @@ class AdkGeminiFullRuntimeProvider(BaseTextBackendRuntimeProvider):
             sandbox=sandbox,
             project_manager=self._project_manager,
             session_id=managed.session_id,
+            approval_requester=lambda payload: self._request_approval(managed, payload),
         )
 
         model = make_gemini_model(client, model_name)

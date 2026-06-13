@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -215,6 +216,100 @@ async def test_build_skill_tools_wraps_handlers_as_function_tools(skill_context:
 
     assert result == {"ok": True, "episode": 3, "session_id": "openai-full:abc123"}
     assert called == {"ctx": skill_context, "args": {"episode": 3}}
+
+
+@pytest.mark.asyncio
+async def test_media_tool_waits_for_button_approval_before_running(skill_context: SkillCallContext) -> None:
+    from server.agent_runtime.openai_tool_adapters import build_skill_tools
+
+    approvals: list[dict[str, Any]] = []
+    called: dict[str, Any] = {}
+
+    async def approval_requester(payload: dict[str, Any]) -> dict[str, str]:
+        approvals.append(payload)
+        question = payload["questions"][0]["question"]
+        return {question: "確認生成"}
+
+    approved_context = replace(skill_context, approval_requester=approval_requester)
+
+    async def handler(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
+        called["ctx"] = ctx
+        called["args"] = args
+        return {"ok": True, "episode": args["episode"]}
+
+    declaration = FunctionDeclaration(
+        name="generate_video",
+        description="Generate video",
+        parameters={
+            "type": "object",
+            "properties": {"episode": {"type": "integer"}},
+            "required": ["episode"],
+        },
+    )
+
+    tool = build_skill_tools([declaration], {"generate_video": handler}, AlwaysAllowGate())[0]
+    result = await tool.on_invoke_tool(
+        ToolContext(approved_context, tool_call_id="call-video"),
+        json.dumps({"episode": 2}),
+    )
+
+    assert result == {"ok": True, "episode": 2}
+    assert called == {"ctx": approved_context, "args": {"episode": 2}}
+    assert len(approvals) == 1
+    question = approvals[0]["questions"][0]
+    assert approvals[0]["type"] == "ask_user_question"
+    assert approvals[0]["question_id"].startswith("approval_")
+    assert question == {
+        "header": "確認",
+        "question": "確定要開始生成第 2 集的影片嗎？",
+        "options": [
+            {"label": "確認生成", "description": "開始執行這個生成任務"},
+            {"label": "取消", "description": "不要執行這個生成任務"},
+        ],
+        "multiSelect": False,
+        "allowOther": False,
+    }
+
+
+@pytest.mark.asyncio
+async def test_media_tool_cancelled_by_button_does_not_run_handler(skill_context: SkillCallContext) -> None:
+    from server.agent_runtime.openai_tool_adapters import build_skill_tools
+
+    async def approval_requester(payload: dict[str, Any]) -> dict[str, str]:
+        question = payload["questions"][0]["question"]
+        return {question: "取消"}
+
+    cancelled_context = replace(skill_context, approval_requester=approval_requester)
+    handler_called = False
+
+    async def handler(_ctx: SkillCallContext, _args: dict[str, Any]) -> dict[str, Any]:
+        nonlocal handler_called
+        handler_called = True
+        return {"ok": True}
+
+    declaration = FunctionDeclaration(
+        name="generate_storyboard",
+        description="Generate storyboard",
+        parameters={
+            "type": "object",
+            "properties": {"episode": {"type": "integer"}},
+            "required": ["episode"],
+        },
+    )
+
+    tool = build_skill_tools([declaration], {"generate_storyboard": handler}, AlwaysAllowGate())[0]
+    result = await tool.on_invoke_tool(
+        ToolContext(cancelled_context, tool_call_id="call-storyboard"),
+        json.dumps({"episode": 1}),
+    )
+
+    assert handler_called is False
+    assert result == {
+        "permission_denied": True,
+        "reason": "user_cancelled",
+        "question": "確定要開始生成第 1 集的分鏡圖嗎？",
+        "tool": "generate_storyboard",
+    }
 
 
 @pytest.mark.asyncio

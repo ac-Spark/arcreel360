@@ -28,6 +28,31 @@ def test_always_allow_gate_returns_allow() -> None:
     assert isinstance(decision, Allow)
 
 
+def test_always_allow_gate_asks_user_before_media_generation() -> None:
+    gate = AlwaysAllowGate()
+
+    storyboard = gate.check("generate_storyboard", {"episode": 2}, "session-1")
+    assert isinstance(storyboard, AskUser)
+    assert storyboard.question == "確定要開始生成第 2 集的分鏡圖嗎？"
+
+    character_sheet = gate.check("generate_character_sheets", {"names": ["小明", "小紅"]}, "session-1")
+    assert isinstance(character_sheet, AskUser)
+    assert character_sheet.question == "確定要開始生成 2 個指定角色設計圖嗎？"
+
+    video = gate.check("generate_video", {"episode": 3, "scene_ids": ["E3S01", "E3S02"]}, "session-1")
+    assert isinstance(video, AskUser)
+    assert video.question == "確定要開始生成第 3 集的 2 個指定分鏡影片嗎？"
+
+
+def test_always_allow_gate_asks_user_before_media_generation_via_run_subagent() -> None:
+    gate = AlwaysAllowGate()
+
+    decision = gate.check("run_subagent", {"skill": "generate_video", "args": {"episode": 4}}, "session-1")
+
+    assert isinstance(decision, AskUser)
+    assert decision.question == "確定要開始生成第 4 集的影片嗎？"
+
+
 def test_default_gate_is_always_allow() -> None:
     assert isinstance(get_default_gate(), AlwaysAllowGate)
 

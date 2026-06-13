@@ -21,6 +21,7 @@ from lib.text_backends.gemini import DEFAULT_MODEL as GEMINI_DEFAULT_MODEL
 from lib.text_backends.gemini import GeminiTextBackend
 from lib.text_backends.openai import DEFAULT_MODEL as OPENAI_DEFAULT_MODEL
 from lib.text_backends.openai import OpenAITextBackend
+from server.agent_runtime.managed_session import PendingQuestion, PendingQuestionMixin
 from server.agent_runtime.models import SessionMeta, SessionStatus
 from server.agent_runtime.runtime_provider import (
     AssistantPrompt,
@@ -62,13 +63,13 @@ _PERSONA_PROMPT = """## 身份
 
 
 @dataclass
-class LiteManagedSession:
+class LiteManagedSession(PendingQuestionMixin):
     session_id: str
     project_name: str
     status: SessionStatus = "idle"
     message_buffer: list[dict[str, Any]] = field(default_factory=list)
     subscribers: set[asyncio.Queue] = field(default_factory=set)
-    pending_questions: list[dict[str, Any]] = field(default_factory=list)
+    pending_questions: dict[str, PendingQuestion] = field(default_factory=dict)
     generation_task: asyncio.Task | None = None
     persist_callback: Any = None  # Callable[[str, dict], Awaitable[None]] | None
     _persist_tasks: set[asyncio.Task] = field(default_factory=set)
@@ -414,6 +415,7 @@ class BaseTextBackendRuntimeProvider(AssistantRuntimeProvider):
             if meta is None:
                 raise FileNotFoundError(f"session not found: {session_id}")
             return meta.status
+        managed.cancel_pending_questions("session interrupted by user")
         if managed.generation_task and not managed.generation_task.done():
             managed.generation_task.cancel()
             with contextlib.suppress(Exception):
@@ -422,10 +424,17 @@ class BaseTextBackendRuntimeProvider(AssistantRuntimeProvider):
 
     async def close_session(self, session_id: str, *, reason: str = "session closed") -> None:
         managed = self._sessions.pop(session_id, None)
+        if managed:
+            managed.cancel_pending_questions(reason)
         if managed and managed.generation_task and not managed.generation_task.done():
             managed.generation_task.cancel()
             with contextlib.suppress(Exception):
                 await managed.generation_task
+
+    async def _request_approval(self, managed: LiteManagedSession, payload: dict[str, Any]) -> dict[str, str]:
+        pending = managed.add_pending_question(payload)
+        managed.add_message(pending.payload)
+        return await pending.answer_future
 
     async def answer_user_question(
         self,
@@ -433,7 +442,11 @@ class BaseTextBackendRuntimeProvider(AssistantRuntimeProvider):
         question_id: str,
         answers: dict[str, str],
     ) -> None:
-        raise UnsupportedCapabilityError(self.provider_id, "ask_user_question")
+        managed = self._sessions.get(session_id)
+        if managed is None or managed.status != "running":
+            raise ValueError("會話未在執行中，或目前沒有待回答的問題")
+        if not managed.resolve_pending_question(question_id, answers):
+            raise ValueError("找不到待回答的問題")
 
     async def subscribe(self, session_id: str, replay_buffer: bool = True) -> asyncio.Queue:
         managed = self._sessions.get(session_id)
@@ -488,7 +501,7 @@ class BaseTextBackendRuntimeProvider(AssistantRuntimeProvider):
         managed = self._sessions.get(session_id)
         if managed is None:
             return []
-        return list(managed.pending_questions)
+        return managed.get_pending_question_payloads()
 
     async def shutdown_gracefully(self, timeout: float = 30.0) -> None:
         for session_id in list(self._sessions.keys()):

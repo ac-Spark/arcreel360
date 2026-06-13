@@ -29,8 +29,51 @@ class PendingQuestion:
     answer_future: asyncio.Future[dict[str, str]]
 
 
+class PendingQuestionMixin:
+    """AskUserQuestion bookkeeping shared across managed-session variants.
+
+    Expects the host class to declare ``pending_questions: dict[str, PendingQuestion]``.
+    """
+
+    pending_questions: dict[str, PendingQuestion]
+
+    def add_pending_question(self, payload: dict[str, Any]) -> PendingQuestion:
+        """Register a pending AskUserQuestion payload (copied so callers keep ownership)."""
+        question_payload = dict(payload)
+        question_id = str(question_payload.get("question_id") or f"aq_{uuid4().hex}")
+        question_payload["question_id"] = question_id
+        future: asyncio.Future[dict[str, str]] = asyncio.get_running_loop().create_future()
+        pending = PendingQuestion(
+            question_id=question_id,
+            payload=question_payload,
+            answer_future=future,
+        )
+        self.pending_questions[question_id] = pending
+        return pending
+
+    def resolve_pending_question(self, question_id: str, answers: dict[str, str]) -> bool:
+        """Resolve a pending AskUserQuestion with user answers."""
+        pending = self.pending_questions.pop(question_id, None)
+        if pending is None:
+            return False
+        if not pending.answer_future.done():
+            pending.answer_future.set_result(answers)
+        return True
+
+    def cancel_pending_questions(self, reason: str = "session closed") -> None:
+        """Cancel all pending AskUserQuestion waiters."""
+        for pending in list(self.pending_questions.values()):
+            if not pending.answer_future.done():
+                pending.answer_future.set_exception(RuntimeError(reason))
+        self.pending_questions.clear()
+
+    def get_pending_question_payloads(self) -> list[dict[str, Any]]:
+        """Return unresolved AskUserQuestion payloads for reconnect snapshot."""
+        return [pending.payload for pending in self.pending_questions.values()]
+
+
 @dataclass
-class ManagedSession:
+class ManagedSession(PendingQuestionMixin):
     """A managed ClaudeSDKClient session."""
 
     session_id: str  # sdk_session_id（已有會話）或臨時 UUID（新會話等待中）
@@ -144,36 +187,3 @@ class ManagedSession:
     def clear_buffer(self) -> None:
         """Clear message buffer after session completes."""
         self.message_buffer.clear()
-
-    def add_pending_question(self, payload: dict[str, Any]) -> PendingQuestion:
-        """Register a pending AskUserQuestion payload."""
-        question_id = str(payload.get("question_id") or f"aq_{uuid4().hex}")
-        payload["question_id"] = question_id
-        future: asyncio.Future[dict[str, str]] = asyncio.get_running_loop().create_future()
-        pending = PendingQuestion(
-            question_id=question_id,
-            payload=payload,
-            answer_future=future,
-        )
-        self.pending_questions[question_id] = pending
-        return pending
-
-    def resolve_pending_question(self, question_id: str, answers: dict[str, str]) -> bool:
-        """Resolve a pending AskUserQuestion with user answers."""
-        pending = self.pending_questions.pop(question_id, None)
-        if not pending:
-            return False
-        if not pending.answer_future.done():
-            pending.answer_future.set_result(answers)
-        return True
-
-    def cancel_pending_questions(self, reason: str = "session closed") -> None:
-        """Cancel all pending AskUserQuestion waiters."""
-        for pending in list(self.pending_questions.values()):
-            if not pending.answer_future.done():
-                pending.answer_future.set_exception(RuntimeError(reason))
-        self.pending_questions.clear()
-
-    def get_pending_question_payloads(self) -> list[dict[str, Any]]:
-        """Return unresolved AskUserQuestion payloads for reconnect snapshot."""
-        return [pending.payload for pending in self.pending_questions.values()]

@@ -17,9 +17,12 @@ Workflow skills 全部接入：
 - ``generate_script``         ✅ 调用 ScriptGenerator 生成 episode 剧本
 - ``generate_characters``     ✅ 写入 project.json 角色定义
 - ``generate_clues``          ✅ 写入 project.json 线索定义
+- ``generate_character_sheets`` ✅ 批次入隊角色設計圖生成
+- ``generate_clue_sheets``      ✅ 批次入隊道具設計圖生成
 - ``manga_workflow_status``   ✅ 编排状态查询，纯只读
 - ``generate_storyboard``     ✅ 批量入队 storyboard task，等待 worker 完成
 - ``generate_scenes``        ✅ 写入 project.json 場景定义
+- ``generate_scene_sheets``  ✅ 批次入隊場景設計圖生成
 - ``update_character``       ✅ 更新 project.json 角色描述
 - ``update_clue``            ✅ 更新 project.json 道具/线索描述
 - ``update_scene``           ✅ 更新 project.json 場景描述
@@ -57,6 +60,9 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+ApprovalRequester = Callable[[dict[str, Any]], Awaitable[dict[str, str]]]
+
+
 @dataclass(frozen=True)
 class SkillCallContext:
     """传给 skill handler 的 per-call 上下文。
@@ -74,6 +80,7 @@ class SkillCallContext:
     project_manager: ProjectManager
     session_id: str
     user_id: str = "default"
+    approval_requester: ApprovalRequester | None = None
 
 
 SkillHandler = Callable[[SkillCallContext, dict[str, Any]], Awaitable[dict[str, Any]]]
@@ -292,6 +299,20 @@ def _video_payload_from_storyboard_item(item: dict[str, Any]) -> dict[str, Any]:
         payload["duration_seconds"] = duration
 
     return payload
+
+
+def _image_payload_from_backend(raw_backend: Any) -> dict[str, Any]:
+    if not isinstance(raw_backend, str) or not raw_backend.strip():
+        return {}
+    provider, model = _split_video_backend_value(raw_backend.strip())
+    payload = {"image_provider": provider}
+    if model:
+        payload["image_model"] = model
+    return payload
+
+
+def _image_payload_from_lorebook_entity(project: dict[str, Any], entity: dict[str, Any]) -> dict[str, Any]:
+    return _image_payload_from_backend(entity.get("image_backend") or project.get("image_backend"))
 
 
 def _apply_video_settings_to_item(
@@ -929,6 +950,101 @@ async def _handle_generate_scenes(ctx: SkillCallContext, args: dict[str, Any]) -
 
 
 # ---------------------------------------------------------------------------
+# Skill: generate_*_sheets
+# ---------------------------------------------------------------------------
+
+GENERATE_CHARACTER_SHEETS_DECL = FunctionDeclaration(
+    name="generate_character_sheets",
+    description=(
+        "為角色定義批次生成角色設計圖，寫入 characters/{name}.png。"
+        "省略 names 時只生成缺少 character_sheet 的角色；force=true 時可重生已存在圖片。"
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "names": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "可選；只生成指定角色。省略則生成所有缺少設計圖的角色。",
+            },
+            "force": {"type": "boolean", "description": "是否重生已有角色設計圖，預設 false"},
+        },
+    },
+)
+
+GENERATE_CLUE_SHEETS_DECL = FunctionDeclaration(
+    name="generate_clue_sheets",
+    description=(
+        "為道具/線索定義批次生成設計圖，寫入 clues/{name}.png。"
+        "省略 names 時只生成缺少 clue_sheet 的道具；force=true 時可重生已存在圖片。"
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "names": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "可選；只生成指定道具。省略則生成所有缺少設計圖的道具。",
+            },
+            "force": {"type": "boolean", "description": "是否重生已有道具設計圖，預設 false"},
+        },
+    },
+)
+
+GENERATE_SCENE_SHEETS_DECL = FunctionDeclaration(
+    name="generate_scene_sheets",
+    description=(
+        "為專案場景定義批次生成場景設計圖，寫入 scenes/{name}.png。"
+        "省略 names 時只生成缺少 scene_sheet 的場景；force=true 時可重生已存在圖片。"
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "names": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "可選；只生成指定場景。省略則生成所有缺少設計圖的場景。",
+            },
+            "force": {"type": "boolean", "description": "是否重生已有場景設計圖，預設 false"},
+        },
+    },
+)
+
+
+async def _handle_generate_character_sheets(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
+    return await _enqueue_lorebook_sheets(
+        ctx,
+        args,
+        task_type="character",
+        media_type="image",
+        bucket="characters",
+        sheet_field="character_sheet",
+    )
+
+
+async def _handle_generate_clue_sheets(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
+    return await _enqueue_lorebook_sheets(
+        ctx,
+        args,
+        task_type="clue",
+        media_type="image",
+        bucket="clues",
+        sheet_field="clue_sheet",
+    )
+
+
+async def _handle_generate_scene_sheets(ctx: SkillCallContext, args: dict[str, Any]) -> dict[str, Any]:
+    return await _enqueue_lorebook_sheets(
+        ctx,
+        args,
+        task_type="scene",
+        media_type="image",
+        bucket="scenes",
+        sheet_field="scene_sheet",
+    )
+
+
+# ---------------------------------------------------------------------------
 # Skill: update_character
 # ---------------------------------------------------------------------------
 
@@ -1383,6 +1499,7 @@ async def _handle_manga_workflow_status(ctx: SkillCallContext, args: dict[str, A
 
     characters = project.get("characters") or {}
     clues = project.get("clues") or {}
+    scenes = project.get("scenes") or {}
     episodes = project.get("episodes") or []
     project_path = ctx.project_manager.get_project_path(ctx.project_name)
 
@@ -1459,14 +1576,23 @@ async def _handle_manga_workflow_status(ctx: SkillCallContext, args: dict[str, A
     missing_clue_sheets = [
         n for n, c in clues.items() if (c or {}).get("importance") == "major" and not (c or {}).get("clue_sheet")
     ]
-    if missing_char_sheets or missing_clue_sheets:
+    missing_scene_sheets = [n for n, s in scenes.items() if not (s or {}).get("scene_sheet")]
+    if missing_char_sheets or missing_clue_sheets or missing_scene_sheets:
+        next_actions: list[str] = []
+        if missing_char_sheets:
+            next_actions.append("generate_character_sheets")
+        if missing_clue_sheets:
+            next_actions.append("generate_clue_sheets")
+        if missing_scene_sheets:
+            next_actions.append("generate_scene_sheets")
         return {
             "stage": "5_6",
-            "stage_name": "角色/主要线索图片生成",
-            "next_action": "通过前端「生成」按钮或 generation queue 触发",
+            "stage_name": "角色/主要線索/場景圖片生成",
+            "next_action": f"詢問使用者確認後調用 {' / '.join(next_actions)}",
             "context": {
                 "missing_character_sheets": missing_char_sheets,
                 "missing_clue_sheets": missing_clue_sheets,
+                "missing_scene_sheets": missing_scene_sheets,
             },
         }
 
@@ -1811,6 +1937,77 @@ async def _enqueue_episode_assets(
     }
 
 
+async def _enqueue_lorebook_sheets(
+    ctx: SkillCallContext,
+    args: dict[str, Any],
+    *,
+    task_type: str,
+    media_type: str,
+    bucket: str,
+    sheet_field: str,
+) -> dict[str, Any]:
+    """批次入隊角色 / 道具 / 場景設計圖生成。"""
+    from lib.generation_queue_client import BatchTaskSpec, _batch_enqueue_and_wait
+
+    raw_names = args.get("names")
+    force = bool(args.get("force", False))
+    if raw_names is not None and not isinstance(raw_names, list):
+        return {"error": "invalid_argument", "reason": "names must be an array when provided"}
+
+    try:
+        project = ctx.project_manager.load_project(ctx.project_name)
+    except FileNotFoundError:
+        return {"error": "project_not_found", "reason": ctx.project_name}
+
+    entities = project.get(bucket)
+    if not isinstance(entities, dict) or not entities:
+        return {"error": "missing_prerequisite", "reason": f"project.json has no {bucket}"}
+
+    requested = [str(name) for name in raw_names] if raw_names is not None else list(entities.keys())
+    specs: list[BatchTaskSpec] = []
+    skipped: list[dict[str, str]] = []
+
+    for name in requested:
+        entity = entities.get(name)
+        if not isinstance(entity, dict):
+            skipped.append({"resource_id": name, "reason": "not_found"})
+            continue
+        if not force and entity.get(sheet_field):
+            skipped.append({"resource_id": name, "reason": "already_exists"})
+            continue
+
+        specs.append(
+            BatchTaskSpec(
+                task_type=task_type,
+                media_type=media_type,
+                resource_id=name,
+                payload={
+                    "prompt": str(entity.get("description") or ""),
+                    "from_agent": True,
+                    **_image_payload_from_lorebook_entity(project, entity),
+                },
+                source="agent",
+            )
+        )
+
+    if not specs:
+        return {"error": "nothing_to_enqueue", "task_type": task_type, "skipped": skipped}
+
+    try:
+        successes, failures = await _batch_enqueue_and_wait(ctx.project_name, specs, None, None)
+    except Exception as exc:
+        logger.exception("%s sheet batch enqueue failed for %s", task_type, ctx.project_name)
+        return {"error": "queue_failure", "task_type": task_type, "reason": str(exc)}
+
+    return {
+        "ok": True,
+        "task_type": task_type,
+        "succeeded": [success.resource_id for success in successes],
+        "failed": [{"resource_id": failure.resource_id, "error": failure.error} for failure in failures],
+        "skipped": skipped,
+    }
+
+
 # ---------------------------------------------------------------------------
 # 注册表
 # ---------------------------------------------------------------------------
@@ -1826,6 +2023,9 @@ SKILL_DECLARATIONS: list[FunctionDeclaration] = [
     GENERATE_CHARACTERS_DECL,
     GENERATE_CLUES_DECL,
     GENERATE_SCENES_DECL,
+    GENERATE_CHARACTER_SHEETS_DECL,
+    GENERATE_CLUE_SHEETS_DECL,
+    GENERATE_SCENE_SHEETS_DECL,
     UPDATE_CHARACTER_DECL,
     UPDATE_CLUE_DECL,
     UPDATE_SCENE_DECL,
@@ -1849,6 +2049,9 @@ SKILL_HANDLERS: dict[str, SkillHandler] = {
     "generate_characters": _handle_generate_characters,
     "generate_clues": _handle_generate_clues,
     "generate_scenes": _handle_generate_scenes,
+    "generate_character_sheets": _handle_generate_character_sheets,
+    "generate_clue_sheets": _handle_generate_clue_sheets,
+    "generate_scene_sheets": _handle_generate_scene_sheets,
     "update_character": _handle_update_character,
     "update_clue": _handle_update_clue,
     "update_scene": _handle_update_scene,

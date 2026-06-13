@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -84,6 +84,11 @@ async def _noop_persist(_session_id: str, _message: dict[str, Any]) -> None:
 
 async def _empty_history(_session_id: str) -> list[dict[str, Any]]:
     return []
+
+
+async def _wait_for(predicate: Callable[[], bool]) -> None:
+    while not predicate():
+        await asyncio.sleep(0.01)
 
 
 @pytest.fixture
@@ -329,6 +334,49 @@ def test_project_to_sse_maps_openai_stream_events(provider: OpenAIFullRuntimePro
     assert messages[2]["is_error"] is False
     assert messages[3]["type"] == "assistant"
     assert messages[3]["content"] == [{"type": "text", "text": "讀完"}]
+
+
+@pytest.mark.asyncio
+async def test_request_approval_publishes_pending_question_and_waits_for_answer(
+    provider: OpenAIFullRuntimeProvider,
+) -> None:
+    session_id = "openai-full:" + "9" * 32
+    managed = LiteManagedSession(session_id=session_id, project_name="demo", status="running", persist_callback=None)
+    provider._sessions[session_id] = managed
+
+    payload = {
+        "type": "ask_user_question",
+        "question_id": "approval_1",
+        "questions": [
+            {
+                "header": "確認",
+                "question": "確定要開始生成第 1 集的影片嗎？",
+                "options": [
+                    {"label": "確認生成", "description": "開始執行這個生成任務"},
+                    {"label": "取消", "description": "不要執行這個生成任務"},
+                ],
+                "multiSelect": False,
+                "allowOther": False,
+            }
+        ],
+    }
+
+    approval_task = asyncio.create_task(provider._request_approval(managed, payload))
+    await asyncio.wait_for(_wait_for(lambda: bool(managed.get_pending_question_payloads())), timeout=1)
+
+    assert await provider.get_pending_questions_snapshot(session_id) == [payload]
+    assert managed.message_buffer[-1] == payload
+
+    await provider.answer_user_question(
+        session_id,
+        "approval_1",
+        {"確定要開始生成第 1 集的影片嗎？": "確認生成"},
+    )
+
+    assert await asyncio.wait_for(approval_task, timeout=1) == {
+        "確定要開始生成第 1 集的影片嗎？": "確認生成",
+    }
+    assert await provider.get_pending_questions_snapshot(session_id) == []
 
 
 @pytest.mark.asyncio

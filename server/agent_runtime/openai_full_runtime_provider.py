@@ -167,6 +167,7 @@ class OpenAIFullRuntimeProvider(BaseTextBackendRuntimeProvider):
             sandbox=ToolSandbox(project_root=project_root, project_name=managed.project_name),
             project_manager=self._project_manager,
             session_id=managed.session_id,
+            approval_requester=lambda payload: self._request_approval(managed, payload),
         )
 
     async def _build_openai_input(self, managed: LiteManagedSession) -> list[dict[str, Any]]:
