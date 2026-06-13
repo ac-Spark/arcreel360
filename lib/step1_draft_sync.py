@@ -261,7 +261,7 @@ def apply_draft_rows_to_items(rows: list[dict], items, mode: DraftMode, *, only_
     ``only_if_empty=True`` 時僅在目標欄位為空才回填（供生成後回填、不覆蓋模型輸出）；否則內容不同即覆蓋。
     回傳實際變更的欄位數。
     """
-    is_narration = (mode.segment_field == "novel_text")
+    is_narration = mode.segment_field == "novel_text"
 
     def get_val_map(field_key: str) -> dict[str, str]:
         val_map = {}
@@ -419,7 +419,9 @@ def sync_script_to_draft_file(project_path: Path, episode: int, content_mode: st
             # Segment break
             seg_break = "是" if item.get("segment_break") else "否"
 
-            lines.append(f"| {scene_id} | {scene_desc} | {narration} | {dialogue_str} | {chars_str} | {clues_str} | {scene_in_scene} | {duration} | {seg_break} |")
+            lines.append(
+                f"| {scene_id} | {scene_desc} | {narration} | {dialogue_str} | {chars_str} | {clues_str} | {scene_in_scene} | {duration} | {seg_break} |"
+            )
 
     new_md = "\n".join(lines) + "\n"
     draft_file.write_text(new_md, encoding="utf-8")

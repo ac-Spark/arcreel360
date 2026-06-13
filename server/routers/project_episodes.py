@@ -191,6 +191,7 @@ def _append_empty_episode_item(name: str, episode: int, expected_mode: str, list
         manager.save_script(name, script, filename)
         # Rebuild/update the draft markdown from JSON
         from lib.step1_draft_sync import sync_script_to_draft_file
+
         sync_script_to_draft_file(manager.get_project_path(name), episode, expected_mode, manager)
     singular = "segment" if list_key == "segments" else "scene"
     return {singular: new_item, f"{list_key}_count": len(items)}

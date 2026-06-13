@@ -82,6 +82,7 @@ class ScriptGenerator:
         try:
             from lib.project_manager import ProjectManager
             from lib.step1_draft_sync import sync_script_to_draft_file
+
             pm = ProjectManager(self.project_path.parent)
             sync_script_to_draft_file(self.project_path, episode, self.content_mode, pm)
         except Exception as e:
@@ -170,6 +171,7 @@ class ScriptGenerator:
         try:
             from lib.project_manager import ProjectManager
             from lib.step1_draft_sync import sync_script_to_draft_file
+
             pm = ProjectManager(self.project_path.parent)
             sync_script_to_draft_file(self.project_path, episode, self.content_mode, pm)
         except Exception as e:

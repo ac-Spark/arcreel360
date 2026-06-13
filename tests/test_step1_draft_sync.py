@@ -225,6 +225,7 @@ def test_sync_segment_drama_nine_column_overwrites_description(tmp_path):
 
 def test_sync_script_to_draft_file_narration(tmp_path):
     from lib.step1_draft_sync import sync_script_to_draft_file
+
     manager = MagicMock()
     manager.load_script.return_value = {
         "content_mode": "narration",
@@ -234,9 +235,9 @@ def test_sync_script_to_draft_file_narration(tmp_path):
                 "novel_text": "測試原文1",
                 "duration_seconds": 6,
                 "video_prompt": {"dialogue": [{"speaker": "A", "line": "哈囉"}]},
-                "segment_break": True
+                "segment_break": True,
             }
-        ]
+        ],
     }
 
     # Mock manager.get_project_path
@@ -255,6 +256,7 @@ def test_sync_script_to_draft_file_narration(tmp_path):
 
 def test_sync_script_to_draft_file_drama(tmp_path):
     from lib.step1_draft_sync import sync_script_to_draft_file
+
     manager = MagicMock()
     manager.load_script.return_value = {
         "content_mode": "drama",
@@ -268,9 +270,9 @@ def test_sync_script_to_draft_file_drama(tmp_path):
                 "clues_in_scene": ["釣竿"],
                 "scene_in_scene": "岩岸",
                 "duration_seconds": 8,
-                "segment_break": True
+                "segment_break": True,
             }
-        ]
+        ],
     }
 
     manager.get_project_path.return_value = tmp_path

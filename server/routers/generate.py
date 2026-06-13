@@ -943,8 +943,7 @@ _HELPER_PROMPT_DANGLING_SUFFIXES = ("，", "、", "：", ":", "；", ";", "（",
 _HELPER_LOREBOOK_MAX_ENTRIES = 30
 _HELPER_LOREBOOK_DESC_MAX_CHARS = 220
 _HELPER_SOURCE_PRIORITY_RULE = (
-    "請優先依據「基本描述/分鏡旁白內容」中的最新原文或目前片段內容；"
-    "設定集只用於補足角色、道具、場景與風格一致性。"
+    "請優先依據「基本描述/分鏡旁白內容」中的最新原文或目前片段內容；設定集只用於補足角色、道具、場景與風格一致性。"
 )
 _HELPER_TYPE_LABELS = {
     "character": "角色",
